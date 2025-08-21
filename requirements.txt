@@ -1,0 +1,6 @@
+# v1.0
+# Các thư viện cần thiết cho dự án Novel Translator
+
+google-generativeai
+chardet
+tqdm

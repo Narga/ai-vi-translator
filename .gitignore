@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+.manifest
+.python-version
+*.egg-info/
+.installed.cfg
+*.egg
+*.log
+*.sqlite3
+
+# Cache & tooling
+.cache/
+cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.ipynb_checkpoints/
+
+# Project I/O folders: keep folders, ignore contents
+input/*
+!input/.gitkeep
+
+output/*
+!output/.gitkeep
+
+
+# System junk
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Editors/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env & secrets
+.env
+.env.*
+*.pem
+*.key
