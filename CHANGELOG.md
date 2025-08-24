@@ -1,0 +1,74 @@
+# Changelog - Lịch sử thay đổi
+
+Tất cả các thay đổi quan trọng của dự án sẽ được ghi lại ở đây.
+
+
+## [1.1.1] - Bản nâng cấp Lõi và Tăng cường Chất lượng
+
+Phiên bản này tập trung vào việc hoàn thiện quy trình dịch thuật, tăng cường độ tin cậy và đưa vào các cơ chế đảm bảo chất lượng bản dịch một cách tự động.
+
+### ✨ Tính năng mới (Features)
+
+-   **Hỗ trợ dịch nguyên thư mục truyện**:
+    -   Chương trình giờ đây có thể nhận một thư mục con trong `input` làm nguồn dịch.
+    -   Tự động đọc và dịch tất cả các file `.txt` bên trong thư mục đó theo thứ tự tên file.
+-   **Tối ưu hóa logic chia chunk**:
+    -   Khi xử lý một thư mục, các file chương có dung lượng nhỏ hơn `CHUNK_SIZE` sẽ được coi là một chunk duy nhất để giữ ngữ cảnh tốt hơn.
+-   **Triển khai thuật toán "Sửa lỗi Lặp lại"**:
+    -   Tự động quét bản dịch sau mỗi lần dịch để tìm ký tự tiếng Trung còn sót.
+    -   Nếu phát hiện lỗi, chương trình sẽ gửi lại chính bản dịch lỗi đó cho AI và yêu cầu sửa lại một cách lặp đi lặp lại cho đến khi chunk hoàn toàn "sạch".
+-   **Tích hợp bước "Kiểm tra sự nhất quán"**:
+    -   Sau khi dịch xong, chương trình thực hiện một bước cuối cùng: rà soát lại toàn bộ bản dịch và đối chiếu với file ghi chú (`notes.txt`) để đảm bảo tên riêng, thuật ngữ được thống nhất toàn truyện.
+    -   Tính năng này có thể được bật/tắt trong `config.ini`.
+-   **Hệ thống "Ghi chú cho AI" (`notes.txt`)**:
+    -   Cho phép người dùng tạo một file `notes.txt` chứa danh sách tên riêng, thuật ngữ... cho từng truyện.
+    -   Chương trình sẽ tự động nạp file ghi chú này và đưa vào prompt để AI tuân thủ, tăng cường tính nhất quán.
+-   **Số luồng dịch bằng số API key**:
+    -   Loại bỏ cấu hình `MAX_WORKERS`. Số luồng dịch song song được tự động đặt bằng số lượng API key cung cấp để tối ưu hóa việc sử dụng.
+
+### 🐛 Sửa lỗi (Bug Fixes)
+
+-   **Sửa lỗi `re.PatternError`**: Khắc phục lỗi nghiêm trọng khi biên dịch biểu thức chính quy (regex) để tìm ký tự tiếng Trung.
+-   **Sửa lỗi `NameError` và `TypeError`**: Khắc phục các lỗi liên quan đến việc thiếu import thư viện và truyền sai tham số cho hàm dịch.
+-   **Ổn định quy trình**: Loại bỏ các bước xác nhận và đếm ký tự không cần thiết ở đầu chương trình để quy trình chạy mượt mà hơn.
+
+
+## [1.1] - (Bản ổn định hiện tại)
+
+Đây là phiên bản được tinh chỉnh và bổ sung các tính năng cốt lõi để đảm bảo chất lượng và sự linh hoạt.
+
+### ✨ Tính năng mới (Features)
+
+-   **Triển khai thuật toán "Sửa lỗi Lặp lại"**:
+    -   Tự động quét bản dịch sau mỗi lần dịch.
+    -   Nếu phát hiện còn sót ký tự tiếng Trung, chương trình sẽ gửi lại chính bản dịch lỗi đó cho AI và yêu cầu sửa lại.
+    -   Quá trình này lặp lại cho đến khi chunk hoàn toàn "sạch", được kiểm soát bởi tham số `MAX_REFINEMENT_ATTEMPTS` trong `config.ini`.
+-   **Hỗ trợ dịch nguyên thư mục truyện**:
+    -   Chương trình giờ đây có thể nhận một thư mục con trong `input` làm nguồn dịch.
+    -   Tự động đọc và dịch tất cả các file `.txt` bên trong thư mục đó theo thứ tự tên file.
+-   **Tối ưu hóa logic chia chunk**:
+    -   Khi xử lý một thư mục, các file chương có dung lượng nhỏ hơn `CHUNK_SIZE` sẽ được coi là một chunk duy nhất, giúp giữ ngữ cảnh tốt hơn.
+-   **Số luồng dịch bằng số API key**:
+    -   Loại bỏ cấu hình `MAX_WORKERS`. Số luồng dịch song song được tự động đặt bằng số lượng API key cung cấp để tối ưu hóa việc sử dụng.
+
+### 🐛 Sửa lỗi (Bug Fixes)
+
+-   **Sửa lỗi `re.PatternError`**: Khắc phục lỗi nghiêm trọng khi biên dịch biểu thức chính quy (regex) để tìm ký tự tiếng Trung trong `translator.py`.
+-   **Ổn định quy trình**: Loại bỏ các bước xác nhận và đếm ký tự không cần thiết ở đầu chương trình để quy trình chạy mượt mà hơn.
+
+## [1.0] - Phiên bản Module hóa Đầu tiên
+
+Phiên bản này đánh dấu bước chuyển đổi lớn từ một script đơn lẻ thành một dự án có cấu trúc module hóa rõ ràng.
+
+### ✨ Tính năng mới (Features)
+
+-   **Tái cấu trúc thành Module**: Toàn bộ mã nguồn được chia thành các file chức năng: `main.py`, `translator.py`, `smart_chunker.py`, `file_writer.py`.
+-   **Cấu hình ngoài**: Tách toàn bộ cài đặt ra `config.ini` và "bộ não" AI ra `prompts.ini`.
+-   **Triển khai tính năng Resume**: Xây dựng cơ chế lưu trạng thái vào thư mục `progress`, cho phép tiếp tục công việc nếu bị gián đoạn.
+-   **Quản lý API và Quota**: Xây dựng `ApiManager` để xoay vòng API key và tự động xử lý khi một key hết quota.
+-   **Hệ thống Logging**: Thay thế toàn bộ lệnh `print()` bằng module `logging` chuyên nghiệp, ghi lại mọi hoạt động vào file log.
+
+### 🐛 Sửa lỗi (Bug Fixes)
+
+-   **Sửa lỗi `configparser`**: Khắc phục các lỗi liên quan đến ký tự đặc biệt (`%`) và việc đọc giá trị nhiều dòng trong file `.ini`.
+-   **Sửa lỗi đọc file ẩn**: Thêm logic để bỏ qua các file hệ thống như `.gitkeep` trong thư mục `input`.
