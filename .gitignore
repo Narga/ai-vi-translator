@@ -47,6 +47,9 @@ input/*
 output/*
 !output/.gitkeep
 
+progress/*
+!progress/.gitkeep
+
 
 # System junk
 .DS_Store
