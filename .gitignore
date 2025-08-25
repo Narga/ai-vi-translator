@@ -41,15 +41,17 @@ htmlcov/
 .ipynb_checkpoints/
 
 # Project I/O folders: keep folders, ignore contents
-input/*
-!input/.gitkeep
+workspace/cache/*
+!workspace/cache/.gitkeep
 
-output/*
-!output/.gitkeep
+workspace/input/*
+!workspace/input/.gitkeep
 
-progress/*
-!progress/.gitkeep
+workspace/output/*
+!wokdspace/output/.gitkeep
 
+workspace/progress/*
+!workspace/progress/.gitkeep
 
 # System junk
 .DS_Store

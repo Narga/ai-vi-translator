@@ -1,6 +1,7 @@
-# main.py - v1.2
+# main.py - v1.2.2
 # Tác giả: Gemini & Narga
-# Cập nhật: Tích hợp và gọi thuật toán cắt file thông minh mới.
+# Cập nhật: Thay đổi logic nạp prompt cho notes.txt.
+# Loại bỏ tham số create_combined không còn sử dụng.
 
 import os, sys, configparser, json, shutil, logging
 from datetime import datetime
@@ -14,7 +15,7 @@ STATE_FILE = "translation_state.json"
 
 def setup_logging(progress_dir: Path):
     """Thiết lập hệ thống logging để ghi lại mọi hoạt động ra file và console."""
-    progress_dir.mkdir(exist_ok=True)
+    progress_dir.mkdir(exist_ok=True, parents=True)
     log_filename = datetime.now().strftime('%Y-%m-%d_%H-%M') + '_translator.log'
     log_filepath = progress_dir / log_filename
     for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
@@ -26,7 +27,10 @@ def setup_logging(progress_dir: Path):
     logging.info(f"File log được lưu tại: {log_filepath}")
 
 def load_prompts_from_files(config: configparser.RawConfigParser, story_specific_notes: str) -> dict:
-    """Nạp nội dung từ các file prompt được định nghĩa trong config.ini."""
+    """
+    Nạp nội dung từ các file prompt được định nghĩa trong config.ini.
+    Ghi chú (notes) chỉ được chèn vào prompt dịch chính và dịch lại.
+    """
     prompts = {}
     prompt_dir = Path('prompts')
     prompt_keys = {
@@ -39,9 +43,13 @@ def load_prompts_from_files(config: configparser.RawConfigParser, story_specific
         file_path = prompt_dir / filename
         if file_path.exists():
             content = file_path.read_text(encoding='utf-8').strip()
-            if '{custom_notes}' in content: prompts[key] = content.format(custom_notes=story_specific_notes)
-            elif '{glossary}' in content: prompts[key] = content.format(glossary=story_specific_notes)
-            else: prompts[key] = content
+            # Chỉ chèn ghi chú vào prompt dịch chính và dịch lại
+            if key in ['main', 'retranslate']:
+                prompts[key] = content.format(custom_notes=story_specific_notes)
+            elif key == 'consistency':
+                prompts[key] = content.format(glossary=story_specific_notes)
+            else:
+                prompts[key] = content
             logging.info(f"✅ Đã nạp prompt '{key}' từ file: {filename}")
         else:
             prompts[key] = ""
@@ -80,11 +88,16 @@ def run_consistency_check(progress_dir: Path, api_manager, cache_manager, config
 
 def main():
     """Hàm chính điều phối toàn bộ quy trình."""
-    progress_dir = Path('workspace/progress'); setup_logging(progress_dir)
-    logging.info("🚀 Bắt đầu chương trình Dịch Thuật Tiểu Thuyết v1.2 🚀")
-    
     try:
         config = load_config()
+        input_dir = Path(config.get('DIRECTORIES', 'INPUT_DIR'))
+        output_dir_base = Path(config.get('DIRECTORIES', 'OUTPUT_DIR'))
+        cache_dir = Path(config.get('DIRECTORIES', 'CACHE_DIR'))
+        progress_dir = Path(config.get('DIRECTORIES', 'PROGRESS_DIR'))
+
+        for dir_path in [input_dir, output_dir_base, cache_dir, progress_dir]:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            
         config_params = {
             'api_keys': [key.strip() for key in config.get('API', 'GEMINI_API_KEYS').split(',') if key.strip()],
             'model_name': config.get('MODEL', 'MODEL'), 'input_lang': config.get('INPUT', 'INPUT_LANG'),
@@ -96,14 +109,15 @@ def main():
             'min_length_ratio': config.getfloat('PROCESSING', 'MIN_LENGTH_RATIO'),
             'max_length_ratio': config.getfloat('PROCESSING', 'MAX_LENGTH_RATIO'),
             'enable_consistency_check': config.getboolean('PROCESSING', 'ENABLE_CONSISTENCY_CHECK'),
-            'enable_cache': config.getboolean('CACHE', 'ENABLE_CACHE'), 
-            'cache_dir': config.get('CACHE', 'CACHE_DIR'),
-            'output_encoding': config.get('OUTPUT', 'ENCODING'), 
-            'create_combined': config.getboolean('OUTPUT', 'CREATE_COMBINED')
+            'enable_cache': config.getboolean('CACHE', 'ENABLE_CACHE'),
+            'output_encoding': config.get('OUTPUT', 'ENCODING')
         }
     except Exception as e:
-        logging.critical(f"❌ Lỗi nghiêm trọng khi đọc file config.ini: {e}"); sys.exit(1)
-
+        print(f"CRITICAL: Lỗi nghiêm trọng khi đọc file config.ini: {e}"); sys.exit(1)
+    
+    setup_logging(progress_dir)
+    logging.info("🚀 Bắt đầu chương trình Dịch Thuật Tiểu Thuyết v1.2.2 🚀")
+    
     if not config_params['api_keys']:
         logging.critical("❌ Lỗi: Không có API key nào được cung cấp trong config.ini."); sys.exit(1)
     config_params['max_workers'] = len(config_params['api_keys'])
@@ -128,13 +142,10 @@ def main():
     
     if not resume_mode:
         shutil.rmtree(progress_dir, ignore_errors=True); setup_logging(progress_dir)
-        input_dir = Path('input')
         items_in_input = [f for f in input_dir.iterdir() if not f.name.startswith('.')]
-        if not items_in_input: logging.warning("📁 Không tìm thấy file hay thư mục nào trong thư mục 'input'."); sys.exit(0)
-        
+        if not items_in_input: logging.warning(f"📁 Không tìm thấy file hay thư mục nào trong thư mục '{input_dir}'."); sys.exit(0)
         target_path = items_in_input[0]
         all_chunks = []
-        
         if target_path.is_file():
             base_filename = target_path.stem
             original_text = smart_chunker.read_and_detect_encoding(str(target_path))
@@ -155,15 +166,13 @@ def main():
             json.dump({"base_filename": base_filename, "total_chunks": len(all_chunks),
                        "completed_indices": [], "all_chunks": all_chunks}, f, ensure_ascii=False, indent=2)
 
-    # Nạp Ghi chú và Prompts
     notes_filename = config.get('PROMPTS', 'story_notes_file', fallback='notes.txt')
-    notes_path = Path('input') / base_filename / notes_filename if (Path('input') / base_filename).is_dir() else Path('prompts') / notes_filename
+    notes_path = input_dir / base_filename / notes_filename if (input_dir / base_filename).is_dir() else Path('prompts') / notes_filename
     story_notes = "Không có ghi chú đặc biệt."
     if notes_path.exists():
         story_notes_content = notes_path.read_text(encoding='utf-8').strip()
         if story_notes_content:
-            story_notes = story_notes_content
-            logging.info(f"📖 Đã nạp ghi chú cho truyện từ: {notes_path}")
+            story_notes = story_notes_content; logging.info(f"📖 Đã nạp ghi chú cho truyện từ: {notes_path}")
     else:
         logging.info(f"ℹ️ Không tìm thấy file ghi chú '{notes_filename}'.")
     
@@ -176,11 +185,9 @@ def main():
         if prompts[key] and '{language_name}' in prompts[key]: 
             prompts[key] = prompts[key].format(language_name=language_name)
 
-    # Bắt đầu quá trình dịch
     if chunks_to_process:
         api_manager = translator.ApiManager(config_params['api_keys'])
-        cache_manager = translator.TranslationCache(config_params['cache_dir'], config_params['enable_cache'])
-        logging.info(f"🌐 Bắt đầu dịch {len(chunks_to_process)} chunk...")
+        cache_manager = translator.TranslationCache(str(cache_dir), config_params['enable_cache'])
         with ThreadPoolExecutor(max_workers=config_params['max_workers']) as executor:
             future_to_index = {
                 executor.submit(
@@ -201,28 +208,45 @@ def main():
                             f.seek(0); json.dump(state, f, ensure_ascii=False, indent=2); f.truncate()
                         progress.set_postfix_str(f"Chunk {index + 1} ✅")
                     elif status == "all_keys_failed":
-                        logging.critical("🚨 Tất cả API key đã hết quota. Dừng chương trình."); executor.shutdown(wait=False, cancel_futures=True); break
-                    else: # "failed"
-                        logging.error(f"Chunk {index + 1} thất bại, đã lưu bản dịch lỗi."); 
+                        logging.critical("🚨 Tất cả API key đã hết quota."); executor.shutdown(wait=False, cancel_futures=True); break
+                    else: 
+                        logging.error(f"Chunk {index + 1} thất bại."); 
                         file_writer.save_progress_chunk(result, index, str(progress_dir), config_params['output_encoding'])
                         progress.set_postfix_str(f"Chunk {index + 1} ❌")
                 except Exception as exc:
                     logging.error(f"Lỗi khi xử lý chunk {index + 1}: {exc}"); progress.set_postfix_str(f"Chunk {index + 1} ❌")
     
-    # Chạy bước kiểm tra sự nhất quán sau khi dịch xong
     if config_params['enable_consistency_check'] and story_notes != "Không có ghi chú đặc biệt.":
         api_manager = translator.ApiManager(config_params['api_keys'])
-        cache_manager = translator.TranslationCache(config_params['cache_dir'], config_params['enable_cache'])
+        cache_manager = translator.TranslationCache(str(cache_dir), config_params['enable_cache'])
         run_consistency_check(progress_dir, api_manager, cache_manager, config_params, prompts)
     else:
-        logging.info("ℹ️ Bỏ qua bước kiểm tra sự nhất quán (đã tắt hoặc không có file ghi chú).")
+        logging.info("ℹ️ Bỏ qua bước kiểm tra sự nhất quán.")
 
-    # Ghép file và hoàn tất
-    output_dir = Path('output') / base_filename
-    file_writer.assemble_final_files(progress_dir=str(progress_dir), output_dir=str(output_dir), base_filename=base_filename,
-        encoding=config_params['output_encoding'], create_combined=config_params['create_combined'])
+    output_dir = output_dir_base / base_filename
+    file_writer.assemble_final_files(progress_dir=str(progress_dir), output_dir=str(output_dir),
+        encoding=config_params['output_encoding'])
     
-    logging.info("🧹 Dọn dẹp file tạm..."); shutil.rmtree(progress_dir, ignore_errors=True)
+    logging.info("🧹 Bắt đầu dọn dẹp và lưu trữ cuối cùng...")
+    try:
+        cache_files = [f for f in cache_dir.iterdir() if f.is_file()]
+        if cache_files:
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M')
+            archive_dir = cache_dir / f"bin_{timestamp}"
+            archive_dir.mkdir()
+            for f in cache_files:
+                shutil.move(str(f), str(archive_dir))
+            logging.info(f"📦 Đã lưu trữ {len(cache_files)} file cache vào '{archive_dir.name}'")
+    except Exception as e:
+        logging.warning(f"⚠️ Lỗi khi lưu trữ cache: {e}")
+    
+    if not Path(output_dir / 'parts').exists():
+         try:
+            shutil.rmtree(progress_dir)
+            logging.info(f"🗑️ Đã xóa thư mục tạm '{progress_dir}'.")
+         except Exception as e:
+            logging.warning(f"⚠️ Lỗi khi xóa thư mục tạm '{progress_dir}': {e}")
+
     logging.info("🎉 Dịch thuật hoàn tất! 🎉")
 
 if __name__ == '__main__':

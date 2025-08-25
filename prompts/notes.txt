@@ -5,3 +5,12 @@ Dưới đây là danh sách các tên riêng và thuật ngữ quan trọng. B�
 - Nhân vật nam chính tên là La Nhận, thống nhất tên trong bản dịch
 - Nhân vật nữ Mộc Đại khi nói về Hạng Tư Lan thì dùng bà ta chứ không dùng cô ta
 - Căn cứ vào tình huống, tuổi tác và mối quan hệ để sử dụng đại từ nhân xưng, phiếm chỉ thích hợp.
+- thần côn là tên riêng của một nhân vật, cần viết hoa thành Thần Côn
+
+# Đặt file này vào thư mục truyện của bạn và tùy chỉnh nội dung.
+# Nếu không có ghi chú nào, hãy để trống file này.
+
+Dưới đây là danh sách các tên riêng và thuật ngữ quan trọng. BẠN BẮT BUỘC PHẢI tuân thủ các bản dịch này để đảm bảo tính nhất quán:
+- 小师父 = Tiểu Sư Phụ
+- La Nhẫn = La Nhận
+- thần côn = Thần Côn

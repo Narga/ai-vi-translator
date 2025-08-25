@@ -2,6 +2,36 @@
 
 Tất cả các thay đổi quan trọng của dự án sẽ được ghi lại ở đây.
 
+## [1.2.2] - Tối ưu hóa Quy trình Ghi chú và Đầu ra
+
+### ✨ Cải tiến (Enhancements)
+
+* **Tối ưu hóa quy trình Ghi chú (`notes.txt`):**
+    * Ghi chú cho truyện giờ đây được đưa trực tiếp vào prompt dịch chính (`01-main.txt`) và prompt dịch lại (`02-retranslate.txt`).
+    * Điều này giúp AI có được ngữ cảnh về tên riêng và thuật ngữ ngay từ đầu, tăng cường tính nhất quán và giảm thiểu việc phải sửa lỗi ở các bước sau.
+    * Ghi chú không còn được đưa vào prompt kiểm tra sự nhất quán cuối cùng.
+
+### ♻️ Thay đổi (Changes)
+
+* **Đơn giản hóa kết quả đầu ra:**
+    * Chương trình giờ đây sẽ chỉ tạo ra **một file duy nhất** chứa toàn bộ bản dịch với tên `[tên_truyện]_dich.txt`.
+    * Đã **loại bỏ hoàn toàn** việc tạo các file chương riêng lẻ (`_chuong_...`) và file giới thiệu (`_gioi_thieu.txt`) không cần thiết.
+* **Tinh gọn Cấu hình:**
+    * Xóa bỏ tùy chọn `CREATE_COMBINED` khỏi `config.ini` vì việc tạo file tổng hợp duy nhất là hành vi mặc định.
+    
+### [1.2.1] - Cải tiến & Tối ưu hóa
+
+* **Tối ưu hóa Cấu trúc Thư mục:**
+    * Tạo thư mục `workspace/` mới để chứa tất cả các thư mục làm việc và dữ liệu tạm thời.
+    * Các thư mục `input`, `output`, `cache`, và `progress` giờ đây sẽ nằm gọn bên trong `workspace/` để giữ cho thư mục gốc của dự án luôn sạch sẽ.
+
+* **Triển khai Lưu trữ Cache (Cache Archiving):**
+    * Sau khi quá trình dịch hoàn tất, các file cache sẽ không bị xóa.
+    * Thay vào đó, chúng sẽ được tự động di chuyển vào một thư mục lưu trữ có đánh dấu thời gian, ví dụ: `workspace/cache/bin_2025-08-25_18-00/`.
+
+* **Lưu trữ các Chunk đã dịch:**
+    * Sau khi ghép các chunk thành file tổng hợp, các file chunk riêng lẻ (trong thư mục `progress`) sẽ không bị xóa.
+    * Chúng sẽ được di chuyển vào thư mục con `parts/` bên trong thư mục kết quả cuối cùng (ví dụ: `workspace/output/[Tên Truyện]/parts/`), giúp bạn dễ dàng đối chiếu và kiểm tra lại sau này.
 
 ## [1.2] - Giải thuật Cắt file Mới
 
