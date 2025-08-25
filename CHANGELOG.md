@@ -3,6 +3,24 @@
 Tất cả các thay đổi quan trọng của dự án sẽ được ghi lại ở đây.
 
 
+## [1.2] - Giải thuật Cắt file Mới
+
+Module `smart_chunker.py` đã được viết lại hoàn toàn để triển khai thuật toán `intelligent_chunking` mới, kết hợp ưu điểm của cả hai phiên bản:
+
+   1. Phát hiện và Đánh dấu Tiêu đề: Trước khi cắt, toàn bộ văn bản sẽ được quét để tìm các tiêu đề chương/hồi. Các tiêu đề này sẽ được đánh dấu bằng định dạng **...** như cũ. Đây là bước ưu tiên hàng đầu.
+
+   2. Cắt đoạn Thông minh theo Ngữ cảnh:
+
+       - Chương trình sẽ tìm điểm cắt "tối ưu" nhất trong một khoảng cho phép (min_chars và max_chars trong config.ini).
+
+       - Ưu tiên cắt ở cuối câu: Các dấu .!?。！？ có trọng số cao nhất.
+
+       - Sau đó đến cuối đoạn: Dấu ngắt đoạn \n\n có ưu tiên cao thứ hai.
+
+       - Các điểm ngắt khác như xuống dòng \n, dấu phẩy, dấu cách... sẽ được xem xét với độ ưu tiên thấp dần.
+
+    3. Hậu xử lý: Sau khi cắt, chương trình sẽ tự động tìm các chunk quá nhỏ (thường là các đoạn ngắn cuối chương) và gộp chúng vào chunk trước đó để đảm bảo các phần dịch luôn đủ ngữ cảnh.
+
 ## [1.1.1] - Bản nâng cấp Lõi và Tăng cường Chất lượng
 
 Phiên bản này tập trung vào việc hoàn thiện quy trình dịch thuật, tăng cường độ tin cậy và đưa vào các cơ chế đảm bảo chất lượng bản dịch một cách tự động.
