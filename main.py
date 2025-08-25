@@ -1,7 +1,6 @@
-# main.py - v1.1
+# main.py - v1.2
 # Tác giả: Gemini & Narga
-# Chức năng: Module chính, điều phối toàn bộ quy trình đọc file,
-# chia chunk, quản lý luồng dịch và ghép file kết quả.
+# Cập nhật: Tích hợp và gọi thuật toán cắt file thông minh mới.
 
 import os, sys, configparser, json, shutil, logging
 from datetime import datetime
@@ -14,18 +13,11 @@ import smart_chunker, translator, file_writer
 STATE_FILE = "translation_state.json"
 
 def setup_logging(progress_dir: Path):
-    """
-    Thiết lập hệ thống logging để ghi lại mọi hoạt động ra file và console.
-    File log sẽ được lưu trong thư mục progress.
-    """
+    """Thiết lập hệ thống logging để ghi lại mọi hoạt động ra file và console."""
     progress_dir.mkdir(exist_ok=True)
     log_filename = datetime.now().strftime('%Y-%m-%d_%H-%M') + '_translator.log'
     log_filepath = progress_dir / log_filename
-    
-    # Xóa các handler cũ để tránh ghi log trùng lặp khi resume
-    for handler in logging.root.handlers[:]:
-        logging.root.removeHandler(handler)
-        
+    for handler in logging.root.handlers[:]: logging.root.removeHandler(handler)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s',
         handlers=[
             logging.FileHandler(log_filepath, encoding='utf-8'),
@@ -34,43 +26,32 @@ def setup_logging(progress_dir: Path):
     logging.info(f"File log được lưu tại: {log_filepath}")
 
 def load_prompts_from_files(config: configparser.RawConfigParser, story_specific_notes: str) -> dict:
-    """
-    Nạp nội dung từ các file prompt được định nghĩa trong config.ini.
-    Tự động chèn các ghi chú riêng của truyện vào những prompt có placeholder.
-    """
+    """Nạp nội dung từ các file prompt được định nghĩa trong config.ini."""
     prompts = {}
     prompt_dir = Path('prompts')
-    
     prompt_keys = {
         'main': config.get('PROMPTS', 'main_prompt_file'),
         'retranslate': config.get('PROMPTS', 'retranslate_prompt_file'),
         'correction': config.get('PROMPTS', 'correction_prompt_file'),
         'consistency': config.get('PROMPTS', 'consistency_check_prompt_file')
     }
-
     for key, filename in prompt_keys.items():
         file_path = prompt_dir / filename
         if file_path.exists():
             content = file_path.read_text(encoding='utf-8').strip()
-            # Chèn ghi chú vào các prompt có placeholder {custom_notes} hoặc {glossary}
-            if '{custom_notes}' in content:
-                prompts[key] = content.format(custom_notes=story_specific_notes)
-            elif '{glossary}' in content:
-                prompts[key] = content.format(glossary=story_specific_notes)
-            else:
-                prompts[key] = content
+            if '{custom_notes}' in content: prompts[key] = content.format(custom_notes=story_specific_notes)
+            elif '{glossary}' in content: prompts[key] = content.format(glossary=story_specific_notes)
+            else: prompts[key] = content
             logging.info(f"✅ Đã nạp prompt '{key}' từ file: {filename}")
         else:
             prompts[key] = ""
             logging.warning(f"⚠️ Không tìm thấy file prompt '{filename}' trong thư mục {prompt_dir}")
-            
     return prompts
 
 def load_config():
     """Đọc file cấu hình config.ini một cách an toàn."""
     config = configparser.RawConfigParser(interpolation=None)
-    if not os.path.exists('config.ini'):
-        raise FileNotFoundError("Lỗi: Không tìm thấy file 'config.ini'.")
+    if not os.path.exists('config.ini'): raise FileNotFoundError("Lỗi: Không tìm thấy file 'config.ini'.")
     config.read('config.ini', encoding='utf-8')
     return config
 
@@ -79,12 +60,8 @@ def get_language_name(lang_code: str) -> str:
     return {"CN": "tiếng Trung", "EN": "tiếng Anh"}.get(lang_code.upper(), "không xác định")
 
 def run_consistency_check(progress_dir: Path, api_manager, cache_manager, config_params: dict, prompts: dict):
-    """
-    Hàm điều phối bước kiểm tra và tinh chỉnh sự nhất quán sau khi dịch.
-    Sử dụng đa luồng để tăng tốc độ xử lý.
-    """
+    """Hàm điều phối bước kiểm tra và tinh chỉnh sự nhất quán sau khi dịch."""
     logging.info("🔬 Bắt đầu bước kiểm tra và tinh chỉnh sự nhất quán...")
-    
     chunk_files = sorted(progress_dir.glob("chunk_*.txt"))
     if not chunk_files:
         logging.warning("Không tìm thấy chunk nào để kiểm tra sự nhất quán.")
@@ -94,48 +71,44 @@ def run_consistency_check(progress_dir: Path, api_manager, cache_manager, config
     for chunk_file in chunk_files:
         tasks.append((
             translator.consistency_check_chunk,
-            (
-                chunk_file, api_manager, cache_manager,
-                prompts, config_params
-            )
+            (chunk_file, api_manager, cache_manager, prompts, config_params)
         ))
-
     with ThreadPoolExecutor(max_workers=config_params['max_workers']) as executor:
-        # Sử dụng map để thực thi và tqdm để hiển thị tiến trình
-        results = list(tqdm(executor.map(lambda p: p[0](*p[1]), tasks), total=len(tasks), desc="🔬 Tinh chỉnh"))
-    
+        list(tqdm(executor.map(lambda p: p[0](*p[1]), tasks), total=len(tasks), desc="🔬 Tinh chỉnh"))
     logging.info("✅ Hoàn tất bước kiểm tra sự nhất quán.")
+
 
 def main():
     """Hàm chính điều phối toàn bộ quy trình."""
-    progress_dir = Path('progress'); setup_logging(progress_dir)
-    logging.info("🚀 Bắt đầu chương trình Dịch Thuật Tiểu Thuyết v1.1 🚀")
+    progress_dir = Path('workspace/progress'); setup_logging(progress_dir)
+    logging.info("🚀 Bắt đầu chương trình Dịch Thuật Tiểu Thuyết v1.2 🚀")
     
     try:
-        # Nạp cấu hình từ file config.ini
         config = load_config()
         config_params = {
             'api_keys': [key.strip() for key in config.get('API', 'GEMINI_API_KEYS').split(',') if key.strip()],
             'model_name': config.get('MODEL', 'MODEL'), 'input_lang': config.get('INPUT', 'INPUT_LANG'),
-            'chunk_size': config.getint('PROCESSING', 'CHUNK_SIZE'), 'temperature': config.getfloat('PROCESSING', 'TEMPERATURE'),
+            'min_chars_per_chunk': config.getint('PROCESSING', 'MIN_CHARS_PER_CHUNK'),
+            'max_chars_per_chunk': config.getint('PROCESSING', 'MAX_CHARS_PER_CHUNK'),
+            'temperature': config.getfloat('PROCESSING', 'TEMPERATURE'),
             'request_delay': config.getfloat('PROCESSING', 'REQUEST_DELAY'),
             'max_refinement_attempts': config.getint('PROCESSING', 'MAX_REFINEMENT_ATTEMPTS'),
             'min_length_ratio': config.getfloat('PROCESSING', 'MIN_LENGTH_RATIO'),
             'max_length_ratio': config.getfloat('PROCESSING', 'MAX_LENGTH_RATIO'),
             'enable_consistency_check': config.getboolean('PROCESSING', 'ENABLE_CONSISTENCY_CHECK'),
-            'enable_cache': config.getboolean('CACHE', 'ENABLE_CACHE'), 'cache_dir': config.get('CACHE', 'CACHE_DIR'),
-            'output_encoding': config.get('OUTPUT', 'ENCODING'), 'create_combined': config.getboolean('OUTPUT', 'CREATE_COMBINED')
+            'enable_cache': config.getboolean('CACHE', 'ENABLE_CACHE'), 
+            'cache_dir': config.get('CACHE', 'CACHE_DIR'),
+            'output_encoding': config.get('OUTPUT', 'ENCODING'), 
+            'create_combined': config.getboolean('OUTPUT', 'CREATE_COMBINED')
         }
     except Exception as e:
         logging.critical(f"❌ Lỗi nghiêm trọng khi đọc file config.ini: {e}"); sys.exit(1)
 
-    # Kiểm tra và thiết lập số luồng dịch
     if not config_params['api_keys']:
         logging.critical("❌ Lỗi: Không có API key nào được cung cấp trong config.ini."); sys.exit(1)
     config_params['max_workers'] = len(config_params['api_keys'])
     logging.info(f"⚙️ Sử dụng {config_params['max_workers']} luồng dịch, tương ứng với số lượng API key.")
 
-    # Kiểm tra trạng thái dịch dang dở để tiếp tục
     state_file_path = progress_dir / STATE_FILE
     chunks_to_process, resume_mode, base_filename = [], False, ""
 
@@ -153,7 +126,6 @@ def main():
         else:
             logging.info("🗑️ Đã hủy phiên dịch cũ. Bắt đầu lại."); shutil.rmtree(progress_dir, ignore_errors=True); setup_logging(progress_dir)
     
-    # Nếu không phải chế độ resume, chuẩn bị cho một phiên dịch mới
     if not resume_mode:
         shutil.rmtree(progress_dir, ignore_errors=True); setup_logging(progress_dir)
         input_dir = Path('input')
@@ -167,16 +139,16 @@ def main():
             base_filename = target_path.stem
             original_text = smart_chunker.read_and_detect_encoding(str(target_path))
             if not original_text or not original_text.strip(): logging.error(f"❌ Nội dung file rỗng."); sys.exit(1)
-            all_chunks = smart_chunker.smart_chunking(original_text, config_params['chunk_size'])
+            all_chunks = smart_chunker.process_text_for_chunking(original_text, config_params['min_chars_per_chunk'], config_params['max_chars_per_chunk'])
         elif target_path.is_dir():
             base_filename = target_path.name
             source_files = sorted(target_path.glob('*.txt'))
             if not source_files: logging.error(f"❌ Không tìm thấy file .txt nào trong thư mục '{target_path.name}'."); sys.exit(1)
             for file_path in source_files:
                 content = smart_chunker.read_and_detect_encoding(str(file_path))
-                if not content or not content.strip(): continue
-                if len(content) <= config_params['chunk_size']: all_chunks.append(content)
-                else: all_chunks.extend(smart_chunker.smart_chunking(content, config_params['chunk_size']))
+                if content and content.strip():
+                    chunks_from_file = smart_chunker.process_text_for_chunking(content, config_params['min_chars_per_chunk'], config_params['max_chars_per_chunk'])
+                    all_chunks.extend(chunks_from_file)
         
         chunks_to_process = list(enumerate(all_chunks))
         with open(state_file_path, 'w', encoding='utf-8') as f:
@@ -201,7 +173,8 @@ def main():
     
     language_name = get_language_name(config_params['input_lang'])
     for key in prompts:
-        if prompts[key]: prompts[key] = prompts[key].format(language_name=language_name)
+        if prompts[key] and '{language_name}' in prompts[key]: 
+            prompts[key] = prompts[key].format(language_name=language_name)
 
     # Bắt đầu quá trình dịch
     if chunks_to_process:
@@ -209,7 +182,6 @@ def main():
         cache_manager = translator.TranslationCache(config_params['cache_dir'], config_params['enable_cache'])
         logging.info(f"🌐 Bắt đầu dịch {len(chunks_to_process)} chunk...")
         with ThreadPoolExecutor(max_workers=config_params['max_workers']) as executor:
-            # Sửa lỗi: Truyền `prompts` vào hàm dịch
             future_to_index = {
                 executor.submit(
                     translator.robust_translate,
