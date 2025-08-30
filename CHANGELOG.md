@@ -1,6 +1,44 @@
 # Changelog - Lịch sử thay đổi
 
-Tất cả các thay đổi quan trọng của dự án sẽ được ghi lại ở đây.
+# [2.0.0] - Phiên bản Tái cấu trúc Lớn
+
+## 🚀 Tái cấu trúc & Tối ưu hóa (Refactoring & Optimizations)
+
+* **Tái cấu trúc mã nguồn sang `src/`:**
+    * Di chuyển toàn bộ các module xử lý lõi (`translator.py`, `smart_chunker.py`, `file_writer.py`) vào thư mục `src/`.
+    * Tách `main.py` thành các module chức năng chuyên biệt:
+        * `src/configuration.py`: Quản lý việc nạp và xử lý tất cả các file cấu hình.
+        * `src/workflow.py`: Chứa toàn bộ logic điều phối quy trình dịch thuật từ đầu đến cuối.
+    * `main.py` giờ đây chỉ còn vai trò là điểm khởi đầu (entry point), giúp cấu trúc dự án cực kỳ gọn gàng, chuyên nghiệp và dễ bảo trì.
+
+## ✨ Cải tiến (Enhancements)
+
+* **Nâng cấp Thuật toán Cắt file:**
+    * Tích hợp hoàn toàn thuật toán `intelligent_chunking` mới do người dùng cung cấp vào module `src/smart_chunker.py`.
+    * Thuật toán mới kết hợp khả năng nhận diện tiêu đề chương và phương pháp cắt đoạn dựa trên ngữ cảnh (trọng số dấu câu), giúp các chunk được chia ra một cách tự nhiên nhất.
+* **Cập nhật Cấu hình Mặc định:**
+    * Bổ sung các comment chi tiết, tỉ mỉ cho từng mục trong `config.ini`.
+
+## ✒️ Chất lượng Mã nguồn
+
+* **Review và Ghi chú Chi tiết:** Toàn bộ mã nguồn đã được rà soát và bổ sung comment chi tiết, chuyên nghiệp theo chuẩn phát hành chính thức, giúp người khác có thể đọc hiểu, bảo trì và nâng cấp trong tương lai.
+
+## [1.2.3] - Tái cấu trúc Lớn và Tối ưu hóa Cấu hình
+
+### ✨ Cải tiến & Tái cấu trúc (Enhancements & Refactoring)
+
+* **Tối ưu hóa Cấu trúc Dự án:**
+    * Tạo thư mục `src/` mới để chứa tất cả các module xử lý lõi (`translator.py`, `file_writer.py`, `smart_chunker.py`).
+    * Thư mục gốc của dự án giờ đây gọn gàng hơn, chỉ chứa các file chính: `main.py`, `README.md`, `CHANGELOG.md`, `config.ini`, và `requirements.txt`.
+
+* **Tái cấu trúc `main.py`:**
+    * `main.py` đã được tinh gọn lại, chỉ còn vai trò là điểm khởi đầu của chương trình.
+    * Toàn bộ logic phức tạp đã được tách ra các module chuyên biệt mới trong `src/`:
+        * `src/config_manager.py`: Chuyên quản lý việc đọc/ghi file `config.ini` và nạp toàn bộ các prompt.
+        * `src/workflow_manager.py`: Chuyên điều phối toàn bộ quy trình dịch thuật (resume, chia chunk, dịch, kiểm tra, ghép file, dọn dẹp).
+
+* **Cập nhật Cấu hình Mặc định:**
+    * File `config.ini` đã được cập nhật với một bộ giá trị mặc định mới, toàn diện và tối ưu hơn, dựa trên các tham số từ phiên bản tham khảo `v13.3.9`.
 
 ## [1.2.2] - Tối ưu hóa Quy trình Ghi chú và Đầu ra
 
@@ -18,7 +56,7 @@ Tất cả các thay đổi quan trọng của dự án sẽ được ghi lại 
     * Đã **loại bỏ hoàn toàn** việc tạo các file chương riêng lẻ (`_chuong_...`) và file giới thiệu (`_gioi_thieu.txt`) không cần thiết.
 * **Tinh gọn Cấu hình:**
     * Xóa bỏ tùy chọn `CREATE_COMBINED` khỏi `config.ini` vì việc tạo file tổng hợp duy nhất là hành vi mặc định.
-    
+
 ### [1.2.1] - Cải tiến & Tối ưu hóa
 
 * **Tối ưu hóa Cấu trúc Thư mục:**
