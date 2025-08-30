@@ -1,5 +1,19 @@
 # Changelog - Lịch sử thay đổi
 
+
+## [2.0.1] - Sửa lỗi Nghiêm trọng và Hoàn thiện Tái cấu trúc
+
+### 🐛 Sửa lỗi (Bug Fixes)
+
+* **Sửa lỗi `ImportError`:** Khắc phục lỗi không nhất quán về tên hàm (`load_prompts`) giữa `workflow.py` và `configuration.py`, đảm bảo module được nạp chính xác.
+* **Sửa lỗi `SyntaxError`:** Sửa các lỗi cú pháp do thiếu dấu ngoặc nhọn `}` trong các chuỗi f-string ở `workflow.py` và `translator.py`.
+* **Sửa lỗi `NameError`:** Bổ sung `from threading import Lock` vào `translator.py` để khắc phục lỗi `name 'Lock' is not defined`.
+
+### ✒️ Chất lượng Mã nguồn (Code Quality)
+
+* **Hoàn thiện Ghi chú:** Rà soát và bổ sung comment chi tiết, chuyên nghiệp cùng docstring đầy đủ cho tất cả các file và hàm trong dự án, đảm bảo mã nguồn rõ ràng, dễ đọc, dễ bảo trì và nâng cấp.
+
+
 # [2.0.0] - Phiên bản Tái cấu trúc Lớn
 
 ## 🚀 Tái cấu trúc & Tối ưu hóa (Refactoring & Optimizations)

@@ -1,7 +1,7 @@
-# src/configuration.py - v2.0.0
+# src/configuration.py - v2.0.1
 # Tác giả: Narga
 # Chức năng: Module quản lý việc nạp và xử lý tất cả các file cấu hình,
-# bao gồm config.ini, prompts, và các file ngữ cảnh.
+# bao gồm config.ini, prompts, và các file ngữ cảnh (ghi chú, văn phong mẫu).
 
 import configparser
 import logging
@@ -54,9 +54,10 @@ def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_f
     Returns:
         Dict[str, str]: Một dictionary chứa nội dung các prompt cuối cùng.
     """
-    # 1. Nạp các file ngữ cảnh
+    # 1. Nạp các file ngữ cảnh (ghi chú và văn phong mẫu)
     def load_context_file(filename_key: str, default_text: str) -> str:
         filename = config_parser.get('PROMPTS', filename_key)
+        # Ưu tiên tìm file trong thư mục của truyện trước
         story_dir_path = dirs['input'] / base_filename if base_filename and (dirs['input'] / base_filename).is_dir() else None
         
         path_to_load = None
@@ -90,15 +91,15 @@ def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_f
         file_path = prompt_dir / filename
         if file_path.exists():
             content = file_path.read_text(encoding='utf-8').strip()
-            # Sử dụng try-except để tránh lỗi nếu prompt không có đủ placeholder
             try:
+                # Thay thế tất cả các placeholder có thể có một cách an toàn
                 prompts[key] = content.format(
                     custom_notes=story_notes,
                     glossary=story_notes,
                     style_sample=style_sample
                 )
             except KeyError:
-                prompts[key] = content # Giữ nguyên nếu không có placeholder
+                prompts[key] = content # Giữ nguyên nếu không có placeholder phù hợp
             logging.info(f"✅ Đã nạp prompt '{key}' từ file: {filename}")
         else:
             prompts[key] = ""
@@ -110,8 +111,9 @@ def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_f
     for key in prompts:
         if prompts[key] and '{language_name}' in prompts[key]: 
             try:
-                prompts[key] = prompts[key].format(language_name=language_name)
+                # Chỉ format placeholder language_name, bỏ qua các placeholder khác đã được xử lý
+                prompts[key] = prompts[key].replace('{language_name}', language_name)
             except KeyError:
-                pass # Bỏ qua nếu các placeholder khác đã được format
+                pass
 
     return prompts
