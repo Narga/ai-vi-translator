@@ -1,5 +1,25 @@
 # Changelog
 
+
+## [2.3.3] - 2025-08-31
+
+### Fixed
+- **Sửa lỗi logic nhận dạng chương:** Khắc phục hoàn toàn lỗi gán nhầm tiêu đề "Phần mở đầu" cho các chương đặc biệt như "Ngoại truyện", "Vĩ thanh". Thuật toán mới giờ đây nhận dạng chính xác tất cả các loại chương dựa trên `TITLE_PATTERNS`.
+- **Sửa lỗi lặp lại tiêu đề chương:** Loại bỏ hoàn toàn tình trạng tiêu đề chương bị hiển thị hai lần (một lần dưới dạng heading, một lần trong nội dung). Logic mới đảm bảo tiêu đề chỉ được hiển thị một lần duy nhất trong thẻ `<h1>` của file XHTML.
+
+### Changed
+- **Tái cấu trúc thuật toán `parse_text_into_chapters`:** Đây là thay đổi cốt lõi. Thuật toán mới được thiết kế lại để xử lý chính xác các trường hợp phức tạp, phân biệt rõ ràng giữa nội dung giới thiệu (nếu có) và các chương có tiêu đề.
+- **Cải thiện logic tạo HTML:** Hàm `build_xhtml` và các hàm liên quan được cập nhật để không tự động thêm tiêu đề chương vào phần thân `<body>` nữa, tránh việc lặp lại tiêu đề.
+
+## [2.3.2] - 2025-08-31
+
+### Fixed
+- **Sửa lỗi nghiêm trọng trong cơ chế nhận dạng chương:** Khắc phục hoàn toàn lỗi khiến tất cả các chương bị gán nhãn "Phần mở đầu". Script giờ đây nhận dạng chính xác các mốc chương (VD: "Chương 1", "Quyển 2") ngay cả khi chúng được định dạng bằng Markdown (đậm, nghiêng, heading).
+
+### Changed
+- **Tái cấu trúc thuật toán phân tích chương:** Logic trong `parser.py` đã được viết lại hoàn toàn. Thuật toán mới sẽ quét qua toàn bộ tệp, xác định các mốc chương dựa trên `TITLE_PATTERNS` sau khi đã "làm sạch" các định dạng Markdown, đảm bảo nhận dạng chính xác và phân tách nội dung đúng đắn.
+- **Cải thiện logic tách chương:** Tính năng `--split-chapters` giờ hoạt động ổn định và chính xác hơn dựa trên thuật toán phân tích chương mới.
+
 ## [2.3.1] - 2025-08-31
 
 ### Added
