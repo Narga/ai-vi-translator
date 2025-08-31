@@ -2,7 +2,7 @@
 
 import re
 import html
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 # Phụ thuộc tùy chọn, chỉ cần thiết khi người dùng kích hoạt chế độ Markdown
 try:
@@ -15,73 +15,98 @@ except ImportError:
 # == LOGIC CHO CHẾ ĐỘ VĂN BẢN THUẦN TÚY (MẶC ĐỊNH) ===============================
 # ==============================================================================
 
+# Biểu thức chính quy để nhận dạng dòng bắt đầu một chương.
+TITLE_PATTERNS = [
+    re.compile(r'^\s*((chương|hồi|quyển|cuốn|phần)\s+\d+.*)', re.IGNORECASE),
+    re.compile(r'^\s*((chapter|part|section)\s+\d+.*)', re.IGNORECASE),
+    re.compile(r'^\s*(mở\s+đầu|giới\s+thiệu|ngoại\s+truyện|vĩ\s+thanh)', re.IGNORECASE),
+    re.compile(r'^\s*(prologue|epilogue|introduction)', re.IGNORECASE),
+]
+
 def _cleanup_markdown_title(line: str) -> str:
     """Hàm nội bộ: Loại bỏ các ký tự Markdown khỏi một dòng tiêu đề."""
     # Loại bỏ các dấu # ở đầu, các dấu * hoặc _ ở hai bên
-    return re.sub(r'^[#\s]+|(\*\*|__)(.*?)\1|#+$', r'\2', line).strip()
+    cleaned = re.sub(r'^[#\s]+', '', line) # Bỏ dấu heading
+    cleaned = re.sub(r'^(\*\*|__)(.*?)(\1)$', r'\2', cleaned) # Bỏ dấu bold
+    cleaned = re.sub(r'^(\*|_)(.*?)(\1)$', r'\2', cleaned) # Bỏ dấu italic
+    return cleaned.strip()
 
-def extract_full_chapter_title(text_content: str) -> Tuple[str, int]:
+def parse_text_into_chapters(text_content: str) -> List[Dict[str, str]]:
     """
-    [Plain Text Mode] Trích xuất tiêu đề đầy đủ từ 1-2 dòng đầu tiên của văn bản
-    thuần túy và trả về số dòng đã được sử dụng cho tiêu đề.
-
-    Returns:
-        Một tuple chứa (chuỗi tiêu đề đầy đủ, số dòng đã dùng).
+    [Plain Text Mode] Phân tích văn bản thô thành một danh sách các chương.
+    Mỗi chương là một dictionary chứa 'title' và 'content'.
+    - Dòng khớp với TITLE_PATTERNS được coi là mốc bắt đầu chương.
+    - Dòng ngay sau đó có định dạng Markdown (heading, bold, italic) được coi là tiêu đề phụ.
     """
-    cleaned_content = text_content.replace('——', '-')
-    lines = [line.strip() for line in cleaned_content.split('\n') if line.strip()]
+    chapters: List[Dict[str, str]] = []
+    lines = text_content.splitlines()
     
-    if not lines:
-        return "Chương không có tiêu đề", 0
+    current_content_lines: List[str] = []
+    current_title = "Phần mở đầu" # Tiêu đề mặc định cho nội dung trước chương đầu tiên
 
-    main_title = _cleanup_markdown_title(lines[0])
-    full_title = main_title
-    title_line_count = 1
-
-    if len(lines) > 1:
-        subtitle_candidate = lines[1]
-        if len(subtitle_candidate.split()) <= 10:
-            subtitle = _cleanup_markdown_title(subtitle_candidate)
-            full_title = f"{main_title}: {subtitle}"
-            title_line_count = 2
-            
-    return full_title, title_line_count
-
-def convert_plaintext_to_html_body(text_content: str, title_line_count: int) -> str:
-    """
-    [Plain Text Mode] Chuyển đổi phần thân của văn bản thuần túy sang HTML,
-    bỏ qua các dòng đã được xác định là tiêu đề.
-    """
-    cleaned_content = text_content.replace('——', '-')
-    lines = cleaned_content.split('\n')
-    
-    html_body_parts = []
-    # Chỉ xử lý các dòng sau phần tiêu đề
-    content_lines = lines[title_line_count:]
-
-    for line in content_lines:
-        stripped_line = line.strip()
-        if not stripped_line:
-            continue
-
-        if stripped_line == '***':
-            html_body_parts.append('<hr class="separator" />')
-            continue
+    i = 0
+    while i < len(lines):
+        line = lines[i]
         
-        # Nhận dạng các định dạng đơn giản còn lại
-        match_heading = re.match(r'^(#+)\s*(.*)', stripped_line)
-        match_bold = re.match(r'^\*\*(.*)\*\*$', stripped_line)
-
-        if match_heading:
-            level = len(match_heading.group(1))
-            text = match_heading.group(2).strip()
-            html_body_parts.append(f'<h{level}>{html.escape(text)}</h{level}>')
-        elif match_bold:
-            text = match_bold.group(1).strip()
-            html_body_parts.append(f'<h3>{html.escape(text)}</h3>')
+        # Kiểm tra xem dòng hiện tại có phải là một mốc chương mới không
+        is_chapter_marker = any(pat.match(line) for pat in TITLE_PATTERNS)
+        
+        if is_chapter_marker:
+            # 1. Lưu lại chương trước đó (nếu có nội dung)
+            if current_content_lines:
+                chapters.append({
+                    "title": current_title,
+                    "content": "\n".join(current_content_lines).strip()
+                })
+            
+            # 2. Bắt đầu xử lý chương mới
+            main_title = line.strip()
+            current_content_lines = []
+            
+            # 3. Kiểm tra dòng tiếp theo xem có phải tiêu đề phụ không
+            if i + 1 < len(lines):
+                next_line = lines[i+1].strip()
+                # Biểu thức regex để kiểm tra định dạng heading, bold, hoặc italic
+                is_subtitle_format = re.match(r'^\s*(#+\s*.*|(\*\*|__|\*|_).*\2\s*)$', next_line)
+                if next_line and is_subtitle_format:
+                    subtitle = _cleanup_markdown_title(next_line)
+                    current_title = f"{main_title}: {subtitle}"
+                    i += 1 # Bỏ qua dòng tiêu đề phụ này
+                else:
+                    current_title = main_title
+            else:
+                current_title = main_title
         else:
-            html_body_parts.append(f'<p>{html.escape(stripped_line)}</p>')
+            # Nếu không phải mốc chương, thêm dòng vào nội dung của chương hiện tại
+            current_content_lines.append(line)
+        
+        i += 1
+        
+    # Lưu lại chương cuối cùng trong tệp
+    if current_content_lines:
+        chapters.append({
+            "title": current_title,
+            "content": "\n".join(current_content_lines).strip()
+        })
+        
+    return chapters
 
+def convert_plaintext_to_html_body(chapter_content: str) -> str:
+    """
+    [Plain Text Mode] Chuyển đổi nội dung của MỘT chương (văn bản thuần túy) sang các thẻ HTML <p>.
+    """
+    cleaned_content = chapter_content.replace('——', '-')
+    if not cleaned_content.strip():
+        return ""
+
+    html_body_parts = []
+    # Chia nội dung thành các đoạn dựa trên các dòng trống
+    paragraphs = re.split(r'\n\s*\n', cleaned_content)
+    for p_text in paragraphs:
+        stripped_p = p_text.strip()
+        if stripped_p:
+            html_body_parts.append(f'<p>{html.escape(stripped_p)}</p>')
+    
     return '\n'.join(html_body_parts)
 
 # ==============================================================================
@@ -92,7 +117,6 @@ def extract_title_from_markdown(text_content: str) -> str:
     """
     [Markdown Mode] Trích xuất tiêu đề từ thẻ H1 đầu tiên trong văn bản Markdown.
     """
-    # Tìm dòng đầu tiên bắt đầu bằng '# ' (H1)
     match = re.search(r'^\s*#\s+(.*)', text_content, re.MULTILINE)
     if match:
         return match.group(1).strip()
@@ -100,14 +124,10 @@ def extract_title_from_markdown(text_content: str) -> str:
 
 def convert_markdown_to_html_body(text_content: str) -> str:
     """
-    [Markdown Mode] Chuyển đổi toàn bộ văn bản Markdown sang HTML
-    sử dụng thư viện python-markdown.
+    [Markdown Mode] Chuyển đổi toàn bộ văn bản Markdown sang HTML.
     """
     if not HAS_MARKDOWN:
-        # Trường hợp này sẽ được kiểm tra ở main.py, nhưng thêm vào để đảm bảo an toàn
         raise ImportError("Thư viện 'markdown' là bắt buộc cho chế độ này.")
-        
-    # Sử dụng các extension phổ biến để hỗ trợ bảng, danh sách, v.v.
     return mdlib.markdown(text_content, extensions=["extra", "sane_lists", "tables"])
 
 # ==============================================================================
@@ -117,20 +137,22 @@ def convert_markdown_to_html_body(text_content: str) -> str:
 def build_xhtml(chapter_title: str, body_html: str, book_lang: str, css_href: str) -> str:
     """
     Xây dựng một tài liệu XHTML hoàn chỉnh từ tiêu đề và phần thân HTML đã được xử lý.
-    Hàm này được cả hai chế độ (plain text và markdown) sử dụng.
+    Hàm này tuân thủ các đặc tả của EPUB 3.
     """
-    # Mẫu HTML5 tuân thủ chuẩn EPUB3
-    html_template = f"""<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="{book_lang}">
-<head>
-  <meta charset="UTF-8" />
-  <title>{html.escape(chapter_title)}</title>
-  <link rel="stylesheet" type="text/css" href="{css_href}" />
-</head>
-<body>
-  <h1>{html.escape(chapter_title)}</h1>
-{body_html}
-</body>
-</html>
-"""
-    return html_template
+    return "\n".join([
+        '<?xml version="1.0" encoding="utf-8"?>',
+        '<!DOCTYPE html>',
+        # Khai báo namespace XHTML là bắt buộc cho EPUB 3.
+        # xml:lang và lang đảm bảo khả năng tương thích tối đa.
+        f'<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="{book_lang}" lang="{book_lang}">',
+        "<head>",
+        '  <meta charset="utf-8"/>',
+        f'  <title>{html.escape(chapter_title)}</title>',
+        f'  <link rel="stylesheet" type="text/css" href="{css_href}" />',
+        "</head>",
+        "<body>",
+        f"  <h1>{html.escape(chapter_title)}</h1>",
+        body_html,
+        "</body>",
+        "</html>",
+    ])

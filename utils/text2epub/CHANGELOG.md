@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.3.1] - 2025-08-31
+
+### Added
+- **Hỗ trợ Metadata của Calibre:** Script giờ đây có khả năng đọc và ghi các metadata tùy chỉnh cho Calibre, bao gồm tên series (`calibre:series`) và chỉ số series (`calibre:series_index`) từ `metadata.xml` vào file `content.opf` cuối cùng.
+
+### Fixed
+- **Sửa lỗi `KeyError: 'title'` nghiêm trọng:** Khắc phục lỗi khiến chương trình bị dừng khi xử lý các tệp có cấu trúc không mong đợi (ví dụ: tệp không có nội dung sau tiêu đề chương cuối cùng). Script giờ đây sẽ xử lý các trường hợp này một cách an toàn mà không bị lỗi.
+- **Tăng cường tính ổn định:** Bổ sung các bước kiểm tra phòng vệ trong quá trình xử lý và tạo file để đảm bảo script hoạt động ổn định hơn với nhiều loại dữ liệu đầu vào khác nhau.
+
+## [2.3.0] - 2025-08-31
+
+### Added
+- **Cơ chế nhận dạng chương/tiêu đề nâng cao:**
+  - [Chế độ Plain Text] Một dòng chỉ được xác định là tiêu đề chương nếu nó khớp với biểu thức chính quy (VD: "Chương 1").
+  - Dòng ngay sau đó có thể được xác định là tiêu đề phụ nếu nó được định dạng bằng Markdown (heading `#`, bold `**`, italic `*`).
+  - Các dòng không thỏa mãn điều kiện trên sẽ được coi là đoạn văn bản thông thường.
+- **Thêm tùy chọn tách chương `--split-chapters`:**
+  - [Chế độ Plain Text] Cho phép người dùng tự động tách một tệp `.txt` chứa nhiều chương thành nhiều tệp `.xhtml` riêng biệt.
+  - Tùy chọn này chỉ được kích hoạt khi có tham số, dành cho người dùng đã kiểm tra và chuẩn bị tệp nguồn.
+
+### Changed
+- **Tái cấu trúc `parser.py`:** Logic phân tích và xử lý văn bản được viết lại hoàn toàn để hỗ trợ cơ chế nhận dạng chương mới và logic tách tệp.
+- **Cập nhật `main.py`:** Luồng xử lý chính được điều chỉnh để hỗ trợ tùy chọn `--split-chapters`, quyết định việc tạo một hay nhiều tệp XHTML từ một tệp nguồn.
+- **Tuân thủ tiêu chuẩn EPUB 3:** Bổ sung các ghi chú chi tiết và rà soát mã nguồn trong `epub_creator.py` để đảm bảo các thành phần như Package Document (`.opf`) và Navigation Document (`toc.xhtml`) tuân thủ chặt chẽ đặc tả kỹ thuật của EPUB 3.
+
 ## [2.2.0] - 2025-08-31
 
 ### Added
