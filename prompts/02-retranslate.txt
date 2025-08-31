@@ -1,6 +1,12 @@
 BẠN LÀ CHUYÊN GIA KHẮC PHỤC SỰ CỐ DỊCH THUẬT.
 Văn bản trước đó bị lỗi nghiêm trọng (cắt ngắn, lặp lại, thiếu nội dung).
 
+**0. NGỮ CẢNH VÀ VĂN PHONG (BẮT BUỘC):**
+-   **NGỮ CẢNH LIỀN KỀ:** Dưới đây là một đoạn ngắn từ phần TRƯỚC ĐÓ của câu chuyện. Hãy đọc kỹ để nắm bắt tình huống, nhân vật và giọng văn.
+    --- BỐI CẢNH TRƯỚC ĐÓ ---
+    {previous_chunk_context}
+    --- KẾT THÚC BỐI CẢNH ---
+
 NHIỆM VỤ TỐI CAO: DỊCH LẠI HOÀN HẢO.
 -   Dịch lại 100% đầy đủ từng câu, từng chi tiết.
 -   Chất lượng văn học vượt trội, văn phong tự nhiên, không cứng nhắc.

@@ -1,4 +1,4 @@
-# src/workflow.py - v2.0.1
+# src/workflow.py - v2.2.0
 # Tác giả: Narga
 # Chức năng: Module điều phối chính, chứa logic xử lý từ đầu đến cuối.
 
@@ -6,21 +6,23 @@ import json
 import logging
 import shutil
 from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from tqdm import tqdm
 from typing import Dict, Any
 
 from . import smart_chunker, translator, file_writer
 from .configuration import load_prompts
-from .emergency_stop import check_emergency_stop, reset_emergency_stop, emergency_stop
+from .emergency_stop import check_emergency_stop, reset_emergency_stop
 from .monitoring import HealthMonitor
 
 STATE_FILE = "translation_state.json"
 
 def run_consistency_check(progress_dir: Path, api_manager, cache_manager, config_params: Dict[str, Any], prompts: Dict[str, str]):
-    """Hàm điều phối bước kiểm tra và tinh chỉnh sự nhất quán sau khi dịch."""
+    """Điều phối bước kiểm tra và tinh chỉnh sự nhất quán sau khi dịch."""
     logging.info("🔬 Bắt đầu bước kiểm tra và tinh chỉnh sự nhất quán...")
+    if check_emergency_stop(): return
+
     chunk_files = sorted(progress_dir.glob("chunk_*.txt"))
     if not chunk_files:
         logging.warning("Không tìm thấy chunk nào để kiểm tra sự nhất quán.")
@@ -34,9 +36,7 @@ def run_consistency_check(progress_dir: Path, api_manager, cache_manager, config
     logging.info("✅ Hoàn tất bước kiểm tra sự nhất quán.")
 
 def run_translation_workflow(config_parser, dirs: Dict[str, Path]):
-    """
-    Hàm điều phối toàn bộ quy trình dịch thuật.
-    """
+    """Hàm điều phối toàn bộ quy trình dịch thuật."""
     reset_emergency_stop()
     health_monitor = HealthMonitor()
 
@@ -59,14 +59,16 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]):
         'min_length_ratio': config_parser.getfloat('PROCESSING', 'MIN_LENGTH_RATIO'),
         'max_length_ratio': config_parser.getfloat('PROCESSING', 'MAX_LENGTH_RATIO'),
         'enable_consistency_check': config_parser.getboolean('PROCESSING', 'ENABLE_CONSISTENCY_CHECK'),
+        'context_char_count': config_parser.getint('PROCESSING', 'CONTEXT_CHAR_COUNT', fallback=0),
+        'archive_dir_name': config_parser.get('DIRECTORIES', 'ARCHIVE_DIR_NAME', fallback='_archive'),
         'enable_cache': config_parser.getboolean('CACHE', 'ENABLE_CACHE'),
         'output_encoding': config_parser.get('OUTPUT', 'ENCODING')
     }
     config_params['max_workers'] = len(config_params['api_keys'])
-    logging.info(f"⚙️ Sử dụng {config_params['max_workers']} luồng dịch, tương ứng với số lượng API key.")
 
     state_file_path = progress_dir / STATE_FILE
     chunks_to_process, resume_mode, base_filename = [], False, ""
+    all_chunks = []
 
     if state_file_path.exists():
         logging.info("🔍 Phát hiện một phiên dịch đang dang dở.")
@@ -79,8 +81,6 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]):
             for i, chunk in enumerate(all_chunks):
                 if i not in completed_indices: chunks_to_process.append((i, chunk))
             logging.info(f"✅ Tiếp tục dịch '{base_filename}'. Còn lại {len(chunks_to_process)}/{len(all_chunks)} chunks.")
-        else:
-            logging.info("🗑️ Đã hủy phiên dịch cũ. Bắt đầu lại."); shutil.rmtree(progress_dir)
     
     if not resume_mode:
         if progress_dir.exists(): shutil.rmtree(progress_dir)
@@ -91,10 +91,11 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]):
              if delete_cache == 'y':
                  shutil.rmtree(cache_dir); cache_dir.mkdir(); logging.info("🗑️ Đã xóa cache cũ.")
 
-        items_in_input = [f for f in input_dir.iterdir() if not f.name.startswith('.')]
-        if not items_in_input: logging.warning(f"📁 Không tìm thấy file hay thư mục nào trong '{input_dir}'."); return
+        archive_dir_name = config_params['archive_dir_name']
+        items_in_input = [f for f in input_dir.iterdir() if not f.name.startswith('.') and f.name != archive_dir_name]
+        if not items_in_input: logging.warning(f"📁 Không tìm thấy file/thư mục nào trong '{input_dir}' (đã bỏ qua '{archive_dir_name}')."); return
+        
         target_path = items_in_input[0]
-        all_chunks = []
         if target_path.is_file():
             base_filename = target_path.stem
             original_text = smart_chunker.read_and_detect_encoding(str(target_path))
@@ -125,36 +126,45 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]):
     if chunks_to_process:
         api_manager = translator.ApiManager(config_params['api_keys'])
         cache_manager = translator.TranslationCache(str(cache_dir), config_params['enable_cache'])
-        logging.info(f"🌐 Bắt đầu dịch {len(chunks_to_process)} chunk...")
-        with ThreadPoolExecutor(max_workers=config_params['max_workers']) as executor:
-            future_to_index = {
-                executor.submit(
-                    translator.robust_translate,
-                    chunk, api_manager, cache_manager, prompts, config_params
-                ): index for index, chunk in chunks_to_process
-            }
-            progress = tqdm(as_completed(future_to_index), total=len(chunks_to_process), desc="🤖 Đang dịch")
-            for future in progress:
-                if check_emergency_stop():
-                    for f in future_to_index: f.cancel()
-                    break
-                index = future_to_index[future]
-                try:
-                    result, status = future.result()
-                    if status == "success":
-                        file_writer.save_progress_chunk(result, index, str(progress_dir), config_params['output_encoding'])
-                        with open(state_file_path, 'r+', encoding='utf-8') as f:
-                            state = json.load(f)
-                            if index not in state['completed_indices']: state['completed_indices'].append(index)
-                            f.seek(0); json.dump(state, f, ensure_ascii=False, indent=2); f.truncate()
-                        progress.set_postfix_str(f"Chunk {index + 1} ✅")
-                except Exception as exc:
-                    logging.error(f"Lỗi khi xử lý chunk {index + 1}: {exc}")
-                
-                completed_count = len(json.load(open(state_file_path))['completed_indices']) if state_file_path.exists() else 0
-                if not health_monitor.update_progress(completed_count):
-                    break
+        
+        logging.info(f"🌐 Bắt đầu dịch {len(chunks_to_process)} chunk (chế độ tuần tự để nối ngữ cảnh)...")
+        last_translated_text = ""
+        progress_bar = tqdm(chunks_to_process, desc="🤖 Đang dịch tuần tự")
+        
+        for index, chunk in progress_bar:
+            if check_emergency_stop():
+                logging.warning("Quy trình dịch bị dừng bởi tín hiệu khẩn cấp.")
+                break
 
+            context_to_pass = ""
+            if config_params['context_char_count'] > 0 and last_translated_text:
+                context_to_pass = last_translated_text[-config_params['context_char_count']:]
+            
+            try:
+                result, status = translator.robust_translate(
+                    chunk, api_manager, cache_manager, prompts, config_params, context_to_pass
+                )
+                if status == "success":
+                    last_translated_text = result
+                    file_writer.save_progress_chunk(result, index, str(progress_dir), config_params['output_encoding'])
+                    with open(state_file_path, 'r+', encoding='utf-8') as f:
+                        state = json.load(f)
+                        if index not in state['completed_indices']: state['completed_indices'].append(index)
+                        f.seek(0); json.dump(state, f, ensure_ascii=False, indent=2); f.truncate()
+                    progress_bar.set_postfix_str(f"Chunk {index + 1} ✅")
+                elif status == "all_keys_failed":
+                    logging.critical("🚨 Tất cả API key đã hết quota. Dừng chương trình."); break
+                else: 
+                    logging.error(f"Chunk {index + 1} thất bại."); 
+                    file_writer.save_progress_chunk(result, index, str(progress_dir), config_params['output_encoding'])
+                    progress_bar.set_postfix_str(f"Chunk {index + 1} ❌")
+            except Exception as exc:
+                logging.error(f"Lỗi khi xử lý chunk {index + 1}: {exc}")
+
+            completed_count = len(json.load(open(state_file_path))['completed_indices']) if state_file_path.exists() else 0
+            if not health_monitor.update_progress(completed_count):
+                break
+    
     if check_emergency_stop(): logging.warning("Dừng lại trước bước kiểm tra sự nhất quán."); return
     
     if config_params['enable_consistency_check'] and "Không có ghi chú đặc biệt." not in prompts.get('consistency', ''):

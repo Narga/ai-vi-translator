@@ -2,11 +2,16 @@ VAI TRÒ: BẠN LÀ MỘT CHUYÊN GIA NGÔN NGỮ HỌC VÀ LÀ DỊCH GIẢ VĂ
 
 NHIỆM VỤ: Dịch toàn bộ tiểu thuyết được cung cấp sang tiếng Việt với chất lượng bản thảo hoàn thiện, có thể đem đi in thành sách ngay lập tức.
 
-**0. HỌC THEO VĂN PHONG MẪU (BẮT BUỘC):**
-Dưới đây là một đoạn văn mẫu đã được dịch với chất lượng rất cao đã in thành sách. Bạn BẮT BUỘC phải nghiên cứu kỹ văn phong, cách dùng từ, nhịp điệu, ngắt câu, ngắt đoạn và giọng văn của đoạn mẫu này. Hãy phân tích và áp dụng chính xác phong cách đó cho toàn bộ bản dịch của bạn.
---- ĐOẠN VĂN MẪU ---
-{style_sample}
---- KẾT THÚC ĐOẠN VĂN MẪU ---
+**0. NGỮ CẢNH VÀ VĂN PHONG (BẮT BUỘC):**
+-   **NGỮ CẢNH LIỀN KỀ:** Dưới đây là một đoạn ngắn từ phần TRƯỚC ĐÓ của câu chuyện. Hãy đọc kỹ để nắm bắt tình huống, nhân vật và giọng văn.
+    --- BỐI CẢNH TRƯỚC ĐÓ ---
+    {previous_chunk_context}
+    --- KẾT THÚC BỐI CẢNH ---
+
+-   **VĂN PHONG MẪU:** Dưới đây là một đoạn văn mẫu đã được dịch với chất lượng rất cao đã in thành sách. Bạn BẮT BUỘC phải nghiên cứu kỹ văn phong, cách dùng từ, nhịp điệu, ngắt câu, ngắt đoạn và giọng văn của đoạn mẫu này. Hãy phân tích và áp dụng chính xác phong cách đó cho toàn bộ bản dịch của bạn.
+	--- ĐOẠN VĂN MẪU ---
+	{style_sample}
+	--- KẾT THÚC ĐOẠN VĂN MẪU ---
 
 NGUYÊN TẮC DỊCH THUẬT TỐI THƯỢNG (ƯU TIÊN TUYỆT ĐỐI):
 

@@ -1,4 +1,4 @@
-# main.py - v2.0.1
+# main.py - v2.2.0
 # Tác giả: Narga
 # Chức năng: Điểm khởi đầu (entry point) của ứng dụng.
 
@@ -11,10 +11,7 @@ from src.emergency_stop import setup_signal_handlers, emergency_stop
 
 def main():
     """
-    Hàm chính, thực hiện các bước:
-    1. Tải cấu hình và các tham số.
-    2. Thiết lập môi trường (thư mục, logging).
-    3. Chạy quy trình dịch thuật chính.
+    Hàm chính, điều phối toàn bộ hoạt động của ứng dụng.
     """
     # Thiết lập cơ chế bắt tín hiệu dừng (Ctrl+C) ngay từ đầu
     setup_signal_handlers()

@@ -1,6 +1,7 @@
-# src/translator.py - v2.0.1
+# src/translator.py - v2.2.0
 # Tác giả: Narga
-# Sửa lỗi: Bổ sung các phần thân và import bị thiếu.
+# Chức năng: Module lõi, chịu trách nhiệm gửi request đến API,
+# xử lý lỗi, cache và triển khai các quy trình dịch phức hợp.
 
 import os, google.generativeai as genai, time, hashlib, pickle, logging, re
 from typing import List, Optional, Tuple, Dict, Any
@@ -11,13 +12,19 @@ from .emergency_stop import check_emergency_stop
 CHINESE_CHAR_REGEX = re.compile("[\u4e00-\u9fff]")
 
 class SmartRateLimiter:
-    """Điều tiết tần suất gọi API một cách thông minh."""
+    """
+    Điều tiết tần suất gọi API một cách thông minh, tự động backoff
+    dựa trên loại lỗi và đưa key vào cooldown để tránh lãng phí.
+    """
     def __init__(self):
-        self.failure_count = {}
-        self.cool_down_until = {}
+        self.failure_count: Dict[str, int] = {}
+        self.cool_down_until: Dict[str, float] = {}
         self._lock = Lock()
         
     def should_retry(self, api_key: str, error: str) -> Tuple[bool, float]:
+        """
+        Quyết định xem có nên thử lại không và cần chờ bao lâu.
+        """
         with self._lock:
             current_time = time.time()
             if current_time < self.cool_down_until.get(api_key, 0):
@@ -42,12 +49,15 @@ class SmartRateLimiter:
             return True, 5.0
     
     def mark_success(self, api_key: str):
+        """Reset bộ đếm lỗi cho key khi có request thành công."""
         with self._lock:
             if api_key in self.failure_count: self.failure_count[api_key] = 0
             if api_key in self.cool_down_until: del self.cool_down_until[api_key]
 
 class ApiManager:
-    """Quản lý API key, tích hợp SmartRateLimiter."""
+    """
+    Quản lý API key, tích hợp SmartRateLimiter.
+    """
     def __init__(self, api_keys: List[str]):
         if not api_keys:
             raise ValueError("Danh sách API key không được để trống trong config.ini.")
@@ -59,6 +69,7 @@ class ApiManager:
         logging.info(f"🔑 Đã nạp {len(self._keys)} API key.")
     
     def get_next_available_key(self) -> Optional[str]:
+        """Lấy key hợp lệ tiếp theo trong danh sách."""
         with self._lock:
             available_keys = [k for k, v in self._keys.items() if v == 'available' and time.time() >= self._rate_limiter.cool_down_until.get(k, 0)]
             if not available_keys: return None
@@ -73,13 +84,17 @@ class ApiManager:
                     return None
     
     def handle_api_error(self, api_key: str, error_msg: str) -> Tuple[bool, float]:
+        """Ủy quyền xử lý lỗi cho SmartRateLimiter."""
         return self._rate_limiter.should_retry(api_key, error_msg)
 
     def mark_success(self, api_key: str):
+        """Báo thành công cho SmartRateLimiter."""
         self._rate_limiter.mark_success(api_key)
 
 class TranslationCache:
-    """Quản lý việc cache các bản dịch."""
+    """
+    Quản lý việc cache các bản dịch để tiết kiệm chi phí API và thời gian.
+    """
     def __init__(self, cache_dir: str, enabled: bool = True):
         self.enabled = enabled
         if not self.enabled: logging.info("ℹ️ Cache dịch thuật đã bị tắt."); return
@@ -87,9 +102,11 @@ class TranslationCache:
         logging.info(f"📦 Cache dịch thuật được bật. Thư mục: '{self.cache_dir}'")
 
     def _get_cache_key(self, text: str) -> str:
+        """Tạo hash MD5 cho văn bản để dùng làm key cache."""
         return hashlib.md5(text.encode('utf-8')).hexdigest()
 
     def get(self, text: str) -> Optional[str]:
+        """Lấy bản dịch từ cache nếu có."""
         if not self.enabled: return None
         cache_file = os.path.join(self.cache_dir, self._get_cache_key(text) + ".pkl")
         if os.path.exists(cache_file):
@@ -99,6 +116,7 @@ class TranslationCache:
         return None
 
     def set(self, text: str, translation: str):
+        """Lưu bản dịch vào cache."""
         if not self.enabled: return
         cache_file = os.path.join(self.cache_dir, self._get_cache_key(text) + ".pkl")
         try:
@@ -106,7 +124,19 @@ class TranslationCache:
         except Exception as e: logging.warning(f"⚠️ Cảnh báo: Không thể lưu cache. Lỗi: {e}")
 
 def _call_api(text_to_process: str, prompt: str, api_manager: ApiManager, config: Dict[str, Any], model_override: Optional[str] = None) -> Tuple[Optional[str], str]:
-    """Hàm gọi API chung, được nâng cấp với logic retry."""
+    """
+    Hàm gọi API chung, xử lý lỗi mạng, quota và các vấn đề kết nối.
+
+    Args:
+        text_to_process (str): Văn bản cần gửi cho AI xử lý.
+        prompt (str): Prompt chỉ thị cho AI.
+        api_manager (ApiManager): Đối tượng quản lý API key.
+        config (Dict): Dictionary chứa các tham số như model_name, temperature...
+        model_override (Optional[str]): Tên model để sử dụng thay cho model mặc định.
+
+    Returns:
+        Tuple[Optional[str], str]: Một tuple chứa kết quả (hoặc None) và trạng thái.
+    """
     max_attempts_total = len(api_manager._key_list) * 3
     for _ in range(max_attempts_total):
         if check_emergency_stop(): return None, "stopped"
@@ -120,7 +150,7 @@ def _call_api(text_to_process: str, prompt: str, api_manager: ApiManager, config
             model_name = model_override or config['model_name']
             model = genai.GenerativeModel(model_name)
             generation_config = genai.types.GenerationConfig(temperature=config['temperature'])
-            full_prompt = f"{prompt}\n\n--- VĂN BẢN CẦN XỬ LÝ ---\n\n{text_to_process}"
+            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
             response = model.generate_content(full_prompt, generation_config=generation_config)
             
             api_manager.mark_success(api_key)
@@ -131,7 +161,7 @@ def _call_api(text_to_process: str, prompt: str, api_manager: ApiManager, config
             should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
             if should_retry:
                 logging.info(f"Đợi {delay:.1f}s trước khi thử lại...")
-                time.sleep(delay)
+                if delay > 0: time.sleep(delay)
             else:
                 continue
     
@@ -139,10 +169,27 @@ def _call_api(text_to_process: str, prompt: str, api_manager: ApiManager, config
 
 def robust_translate(
     original_chunk: str, api_manager: ApiManager, cache: TranslationCache, 
-    prompts: Dict[str, str], config_params: Dict[str, Any]
+    prompts: Dict[str, str], config_params: Dict[str, Any],
+    previous_chunk_context: str = ""
 ) -> Tuple[str, str]:
-    """Quy trình dịch chính cho mỗi chunk."""
-    main_prompt = prompts.get('main', '')
+    """
+    Quy trình dịch chính cho mỗi chunk, kết hợp các bước xác thực và sửa lỗi.
+    
+    Args:
+        original_chunk (str): Nội dung chunk gốc cần dịch.
+        api_manager (ApiManager): Trình quản lý API key.
+        cache (TranslationCache): Trình quản lý cache.
+        prompts (Dict[str, str]): Dictionary chứa các prompt đã được nạp.
+        config_params (Dict[str, Any]): Dictionary chứa các tham số cấu hình.
+        previous_chunk_context (str): Một phần của chunk đã dịch trước đó để làm ngữ cảnh.
+
+    Returns:
+        Tuple[str, str]: Một tuple chứa kết quả dịch và trạng thái ('success', 'failed', ...).
+    """
+    # Tạo prompt chính với ngữ cảnh (nếu có)
+    main_prompt_template = prompts.get('main', '')
+    main_prompt = main_prompt_template.replace('{previous_chunk_context}', previous_chunk_context)
+    
     cache_key = main_prompt + original_chunk
     cached_translation = cache.get(cache_key)
     if cached_translation: return cached_translation, "success"
@@ -156,7 +203,8 @@ def robust_translate(
     original_len, translated_len = len(original_chunk), len(translated_text)
     if original_len > 200 and not (config_params['min_length_ratio'] * original_len <= translated_len <= config_params['max_length_ratio'] * original_len):
         logging.warning(f"Phát hiện độ dài không hợp lệ. Dịch lại để chống cắt ngắn...")
-        retranslate_prompt = prompts.get('retranslate', main_prompt)
+        retranslate_prompt_template = prompts.get('retranslate', main_prompt)
+        retranslate_prompt = retranslate_prompt_template.replace('{previous_chunk_context}', previous_chunk_context)
         translated_text, status = _call_api(original_chunk, retranslate_prompt, api_manager, config_params, model_override=config_params['qa_model'])
         if status != "success" or not translated_text:
              logging.error("Dịch lại để chống cắt ngắn thất bại."); return "Dịch chunk thất bại.", "failed"

@@ -1,5 +1,24 @@
 # Changelog - Lịch sử thay đổi
 
+# [2.2.0] - Tích hợp Nối ngữ cảnh và Tinh chỉnh Quy trình
+
+### ✨ Tính năng mới (Features)
+
+* **Tích hợp "Nối ngữ cảnh" (Context Chaining):**
+    * Đây là nâng cấp quan trọng nhất. Khi dịch một chunk, chương trình sẽ tự động lấy một phần cuối của chunk **đã dịch** trước đó để làm "mồi" ngữ cảnh cho AI.
+    * Giúp AI nhận biết và duy trì văn phong, cách xưng hô, tình tiết truyện một cách liền mạch và nhất quán hơn giữa các chunk.
+    * Kích thước của phần ngữ cảnh này có thể được tùy chỉnh trong `config.ini` (`CONTEXT_CHAR_COUNT`).
+* **Bổ sung Thư mục Lưu trữ (`_archive`):**
+    * Chương trình sẽ tự động bỏ qua tất cả các file và thư mục con nằm trong một thư mục đặc biệt trong `workspace/input`.
+    * Tên của thư mục này có thể được cấu hình trong `config.ini` (`ARCHIVE_DIR_NAME`).
+
+### ♻️ Thay đổi (Changes)
+
+* **Thay đổi Quy trình Dịch (Tuần tự):**
+    * Do tính chất của việc "nối ngữ cảnh" (chunk sau phải chờ chunk trước dịch xong), quy trình dịch chính đã được thay đổi từ song song (multi-thread) sang **tuần tự (single-thread)**.
+    * **Lưu ý:** Việc này sẽ làm **tốc độ dịch tổng thể chậm hơn** so với các phiên bản trước, nhưng bù lại chất lượng và sự liền mạch của bản dịch sẽ được cải thiện đáng kể.
+* **Tinh chỉnh Quy trình Resume:**
+    * Khi người dùng từ chối `resume` một phiên dịch cũ, chương trình sẽ ngay lập tức quét lại thư mục `input` để tìm một truyện mới và bắt đầu quy trình dịch mới, thay vì chỉ xóa và làm lại truyện cũ.
 
 ## [2.0.1] - Sửa lỗi Nghiêm trọng và Hoàn thiện Tái cấu trúc
 

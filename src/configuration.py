@@ -1,7 +1,6 @@
-# src/configuration.py - v2.0.1
+# src/configuration.py - v2.2.0
 # Tác giả: Narga
-# Chức năng: Module quản lý việc nạp và xử lý tất cả các file cấu hình,
-# bao gồm config.ini, prompts, và các file ngữ cảnh (ghi chú, văn phong mẫu).
+# Chức năng: Module quản lý việc nạp và xử lý tất cả các file cấu hình.
 
 import configparser
 import logging
@@ -10,13 +9,13 @@ from typing import Dict
 
 def setup_directories(config: configparser.RawConfigParser) -> Dict[str, Path]:
     """
-    Đọc đường dẫn từ config, tạo các thư mục nếu chưa tồn tại, và trả về dictionary các đối tượng Path.
+    Đọc đường dẫn từ config, tạo các thư mục nếu chưa tồn tại.
 
     Args:
         config (configparser.RawConfigParser): Đối tượng parser đã đọc file config.ini.
 
     Returns:
-        Dict[str, Path]: Một dictionary chứa các đối tượng Path cho các thư mục làm việc.
+        Dict[str, Path]: Dictionary chứa các đối tượng Path cho thư mục làm việc.
     """
     dirs = {
         'input': Path(config.get('DIRECTORIES', 'INPUT_DIR')),
@@ -29,12 +28,7 @@ def setup_directories(config: configparser.RawConfigParser) -> Dict[str, Path]:
     return dirs
 
 def load_all_configs() -> configparser.RawConfigParser:
-    """
-    Đọc file cấu hình config.ini một cách an toàn.
-
-    Returns:
-        configparser.RawConfigParser: Đối tượng parser chứa toàn bộ cấu hình.
-    """
+    """Đọc file cấu hình config.ini một cách an toàn."""
     config_parser = configparser.RawConfigParser(interpolation=None)
     if not Path('config.ini').exists():
         raise FileNotFoundError("Không tìm thấy file 'config.ini'.")
@@ -43,21 +37,18 @@ def load_all_configs() -> configparser.RawConfigParser:
 
 def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_filename: str) -> Dict[str, str]:
     """
-    Nạp tất cả các file prompt và các file ngữ cảnh (ghi chú, văn phong mẫu),
-    sau đó chèn ngữ cảnh vào các prompt tương ứng.
+    Nạp tất cả các file prompt và ngữ cảnh, sau đó chèn ngữ cảnh vào prompt.
 
     Args:
         config_parser (configparser.RawConfigParser): Đối tượng parser đã đọc config.ini.
         dirs (dict): Dictionary chứa các đường dẫn thư mục làm việc.
-        base_filename (str): Tên của truyện đang xử lý, dùng để tìm file ngữ cảnh.
+        base_filename (str): Tên truyện đang xử lý, dùng để tìm file ngữ cảnh.
 
     Returns:
-        Dict[str, str]: Một dictionary chứa nội dung các prompt cuối cùng.
+        Dict[str, str]: Dictionary chứa nội dung các prompt cuối cùng.
     """
-    # 1. Nạp các file ngữ cảnh (ghi chú và văn phong mẫu)
     def load_context_file(filename_key: str, default_text: str) -> str:
         filename = config_parser.get('PROMPTS', filename_key)
-        # Ưu tiên tìm file trong thư mục của truyện trước
         story_dir_path = dirs['input'] / base_filename if base_filename and (dirs['input'] / base_filename).is_dir() else None
         
         path_to_load = None
@@ -76,7 +67,6 @@ def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_f
     story_notes = load_context_file('story_notes_file', "Không có ghi chú đặc biệt.")
     style_sample = load_context_file('style_sample_file', "Không có văn phong mẫu nào được cung cấp.")
 
-    # 2. Nạp các prompt và chèn ngữ cảnh
     prompts = {}
     prompt_dir = Path('prompts')
     prompt_keys_map = {
@@ -92,28 +82,25 @@ def load_prompts(config_parser: configparser.RawConfigParser, dirs: dict, base_f
         if file_path.exists():
             content = file_path.read_text(encoding='utf-8').strip()
             try:
-                # Thay thế tất cả các placeholder có thể có một cách an toàn
+                # Dùng dict để format an toàn hơn, bỏ qua các key không có
                 prompts[key] = content.format(
                     custom_notes=story_notes,
                     glossary=story_notes,
-                    style_sample=style_sample
+                    style_sample=style_sample,
+                    previous_chunk_context="{previous_chunk_context}",
+                    language_name="{language_name}"
                 )
             except KeyError:
-                prompts[key] = content # Giữ nguyên nếu không có placeholder phù hợp
+                prompts[key] = content
             logging.info(f"✅ Đã nạp prompt '{key}' từ file: {filename}")
         else:
             prompts[key] = ""
             logging.warning(f"⚠️ Không tìm thấy file prompt '{filename}'")
     
-    # 3. Chèn ngôn ngữ vào prompt
     lang_code = config_parser.get('INPUT', 'INPUT_LANG')
     language_name = {"CN": "tiếng Trung", "EN": "tiếng Anh"}.get(lang_code.upper(), "")
     for key in prompts:
         if prompts[key] and '{language_name}' in prompts[key]: 
-            try:
-                # Chỉ format placeholder language_name, bỏ qua các placeholder khác đã được xử lý
-                prompts[key] = prompts[key].replace('{language_name}', language_name)
-            except KeyError:
-                pass
+            prompts[key] = prompts[key].replace('{language_name}', language_name)
 
     return prompts
