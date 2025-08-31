@@ -1,7 +1,16 @@
 # Changelog
 
-# Changelog
+## [2.2.0] - 2025-08-31
 
+### Added
+- **Thêm tham số dòng lệnh `--src-md`:** Cho phép người dùng kích hoạt một cách tường minh chế độ xử lý tệp nguồn dưới dạng Markdown.
+
+### Changed
+- **Tái cấu trúc luồng xử lý:** Script giờ đây mặc định xử lý tất cả các tệp đầu vào dưới dạng văn bản thuần túy. Chế độ xử lý Markdown chỉ được kích hoạt khi người dùng chỉ định tham số `--src-md`.
+- **Logic nhận dạng tiêu đề:** Logic nhận dạng tiêu đề thông minh (`extract_full_chapter_title`) giờ đây chỉ được áp dụng cho chế độ văn bản thuần túy (mặc định). Chế độ Markdown sẽ tự động lấy tiêu đề từ thẻ `<h1>` đầu tiên.
+
+### Dependencies
+- **Thư viện `python-markdown`:** Trở thành một yêu cầu bắt buộc khi và chỉ khi sử dụng tùy chọn `--src-md`. Script sẽ tự động kiểm tra và thông báo lỗi nếu thư viện này bị thiếu khi cần thiết.
 
 ## [2.1.0] - 2025-08-31
 
