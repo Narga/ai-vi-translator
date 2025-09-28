@@ -4,3 +4,20 @@
 google-generativeai
 chardet
 tqdm
+
+# Các gói cần thiết cho Tiện ích chuyển đổi Văn bản sang EPUB
+
+# Bắt buộc cho việc xử lý Markdown khi bật cờ --src-md
+python-markdown
+
+# Bắt buộc cho việc đóng gói file .epub
+ebooklib
+
+# Bắt buộc cho việc đọc và xử lý metadata Calibre
+lxml
+
+# Bắt buộc cho việc xử lý HTML
+beautifulsoup4 
+
+# Bắt buộc cho công cụ chuyển đổi epub2text
+html2text
