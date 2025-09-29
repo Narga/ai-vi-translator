@@ -1,4 +1,26 @@
-# Đặt file này vào thư mục truyện của bạn và tùy chỉnh nội dung.
-# Nếu không có ghi chú nào, hãy để trống file này.
+## THÔNG TIN QUAN TRỌNG:
+- Các tập tin được gửi thuộc cùng một tác phẩm tiểu thuyết hoàn chỉnh:
+- Thể loại: 
+- Nội dung có tính liên kết và logic xuyên suốt
+- Cần duy trì tính nhất quán về giọng văn, thuật ngữ và nhân vật
+- Hãy ghi nhớ và tham chiếu các thông tin đã xuất hiện trong các phần trước
+- Xem xét trong cơ sở dữ liệu có các dữ liệu nào đã được xử lý với nguồn cung cấp để đưa ra kết quả tốt hơn, nhanh hơn.
 
-Dưới đây là danh sách các tên riêng và thuật ngữ quan trọng. BẠN BẮT BUỘC PHẢI tuân thủ các bản dịch này để đảm bảo tính nhất quán:
+## YÊU CẦU DỊCH THUẬT:
+
+1. **Nhất quán giọng văn**: Duy trì cùng một phong cách viết xuyên suốt tác phẩm
+2. **Thuật ngữ cố định**: Giữ nguyên cách dịch tên nhân vật, địa danh, võ công, thuật ngữ đặc biệt
+3. **Bối cảnh liên tục**: Nhớ và tham chiếu các sự kiện, nhân vật đã xuất hiện
+4. **Giữ nguyên format**: Bảo toàn cấu trúc đoạn văn và định dạng gốc
+
+## THIẾT LẬP BỘ NHỚ NGỮ CẢNH:
+Tôi sẽ gửi cho bạn nhiều tập tin văn bản thuộc cùng một tiểu thuyết. Mỗi tập tin là một phần liên tục của cùng một tác phẩm. Hãy xây dựng và duy trì bộ nhớ ngữ cảnh (translation memory) để đảm bảo tính nhất quán. Hãy ghi nhớ và áp dụng nhất quán.
+
+## LƯU Ý DỊCH THUẬT:
+
+- Các dấu —— ở đầu câu hội thoại thay bằng dấu gạch ngang thường.
+- Chú ý giữ ký tự -- ngăn cách nội dung nhật ký
+- Tự động chuyển các dấu ngoặc kép thành smart quote tương ứng.
+- Dấu ngoặc vuông tiếng Trung thay bằng dấu ngoặc vưông thông thường []
+- Không để thừa hoặc không hợp lý các dấu ''', ``` trong bản dịch, loại bỏ các dấu markdown định dạng chữ nghiêng, đậm, ...
+- Không thay đổi tên tập tin ở bản dịch để dễ dàng so sánh, đối chứng nguồn và bản dịch.

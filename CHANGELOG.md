@@ -1,5 +1,15 @@
 # Changelog - Lịch sử thay đổi
 
+
+## [2.3.0] - Nâng cấp toàn diện Hệ thống Prompt và Tích hợp Bộ nhớ ngữ cảnh
+
+- Tái thiết kế hoàn toàn 01-main.txt với MỆNH LỆNH TỐI THƯỢNG
+- Nâng cấp 02-retranslate.txt tích hợp project_notes
+- Mở rộng 03-correction.txt thành quy trình 4 bước chi tiết  
+- Cải tiến 04-consistency_check.txt với 3 giai đoạn kiểm tra
+- Nâng cấp notes.txt thành hệ thống translation memory
+- Thống nhất placeholders và cấu trúc cho tất cả prompt
+
 # [2.2.0] - Tích hợp Nối ngữ cảnh và Tinh chỉnh Quy trình
 
 ### ✨ Tính năng mới (Features)
