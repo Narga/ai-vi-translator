@@ -1,5 +1,21 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.4.2] - 2025-10-06
+
+### Thay đổi (Changed)
+- **Tách API keys ra file riêng**: API keys giờ được nạp từ file `API.txt` (mỗi key một dòng) thay vì cấu hình cứng trong `config.ini`
+  - Tăng bảo mật: file `API.txt` có thể bỏ qua trong `.gitignore` dễ dàng hơn
+  - Dễ quản lý: thêm/xóa key chỉ cần chỉnh sửa file text đơn giản
+  - Tự động bỏ qua dòng trống và comment (dòng bắt đầu bằng #)
+- **Module configuration.py**: Thêm hàm `load_api_keys()` để đọc và validate API keys từ file
+- **Loại bỏ tham số INPUT_LANG**: Đơn giản hóa cấu hình khi chỉ dịch tiếng Trung → tiếng Việt
+  - Hard-code kiểm tra ký tự Hán trong `translator.py`
+  - Giảm phức tạp không cần thiết cho use case chính
+
+### Tài liệu (Documentation)
+- **Thêm file API.txt.example**: File mẫu hướng dẫn định dạng API keys
+- **Cập nhật README.md**: Hướng dẫn cách thiết lập file API.txt
+
 ## [2.4.1] - 2025-10-01
 
 ### Thêm mới (Added)

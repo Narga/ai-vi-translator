@@ -1,7 +1,7 @@
-# src/workflow.py - v2.4.1
+# src/workflow.py - v2.4.2
 # Tác giả: Narga
 # Chức năng: Module điều phối chính, chứa logic xử lý từ đầu đến cuối.
-#            Tích hợp thống kê và chuẩn hóa văn bản.
+#            API keys được nạp từ file API.txt riêng biệt.
 
 import json
 import logging
@@ -16,7 +16,7 @@ from tqdm import tqdm
 from typing import Dict, Any
 
 from . import smart_chunker, translator, file_writer
-from .configuration import load_prompts
+from .configuration import load_prompts, load_api_keys
 from .emergency_stop import check_emergency_stop, reset_emergency_stop
 from .monitoring import HealthMonitor
 from .statistics import TranslationStatistics, print_api_status
@@ -130,13 +130,19 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
     output_dir_base = dirs['output_base']
     cache_dir = dirs['cache']
     
+    # Nạp API keys từ file API.txt
+    try:
+        api_keys = load_api_keys('API.txt')
+    except (FileNotFoundError, ValueError) as e:
+        logging.critical(f"❌ {e}")
+        return
+    
     # Tải các tham số cấu hình
     config_params = {
-        'api_keys': [key.strip() for key in config_parser.get('API', 'GEMINI_API_KEYS').split(',') if key.strip()],
+        'api_keys': api_keys,
         'model_name': config_parser.get('MODEL', 'MODEL'),
         'qa_model': config_parser.get('MODEL', 'QA_MODEL'),
         'consistency_model': config_parser.get('MODEL', 'CONSISTENCY_MODEL'),
-        'input_lang': config_parser.get('INPUT', 'INPUT_LANG'),
         'min_chars_per_chunk': config_parser.getint('PROCESSING', 'MIN_CHARS_PER_CHUNK'),
         'max_chars_per_chunk': config_parser.getint('PROCESSING', 'MAX_CHARS_PER_CHUNK'),
         'temperature': config_parser.getfloat('PROCESSING', 'TEMPERATURE'),
