@@ -42,6 +42,7 @@ htmlcov/
 
 # Project I/O folders: keep folders, ignore contents
 workspace/**
+API.txt
 
 # System junk
 .DS_Store

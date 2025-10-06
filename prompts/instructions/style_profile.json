@@ -1,0 +1,106 @@
+{
+  "novel_info": {
+    "title": "Tiêu Khởi Thanh Nhưỡng",
+    "author": "Vĩ Ngư",
+    "estimated_length": "Trung bình đến dài (khoảng 80-100 chương)",
+    "language": "Chinese"
+  },
+  "genre": {
+    "primary": "Kinh dị - Huyền bí hiện đại",
+    "sub_genres": [
+      "Tam giáo cửu lưu (Thế giới ngầm/Giang hồ)",
+      "Kỳ ảo",
+      "Truyền thuyết dị văn"
+    ],
+    "world_setting": "Thế giới hiện đại (những năm 90 và đương đại) với các yếu tố siêu nhiên và truyền thuyết cổ đại ẩn sâu trong xã hội, đặc biệt là ở các vùng nông thôn, miền núi hẻo lánh của Trung Quốc như Thiểm Nam và vùng Tần Ba.",
+    "power_system": "Không phải là hệ thống tu luyện tiên hiệp điển hình. Sức mạnh dựa trên các sinh vật huyền bí (như Địa Kiêu) có khả năng siêu nhiên (tái sinh, sức mạnh thể chất vượt trội), các phe phái kế thừa những kiến thức và kỹ năng cổ xưa để săn lùng hoặc lợi dụng các sinh vật này."
+  },
+  "writing_style": {
+    "language_complexity": "Trung bình khá. Câu văn được xây dựng tốt, không quá phức tạp nhưng cũng không đơn giản. Tác giả sử dụng nhiều cấu trúc câu đa dạng để tạo nhịp điệu và không khí.",
+    "vocabulary_level": "Trên trung bình. Từ vựng phong phú, bao gồm cả từ ngữ hiện đại và các thuật ngữ, thành ngữ mang màu sắc cổ điển hoặc địa phương, thể hiện kiến thức sâu rộng của tác giả về lịch sử và văn hóa vùng miền.",
+    "description_style": "Chi tiết và giàu hình ảnh. Tác giả rất giỏi trong việc khắc họa không khí, đặc biệt là những cảnh kinh dị hoặc căng thẳng. Các miêu tả về môi trường (như cánh đồng ngô, ngôi miếu hoang) và cảm xúc nhân vật rất sống động, góp phần lớn tạo nên sự rùng rợn và lôi cuốn cho câu chuyện.",
+    "dialogue_ratio": "Thấp đến trung bình. Tỷ lệ tường thuật và miêu tả chiếm phần lớn, đặc biệt trong các chương đầu. Hội thoại được sử dụng để thúc đẩy tình tiết và khắc họa nhân vật, nhưng không phải là yếu tố chủ đạo trong cấu trúc truyện.",
+    "classical_elements": "Sử dụng nhiều. Tác giả lồng ghép các truyền thuyết dân gian, lịch sử khu vực (như Nam Ba Lão Lâm, khởi nghĩa Bạch Liên Giáo), các khái niệm văn hóa cổ đại, và thậm chí cả chữ viết cổ (chữ tiểu triện). Toàn bộ câu chuyện được xây dựng trên nền tảng các truyền thuyết dị văn của Trung Quốc.",
+    "sentence_structure": "Đa dạng. Tác giả kết hợp giữa các câu ngắn, gọn để tạo nhịp độ nhanh trong các cảnh hành động hoặc căng thẳng, và các câu dài, phức tạp hơn cho các đoạn miêu tả nội tâm và bối cảnh.",
+    "narrative_style": "Ngôi thứ ba giới hạn. Câu chuyện chủ yếu được kể qua góc nhìn của các nhân vật chính như Nhiếp Cửu La và Viêm Thác, nhưng cũng có những đoạn chuyển sang góc nhìn của các nhân vật phụ (như Viêm Hoàn Sơn, Tôn Chu) để xây dựng tình tiết và không khí. Có sử dụng các đoạn trích nhật ký (của Lâm Hỉ Nhu) để cung cấp thông tin nền."
+  },
+  "tone": {
+    "primary_mood": "Kinh dị, u ám và căng thẳng. Không khí truyện luôn tiềm ẩn sự nguy hiểm, với các yếu tố siêu nhiên và bạo lực có thể xảy ra bất cứ lúc nào.",
+    "secondary_mood": "Huyền bí, tò mò. Tác giả dần dần hé lộ một thế giới ẩn với những sinh vật và phe phái bí ẩn, thôi thúc người đọc khám phá sự thật đằng sau các truyền thuyết.",
+    "emotional_range": "Rộng. Từ sự căng thẳng, sợ hãi trong các tình huống nguy hiểm, đến sự hài hước nhẹ nhàng trong tương tác của các nhân vật (ví dụ như con vịt bông), sự trìu mến, và cả những khoảnh khắc bi thương, suy tư về số phận.",
+    "pace": "Chậm lúc đầu, sau đó nhanh dần. Phần mở đầu xây dựng bối cảnh và không khí khá từ tốn, tập trung vào việc tạo ra sự bí ẩn. Khi các tình tiết chính bắt đầu diễn ra, nhịp độ trở nên nhanh hơn, đặc biệt trong các cảnh hành động và đối đầu.",
+    "tension_level": "Cao. Tác giả rất giỏi trong việc xây dựng sự căng thẳng, từ những chi tiết nhỏ như một bóng đen lướt qua hay một âm thanh lạ, đến những cuộc đối đầu sinh tử. Cảm giác nguy hiểm luôn thường trực.",
+    "target_audience": "Độc giả trưởng thành, yêu thích thể loại kinh dị, huyền bí, có hứng thú với văn hóa và truyền thuyết dân gian Trung Quốc. Truyện có các yếu tố bạo lực và tình tiết phức tạp, không phù hợp với độc giả nhỏ tuổi."
+  },
+  "dialogue_characteristics": {
+    "formality_level": "Chủ yếu là không trang trọng (informal) trong các cuộc trò chuyện hàng ngày giữa các nhân vật. Mức độ trang trọng thay đổi tùy thuộc vào môi trường và mối quan hệ quyền lực, nhưng ít có các bối cảnh trang trọng tuyệt đối như triều đình hay đại hội tông môn.",
+    "time_period_language": "Ngôn ngữ hiện đại, nhưng đôi khi sử dụng các từ ngữ hoặc cách diễn đạt mang hơi hướng cổ điển để phù hợp với các yếu tố truyền thuyết được đề cập. Phần nhật ký của Lâm Hỉ Nhu sử dụng ngôn ngữ đặc trưng của những năm 90.",
+    "dialect_usage": "Tối thiểu. Mặc dù bối cảnh ở các vùng như Thiểm Nam, ngôn ngữ chủ yếu là tiếng phổ thông chuẩn, ít sử dụng phương ngữ rõ rệt để đảm bảo độc giả rộng rãi có thể hiểu được.",
+    "pronoun_patterns": {
+      "first_person": [
+        "我 (wǒ - tôi, ta, tao)",
+        "我这 (wǒ zhè - tôi đây, tao đây)"
+      ],
+      "second_person": [
+        "你 (nǐ - ngươi, bạn, anh, cô)",
+        "你们 (nǐmen - các ngươi, các bạn, các anh)"
+      ],
+      "third_person": [
+        "他 (tā - anh ta, ông ta, hắn, lão)",
+        "她 (tā - cô ta, bà ta, ả, mụ)",
+        "它 (tā - nó)"
+      ]
+    },
+    "honorifics": [
+      "Không sử dụng nhiều kính ngữ phức tạp. Cách gọi chủ yếu dựa trên mối quan hệ xã hội thông thường như 'Nhiếp tiểu thư' để thể hiện sự tôn trọng ban đầu giữa người làm thuê và chủ."
+    ]
+  },
+  "special_elements": {
+    "cultivation_terms": [
+      "Không có. Đây không phải là tiểu thuyết tu tiên."
+    ],
+    "cultural_references": [
+      "Lịch sử Trung Quốc (Từ Phúc đi Đông Doanh, khởi nghĩa Bạch Liên Giáo, các cuộc vận động lớn sau 1949)",
+      "Văn hóa đại chúng (nhạc Đặng Lệ Quân)",
+      "Địa lý và lịch sử vùng miền (Nam Ba Lão Lâm, vùng Tần Ba)",
+      "Tín ngưỡng dân gian (vu sư, cúng tế, các vị thần địa phương như 'Địa Quan Âm')",
+      "Kiến thức khảo cổ (văn tự cổ như chữ tiểu triện)"
+    ],
+    "worldplay_frequency": "Thấp. Tác giả tập trung vào việc xây dựng cốt truyện và không khí hơn là chơi chữ.",
+    "poetry_usage": "Không sử dụng. Không có các đoạn thơ, từ, phú được trích dẫn hoặc sáng tác trong truyện.",
+    "technical_jargon": [
+      "Thuật ngữ liên quan đến điêu khắc (nê tố -泥塑, long cốt - 龙骨, thai thảo - 胎草)",
+      "Thuật ngữ liên quan đến khai khoáng cũ (hầu đại - 猴袋, hố than)",
+      "Thuật ngữ lịch sử và địa lý"
+    ]
+  },
+  "translation_guidelines": {
+    "preserve": [
+      "**Không khí truyện:** Ưu tiên hàng đầu là truyền tải được sự căng thẳng, rùng rợn và bí ẩn. Cách dùng từ, nhịp điệu câu văn phải phục vụ mục đích này.",
+      "**Các chi tiết văn hóa và lịch sử:** Các thuật ngữ như 'Nam Ba Lão Lâm', 'Bạch Liên Giáo' cần được giữ nguyên hoặc chú thích rõ ràng để giữ được bối cảnh của câu chuyện.",
+      "**Sự tương phản trong giọng văn:** Giữ được sự đối lập giữa những đoạn văn kinh dị, dồn dập và những khoảnh khắc đời thường, hài hước nhẹ nhàng (như chi tiết con vịt bông).",
+      "**Giọng văn đặc trưng của nhân vật:** Ví dụ, sự chuyên nghiệp và lạnh lùng của Nhiếp Cửu La, sự mệt mỏi và kiên định của Viêm Thác."
+    ],
+    "adapt": [
+      "**Các thành ngữ và lối nói địa phương:** Tìm các câu thành ngữ, tục ngữ tiếng Việt tương đương để bản dịch tự nhiên hơn, tránh dịch word-by-word.",
+      "**Sự hài hước:** Một số tình huống hài hước có thể cần được điều chỉnh để phù hợp với văn hóa đọc của người Việt, miễn là không làm thay đổi ý nghĩa gốc.",
+      "**Tên các món ăn, vật dụng đời thường:** Có thể Việt hóa hoặc sử dụng các từ ngữ quen thuộc với độc giả Việt Nam để dễ hình dung hơn."
+    ],
+    "avoid": [
+      "**Đơn giản hóa câu văn:** Tránh biến các câu văn miêu tả phức tạp, giàu hình ảnh thành những câu đơn ngắn gọn, vì điều này sẽ làm mất đi không khí văn học của tác phẩm.",
+      "**Bỏ qua các chi tiết miêu tả môi trường:** Những chi tiết này rất quan trọng trong việc xây dựng sự căng thẳng và không khí truyện, không nên lược bỏ.",
+      "**Hiện đại hóa ngôn ngữ quá mức:** Đối với các đoạn hồi tưởng hoặc nhật ký ở những năm 90, cần giữ được màu sắc thời gian, tránh dùng từ lóng hiện đại.",
+      "**Giải thích quá đà trong bản dịch:** Thay vì chèn giải thích dài dòng vào nội dung, nên sử dụng chú thích cuối trang cho các thuật ngữ văn hóa, lịch sử phức tạp."
+    ],
+    "priorities": [
+      "1. **Bảo tồn không khí kinh dị và huyền bí:** Đây là linh hồn của tác phẩm. Mọi quyết định dịch thuật đều phải ưu tiên việc tái tạo thành công bầu không khí này.",
+      "2. **Độ chính xác của các yếu tố văn hóa và truyền thuyết:** Câu chuyện được xây dựng dựa trên các truyền thuyết dị văn, việc dịch sai hoặc thiếu chính xác sẽ làm ảnh hưởng đến nền tảng cốt truyện.",
+      "3. **Sự trôi chảy và tự nhiên của ngôn ngữ:** Đảm bảo bản dịch đọc lên phải mượt mà, phù hợp với văn phong tiếng Việt hiện đại, tránh cảm giác cứng nhắc, dịch thô."
+    ]
+  },
+  "sample_analysis": {
+    "representative_paragraph": "驾驶座侧车窗半开，孙周挟了烟的左手搭在窗沿，正和女友乔亚打电话，因着聊到兴起来不及抽，只能任烟空烧，是以每隔一会，都要磕掉烟灰。“乡下地方，四面一个人都没有……我跟你说，我心头真发毛。”他瞥一眼周遭，忽然觉得左手露在车外很没安全感，于是撂了烟，把手缩回来。乔亚对这地方有耳闻：“是山区吧？我听我爷说，那一带解放前是匪区，杀过好多人，还闹过鬼呢。”孙周胳膊上冒起一片鸡皮疙瘩，下意识左瞄右瞥：左边是一片黑魆魆秸秆地，秸秆在风里轻晃，晃出一股子阴怖森凉；右边是庙，里头的光亮像幽微萤火，缓缓飘移。",
+    "analysis": "Đoạn văn này là một ví dụ điển hình cho phong cách của Vĩ Ngư. **Nó xây dựng không khí căng thẳng và sợ hãi một cách hiệu quả thông qua các chi tiết nhỏ và tâm lý nhân vật**. Tác giả không miêu tả trực tiếp ma quỷ, mà thông qua nỗi sợ của Tôn Chu ('tâm lý thật sự phát hoảng', 'cảm thấy không an toàn') và những lời đồn đại từ bạn gái ('từng là khu thổ phỉ', 'giết nhiều người', 'còn có ma nữa') để gieo rắc sự bất an. **Miêu tả môi trường cực kỳ xuất sắc**: 'cánh đồng thân cây khô đen kịt', 'thân cây khẽ lay động trong gió, lay ra một luồng khí lạnh lẽo âm u', 'ánh sáng bên trong giống như đom đóm yếu ớt, chầm chậm trôi đi'. Những hình ảnh này biến một khung cảnh nông thôn bình thường trở nên đầy đe dọa. Nhịp độ chậm rãi, tập trung vào cảm giác và chi tiết, là đặc trưng của thể loại kinh dị huyền bí.",
+    "translation_notes": "Khi dịch đoạn này, cần chú trọng việc sử dụng các từ láy và tính từ gợi hình, gợi cảm để tái tạo không khí. Ví dụ, '黑魆魆' (đen kịt, đen ngòm), '阴怖森凉' (âm u, lạnh lẽo, rợn người), '幽微萤火' (ánh đom đóm yếu ớt, leo lét). Phải truyền tải được sự leo thang trong nỗi sợ của Tôn Chu, từ 'phát hoảng' đến 'nổi da gà' và hành động 'co tay lại' vì cảm giác bất an. Việc giữ lại các chi tiết như điếu thuốc cháy dở và việc phải gõ tàn thuốc cho thấy sự mất tập trung và lo lắng của nhân vật, cần được thể hiện rõ trong bản dịch."
+  }
+}

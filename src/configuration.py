@@ -1,12 +1,15 @@
-# src/configuration.py - v2.4.2
+# src/configuration.py - v2.5.1
 # Tác giả: Narga
 # Chức năng: Module quản lý việc nạp và xử lý tất cả các file cấu hình.
 #            API keys được nạp từ file API.txt riêng biệt.
+#            Translation guidelines được nạp từ prompts/instructions/.
 
 import configparser
 import logging
 from pathlib import Path
 from typing import Dict, List
+
+from .translation_guide import load_guidelines_from_instructions_dir
 
 
 def load_api_keys(api_file_path: str = 'API.txt') -> List[str]:
@@ -129,6 +132,7 @@ def load_prompts(
 ) -> Dict[str, str]:
     """
     Nạp các file prompt và file notes.txt của dự án.
+    Translation guidelines được nạp từ prompts/instructions/.
     
     Args:
         config (configparser.RawConfigParser): Đối tượng cấu hình
@@ -169,6 +173,10 @@ def load_prompts(
     if not project_notes_content.strip():
         project_notes_content = "Không có ghi chú đặc biệt cho dự án này."
     
+    # Nạp translation guidelines từ prompts/instructions/
+    logging.info(f"🔍 Tìm kiếm translation guidelines trong prompts/instructions/...")
+    translation_guidelines = load_guidelines_from_instructions_dir()
+    
     # Đọc các file prompt
     prompt_files = {
         'main': '01-main.txt',
@@ -189,6 +197,9 @@ def load_prompts(
                 
                 # Thay thế placeholder {project_notes}
                 prompt_content = prompt_content.replace('{project_notes}', project_notes_content)
+                
+                # Thay thế placeholder {translation_guidelines}
+                prompt_content = prompt_content.replace('{translation_guidelines}', translation_guidelines)
                 
                 # Lưu vào dictionary
                 prompts[key] = prompt_content

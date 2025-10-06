@@ -1,5 +1,21 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.5.1] - 2025-10-06
+
+### Thêm mới (Added)
+- **Hệ thống Translation Guidelines nâng cao**: Hỗ trợ nạp chỉ dẫn dịch thuật nằm trong `prompts/instructions/` từ:
+  - `style_profile.json`: Hồ sơ văn phong, thể loại, tone
+  - `glossary.csv`: Bảng thuật ngữ chuẩn
+  - `character_relations.csv`: Ma trận xưng hô nhân vật
+- **Module translation_guide.py (MỚI)**: Xử lý và format guidelines thành prompt
+  - Class `StyleProfile`, `GlossaryManager`, `CharacterRelationsManager`
+  - Function `build_translation_guidelines()`
+- **Placeholder {translation_guidelines}**: Tích hợp vào tất cả prompt templates
+
+### Thay đổi (Changed)
+- **Module configuration.py**: Nạp và chèn guidelines vào prompts
+- **Tất cả prompt templates**: Thêm section [TRANSLATION GUIDELINES]
+
 ## [2.4.2] - 2025-10-06
 
 ### Thay đổi (Changed)
