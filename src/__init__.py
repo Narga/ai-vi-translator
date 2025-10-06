@@ -1,5 +1,27 @@
-# src/__init__.py - v2.0.1
+# src/__init__.py - v2.4.1
 # Tác giả: Narga
-# Chức năng: File này để trống.
-# Nó giúp Python nhận diện thư mục 'src' là một package,
-# cho phép import các module một cách có tổ chức (ví dụ: from src import workflow).
+# Chức năng: Package initialization, exports các module chính.
+
+__version__ = "2.4.1"
+
+# Import các class và hàm chính để dễ dàng truy cập
+from .translator import ApiManager, TranslationCache, robust_translate, consistency_check_chunk
+from .configuration import load_all_configs, setup_directories, load_prompts
+from .workflow import run_translation_workflow
+from .statistics import TranslationStatistics, print_api_status
+from .text_normalizer import TextNormalizer, detect_source_type
+
+__all__ = [
+    'ApiManager',
+    'TranslationCache',
+    'robust_translate',
+    'consistency_check_chunk',
+    'load_all_configs',
+    'setup_directories',
+    'load_prompts',
+    'run_translation_workflow',
+    'TranslationStatistics',
+    'print_api_status',
+    'TextNormalizer',
+    'detect_source_type'
+]

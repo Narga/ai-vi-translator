@@ -1,5 +1,38 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.4.1] - 2025-10-01
+
+### Thêm mới (Added)
+- **Đếm ngược tự động xóa cache**: Khi phát hiện cache cũ, hệ thống sẽ đếm ngược 5 giây và tự động chọn 'y' để xóa nếu người dùng không phản hồi
+- **Thống kê chi tiết quá trình dịch**: Thêm module `statistics.py` để theo dõi và báo cáo:
+  - Tổng số từ và ký tự đã xử lý
+  - Số token ước tính đã sử dụng (dựa trên tỷ lệ 1 token ≈ 4 ký tự)
+  - Danh sách chunks thành công/thất bại với chỉ số cụ thể
+  - Thông tin quota còn lại của từng API key
+  - Tổng thời gian thực hiện
+- **Đặt tên file chunk đã dịch theo nguồn gốc**: File chunk đã dịch giờ có tên tương ứng với chunk gốc để dễ so sánh và kiểm tra
+- **Xử lý ký tự đặc biệt và định dạng**: Module `text_normalizer.py` để chuẩn hóa bản dịch:
+  - Chuyển đổi dấu gạch ngang dài (—) thành dấu gạch ngang thường ở đầu hội thoại
+  - Giữ nguyên ký tự `--` dùng để ngăn cách nội dung (như nhật ký)
+  - Chuyển đổi dấu ngoặc kép thành smart quotes ("" và '')
+  - Chuyển đổi dấu ngoặc vuông tiếng Trung (【】〔〕) thành dấu ngoặc vuông tiêu chuẩn []
+  - Loại bỏ các ký tự markdown (```
+- **Tự động dừng khi hết quota tất cả API**: Khi tất cả API keys đều hết quota, hệ thống tự động lưu trạng thái và dừng lại để tiếp tục sau
+
+### Thay đổi (Changed)
+- **Cải thiện xử lý lỗi quota trong `translator.py`**: Tăng cường logic phát hiện và xử lý trạng thái `all_keys_exhausted`
+- **Nâng cấp workflow trong `workflow.py`**: Tích hợp module thống kê và chuẩn hóa văn bản vào quy trình dịch
+- **Cải tiến `file_writer.py`**: Lưu chunk với tên có thể truy xuất nguồn gốc, hỗ trợ chuẩn hóa văn bản trước khi ghi
+
+### Tài liệu (Documentation)
+- **Giải thích về cấu hình INPUT_LANG**: 
+  - `INPUT_LANG = CN`: Ngôn ngữ nguồn là tiếng Trung, prompt sẽ sử dụng thuật ngữ "tiếng Trung" và kiểm tra ký tự Hán
+  - `INPUT_LANG = EN`: Ngôn ngữ nguồn là tiếng Anh, cần cập nhật prompt thay "tiếng Trung" thành "tiếng Anh" và vô hiệu hóa kiểm tra ký tự Hán trong `translator.py`
+  - Đề xuất: Tạo bộ prompt riêng cho EN (01-main-en.txt, 02-retranslate-en.txt, 03-correction-en.txt) và thêm logic chọn prompt theo INPUT_LANG trong `configuration.py`
+
+### Sửa lỗi (Fixed)
+- Sửa lỗi không có timeout khi chờ input người dùng xóa cache
+- Cải thiện xử lý định dạng văn bản để đảm bảo tính nhất quán
 
 ## [2.3.0] - Nâng cấp toàn diện Hệ thống Prompt và Tích hợp Bộ nhớ ngữ cảnh
 
