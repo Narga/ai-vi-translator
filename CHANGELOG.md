@@ -1,5 +1,21 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.6.1] - 2025-10-08
+
+### Fixed
+- Verification: thay prompt hỏi tương tác sang input không chặn với timeout mặc định 'y', tránh treo khi chạy headless/CI.
+- Verification: chuẩn hóa ánh xạ tên file parts bằng cách strip hậu tố "_translated" trước khi đối chiếu nguồn; bổ sung dự phòng so khớp không phân biệt hoa/thường.
+- Verification: chặn sớm chế độ kiểm tra đối với dự án file đơn (đã chia chunk) để tránh retry vô nghĩa và lãng phí API [attached_file:19].
+
+### Added
+- io_utils: bổ sung hàm input_with_timeout dùng chung (đa nền tảng) cho workflow và verification để đảm bảo không chặn tiến trình.
+
+### Changed
+- Quy ước đặt tên (file đơn): giữ thống nhất "chunk_{index}.txt" cho parts, không thêm hậu tố "_translated" để đảm bảo ánh xạ và ghép nối ổn định.
+
+### Refactor
+- Tách translator thành facade mỏng, tái xuất các thành phần con (ApiManager, TranslationCache, robust_translate, consistency_check_chunk) từ gói translators/* nhằm giảm kích thước và tăng khả năng bảo trì mà không phá vỡ import hiện có [attached_file:9].
+
 ## [2.6.0] - 2025-10-06
 
 ### Thêm mới (Added)
