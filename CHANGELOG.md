@@ -1,5 +1,20 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.6.2] - 2025-10-08
+
+### Fixed
+- **`monitoring.py`**: Sửa lỗi nhân sai đơn vị thời gian trong ngưỡng phát hiện treo (`stall_threshold_minutes * 600` → `* 60`), giúp tính toán chính xác hơn và giảm cảnh báo sai.
+- **`smart_chunker.py`**: Khắc phục lỗi `NameError` và logic cắt không chính xác bằng cách đồng bộ hóa tên biến (`pos`, `length` → `current_pos`, `text_len`), đảm bảo thuật toán hoạt động ổn định.
+- **`smart_chunker.py`**: Loại bỏ nguy cơ vòng lặp vô hạn bằng cách đảm bảo vị trí `current_pos` được cập nhật sau mỗi lần cắt chunk.
+
+### Added
+- **`smart_chunker.py`**: Bổ sung cơ chế "cắt cứng" (hard-cut) làm phương án dự phòng khi không tìm thấy dấu câu phù hợp trong một khoảng văn bản, ngăn chương trình bị treo với các định dạng lạ.
+
+### Changed
+- **`workflow.py`**: Tích hợp `HealthMonitor.update_progress` sâu hơn vào quy trình (cập nhật sau mỗi chunk và mỗi file), giúp giám sát tiến độ chính xác và ngăn chặn cảnh báo treo không cần thiết.
+- **`smart_chunker.py`**: Tinh chỉnh logic để duy trì việc gộp các chunk quá nhỏ, tránh tạo ra các "mảnh vụn" và đảm bảo chất lượng ngữ cảnh cho mỗi phần dịch.
+- **`monitoring.py`**: Cải thiện docstring và làm rõ logging ở các nhánh xử lý lỗi để tăng khả năng chẩn đoán sự cố.
+
 ## [2.6.1] - 2025-10-08
 
 ### Fixed

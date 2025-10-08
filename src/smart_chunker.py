@@ -1,12 +1,17 @@
-# src/smart_chunker.py - v2.0.0
+# src/smart_chunker.py - v2.6.1
 # Tác giả: Narga
 # Chức năng: Module xử lý thông minh cho việc cắt file.
+# THAY ĐỔI v2.6.1:
+# - Sửa lỗi biến không tồn tại/nhầm tên (pos/length/start) → current_pos/text_len/chunk_start.
+# - Bảo đảm cập nhật current_pos sau mỗi lần cắt.
+# - Thêm fallback cắt cứng nếu không tìm thấy dấu câu hợp lệ trong cửa sổ [min..max].
+# - Giữ cơ chế gộp các mảnh chunk nhỏ để giảm mảnh vụn.
 
 import os
 import re
 import chardet
 import logging
-from typing import List
+from typing import List, Tuple
 
 # Biểu thức chính quy để nhận dạng tiêu đề chương, hỗ trợ song ngữ Việt-Anh.
 TITLE_PATTERNS = [
@@ -30,12 +35,10 @@ def read_and_detect_encoding(file_path: str) -> str:
     try:
         with open(file_path, 'rb') as f:
             raw_data = f.read()
-        
         result = chardet.detect(raw_data)
         encoding = result.get('encoding') or 'utf-8'
-        logging.info(f"✅ Phát hiện encoding: {encoding} (độ tin cậy {result.get('confidence',0):.0%})")
-        
-        return raw_data.decode(encoding)
+        logging.info(f"✅ Phát hiện encoding: {encoding} (độ tin cậy {result.get('confidence', 0):.0%})")
+        return raw_data.decode(encoding, errors='replace')
     except Exception as e:
         logging.error(f"❌ Lỗi đọc file {file_path}: {e}")
         return ""
@@ -60,10 +63,69 @@ def wrap_titles(text: str) -> str:
             output_lines.append(line)
     return "\n".join(output_lines)
 
+def _find_best_cut_position(
+    text: str,
+    window_start: int,
+    min_end: int,
+    ideal_end: int,
+    max_chars: int
+) -> Tuple[int, float]:
+    """
+    Tìm vị trí cắt tốt nhất trong cửa sổ [min_end..ideal_end] dựa vào dấu câu/dấu xuống dòng.
+
+    Heuristic:
+      - Ưu tiên các dấu câu mạnh ('.!?。！？') > đoạn xuống dòng đôi > xuống dòng đơn > dấu câu nhẹ > khoảng trắng.
+      - Gần "điểm lý tưởng" (window_start + 0.8 * max_chars) sẽ có điểm cao hơn.
+
+    Returns:
+      (best_cut_pos, best_score) - nếu không tìm thấy, trả về (-1, -1).
+    """
+    # Danh sách delimiter: (mẫu, trọng số, là_chuỗi_nhiều_ký_tự)
+    delimiters = [
+        ('.!?。！？', 1.0, False),
+        ('\n\n', 0.9, True),
+        ('\n', 0.7, True),
+        ('. ', 0.6, True),
+        (', ', 0.3, True),
+        (' ', 0.1, True),
+    ]
+    best_cut_pos, best_score = -1, -1.0
+    focus = window_start + int(0.8 * max_chars)  # điểm "đẹp" mong muốn
+
+    # Quét ngược để ưu tiên cắt gần cuối cửa sổ, giảm rủi ro cắt quá ngắn
+    for i in range(ideal_end - 1, min_end - 1, -1):
+        ch = text[i]
+        for token, weight, is_substr in delimiters:
+            match = False
+            if not is_substr:
+                # Token là "alphabet" ký tự, so khớp trực tiếp
+                if ch in token:
+                    match = True
+                    cut_pos = i + 1
+            else:
+                # Token là chuỗi (có thể dài 1-2 ký tự), so khớp substring tại vị trí i-len+1..i
+                L = len(token)
+                if i - L + 1 >= window_start and text[i - L + 1: i + 1] == token:
+                    match = True
+                    cut_pos = i + 1
+
+            if match:
+                proximity = 1.0 - abs(i - focus) / max(1.0, 0.4 * max_chars)  # giá trị trong [0..~]
+                proximity = max(0.0, min(1.0, proximity))  # chặn trong [0..1] để ổn định
+                score = weight * proximity
+                if score > best_score:
+                    best_score = score
+                    best_cut_pos = cut_pos
+        # Nếu đã có điểm rất cao, có thể dừng sớm (tối ưu nhẹ)
+        if best_score >= 0.98:
+            break
+
+    return best_cut_pos, best_score
+
 def intelligent_chunking(full_text: str, min_chars: int, max_chars: int) -> List[str]:
     """
     Thuật toán cắt file thông minh dựa trên ngữ cảnh.
-    
+
     Args:
         full_text (str): Toàn bộ nội dung văn bản cần chia.
         min_chars (int): Kích thước tối thiểu mong muốn cho mỗi chunk.
@@ -76,66 +138,77 @@ def intelligent_chunking(full_text: str, min_chars: int, max_chars: int) -> List
         return []
 
     logging.info(f"🌀 Bắt đầu cắt file thông minh (khoảng {min_chars:,} - {max_chars:,} ký tự)...")
-    
-    text_to_chunk = wrap_titles(full_text)
-    chunks, current_pos, text_len = [], 0, len(text_to_chunk)
-    
-    delimiters = [
-        ('.!?。！？', 1.0), ('\n\n', 0.9), ('\n', 0.7),
-        ('. ', 0.6), (', ', 0.3), (' ', 0.1)
-    ]
-    
-    while current_pos < text_len:
-        chunk_start = pos
-        ideal_end = min(pos + max_chars, length)
-        min_end = min(pos + min_chars, length)
-        remaining = length - pos
 
-        if remaining <= max_chars * 1.2:
-            chunk = text_to_chunk[pos:].strip()
-            if chunk: chunks.append(chunk)
+    # Tiền xử lý nhẹ: bọc tiêu đề để giữ ranh giới rõ ràng
+    text_to_chunk = wrap_titles(full_text)
+
+    chunks: List[str] = []
+    current_pos = 0
+    text_len = len(text_to_chunk)
+
+    while current_pos < text_len:
+        chunk_start = current_pos
+        remaining = text_len - current_pos
+
+        # Nếu phần còn lại đủ nhỏ, lấy hết một lần để giảm số mảnh.
+        if remaining <= int(max_chars * 1.2):
+            chunk = text_to_chunk[current_pos:].strip()
+            if chunk:
+                chunks.append(chunk)
             break
-        
-        best_cut_pos, best_score = -1, -1
-        for chars, weight in delimiters:
-            for i in range(ideal_end - 1, min_end - 1, -1):
-                if text_to_chunk[i] in chars:
-                    proximity = 1 - abs(i - (pos + 0.8 * max_chars)) / (0.4 * max_chars)
-                    score = weight * proximity
-                    if score > best_score:
-                        best_score, best_cut_pos = score, i + 1
-        
+
+        # Xác định cửa sổ cắt
+        ideal_end = min(current_pos + max_chars, text_len)
+        min_end = min(current_pos + min_chars, text_len)
+
+        # Tìm vị trí cắt tốt nhất trong cửa sổ [min_end..ideal_end]
+        best_cut_pos, best_score = _find_best_cut_position(
+            text_to_chunk, current_pos, min_end, ideal_end, max_chars
+        )
+
         if best_cut_pos < 0:
+            # Không tìm thấy delimiter phù hợp → fallback: cắt cứng ở ideal_end
             best_cut_pos = ideal_end
-            logging.warning(f"⚠️ Không tìm thấy điểm cắt tối ưu, thực hiện cắt cứng.")
-        
-        chunk = text_to_chunk[start:best_cut_pos].strip()
-        if chunk: chunks.append(chunk)
-        pos = best_cut_pos
-    
+            logging.warning("⚠️ Không tìm thấy điểm cắt tối ưu trong cửa sổ → thực hiện cắt cứng.")
+
+        # Trích chunk và cập nhật vị trí
+        chunk = text_to_chunk[chunk_start:best_cut_pos].strip()
+        if chunk:
+            chunks.append(chunk)
+        current_pos = best_cut_pos
+
+    # Hậu xử lý: gộp các chunk quá nhỏ vào chunk trước đó để tránh mảnh vụn
     if len(chunks) >= 2:
-        merged_chunks = []
-        temp_chunk = chunks[0]
+        merged_chunks: List[str] = []
+        temp = chunks[0]
         for c in chunks[1:]:
-            if len(c) < min_chars * 0.3:
+            if len(c) < int(min_chars * 0.3):
                 logging.info("🔗 Gộp chunk nhỏ vào chunk trước đó.")
-                temp_chunk += "\n\n" + c
+                temp += "\n\n" + c
             else:
-                merged_chunks.append(temp_chunk)
-                temp_chunk = c
-        merged_chunks.append(temp_chunk)
+                merged_chunks.append(temp)
+                temp = c
+        merged_chunks.append(temp)
         chunks = merged_chunks
 
     if chunks:
         avg_size = sum(len(c) for c in chunks) / len(chunks)
         logging.info(f"✅ Cắt file hoàn tất: {len(chunks)} chunks, kích thước TB: {avg_size:,.0f} ký tự.")
-    
+
     return chunks
 
 def process_text_for_chunking(text: str, min_chars: int, max_chars: int) -> List[str]:
     """
     Hàm điều phối chính cho việc chia chunk.
     Kiểm tra kích thước văn bản và quyết định có cần chia nhỏ hay không.
+
+    Args:
+        text (str): Nội dung cần xử lý.
+        min_chars (int): Kích thước tối thiểu mỗi chunk.
+        max_chars (int): Kích thước tối đa mỗi chunk.
+
+    Returns:
+        List[str]: Một hoặc nhiều chunk tùy kích thước đầu vào.
     """
     if len(text or "") <= max_chars:
         return [wrap_titles(text)]
