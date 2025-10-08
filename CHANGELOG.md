@@ -1,5 +1,43 @@
 # Changelog - Lịch sử thay đổi
 
+## [2.6.0] - 2025-10-06
+
+### Thêm mới (Added)
+- **Auto-retry cho chunks lỗi**: Tự động phát hiện và dịch lại các chunks còn sót ký tự tiếng Trung
+  - Sau khi dịch xong tất cả chunks, quét toàn bộ để tìm chunks lỗi
+  - Lặp lại chu trình dịch lại chỉ các chunks lỗi cho đến khi sạch hoàn toàn
+  - Giới hạn tối đa 3 vòng retry để tránh vòng lặp vô hạn
+- **Verification Mode**: Chế độ kiểm tra bản dịch cũ khi file output đã tồn tại
+  - Nếu cả input và output đều tồn tại, hỏi người dùng có muốn kiểm tra không
+  - Quét tất cả chunks trong output, chỉ dịch lại chunks có ký tự tiếng Trung
+  - Tự động chạy consistency check sau khi dịch lại
+  - Tiết kiệm thời gian và chi phí API
+- **Module chinese_detector.py (MỚI)**: Module chuyên xử lý phát hiện ký tự tiếng Trung
+  - Function `has_chinese_characters()`: Kiểm tra có ký tự Hán trong văn bản
+  - Function `count_chinese_characters()`: Đếm số lượng ký tự Hán
+  - Function `find_chinese_chunks()`: Tìm tất cả chunks chứa ký tự Hán
+  - Sử dụng regex tối ưu, hỗ trợ kiểm tra nhanh
+
+### Thay đổi (Changed)
+- **Module workflow.py**: 
+  - Thêm function `retry_failed_chunks()`: Xử lý vòng lặp retry cho chunks lỗi
+  - Thêm function `verify_existing_translation()`: Chế độ verification
+  - Cập nhật `run_translation_workflow()` để tích hợp các tính năng mới
+  - Thêm interaction hỏi người dùng khi phát hiện output cũ
+- **Module translator.py**:
+  - Import `chinese_detector` để sử dụng kiểm tra ký tự
+  - Cải thiện logging khi phát hiện ký tự tiếng Trung
+- **Quy trình dịch mới**: 
+Dịch tất cả chunks → Phát hiện chunks lỗi → Retry (max 3 lần)
+↓
+Consistency Check
+
+### Cải tiến (Improved)
+- **Tăng độ tin cậy**: Đảm bảo 100% chunks không còn ký tự tiếng Trung trước khi hoàn tất
+- **Tiết kiệm chi phí**: Chế độ verification chỉ dịch lại chunks cần thiết
+- **User Experience**: Thông báo rõ ràng về số chunks lỗi và tiến trình retry
+- **Logging chi tiết**: Ghi log đầy đủ về chunks lỗi và số vòng retry
+
 ## [2.5.1] - 2025-10-06
 
 ### Thêm mới (Added)

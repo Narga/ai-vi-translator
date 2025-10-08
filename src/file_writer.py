@@ -1,116 +1,161 @@
-# src/file_writer.py - v2.4.1
-# Tác giả: Gemini & Narga
-# Chức năng: Quản lý việc lưu trữ và ghép nối các chunk đã dịch.
-#            Hỗ trợ đặt tên file chunk theo nguồn gốc để dễ dàng so sánh.
+# src/file_writer.py - v2.6.1
+# Tác giả: Narga
+# Chức năng: Module chứa các hàm liên quan đến ghi file.
+#            Hỗ trợ lưu file với tên gốc và ghép nối linh hoạt.
 
 import os
-import re
-import glob
 import logging
-import shutil
 from pathlib import Path
-from typing import List
+from typing import Optional
+
+
+def save_translated_file(
+    translated_text: str,
+    output_dir: str,
+    filename: str,
+    encoding: str = 'utf-8'
+) -> None:
+    """
+    Lưu file đã dịch vào thư mục output/parts với tên gốc từ input.
+    
+    Hàm này tạo thư mục parts nếu chưa tồn tại và lưu nội dung đã dịch
+    với tên file giống file gốc để dễ đối chiếu.
+    
+    Args:
+        translated_text (str): Nội dung đã dịch
+        output_dir (str): Đường dẫn đến thư mục output chính
+        filename (str): Tên file gốc (ví dụ: "chapter_01.txt")
+        encoding (str): Encoding để ghi file
+        
+    Example:
+        >>> save_translated_file(
+        ...     "Đã dịch...",
+        ...     "workspace/output/my_novel",
+        ...     "chapter_01.txt"
+        ... )
+        # Lưu vào: workspace/output/my_novel/parts/chapter_01.txt
+    """
+    output_path = Path(output_dir)
+    parts_dir = output_path / 'parts'
+    parts_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_path = parts_dir / filename
+    
+    try:
+        with open(file_path, 'w', encoding=encoding) as f:
+            f.write(translated_text)
+        
+        logging.info(f"✅ Đã lưu file: {filename}")
+    
+    except Exception as e:
+        logging.error(f"❌ Lỗi khi lưu file {filename}: {e}")
 
 
 def save_progress_chunk(
-    chunk_content: str,
+    translated_text: str,
     chunk_index: int,
     progress_dir: str,
-    encoding: str
+    encoding: str = 'utf-8'
 ) -> None:
     """
-    Lưu nội dung của một chunk đã dịch vào thư mục tạm `progress`.
+    Lưu từng chunk đã dịch vào thư mục tạm (progress).
     
-    Tên file chunk có định dạng: chunk_<index>_translated.txt
-    để dễ dàng liên kết với chunk gốc (nếu cần).
+    [GIỮ LẠI ĐỂ TƯƠNG THÍCH NGƯỢC]
+    Trong workflow mới (v2.6.1), sử dụng save_translated_file() thay thế.
     
     Args:
-        chunk_content (str): Nội dung đã dịch của chunk
-        chunk_index (int): Chỉ số của chunk trong danh sách
+        translated_text (str): Nội dung chunk đã dịch
+        chunk_index (int): Chỉ số của chunk (bắt đầu từ 0)
         progress_dir (str): Đường dẫn đến thư mục progress
-        encoding (str): Encoding để ghi file (thường là 'utf-8')
+        encoding (str): Encoding để ghi file
     """
-    os.makedirs(progress_dir, exist_ok=True)
+    progress_path = Path(progress_dir)
+    progress_path.mkdir(parents=True, exist_ok=True)
     
-    # Đặt tên file với suffix _translated để phân biệt
-    # Format: chunk_00001_translated.txt
-    file_path = os.path.join(progress_dir, f"chunk_{chunk_index:05d}_translated.txt")
+    chunk_filename = f"chunk_{chunk_index}.txt"
+    file_path = progress_path / chunk_filename
     
-    with open(file_path, 'w', encoding=encoding) as f:
-        f.write(chunk_content)
+    try:
+        with open(file_path, 'w', encoding=encoding) as f:
+            f.write(translated_text)
+        
+        logging.debug(f"Đã lưu chunk {chunk_index} vào {file_path}")
     
-    logging.debug(f"Đã lưu chunk {chunk_index} vào {file_path}")
+    except Exception as e:
+        logging.error(f"Lỗi khi lưu chunk {chunk_index}: {e}")
 
 
 def assemble_final_files(
     progress_dir: str,
     output_dir: str,
-    encoding: str
+    encoding: str = 'utf-8',
+    source_is_parts: bool = False
 ) -> None:
     """
-    Đọc tất cả các chunk, ghép chúng lại thành một file duy nhất,
-    và sau đó di chuyển các chunk vào thư mục `parts`.
+    Ghép nối các file đã dịch thành file hoàn chỉnh.
+    
+    Hàm này đọc tất cả các file trong progress_dir (hoặc output/parts),
+    sắp xếp và ghép nối chúng thành file full.txt. Đồng thời copy
+    các file riêng lẻ vào thư mục parts.
     
     Args:
-        progress_dir (str): Đường dẫn đến thư mục chứa các chunk đã dịch
-        output_dir (str): Đường dẫn đến thư mục output chính
+        progress_dir (str): Thư mục chứa các file đã dịch
+        output_dir (str): Thư mục đích để lưu kết quả
         encoding (str): Encoding để đọc/ghi file
+        source_is_parts (bool): True nếu source đã là parts (không cần copy)
+        
+    Note:
+        - Nếu source_is_parts=False: Copy từ progress_dir vào output/parts
+        - Nếu source_is_parts=True: Chỉ ghép nối, không copy (đã có sẵn trong parts)
     """
-    logging.info("\n✅ Bắt đầu ghép file cuối cùng và lưu trữ các chunk...")
-    
     progress_path = Path(progress_dir)
     output_path = Path(output_dir)
     
-    # Tạo thư mục output nếu chưa có
+    # Tạo thư mục output nếu chưa tồn tại
     output_path.mkdir(parents=True, exist_ok=True)
     
-    base_filename = output_path.name
+    # Lấy tất cả file txt
+    translated_files = sorted(progress_path.glob("*.txt"))
     
-    # Tìm tất cả các file chunk đã dịch (có suffix _translated)
-    chunk_files = sorted(progress_path.glob("chunk_*_translated.txt"))
-    
-    if not chunk_files:
-        logging.warning("⚠️  Không tìm thấy file chunk nào để ghép.")
+    if not translated_files:
+        logging.warning(f"Không tìm thấy file nào trong '{progress_dir}' để ghép nối.")
         return
     
-    # Đọc và ghép nối nội dung từ tất cả các chunk
-    full_translated_content = []
+    # Ghép nối tất cả file thành full.txt
+    full_content = []
     
-    for f in chunk_files:
-        with open(f, 'r', encoding=encoding) as chunk_file:
-            content = chunk_file.read()
-            full_translated_content.append(content)
+    for file_path in translated_files:
+        try:
+            content = file_path.read_text(encoding=encoding)
+            full_content.append(content)
+            logging.info(f"Đã đọc file: {file_path.name}")
+        except Exception as e:
+            logging.error(f"Lỗi khi đọc file {file_path.name}: {e}")
     
-    # Ghép nối với 2 dòng trống giữa các chunk
-    final_text = "\n\n".join(full_translated_content)
-    
-    # Tạo file tổng hợp duy nhất
-    final_filename = f"{base_filename}_dich.txt"
-    final_filepath = output_path / final_filename
+    # Lưu file full.txt
+    full_file_path = output_path / 'full.txt'
     
     try:
-        with open(final_filepath, 'w', encoding=encoding) as f:
-            f.write(final_text)
+        with open(full_file_path, 'w', encoding=encoding) as f:
+            f.write('\n\n'.join(full_content))
         
-        logging.info(f"✅ Đã tạo file dịch hoàn chỉnh: '{final_filepath}'")
+        logging.info(f"✅ Đã ghép nối thành công vào: {full_file_path}")
     
     except Exception as e:
-        logging.error(f"❌ Lỗi khi ghi file tổng hợp: {e}")
-        return
+        logging.error(f"❌ Lỗi khi ghi file full.txt: {e}")
     
-    # Di chuyển các file chunk đã xử lý vào thư mục 'parts'
-    try:
+    # Copy các file riêng lẻ vào thư mục parts (nếu cần)
+    if not source_is_parts:
         parts_dir = output_path / 'parts'
-        parts_dir.mkdir(exist_ok=True)
+        parts_dir.mkdir(parents=True, exist_ok=True)
         
-        moved_count = 0
+        for file_path in translated_files:
+            try:
+                dest_file = parts_dir / file_path.name
+                dest_file.write_text(file_path.read_text(encoding=encoding), encoding=encoding)
+            except Exception as e:
+                logging.error(f"Lỗi khi copy file {file_path.name}: {e}")
         
-        for f in chunk_files:
-            destination = parts_dir / f.name
-            shutil.move(str(f), str(destination))
-            moved_count += 1
-        
-        logging.info(f"🗄️  Đã di chuyển {moved_count} file chunk đã dịch vào thư mục '{parts_dir}'.")
-    
-    except Exception as e:
-        logging.error(f"❌ Lỗi khi di chuyển các file chunk đã dịch: {e}")
+        logging.info(f"✅ Đã copy {len(translated_files)} file vào '{parts_dir}'.")
+    else:
+        logging.info(f"ℹ️  Các file riêng lẻ đã có sẵn trong '{progress_path}'. Bỏ qua bước copy.")
