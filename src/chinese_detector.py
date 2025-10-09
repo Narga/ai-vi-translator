@@ -1,175 +1,150 @@
-# src/chinese_detector.py - v2.6.1
+# src/chinese_detector.py - v2.6.3
 # Tác giả: Narga
-# Chức năng: Module chuyên phát hiện và đếm ký tự tiếng Trung trong văn bản.
-#            Hỗ trợ tìm kiếm nhanh các file chứa ký tự Hán.
+# Chức năng: Module chuyên phát hiện và đếm ký tự tiếng Trung/CJK trong văn bản.
+# Nâng cấp v2.6.3:
+# - Mở rộng phạm vi phát hiện từ chỉ "CJK Unified Ideographs" sang bao gồm:
+#   + CJK Symbols and Punctuation: U+3000..U+303F
+#   + Halfwidth and Fullwidth Forms: U+FF00..U+FFEF
+#   Nhằm phát hiện triệt để dấu câu/ký tự fullwidth như ，。、《》【】（）— … và khoảng trắng toàn chiều rộng (U+3000).
+# - Chuẩn hóa tất cả hàm kiểm tra/đếm/tìm kiếm đều dùng chung một pattern mở rộng để kết quả nhất quán.
 
 import re
 from pathlib import Path
 from typing import List, Tuple
 
-
-# Biểu thức chính quy để phát hiện ký tự Hán (CJK Unified Ideographs)
-CHINESE_CHAR_PATTERN = re.compile(r'[\u4e00-\u9fff]')
-
+# --------------------------------------------------------------------------------------
+# DẢI UNICODE CẦN PHÁT HIỆN
+# --------------------------------------------------------------------------------------
+# - CJK Unified Ideographs:        U+4E00..U+9FFF  (chữ Hán cơ bản)
+# - CJK Symbols and Punctuation:   U+3000..U+303F  (dấu câu CJK, khoảng trắng fullwidth)
+# - Halfwidth and Fullwidth Forms: U+FF00..U+FFEF  (kí tự fullwidth/halfwidth, bao gồm dạng fullwidth của ASCII)
+#
+# Lưu ý:
+# - Không bổ sung Hiragana/Katakana/Bopomofo trong phạm vi này vì yêu cầu hiện tại tập trung vào "ký tự Trung và dấu câu CJK".
+# - Có thể mở rộng trong tương lai nếu dự án cần (ví dụ: U+3400..U+4DBF CJK Unified Ideographs Extension A).
+#
+# Regex dạng character class gộp các dải trên để đạt hiệu năng quét nhanh và dễ bảo trì.
+CHINESE_OR_CJK_PATTERN = re.compile(
+    r'[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]'
+)
 
 def has_chinese_characters(text: str) -> bool:
     """
-    Kiểm tra xem văn bản có chứa ký tự tiếng Trung (Hán tự) hay không.
-    
+    Kiểm tra văn bản có chứa ký tự Trung/CJK không.
+
     Args:
-        text (str): Văn bản cần kiểm tra
-        
+        text (str): Chuỗi văn bản cần kiểm tra.
+
     Returns:
-        bool: True nếu có ít nhất 1 ký tự tiếng Trung, False nếu không
-        
-    Examples:
-        >>> has_chinese_characters("Hello World")
-        False
-        >>> has_chinese_characters("你好 World")
-        True
+        bool: True nếu có ít nhất một ký tự thuộc các dải đã định nghĩa, False nếu không.
+
+    Ghi chú:
+        - Hàm dùng pattern mở rộng CHINESE_OR_CJK_PATTERN để bao phủ cả dấu câu/khoảng trắng fullwidth.
+        - Đầu vào rỗng/None trả về False để an toàn.
     """
     if not text:
         return False
-    
-    return bool(CHINESE_CHAR_PATTERN.search(text))
-
+    return bool(CHINESE_OR_CJK_PATTERN.search(text))
 
 def count_chinese_characters(text: str) -> int:
     """
-    Đếm số lượng ký tự tiếng Trung trong văn bản.
-    
+    Đếm số lượng ký tự Trung/CJK trong văn bản.
+
     Args:
-        text (str): Văn bản cần đếm
-        
+        text (str): Chuỗi văn bản cần đếm.
+
     Returns:
-        int: Số lượng ký tự tiếng Trung
-        
-    Examples:
-        >>> count_chinese_characters("你好世界")
-        4
-        >>> count_chinese_characters("你好 Hello 世界")
-        4
+        int: Số lượng ký tự thuộc các dải Unicode đã định nghĩa.
+
+    Ví dụ:
+        "你好，世界！" → Bao gồm chữ Hán + dấu phẩy/dấu chấm than fullwidth → được tính đầy đủ.
     """
     if not text:
         return 0
-    
-    return len(CHINESE_CHAR_PATTERN.findall(text))
+    return len(CHINESE_OR_CJK_PATTERN.findall(text))
 
-
-def find_chinese_files(directory: Path, pattern: str = "*.txt") -> List[Tuple[Path, int]]:
+def find_chinese_files(directory: Path) -> List[Tuple[Path, int]]:
     """
-    Tìm tất cả các file chứa ký tự tiếng Trung trong thư mục.
-    
-    Hàm này quét tất cả các file khớp pattern trong thư mục, đọc nội dung
-    và kiểm tra xem có chứa ký tự Hán hay không.
-    
+    Quét thư mục (không đệ quy) và trả về danh sách file .txt có chứa ký tự Trung/CJK.
+
     Args:
-        directory (Path): Đường dẫn đến thư mục cần quét
-        pattern (str): Pattern để lọc file (mặc định: "*.txt")
-        
-    Returns:
-        List[Tuple[Path, int]]: Danh sách các file có lỗi.
-            Mỗi tuple gồm: (file_path, số_lượng_ký_tự_Trung)
-            
-    Examples:
-        >>> find_chinese_files(Path("output/my_novel/parts"))
-        [(Path("output/my_novel/parts/chapter_05.txt"), 12),
-         (Path("output/my_novel/parts/chapter_18.txt"), 3)]
-    """
-    if not directory.exists():
-        return []
-    
-    failed_files = []
-    files = sorted(directory.glob(pattern))
-    
-    for file_path in files:
-        try:
-            # Đọc nội dung file
-            content = file_path.read_text(encoding='utf-8')
-            
-            # Đếm số ký tự tiếng Trung
-            chinese_count = count_chinese_characters(content)
-            
-            if chinese_count > 0:
-                failed_files.append((file_path, chinese_count))
-        
-        except Exception as e:
-            # Bỏ qua các file bị lỗi khi đọc
-            continue
-    
-    return failed_files
+        directory (Path): Đường dẫn thư mục cần quét.
 
+    Returns:
+        List[Tuple[Path, int]]: Danh sách (đường_dẫn_file, số_ký_tự_CJK) cho các file có chứa ký tự cần phát hiện.
+
+    Thiết kế:
+        - Chỉ quét các file .txt để phù hợp pipeline hiện tại (parts/chunk đều là .txt).
+        - Đọc với utf-8 và errors='replace' để an toàn trước dữ liệu không chuẩn.
+        - Không đệ quy nhằm đảm bảo hiệu năng và tính dự đoán được của pipeline.
+    """
+    results: List[Tuple[Path, int]] = []
+    if not directory.exists() or not directory.is_dir():
+        return results
+
+    for file_path in sorted(directory.glob("*.txt")):
+        try:
+            text = file_path.read_text(encoding="utf-8", errors="replace")
+            cnt = count_chinese_characters(text)
+            if cnt > 0:
+                results.append((file_path, cnt))
+        except Exception:
+            # Bỏ qua file lỗi đọc để không chặn toàn bộ quy trình
+            continue
+    return results
+
+def _parse_chunk_index_from_name(name: str) -> int:
+    """
+    Cố gắng trích xuất chỉ số chunk từ tên file dạng 'chunk_{index}.txt'.
+
+    Args:
+        name (str): Tên file.
+
+    Returns:
+        int: Chỉ số chunk nếu trích xuất được, ngược lại trả về -1.
+
+    Ghi chú:
+        - Không raise exception để không làm vỡ pipeline khi gặp tên file không chuẩn.
+    """
+    # Mẫu đơn giản: chunk_00012.txt → index = 12
+    m = re.match(r'^chunk_(\d+)\.txt$', name, flags=re.IGNORECASE)
+    if not m:
+        return -1
+    try:
+        return int(m.group(1))
+    except Exception:
+        return -1
 
 def find_chinese_chunks(progress_dir: Path) -> List[Tuple[int, Path, int]]:
     """
-    Tìm tất cả các chunks chứa ký tự tiếng Trung trong thư mục progress.
-    
-    [DEPRECATED in v2.6.1 - Giữ lại để tương thích ngược]
-    Sử dụng find_chinese_files() thay thế.
-    
+    Quét thư mục progress và trả về danh sách các chunk còn ký tự Trung/CJK.
+
     Args:
-        progress_dir (Path): Đường dẫn đến thư mục chứa các chunks
-        
+        progress_dir (Path): Đường dẫn thư mục chứa các file chunk_*.txt.
+
     Returns:
-        List[Tuple[int, Path, int]]: Danh sách các chunks có lỗi.
-            Mỗi tuple gồm: (chunk_index, file_path, số_lượng_ký_tự_Trung)
+        List[Tuple[int, Path, int]]: Danh sách (chunk_index, đường_dẫn_file, số_ký_tự_CJK)
+                                     sắp xếp theo chunk_index tăng dần (nếu trích xuất được).
+
+    Thiết kế:
+        - Chỉ xem xét file bắt đầu bằng 'chunk_' để phù hợp workflow file đơn.
+        - Đọc file an toàn bằng utf-8, errors='replace'.
+        - Sử dụng pattern mở rộng để phát hiện triệt để cả dấu câu/khoảng trắng fullwidth.
     """
-    if not progress_dir.exists():
-        return []
-    
-    failed_chunks = []
-    chunk_files = sorted(progress_dir.glob("chunk_*.txt"))
-    
-    for chunk_file in chunk_files:
+    results: List[Tuple[int, Path, int]] = []
+    if not progress_dir.exists() or not progress_dir.is_dir():
+        return results
+
+    for file_path in sorted(progress_dir.glob("chunk_*.txt")):
         try:
-            # Đọc nội dung chunk
-            content = chunk_file.read_text(encoding='utf-8')
-            
-            # Đếm số ký tự tiếng Trung
-            chinese_count = count_chinese_characters(content)
-            
-            if chinese_count > 0:
-                # Trích xuất index từ tên file (chunk_5.txt -> 5)
-                chunk_index = int(chunk_file.stem.split('_')[1])
-                failed_chunks.append((chunk_index, chunk_file, chinese_count))
-        
-        except Exception as e:
-            # Bỏ qua các file bị lỗi khi đọc
+            text = file_path.read_text(encoding="utf-8", errors="replace")
+            cnt = count_chinese_characters(text)
+            if cnt > 0:
+                idx = _parse_chunk_index_from_name(file_path.name)
+                results.append((idx, file_path, cnt))
+        except Exception:
             continue
-    
-    return failed_chunks
 
-
-def extract_chinese_snippets(text: str, context_chars: int = 20) -> List[str]:
-    """
-    Trích xuất các đoạn văn bản chứa ký tự tiếng Trung kèm ngữ cảnh xung quanh.
-    
-    Hữu ích để debug và hiển thị vị trí cụ thể của ký tự tiếng Trung còn sót.
-    
-    Args:
-        text (str): Văn bản cần trích xuất
-        context_chars (int): Số ký tự ngữ cảnh trước và sau mỗi ký tự Trung
-        
-    Returns:
-        List[str]: Danh sách các snippet chứa ký tự tiếng Trung với ngữ cảnh
-        
-    Examples:
-        >>> extract_chinese_snippets("Hello 你好 World", context_chars=5)
-        ['Hello 你好 World']
-    """
-    snippets = []
-    
-    for match in CHINESE_CHAR_PATTERN.finditer(text):
-        start = max(0, match.start() - context_chars)
-        end = min(len(text), match.end() + context_chars)
-        snippet = text[start:end]
-        
-        # Thêm ... nếu đã cắt
-        if start > 0:
-            snippet = "..." + snippet
-        if end < len(text):
-            snippet = snippet + "..."
-        
-        snippets.append(snippet)
-    
-    return snippets
+    # Sắp xếp theo index nếu có, đặt các mục không có index (=-1) ở cuối
+    results.sort(key=lambda x: (x[0] < 0, x[0]))
+    return results

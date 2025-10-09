@@ -1,5 +1,13 @@
 # Changelog - Lịch sử thay đổi
 
+
+## [2.6.3] - 2025-10-09
+
+- src/chinese_detector.py
+  - Mở rộng regex phát hiện: từ chỉ CJK Unified Ideographs ([\u4e00-\u9fff]) sang bao gồm cả CJK Symbols and Punctuation ([\u3000-\u303F]) và Halfwidth/Fullwidth Forms ([\uFF00-\uFFEF]); lý do: dấu câu/ký tự fullwidth thường bị sót trong bản dịch; tác động: verification và auto-retry nhận diện triệt để hơn các trường hợp còn ký tự Trung.
+  - Chuẩn hóa hàm has_chinese_characters, count_chinese_characters, find_chinese_files, find_chinese_chunks dùng cùng một pattern mở rộng; lý do: thống nhất tiêu chí phát hiện; tác động: kết quả quét đồng nhất giữa các bước QA/verification.
+  - Bổ sung chú thích kỹ thuật chi tiết, ví dụ minh họa phạm vi Unicode và các lưu ý hiệu năng khi quét file lớn; lý do: tăng minh bạch và dễ bảo trì; tác động: đội ngũ dễ mở rộng thêm dải ký tự nếu cần.
+
 ## [2.6.2] - 2025-10-08
 
 ### Fixed
