@@ -1,12 +1,14 @@
-# src/translators/core.py - v2.6.1
+# src/translators/core.py - v2.7.0
 # Tác giả: Narga
 # Chức năng: Lõi gọi API và quy trình robust_translate (dịch - kiểm độ dài - sửa Hán tự - chuẩn hóa - cache).
+# Nâng cấp v2.7.0:
+# - Hỗ trợ đính kèm project_file_uri (Gemini File API) vào nội dung gọi model.
+# - Dùng khóa cache mới qua TranslationCache.build_key()/get_by_components()/set_by_components().
 
 import time
 import logging
 import re
-from typing import Optional, Tuple, Dict, Any
-from pathlib import Path
+from typing import Optional, Tuple, Dict, Any, List
 
 import google.generativeai as genai
 
@@ -16,6 +18,19 @@ from .cache_manager import TranslationCache
 
 # Regex phát hiện Hán tự (CJK Unified Ideographs)
 CHINESE_CHAR_REGEX = re.compile(r'[\u4e00-\u9fff]')
+
+def _compose_contents(full_prompt: str, text_to_process: str, file_uri: Optional[str]) -> List[Dict[str, Any]]:
+    """
+    Tạo danh sách "content parts" cho Gemini:
+    - Luôn có phần văn bản prompt.
+    - Nếu có file_uri (gói nguồn đã upload), bổ sung phần file_data.
+    - Cuối cùng là phần văn bản chứa nội dung cần dịch (hoặc trộn vào prompt nếu muốn).
+    """
+    parts: List[Dict[str, Any]] = [{"text": full_prompt}]
+    if file_uri:
+        parts.append({"file_data": {"file_uri": file_uri}})
+    parts.append({"text": text_to_process})
+    return parts
 
 def _call_api(
     text_to_process: str,
@@ -27,13 +42,17 @@ def _call_api(
     """
     Hàm gọi API chung:
       - Lấy key khả dụng, cấu hình model/temperature.
-      - Gọi model.generate_content(full_prompt).
+      - Gọi model.generate_content(contents).
       - Xử lý lỗi và backoff qua ApiManager.
     Trả về:
       (kết_quả_text, status, api_key_dùng)
       status ∈ {'success', 'all_keys_exhausted', 'api_error', 'stopped'}
     """
-    max_attempts_total = max(3, len(api_manager._key_list) * 3)  # nỗ lực tối thiểu
+    max_attempts_total = max(3, len(api_manager._key_list) * 3)
+
+    # Lấy file_uri từ cấu hình (nếu workflow đã chuẩn bị)
+    project_file_uri = config.get("project_file_uri")
+
     for _ in range(max_attempts_total):
         if check_emergency_stop():
             return None, "stopped", "unknown"
@@ -48,7 +67,7 @@ def _call_api(
             continue
 
         try:
-            # Delay giữa các request để tôn trọng RPM
+            # Tôn trọng RPM
             delay = float(config.get('request_delay', 0.0))
             if delay > 0:
                 time.sleep(delay)
@@ -60,8 +79,10 @@ def _call_api(
                 temperature=float(config.get('temperature', 0.7))
             )
 
-            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
-            response = model.generate_content(full_prompt, generation_config=generation_config)
+            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n"
+            contents = _compose_contents(full_prompt, text_to_process, project_file_uri)
+
+            response = model.generate_content(contents, generation_config=generation_config)
 
             api_manager.mark_success(api_key)
             result_text = response.text.strip() if response and response.text else ""
@@ -75,7 +96,6 @@ def _call_api(
                 if delay > 0:
                     time.sleep(delay)
             else:
-                # Bỏ qua key này, chuyển sang lượt sau
                 continue
 
     return None, "api_error", "unknown"
@@ -91,7 +111,7 @@ def robust_translate(
 ) -> Tuple[str, str, str]:
     """
     Quy trình dịch chuẩn cho mỗi chunk:
-      1) Cache
+      1) Cache (khóa mới gắn với model/temperature/prompt/context/input)
       2) Dịch lần đầu
       3) Kiểm tra độ dài → dịch lại bằng QA model nếu lệch
       4) Sửa ký tự Trung còn sót (n lần)
@@ -102,11 +122,12 @@ def robust_translate(
     main_prompt_template = prompts.get('main', '')
     main_prompt = main_prompt_template.replace('{previous_chunk_context}', previous_chunk_context)
 
-    # Cache với key dựa trên prompt + nội dung chunk
-    cache_key = main_prompt + original_chunk
-    cached_translation = cache.get(cache_key)
+    # Cache với khóa mới theo thành phần đầy đủ
+    cached_translation = cache.get_by_components(
+        original_chunk, prompts, config_params, previous_chunk_context
+    )
     if cached_translation:
-        logging.info("✅ Sử dụng bản dịch từ cache.")
+        logging.info("✅ Sử dụng bản dịch từ cache (khóa 2.7.0).")
         return cached_translation, "success", "cache"
 
     logging.info("Bắt đầu dịch chunk...")
@@ -164,5 +185,7 @@ def robust_translate(
             logging.warning(f"⚠️ Lỗi khi chuẩn hóa văn bản: {e}")
 
     logging.info("✅ Chunk được dịch và xử lý thành công!")
-    cache.set(cache_key, translated_text)
+    cache.set_by_components(
+        original_chunk, prompts, config_params, previous_chunk_context, translated_text
+    )
     return translated_text, "success", api_key_used

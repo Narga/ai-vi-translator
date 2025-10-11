@@ -1,13 +1,10 @@
-# src/workflow.py - v2.6.1
+# src/workflow.py - v2.7.0
 # Tác giả: Narga
 # Chức năng: Module điều phối chính, chứa logic xử lý từ đầu đến cuối.
-# Hỗ trợ:
-# - Auto-retry chunks/files lỗi.
-# - Verification mode (kiểm tra bản dịch cũ).
-# - Consistency check tùy chọn.
-# THAY ĐỔI v2.6.1:
-# - Chèn HealthMonitor.update_progress sau mỗi chunk/file hoàn tất để ngăn false-positive stall.
-# - Giữ nguyên giao diện/chức năng hiện hữu; bổ sung chú thích chi tiết.
+# Nâng cấp v2.7.0:
+# - Tạo GeminiProjectFileManager cho từng dự án, tự động zip+upload nguồn lên Gemini, lưu file_uri vào config_params['project_file_uri'].
+# - Truyền file_uri này vào mọi lần gọi dịch (qua config) để sử dụng "cache nguồn" phía AI.
+# - Ghi log khi xảy ra lỗi quyền, hướng dẫn cấp quyền/public và dừng quy trình có kiểm soát.
 
 import json
 import logging
@@ -36,24 +33,9 @@ from .workflow_helpers import (
 STATE_FILE = "translation_state.json"
 
 def input_with_timeout(prompt: str, timeout: int = 5, default: str = 'y') -> str:
-    """
-    Nhận input từ người dùng với thời gian chờ tối đa.
-    Nếu người dùng không nhập trong thời gian quy định, tự động trả về giá trị mặc định.
-
-    Args:
-        prompt (str): Thông điệp hiển thị cho người dùng
-        timeout (int): Thời gian chờ tối đa (giây)
-        default (str): Giá trị mặc định nếu timeout
-
-    Returns:
-        str: Giá trị người dùng nhập (đã lower) hoặc giá trị mặc định
-    """
     print(prompt, end='', flush=True)
-
-    # Đếm ngược
     for i in range(timeout, 0, -1):
         print(f"\r{prompt} ({i}s) ", end='', flush=True)
-        # Kiểm tra input trong 1 giây
         if sys.platform == 'win32':
             try:
                 import msvcrt
@@ -73,7 +55,6 @@ def input_with_timeout(prompt: str, timeout: int = 5, default: str = 'y') -> str
             except Exception:
                 time.sleep(1)
         else:
-            # Unix/Linux/MacOS
             try:
                 ready, _, _ = select.select([sys.stdin], [], [], 1)
                 if ready:
@@ -81,46 +62,56 @@ def input_with_timeout(prompt: str, timeout: int = 5, default: str = 'y') -> str
                     return result if result else default
             except Exception:
                 time.sleep(1)
-
     print(f"\r{prompt} Tự động chọn '{default}'")
     return default
 
+def _prepare_project_file_uri(
+    target_path: Path,
+    base_filename: str,
+    cache_dir: Path,
+    config_params: Dict[str, Any]
+) -> None:
+    """
+    Chuẩn bị "cache nguồn" phía AI:
+    - Tạo GeminiProjectFileManager(project_id=base_filename) dùng cache_dir chung.
+    - Nếu target là thư mục: upload toàn bộ *.txt; nếu là file đơn: upload chính file.
+    - Lưu file_uri vào config_params['project_file_uri'] nếu upload thành công.
+    - Nếu gặp lỗi quyền, log hướng dẫn và để None (quy trình vẫn có thể tiếp tục, nhưng không tối ưu nguồn).
+    """
+    try:
+        manager = translator.GeminiProjectFileManager(base_filename, cache_dir)
+        file_uri = None
+        if target_path.is_dir():
+            file_uri = manager.ensure_uploaded_for_directory(target_path)
+        else:
+            file_uri = manager.ensure_uploaded_for_file(target_path)
+
+        if file_uri:
+            config_params['project_file_uri'] = file_uri
+        else:
+            config_params['project_file_uri'] = None
+    except Exception as e:
+        # Lỗi quyền hoặc upload; ghi log và tắt tính năng "cache nguồn"
+        logging.warning(f"⚠️ Không thể khởi tạo cache nguồn phía AI: {e}")
+        config_params['project_file_uri'] = None
+
 def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
-    """
-    Hàm điều phối toàn bộ quy trình dịch thuật.
-
-    Workflow v2.6.1:
-      1) Kiểm tra xem có bản dịch cũ (verification mode) không.
-      2) Nếu không, bắt đầu dịch mới.
-      3) Dịch theo file-by-file (thư mục) hoặc chunk-by-chunk (file đơn).
-      4) Auto-retry chunks/files lỗi (tối đa 3 vòng).
-      5) Consistency check (nếu bật).
-      6) Ghép nối và hoàn tất.
-
-    Args:
-        config_parser: Đối tượng ConfigParser chứa cấu hình.
-        dirs (Dict[str, Path]): Dictionary chứa các đường dẫn thư mục làm việc.
-    """
     reset_emergency_stop()
 
-    # Khởi tạo các module giám sát và thống kê
     health_monitor = HealthMonitor()
     statistics = TranslationStatistics()
 
-    # Các đường dẫn thư mục làm việc
     progress_dir = dirs['progress']
     input_dir = dirs['input']
     output_dir_base = dirs['output_base']
     cache_dir = dirs['cache']
 
-    # Nạp API keys từ file API.txt
     try:
         api_keys = load_api_keys('API.txt')
     except (FileNotFoundError, ValueError) as e:
         logging.critical(f"❌ {e}")
         return
 
-    # Tải các tham số cấu hình
     config_params = {
         'api_keys': api_keys,
         'model_name': config_parser.get('MODEL', 'MODEL'),
@@ -139,10 +130,8 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
         'enable_cache': config_parser.getboolean('CACHE', 'ENABLE_CACHE'),
         'output_encoding': config_parser.get('OUTPUT', 'ENCODING')
     }
-    # Số worker QA phụ thuộc số key
     config_params['max_workers'] = max(1, len(config_params['api_keys']))
 
-    # Tìm file/thư mục nguồn (lấy mục đầu tiên hợp lệ)
     archive_dir_name = config_params['archive_dir_name']
     items_in_input = [
         f for f in input_dir.iterdir()
@@ -153,37 +142,33 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
         return
     target_path = items_in_input[0]
 
-    # Xác định tên dự án và thư mục output tương ứng
     base_filename = target_path.stem if target_path.is_file() else target_path.name
     output_dir = output_dir_base / base_filename
 
-    # ===== KIỂM TRA VERIFICATION MODE =====
+    # Chuẩn bị "cache nguồn" phía AI trước (không bắt buộc)
+    _prepare_project_file_uri(target_path, base_filename, cache_dir, config_params)
+
+    # ===== VERIFICATION MODE =====
     if output_dir.exists() and (output_dir / 'parts').exists():
         logging.info("🔍 Phát hiện bản dịch cũ đã tồn tại.")
         verify_choice = input_with_timeout(" Bạn có muốn kiểm tra bản dịch cũ không? (y/n): ", timeout=5, default='y')
         if verify_choice == 'y':
-            # Khởi tạo các module
             prompts = load_prompts(config_parser, dirs, base_filename)
             is_text_source = detect_source_type(target_path) if target_path.is_file() else True
             normalizer = TextNormalizer(is_text_source=is_text_source)
             api_manager = translator.ApiManager(config_params['api_keys'])
             cache_manager = translator.TranslationCache(str(cache_dir), config_params['enable_cache'])
 
-            # Chạy verification
             verify_existing_translation(
                 input_dir, output_dir, base_filename,
                 api_manager, cache_manager, prompts,
                 config_params, normalizer, statistics
             )
-
-            # Kết thúc sau verification
             statistics.print_summary()
             logging.info("🎉 Kiểm tra và cập nhật bản dịch hoàn tất!")
             return
 
-    # ===== QUÁ TRÌNH DỊCH MỚI (CHỈ KHI KHÔNG PHẢI VERIFICATION MODE) =====
-
-    # Xóa cache cũ nếu cần (không chặn vô hạn)
+    # ===== DỊCH MỚI =====
     if cache_dir.exists() and any(cache_dir.iterdir()):
         delete_cache = input_with_timeout(
             f" Phát hiện cache cũ trong '{cache_dir}'. Bạn có muốn xóa không? (y/n): ",
@@ -195,7 +180,6 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
             cache_dir.mkdir(parents=True, exist_ok=True)
             logging.info("🗑️ Đã xóa cache cũ.")
 
-    # Khởi tạo các module
     prompts = load_prompts(config_parser, dirs, base_filename)
     if not prompts.get('main'):
         logging.critical("❌ Lỗi: Main prompt không được nạp.")
@@ -206,7 +190,6 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
     api_manager = translator.ApiManager(config_params['api_keys'])
     cache_manager = translator.TranslationCache(str(cache_dir), config_params['enable_cache'])
 
-    # Nhánh xử lý theo loại input
     if target_path.is_dir():
         translate_directory_project(
             target_path, output_dir, api_manager, cache_manager,
@@ -218,7 +201,6 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
             prompts, config_params, normalizer, statistics, health_monitor
         )
 
-    # ===== IN THỐNG KÊ CUỐI CÙNG =====
     statistics.print_summary()
     logging.info("🎉 Dịch thuật hoàn tất!")
 
@@ -233,19 +215,6 @@ def translate_directory_project(
     statistics: TranslationStatistics,
     health_monitor: HealthMonitor
 ) -> None:
-    """
-    Dịch dự án dạng thư mục (nhiều file .txt riêng lẻ).
-
-    Quy trình:
-      1) Dịch từng file → lưu vào output/parts với chính tên gốc.
-      2) Quét file lỗi (còn ký tự tiếng Trung).
-      3) Auto-retry file lỗi (tối đa 3 vòng).
-      4) Ghép nối thành full.txt.
-
-    Theo dõi tiến trình:
-      - Sau mỗi file xử lý xong (bất kể thành công/thất bại), gọi health_monitor.update_progress(count_done)
-        với count_done = số file đã xử lý, nhằm tránh false-positive stall ở dự án nhiều file.
-    """
     source_files = sorted(source_dir.glob('*.txt'))
     if not source_files:
         logging.error(f"❌ Không tìm thấy file .txt nào trong '{source_dir.name}'.")
@@ -268,7 +237,6 @@ def translate_directory_project(
                 health_monitor.update_progress(processed_count)
                 continue
 
-            # Dịch nội dung
             result, status, api_key_used = translator.robust_translate(
                 content, api_manager, cache_manager, prompts,
                 config_params, "", normalizer
@@ -288,12 +256,10 @@ def translate_directory_project(
             logging.error(f"Lỗi khi xử lý {source_file.name}: {e}")
         finally:
             processed_count += 1
-            # Cập nhật HealthMonitor theo số file đã xử lý
             health_monitor.update_progress(processed_count)
 
         print_api_status(api_manager)
 
-    # ===== AUTO-RETRY CHO FILE LỖI =====
     logging.info("\n" + "="*80)
     logging.info("🔍 Kiểm tra các file còn sót ký tự tiếng Trung...")
     logging.info("="*80 + "\n")
@@ -304,7 +270,6 @@ def translate_directory_project(
         for fp, count in failed_files:
             logging.warning(f" - {fp.name}: {count} ký tự")
 
-        # Tạo map: tên file -> nội dung gốc
         source_files_map = {}
         for source_file in source_files:
             try:
@@ -313,7 +278,6 @@ def translate_directory_project(
             except Exception as e:
                 logging.error(f"Lỗi khi đọc {source_file.name}: {e}")
 
-        # Retry tối đa 3 vòng
         max_retry_rounds = 3
         for round_num in range(1, max_retry_rounds + 1):
             logging.info(f"\n{'='*80}")
@@ -332,7 +296,6 @@ def translate_directory_project(
 
                 original_content = source_files_map[filename]
 
-                # Xóa cache cũ cho file này
                 cache_key = prompts.get('main', '').replace('{previous_chunk_context}', '') + original_content
                 cache_hash = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
                 cache_file = Path(cache_manager.cache_dir) / (cache_hash + ".pkl")
@@ -355,7 +318,6 @@ def translate_directory_project(
                 except Exception as e:
                     logging.error(f"Lỗi retry {filename}: {e}")
 
-            # Quét lại sau mỗi vòng
             failed_files = find_chinese_files(parts_dir)
             if not failed_files:
                 logging.info(f"✅ Tất cả file đã sạch sau {round_num} vòng retry!")
@@ -368,7 +330,6 @@ def translate_directory_project(
     else:
         logging.info("✅ Tất cả file đã sạch!")
 
-    # Ghép nối file full.txt
     logging.info("📝 Ghép nối các file thành full.txt...")
     file_writer.assemble_final_files(
         str(parts_dir), str(output_dir),
@@ -387,22 +348,8 @@ def translate_single_file_project(
     statistics: TranslationStatistics,
     health_monitor: HealthMonitor
 ) -> None:
-    """
-    Dịch dự án dạng file đơn (chia thành chunks).
-
-    Quy trình:
-      1) Chia file thành chunks thông minh theo [min..max].
-      2) Dịch từng chunk với context chaining.
-      3) Auto-retry chunks lỗi (tối đa 3 vòng).
-      4) Consistency check (nếu bật).
-      5) Ghép nối thành full.txt.
-
-    Theo dõi tiến trình:
-      - Sau mỗi chunk hoàn tất, gọi health_monitor.update_progress(index+1).
-    """
     logging.info("ℹ️ File đơn: sử dụng workflow chia chunk.")
 
-    # Đọc và chia chunk
     original_text = smart_chunker.read_and_detect_encoding(str(source_file))
     if not original_text or not original_text.strip():
         logging.error("❌ Nội dung file rỗng.")
@@ -415,12 +362,10 @@ def translate_single_file_project(
     )
     logging.info(f"🌐 Bắt đầu dịch {len(all_chunks)} chunks...")
 
-    # Xóa và tạo mới progress_dir
     if progress_dir.exists():
         shutil.rmtree(progress_dir, ignore_errors=True)
     progress_dir.mkdir(parents=True, exist_ok=True)
 
-    # Lưu state khởi tạo
     state_file_path = progress_dir / STATE_FILE
     with open(state_file_path, 'w', encoding='utf-8') as f:
         json.dump({
@@ -431,14 +376,12 @@ def translate_single_file_project(
             "source_file_path": str(source_file)
         }, f, ensure_ascii=False, indent=2)
 
-    # Dịch từng chunk
     last_translated_text = ""
     progress_bar = tqdm(enumerate(all_chunks), total=len(all_chunks), desc="🤖 Đang dịch")
     for index, chunk in progress_bar:
         if check_emergency_stop():
             break
 
-        # Chuẩn bị ngữ cảnh
         context_to_pass = ""
         if config_params['context_char_count'] > 0 and last_translated_text:
             context_to_pass = last_translated_text[-config_params['context_char_count']:]
@@ -457,7 +400,6 @@ def translate_single_file_project(
                     config_params['output_encoding']
                 )
 
-                # Cập nhật state (đánh dấu chunk hoàn tất)
                 with open(state_file_path, 'r+', encoding='utf-8') as f:
                     state = json.load(f)
                     if index not in state['completed_indices']:
@@ -476,11 +418,9 @@ def translate_single_file_project(
         except Exception as e:
             logging.error(f"Lỗi chunk {index + 1}: {e}")
 
-        # Cập nhật HealthMonitor theo số chunk đã xử lý
         health_monitor.update_progress(index + 1)
         print_api_status(api_manager)
 
-    # ===== AUTO-RETRY CHO CHUNKS LỖI =====
     logging.info("\n" + "="*80)
     logging.info("🔍 Kiểm tra chunks còn sót ký tự tiếng Trung...")
     logging.info("="*80 + "\n")
@@ -510,7 +450,6 @@ def translate_single_file_project(
     else:
         logging.info("✅ Tất cả chunks đã sạch!")
 
-    # ===== CONSISTENCY CHECK =====
     if check_emergency_stop():
         logging.warning("Bỏ qua consistency check.")
     elif config_params['enable_consistency_check'] and "Không có ghi chú đặc biệt." not in prompts.get('consistency', ''):
@@ -518,13 +457,11 @@ def translate_single_file_project(
     else:
         logging.info("ℹ️ Bỏ qua consistency check.")
 
-    # Ghép nối cuối
     file_writer.assemble_final_files(
         str(progress_dir), str(output_dir),
         config_params['output_encoding']
     )
 
-    # Dọn dẹp
     try:
         shutil.rmtree(progress_dir, ignore_errors=True)
         logging.info("🗑️ Đã xóa thư mục tạm.")

@@ -1,5 +1,25 @@
 # Changelog - Lịch sử thay đổi
 
+# Changelog (v2.7.0)
+
+- src/translators/cache_manager.py
+  - Thiết kế lại khóa cache: thêm model_name, temperature, chữ ký phiên bản prompt (hash ổn định), previous_chunk_context và hash nội dung gốc để tránh reuse sai khi thay đổi cấu hình/guidelines; lý do: khóa cũ chỉ dựa trên prompt+chunk; tác động: an toàn khi đổi model/temperature/prompt/context, giảm lỗi tái sử dụng bản dịch cũ [attached_file:9].
+
+- src/translators/file_manager.py (MỚI)
+  - Thêm GeminiProjectFileManager: đóng gói và tải nguồn dự án (file đơn/thư mục) lên Gemini File API một lần, tạo file_uri tái sử dụng đa API key; lý do: giảm băng thông và chuẩn hóa ngữ cảnh chung; tác động: tăng ổn định/hiệu năng, tránh gửi nguồn lặp lại [attached_file:9].
+  - Sinh chữ ký nội dung (SHA256) theo bộ nguồn để quyết định re-upload, lưu mapping local .project_assets.json để tái sử dụng; lý do: kiểm soát phiên bản nguồn; tác động: nhất quán giữa các lần chạy [attached_file:9].
+  - Phát hiện lỗi quyền truy cập/không thể upload và raise hướng dẫn cấp quyền/public; lý do: yêu cầu dừng khi không có quyền; tác động: quy trình rõ ràng, không chạy mù [attached_file:9].
+
+- src/translators/core.py
+  - Hỗ trợ đính kèm project_file_uri vào gọi Gemini: truyền phần file_data bên cạnh prompt và chunk; lý do: dùng “cache nguồn” phía AI; tác động: cải thiện tuân thủ ngữ cảnh lớn mà không lặp dữ liệu [attached_file:9].
+  - Tích hợp khóa cache mới thông qua TranslationCache.build_key() và get/set_by_components(); lý do: đồng bộ với thiết kế khóa mới; tác động: cache chuẩn hóa hơn [attached_file:9].
+
+- src/translator.py
+  - Mở rộng facade: tái xuất GeminiProjectFileManager bên cạnh ApiManager/TranslationCache/robust_translate/consistency_check_chunk; lý do: thuận tiện import; tác động: không phá vỡ tương thích ngược [attached_file:9].
+
+- src/workflow.py
+  - Tạo và khởi động GeminiProjectFileManager theo từng dự án, tự động zip và upload nguồn (file đơn: chính file; thư mục: toàn bộ *.txt), lưu file_uri vào config_params['project_file_uri'] để mọi lần gọi dịch dùng chung; lý do: nối luồng tự động; tác động: giảm dung lượng prompt truyền đi, ổn định hơn trong dự án lớn [attached_file:12].
+  - Ghi log rõ ràng khi cần quyền truy cập hoặc public để tiếp tục; lý do: minh bạch quyền; tác động: tránh vòng lặp lỗi khó chẩn đoán [attached_file:12].
 
 ## [2.6.3] - 2025-10-09
 
