@@ -1,8 +1,12 @@
-# src/workflow_helpers.py - v2.6.1
+# src/workflow_helpers.py - v2.8.2
 # Tác giả: Narga
 # Chức năng: Module chứa các hàm helper cho workflow.
-# Bao gồm: retry chunks lỗi, verification mode, consistency check, và tiện ích chuẩn hóa tên file.
-# Lưu ý: Đã thay input() bằng io_utils.input_with_timeout (default 'y') để tránh chặn tiến trình khi chạy headless.
+# Bao gồm: retry chunks lỗi, verification mode, consistency check.
+#
+# Nâng cấp v2.8.2:
+# - Sửa verify_existing_translation(): bỏ logic tìm file gốc đơn lẻ,
+#   thay bằng so sánh danh sách file input với output/parts để tự động
+#   phát hiện file mới/thay đổi và dịch lại.
 
 import json
 import logging
@@ -17,24 +21,7 @@ from .emergency_stop import check_emergency_stop
 from .statistics import TranslationStatistics
 from .text_normalizer import TextNormalizer
 from .chinese_detector import find_chinese_files, find_chinese_chunks
-from .io_utils import input_with_timeout
 
-def normalize_output_filename(name: str) -> str:
-    """
-    Chuẩn hóa tên file đầu ra (trong output/parts) về tên nguồn để ánh xạ.
-    - Loại bỏ hậu tố '_translated' nếu tồn tại trước phần mở rộng.
-    - Giữ nguyên phần mở rộng (mặc định .txt).
-    - Trả về chuỗi tên đã chuẩn hóa.
-
-    Ví dụ:
-        "chapter_01_translated.txt"  -> "chapter_01.txt"
-        "chunk_00001_translated.txt" -> "chunk_00001.txt"
-    """
-    p = Path(name)
-    stem = p.stem
-    if stem.endswith('_translated'):
-        stem = stem[: -len('_translated')]
-    return f"{stem}{p.suffix}"
 
 def retry_failed_chunks(
     failed_chunks: List[Tuple[int, Path, int]],
@@ -48,71 +35,90 @@ def retry_failed_chunks(
     statistics: TranslationStatistics
 ) -> List[Tuple[int, Path, int]]:
     """
-    Dịch lại các chunks bị lỗi (còn sót ký tự tiếng Trung) theo chỉ số chunk.
-    - Xóa cache cũ của từng chunk trước khi dịch lại để buộc sinh bản dịch mới.
-    - Cập nhật thống kê mức chunk.
-    - Sau vòng retry, quét lại các chunk còn lỗi và trả về danh sách lỗi còn lại.
-
+    Dịch lại các chunks bị lỗi (còn sót ký tự tiếng Trung).
+    
+    Hàm này xóa cache cũ cho từng chunk lỗi, sau đó gọi robust_translate
+    để dịch lại. Hỗ trợ Parallel Context Correction (Phương án 2) nếu
+    config_params['correction_mode'] = 'parallel'.
+    
+    Args:
+        failed_chunks: Danh sách (chunk_index, file_path, chinese_count) các chunks lỗi
+        all_chunks: Danh sách toàn bộ chunks gốc (tiếng Trung)
+        api_manager: Trình quản lý API keys
+        cache_manager: Trình quản lý cache
+        prompts: Dictionary chứa các prompt
+        config_params: Dictionary tham số cấu hình
+        progress_dir: Thư mục tiến trình (cache/progress)
+        normalizer: TextNormalizer để chuẩn hóa văn bản
+        statistics: TranslationStatistics để ghi thống kê
+    
     Returns:
-        List[Tuple[int, Path, int]]: Danh sách các chunks vẫn còn lỗi sau khi retry.
+        List[Tuple[int, Path, int]]: Danh sách chunks vẫn còn lỗi sau retry
     """
     if not failed_chunks:
         return []
-
-    logging.info(f"🔄 Bắt đầu dịch lại {len(failed_chunks)} chunks bị lỗi...")
-
-    progress_bar = tqdm(failed_chunks, desc="🔄 Đang dịch lại chunks lỗi")
-    for chunk_index, chunk_file, chinese_count in progress_bar:
+    
+    logging.info(f"🔄 Bắt đầu retry {len(failed_chunks)} chunks lỗi...")
+    still_failed = []
+    
+    for chunk_index, chunk_path, chinese_count in tqdm(failed_chunks, desc="🔄 Retry chunks"):
         if check_emergency_stop():
-            logging.warning("Dừng quá trình retry do tín hiệu khẩn cấp.")
             break
-
+        
+        if chunk_index >= len(all_chunks):
+            logging.error(f"❌ Chunk {chunk_index} vượt quá phạm vi danh sách chunks.")
+            still_failed.append((chunk_index, chunk_path, chinese_count))
+            continue
+        
         original_chunk = all_chunks[chunk_index]
-        # Chuẩn bị ngữ cảnh (nếu có)
-        context_to_pass = ""
-        if config_params['context_char_count'] > 0 and chunk_index > 0:
-            prev_chunk_file = progress_dir / f"chunk_{chunk_index - 1}.txt"
-            if prev_chunk_file.exists():
-                prev_content = prev_chunk_file.read_text(encoding='utf-8')
-                context_to_pass = prev_content[-config_params['context_char_count']:]
-
-        try:
-            # Xóa cache cũ của chunk này
-            cache_key = prompts.get('main', '').replace('{previous_chunk_context}', context_to_pass) + original_chunk
-            cache_hash = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
-            if hasattr(cache_manager, 'cache_dir'):
-                cache_file = Path(cache_manager.cache_dir) / (cache_hash + ".pkl")
-                if cache_file.exists():
-                    cache_file.unlink()
-                    logging.info(f"Đã xóa cache cũ cho chunk {chunk_index}")
-
-            # Dịch lại
-            result, status, api_key_used = translator.robust_translate(
-                original_chunk, api_manager, cache_manager, prompts,
-                config_params, context_to_pass, normalizer
+        
+        # Xóa cache cũ để ép dịch lại
+        main_prompt_template = prompts.get('main', '')
+        main_prompt = main_prompt_template.replace('{previous_chunk_context}', '')
+        cache_key = main_prompt + original_chunk
+        cache_hash = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
+        cache_file = Path(cache_manager.cache_dir) / (cache_hash + ".pkl")
+        
+        if cache_file.exists():
+            try:
+                cache_file.unlink()
+            except Exception as e:
+                logging.warning(f"⚠️ Không thể xóa cache cho chunk {chunk_index}: {e}")
+        
+        # Dịch lại
+        result, status, api_key_used = translator.robust_translate(
+            original_chunk, api_manager, cache_manager, prompts,
+            config_params, "", normalizer
+        )
+        
+        statistics.add_chunk_result(chunk_index, original_chunk, status, api_key_used)
+        
+        if status == "success":
+            # Lưu lại chunk đã sửa
+            file_writer.save_progress_chunk(
+                result, chunk_index, str(progress_dir),
+                config_params['output_encoding']
             )
-
-            # Ghi nhận thống kê
-            statistics.add_chunk_result(chunk_index, original_chunk, status, api_key_used)
-
-            if status == "success":
-                file_writer.save_progress_chunk(
-                    result, chunk_index, str(progress_dir),
-                    config_params['output_encoding']
-                )
-                progress_bar.set_postfix_str(f"Chunk {chunk_index} ✅ (retry)")
+            
+            # Kiểm tra xem còn ký tự Trung không
+            from .chinese_detector import count_chinese_characters
+            remaining = count_chinese_characters(result)
+            
+            if remaining > 0:
+                logging.warning(f"⚠️ Chunk {chunk_index} vẫn còn {remaining} ký tự Trung sau retry.")
+                still_failed.append((chunk_index, chunk_path, remaining))
             else:
-                logging.error(f"Chunk {chunk_index} retry thất bại với status: {status}")
-                progress_bar.set_postfix_str(f"Chunk {chunk_index} ❌ (retry failed)")
-        except Exception as e:
-            logging.error(f"Lỗi khi retry chunk {chunk_index}: {e}")
-
-    # Quét lại để tìm chunks vẫn còn lỗi
-    still_failed = find_chinese_chunks(progress_dir)
+                logging.info(f"✅ Chunk {chunk_index} đã sạch sau retry.")
+        else:
+            logging.error(f"❌ Chunk {chunk_index} retry thất bại: {status}")
+            still_failed.append((chunk_index, chunk_path, chinese_count))
+    
+    logging.info(f"🏁 Hoàn tất retry. Còn {len(still_failed)} chunks lỗi.")
     return still_failed
 
+
 def verify_existing_translation(
-    input_dir: Path,
+    target_path: Path,
     output_dir: Path,
     base_filename: str,
     api_manager,
@@ -123,136 +129,180 @@ def verify_existing_translation(
     statistics: TranslationStatistics
 ) -> None:
     """
-    Chế độ kiểm tra bản dịch cũ và dịch lại các file có lỗi.
-    - Áp dụng cho dự án dạng thư mục (nhiều file nguồn riêng lẻ).
-    - Với dự án file đơn (đã chia chunk), chặn từ sớm để tránh retry vô nghĩa.
-    - Chuẩn hóa tên file đầu ra (strip '_translated') trước khi ánh xạ về nguồn.
-
-    Hành vi:
-    1) Quét output/parts để tìm file còn ký tự Trung.
-    2) Hỏi người dùng (không chặn) có muốn retry không (default 'y').
-    3) Lập map tên_nguồn -> nội_dung_gốc, rồi ánh xạ các file lỗi về nguồn.
-    4) Xóa cache tương ứng và dịch lại từng file lỗi, tối đa 3 vòng.
-    5) Ghép lại full.txt sau khi hoàn tất.
+    Chế độ verification: kiểm tra và cập nhật bản dịch cũ đã tồn tại.
+    
+    Logic v2.8.2:
+    - Nếu target_path là thư mục: so sánh danh sách file .txt trong thư mục
+      với danh sách file trong output/parts. Dịch lại file mới hoặc bị thay đổi.
+    - Nếu target_path là file đơn: quét output/parts để tìm chunks lỗi (có ký tự Trung)
+      và retry.
+    
+    Args:
+        target_path (Path): File/thư mục nguồn
+        output_dir (Path): Thư mục output
+        base_filename (str): Tên dự án
+        api_manager: Trình quản lý API
+        cache_manager: Trình quản lý cache
+        prompts (Dict): Dictionary prompt
+        config_params (Dict): Tham số cấu hình
+        normalizer (TextNormalizer): Đối tượng chuẩn hóa
+        statistics (TranslationStatistics): Đối tượng thống kê
     """
-    logging.info("🔍 Bắt đầu chế độ kiểm tra bản dịch cũ...")
-
-    parts_dir = output_dir / 'parts'
+    parts_dir = output_dir / "parts"
+    
     if not parts_dir.exists():
         logging.error(f"❌ Không tìm thấy thư mục parts: {parts_dir}")
         return
-
-    # Quét tìm file lỗi
-    failed_files = find_chinese_files(parts_dir)
-    if not failed_files:
-        logging.info("✅ Không phát hiện file nào có ký tự tiếng Trung. Bản dịch sạch!")
-        return
-
-    logging.warning(f"⚠️ Phát hiện {len(failed_files)} file còn sót ký tự tiếng Trung:")
-    for file_path, chinese_count in failed_files:
-        logging.warning(f" - {file_path.name}: {chinese_count} ký tự")
-
-    # Hỏi người dùng theo kiểu non-blocking
-    user_choice = input_with_timeout("\n Bạn có muốn dịch lại các file này không? (y/n): ", timeout=5, default='y')
-    if user_choice != 'y':
-        logging.info("Người dùng từ chối dịch lại. Bỏ qua.")
-        return
-
-    # Xác định nguồn dữ liệu (file đơn hay thư mục)
-    source_path = input_dir / (base_filename + '.txt')
-    if not source_path.exists():
-        source_path = input_dir / base_filename
-    if not source_path.exists():
-        logging.error(f"❌ Không tìm thấy file hoặc thư mục nguồn dưới tên dự án: {base_filename}")
-        return
-
-    # File đơn: chặn sớm để tránh retry vô nghĩa
-    if source_path.is_file():
-        logging.error("❌ Verification mode chỉ hỗ trợ dự án có nhiều file input riêng lẻ.")
-        logging.error("   Dự án file đơn đã được chia chunk => hãy dùng cơ chế retry chunks trong workflow.")
-        return
-
-    # Thư mục: nạp toàn bộ map tên file nguồn -> nội dung
-    source_files_map = {}
-    for input_file in sorted(source_path.glob('*.txt')):
-        try:
-            content = input_file.read_text(encoding='utf-8')
-            source_files_map[input_file.name] = content
-        except Exception as e:
-            logging.error(f"Lỗi khi đọc file {input_file.name}: {e}")
-
-    # Gộp thêm một map so khớp lower-case để dự phòng sai khác hoa/thường
-    lower_map = {k.lower(): v for k, v in source_files_map.items()}
-
-    # Retry các file lỗi (tối đa 3 vòng)
-    max_retry_rounds = 3
-    for round_num in range(1, max_retry_rounds + 1):
-        logging.info(f"\n{'='*80}")
-        logging.info(f"🔄 Vòng retry {round_num}/{max_retry_rounds}")
-        logging.info(f"{'='*80}\n")
-
-        progress_bar = tqdm(failed_files, desc=f"🔄 Retry vòng {round_num}")
-        for file_path, chinese_count in progress_bar:
-            if check_emergency_stop():
-                logging.warning("Dừng quá trình retry do tín hiệu khẩn cấp.")
-                break
-
-            # Chuẩn hóa tên parts để tìm về tên nguồn
-            normalized_name = normalize_output_filename(file_path.name)
-            original_content = source_files_map.get(normalized_name)
-            if original_content is None:
-                # Dự phòng: so khớp lower-case
-                original_content = lower_map.get(normalized_name.lower())
-
-            if original_content is None:
-                logging.error(f"❌ Không tìm thấy file gốc tương ứng cho: {file_path.name} -> {normalized_name}")
-                continue
-
-            # Xóa cache cũ của file này
-            cache_key = prompts.get('main', '').replace('{previous_chunk_context}', '') + original_content
-            cache_hash = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
-            cache_file = Path(cache_manager.cache_dir) / (cache_hash + ".pkl")
-            if cache_file.exists():
-                cache_file.unlink()
-                logging.info(f"Đã xóa cache cũ cho {normalized_name}")
-
-            try:
-                # Dịch lại file
-                result, status, api_key_used = translator.robust_translate(
-                    original_content, api_manager, cache_manager, prompts,
-                    config_params, "", normalizer
-                )
-
-                # Ghi nhận thống kê (dùng normalized_name làm id)
-                statistics.add_chunk_result(normalized_name, original_content, status, api_key_used)
-
-                if status == "success":
-                    # Ghi đè kết quả vào chính file parts (giữ nguyên tên hiện tại)
-                    file_path.write_text(result, encoding=config_params['output_encoding'])
-                    progress_bar.set_postfix_str(f"{file_path.name} ✅")
-                else:
-                    logging.error(f"{file_path.name} retry thất bại với status: {status}")
-                    progress_bar.set_postfix_str(f"{file_path.name} ❌")
-            except Exception as e:
-                logging.error(f"Lỗi khi retry {file_path.name}: {e}")
-
-        # Quét lại để tìm file còn lỗi
+    
+    if target_path.is_dir():
+        # ===== VERIFICATION CHO THƯ MỤC =====
+        logging.info("🔍 Chế độ verification cho thư mục nhiều file...")
+        
+        # Lấy danh sách file .txt trong input
+        source_files = sorted(target_path.glob('*.txt'))
+        source_file_names = {f.name for f in source_files}
+        
+        # Lấy danh sách file trong output/parts
+        parts_files = sorted(parts_dir.glob('*.txt'))
+        parts_file_names = {f.name for f in parts_files}
+        
+        # Tìm file mới (có trong input nhưng không có trong parts)
+        new_files = source_file_names - parts_file_names
+        
+        # Tìm file bị xóa (có trong parts nhưng không có trong input)
+        deleted_files = parts_file_names - source_file_names
+        
+        if new_files:
+            logging.info(f"📝 Phát hiện {len(new_files)} file mới, bắt đầu dịch...")
+            for filename in sorted(new_files):
+                source_file = target_path / filename
+                try:
+                    content = source_file.read_text(encoding='utf-8')
+                    if not content.strip():
+                        logging.warning(f"⚠️ File {filename} rỗng, bỏ qua.")
+                        continue
+                    
+                    result, status, api_key_used = translator.robust_translate(
+                        content, api_manager, cache_manager, prompts,
+                        config_params, "", normalizer
+                    )
+                    
+                    statistics.add_chunk_result(filename, content, status, api_key_used)
+                    
+                    if status == "success":
+                        file_writer.save_translated_file(
+                            result, str(output_dir), filename,
+                            config_params['output_encoding']
+                        )
+                        logging.info(f"✅ Đã dịch file mới: {filename}")
+                    else:
+                        logging.error(f"❌ Dịch {filename} thất bại: {status}")
+                
+                except Exception as e:
+                    logging.error(f"❌ Lỗi khi xử lý {filename}: {e}")
+        
+        if deleted_files:
+            logging.warning(f"⚠️ Phát hiện {len(deleted_files)} file đã bị xóa khỏi input:")
+            for filename in sorted(deleted_files):
+                logging.warning(f"   - {filename}")
+                # Xóa file khỏi output/parts nếu cần
+                try:
+                    (parts_dir / filename).unlink()
+                    logging.info(f"🗑️ Đã xóa {filename} khỏi output/parts")
+                except Exception as e:
+                    logging.warning(f"⚠️ Không thể xóa {filename}: {e}")
+        
+        # Kiểm tra file lỗi (còn ký tự Trung)
         failed_files = find_chinese_files(parts_dir)
-        if not failed_files:
-            logging.info(f"✅ Tất cả file đã sạch sau {round_num} vòng retry!")
-            break
-        logging.warning(f"⚠️ Vẫn còn {len(failed_files)} file lỗi sau vòng {round_num}")
+        if failed_files:
+            logging.warning(f"⚠️ Phát hiện {len(failed_files)} file còn ký tự Trung:")
+            for fp, count in failed_files:
+                logging.warning(f"   - {fp.name}: {count} ký tự")
+            
+            # Retry các file lỗi (tương tự workflow chính)
+            source_files_map = {}
+            for source_file in source_files:
+                try:
+                    content = source_file.read_text(encoding='utf-8')
+                    source_files_map[source_file.name] = content
+                except Exception as e:
+                    logging.error(f"Lỗi khi đọc {source_file.name}: {e}")
+            
+            for file_path, chinese_count in failed_files:
+                filename = file_path.name
+                if filename not in source_files_map:
+                    logging.error(f"❌ Không tìm thấy file gốc: {filename}")
+                    continue
+                
+                original_content = source_files_map[filename]
+                
+                # Xóa cache cũ
+                main_prompt_template = prompts.get('main', '')
+                cache_key = main_prompt_template.replace('{previous_chunk_context}', '') + original_content
+                cache_hash = hashlib.md5(cache_key.encode('utf-8')).hexdigest()
+                cache_file = Path(cache_manager.cache_dir) / (cache_hash + ".pkl")
+                if cache_file.exists():
+                    cache_file.unlink()
+                
+                try:
+                    result, status, api_key_used = translator.robust_translate(
+                        original_content, api_manager, cache_manager, prompts,
+                        config_params, "", normalizer
+                    )
+                    
+                    statistics.add_chunk_result(filename, original_content, status, api_key_used)
+                    
+                    if status == "success":
+                        file_path.write_text(result, encoding=config_params['output_encoding'])
+                        logging.info(f"✅ Đã sửa file lỗi: {filename}")
+                    else:
+                        logging.error(f"❌ Sửa {filename} thất bại: {status}")
+                
+                except Exception as e:
+                    logging.error(f"❌ Lỗi retry {filename}: {e}")
+        
+        # Ghép nối lại sau khi cập nhật
+        logging.info(f"📝 Ghép nối các file thành {base_filename}_full.txt...")
+        file_writer.assemble_final_files(
+            str(parts_dir), str(output_dir),
+            config_params['output_encoding'], source_is_parts=True, base_filename=base_filename
+        )
+        
+        logging.info("✅ Hoàn tất cập nhật bản dịch!")
+    
+    else:
+        # ===== VERIFICATION CHO FILE ĐƠN =====
+        logging.info("🔍 Chế độ verification cho file đơn...")
+        
+        # Tải file gốc và chia chunks
+        from . import smart_chunker
+        original_text = smart_chunker.read_and_detect_encoding(str(target_path))
+        all_chunks = smart_chunker.process_text_for_chunking(
+            original_text, config_params['min_chars_per_chunk'],
+            config_params['max_chars_per_chunk']
+        )
+        
+        # Tìm chunks lỗi
+        failed_chunks = find_chinese_chunks(parts_dir)
+        
+        if not failed_chunks:
+            logging.info("✅ Tất cả chunks đã sạch! Không cần cập nhật.")
+            return
+        
+        logging.info(f"🔍 Phát hiện {len(failed_chunks)} chunks còn ký tự Trung. Bắt đầu cập nhật...")
+        retry_failed_chunks(
+            failed_chunks, all_chunks, api_manager, cache_manager,
+            prompts, config_params, parts_dir, normalizer, statistics
+        )
+        
+        # Ghép nối lại sau khi cập nhật
+        file_writer.assemble_final_files(
+            str(parts_dir), str(output_dir),
+            config_params['output_encoding'], base_filename=base_filename
+        )
+        
+        logging.info("✅ Hoàn tất cập nhật bản dịch!")
 
-    if failed_files:
-        logging.error(f"❌ Không thể loại bỏ hết ký tự tiếng Trung sau {max_retry_rounds} vòng retry.")
-        logging.error(f"   Các file vẫn còn lỗi: {[fp.name for fp, _ in failed_files]}")
-
-    # Ghép nối lại file full.txt (source_is_parts=True vì đang làm việc trên parts)
-    logging.info("📝 Ghép nối lại file full.txt...")
-    file_writer.assemble_final_files(
-        str(parts_dir), str(output_dir),
-        config_params['output_encoding'], source_is_parts=True
-    )
 
 def run_consistency_check(
     progress_dir: Path,
@@ -263,30 +313,39 @@ def run_consistency_check(
     normalizer: TextNormalizer
 ) -> None:
     """
-    Điều phối bước kiểm tra và tinh chỉnh sự nhất quán sau khi dịch.
-    - Duyệt toàn bộ chunk_*.txt trong progress_dir và chạy QA nếu có prompt.
-    - Dùng ThreadPoolExecutor giới hạn bởi max_workers để tận dụng đa key song song.
+    Chạy kiểm tra nhất quán trên tất cả chunks đã dịch.
+    
+    Hàm này đọc tất cả chunks từ progress_dir, gọi consistency_check_chunk
+    cho từng chunk, và ghi đè lại file nếu có tinh chỉnh.
+    
+    Args:
+        progress_dir (Path): Thư mục chứa các chunks đã dịch
+        api_manager: Trình quản lý API
+        cache_manager: Trình quản lý cache
+        config_params (Dict): Tham số cấu hình
+        prompts (Dict): Dictionary prompt
+        normalizer (TextNormalizer): Đối tượng chuẩn hóa
     """
-    logging.info("🔬 Bắt đầu bước kiểm tra và tinh chỉnh sự nhất quán...")
-    if check_emergency_stop():
+    consistency_prompt = prompts.get('consistency', '')
+    
+    # Bỏ qua nếu không có prompt consistency hoặc prompt trống
+    if not consistency_prompt or "Không có ghi chú đặc biệt." in consistency_prompt:
+        logging.info("ℹ️ Bỏ qua consistency check (prompt trống hoặc không áp dụng).")
         return
-
-    chunk_files = sorted(progress_dir.glob("chunk_*.txt"))
-    if not chunk_files:
-        logging.warning("Không tìm thấy chunk nào để kiểm tra sự nhất quán.")
-        return
-
-    from concurrent.futures import ThreadPoolExecutor
-    tasks = [
-        (translator.consistency_check_chunk, (chunk_file, api_manager, cache_manager, prompts, config_params, normalizer))
-        for chunk_file in chunk_files
-    ]
-
-    with ThreadPoolExecutor(max_workers=config_params['max_workers']) as executor:
-        list(tqdm(
-            executor.map(lambda p: p[0](*p[1]), tasks),
-            total=len(tasks),
-            desc="🔬 Tinh chỉnh"
-        ))
-
-    logging.info("✅ Hoàn tất bước kiểm tra sự nhất quán.")
+    
+    logging.info("\n" + "="*80)
+    logging.info("🔍 Bắt đầu kiểm tra nhất quán (consistency check)...")
+    logging.info("="*80 + "\n")
+    
+    chunk_files = sorted(progress_dir.glob("chunk_*.txt"), key=lambda p: int(p.stem.split("_")[1]))
+    
+    for chunk_file in tqdm(chunk_files, desc="🔍 Consistency check"):
+        if check_emergency_stop():
+            break
+        
+        translator.consistency_check_chunk(
+            chunk_file, api_manager, cache_manager,
+            prompts, config_params, normalizer
+        )
+    
+    logging.info("✅ Hoàn tất consistency check!")

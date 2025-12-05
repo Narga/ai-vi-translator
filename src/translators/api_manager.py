@@ -1,26 +1,111 @@
-# src/translators/api_manager.py - v2.6.1
+# src/translators/api_manager.py - v2.8.1
 # Tác giả: Narga
-# Chức năng: Quản lý vòng quay API key, phối hợp với SmartRateLimiter để xử lý lỗi và cooldown.
-# Giữ nguyên giao diện công khai như trước để không phá vỡ mã gọi.
+# Chức năng: Quản lý API keys với SmartRateLimiter, backoff thông minh và cooldown.
+# v2.8.1: Giữ nguyên hoàn toàn v2.4.1 để tương thích statistics.py (truy cập _lock, _rate_limiter, _keys, _key_list).
 
 import time
 import logging
+from typing import List, Optional, Dict, Tuple
 from threading import Lock
-from typing import List, Optional, Tuple
 
-from .rate_limiter import SmartRateLimiter
+
+class SmartRateLimiter:
+    """
+    Điều tiết tần suất gọi API một cách thông minh, tự động backoff
+    dựa trên loại lỗi và đưa key vào cooldown để tránh lãng phí.
+
+    Thuộc tính:
+        failure_count (Dict[str, int]): Đếm số lần lỗi liên tiếp của mỗi key
+        cool_down_until (Dict[str, float]): Thời điểm kết thúc cooldown của mỗi key
+        _lock (Lock): Lock để thread-safe khi đọc/ghi failure_count và cool_down_until
+    """
+
+    def __init__(self):
+        """Khởi tạo SmartRateLimiter với các dictionary trống và lock."""
+        self.failure_count: Dict[str, int] = {}
+        self.cool_down_until: Dict[str, float] = {}
+        self._lock = Lock()
+
+    def should_retry(self, api_key: str, error: str) -> Tuple[bool, float]:
+        """
+        Quyết định xem có nên thử lại không và cần chờ bao lâu.
+
+        Chiến lược:
+        - Lỗi quota/rate-limit: cooldown dài (60-1800s) theo cấp số nhân.
+        - Lỗi tạm thời khác: backoff ngắn (5s), tối đa 2 lần.
+        - Lỗi nghiêm trọng: không thử lại.
+
+        Args:
+            api_key (str): API key gặp lỗi
+            error (str): Thông điệp lỗi từ API
+
+        Returns:
+            Tuple[bool, float]: (có_nên_thử_lại, thời_gian_chờ_giây)
+        """
+        with self._lock:
+            current_time = time.time()
+
+            # Kiểm tra xem key có đang trong cooldown không
+            if current_time < self.cool_down_until.get(api_key, 0):
+                return False, self.cool_down_until[api_key] - current_time
+
+            error_lower = error.lower()
+            failures = self.failure_count.get(api_key, 0) + 1
+            self.failure_count[api_key] = failures
+
+            # Xử lý lỗi quota/rate limit
+            if any(kw in error_lower for kw in ["rate limit", "quota", "429", "resource_exhausted"]):
+                if failures > 5:
+                    # Đưa vào cooldown dài hạn sau nhiều lần thất bại liên tiếp
+                    self.cool_down_until[api_key] = current_time + 1800  # 30 phút
+                    logging.warning(f"Key ...{api_key[-4:]} vào cooldown 30 phút do lỗi quota liên tục.")
+                    return False, 1800
+                # Backoff theo cấp số nhân: 15s, 30s, 60s, 120s...
+                delay = min(15 * (2 ** (failures - 1)), 120)
+                logging.warning(f"Lỗi quota với key ...{api_key[-4:]}, thử lại sau {delay}s...")
+                return True, delay
+
+            # Lỗi khác: chỉ thử lại tối đa 2 lần
+            if failures > 2:
+                return False, 0
+            return True, 5.0
+
+    def mark_success(self, api_key: str) -> None:
+        """
+        Reset bộ đếm lỗi cho key khi có request thành công.
+
+        Args:
+            api_key (str): API key đã thành công
+        """
+        with self._lock:
+            if api_key in self.failure_count:
+                self.failure_count[api_key] = 0
+            if api_key in self.cool_down_until:
+                del self.cool_down_until[api_key]
+
 
 class ApiManager:
     """
-    Quản lý API key và tích hợp giới hạn tốc độ thông minh.
+    Quản lý API key, tích hợp SmartRateLimiter để xoay vòng key thông minh.
 
     Thuộc tính:
-        _keys (dict): key -> trạng thái 'available' (mở rộng về sau)
-        _key_list (List[str]): danh sách tuần tự các key
-        _current_key_index (int): chỉ số xoay vòng hiện tại
-        _rate_limiter (SmartRateLimiter): điều tiết backoff/cooldown
+        _keys (Dict[str, str]): Dictionary ánh xạ key -> trạng thái ('available')
+        _key_list (List[str]): Danh sách các API keys
+        _current_key_index (int): Chỉ số key hiện tại trong vòng xoay
+        _lock (Lock): Lock để thread-safe khi truy cập _keys và _current_key_index
+        _rate_limiter (SmartRateLimiter): Đối tượng điều tiết tần suất
     """
-    def __init__(self, api_keys: List[str]) -> None:
+
+    def __init__(self, api_keys: List[str]):
+        """
+        Khởi tạo ApiManager với danh sách API keys.
+
+        Args:
+            api_keys (List[str]): Danh sách các Gemini API keys
+
+        Raises:
+            ValueError: Nếu danh sách API keys trống
+        """
         if not api_keys:
             raise ValueError("Danh sách API key không được để trống trong config.ini.")
         self._keys = {key: 'available' for key in api_keys}
@@ -32,43 +117,68 @@ class ApiManager:
 
     def get_next_available_key(self) -> Optional[str]:
         """
-        Lấy key hợp lệ tiếp theo theo nguyên tắc vòng quay, bỏ qua key đang cooldown.
+        Lấy key hợp lệ tiếp theo trong danh sách (không trong cooldown).
+
+        Returns:
+            Optional[str]: API key hợp lệ hoặc None nếu không có key khả dụng
         """
         with self._lock:
-            now = time.time()
-            available = [k for k, v in self._keys.items()
-                         if v == 'available' and now >= self._rate_limiter.cool_down_until.get(k, 0.0)]
-            if not available:
+            current_time = time.time()
+
+            # Lọc ra các key available và không trong cooldown
+            available_keys = [
+                k for k, v in self._keys.items()
+                if v == 'available' and current_time >= self._rate_limiter.cool_down_until.get(k, 0)
+            ]
+
+            if not available_keys:
                 return None
 
-            start = self._current_key_index
+            start_index = self._current_key_index
+
+            # Vòng lặp xoay vòng để tìm key khả dụng
             while True:
                 key = self._key_list[self._current_key_index]
                 self._current_key_index = (self._current_key_index + 1) % len(self._key_list)
-                if key in available:
+                if key in available_keys:
                     return key
-                if self._current_key_index == start:
+                # Đã quét hết vòng mà không tìm thấy
+                if self._current_key_index == start_index:
                     return None
 
     def handle_api_error(self, api_key: str, error_msg: str) -> Tuple[bool, float]:
         """
-        Ủy quyền quyết định retry/delay cho SmartRateLimiter.
+        Ủy quyền xử lý lỗi cho SmartRateLimiter.
+
+        Args:
+            api_key (str): API key gặp lỗi
+            error_msg (str): Thông điệp lỗi
+
+        Returns:
+            Tuple[bool, float]: (có_nên_thử_lại, thời_gian_chờ)
         """
         return self._rate_limiter.should_retry(api_key, error_msg)
 
     def mark_success(self, api_key: str) -> None:
         """
-        Thông báo thành công để reset bộ đếm lỗi/cooldown.
+        Báo thành công cho SmartRateLimiter.
+
+        Args:
+            api_key (str): API key đã thực hiện request thành công
         """
         self._rate_limiter.mark_success(api_key)
 
     def all_keys_exhausted(self) -> bool:
         """
-        True nếu tất cả các key đều đang trong cooldown (tức không còn key khả dụng ngay).
+        Kiểm tra xem tất cả các keys có đều đang trong cooldown không.
+
+        Returns:
+            bool: True nếu không còn key nào khả dụng
         """
         with self._lock:
-            now = time.time()
+            current_time = time.time()
             for key in self._key_list:
-                if now >= self._rate_limiter.cool_down_until.get(key, 0.0):
+                # Nếu có ít nhất 1 key không trong cooldown → chưa exhausted
+                if current_time >= self._rate_limiter.cool_down_until.get(key, 0):
                     return False
             return True

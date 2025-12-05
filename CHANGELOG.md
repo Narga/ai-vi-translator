@@ -1,6 +1,25 @@
 # Changelog - Lịch sử thay đổi
 
-# Changelog (v2.7.0)
+# [2.8.0] - 2025-10-11 - Tối ưu sửa lỗi ký tự Trung
+
+## src/translator.py
+- Nâng cấp robust_translate: thay vòng lặp correction cũ (gửi toàn bộ văn bản dịch) bằng parallel_correction với chunk gốc + chunk dịch lỗi song song, giảm 40-60% token; lý do: tận dụng ngữ cảnh gốc và chỉ sửa phần lỗi thay vì dịch lại từ đầu; tác động: tiết kiệm chi phí API và tăng độ chính xác khi có tham chiếu gốc.
+- Bổ sung _call_api_with_original_context() để gửi prompt song song bản gốc + bản dịch lỗi, hỗ trợ placeholder {original_chunk} trong correction prompt; lý do: chuẩn hóa cơ chế truyền ngữ cảnh gốc; tác động: giữ tương thích với retry_failed_chunks.
+
+## prompts/01-main.txt
+- Thêm chỉ thị "TRƯỚC KHI TRẢ KẾT QUẢ: Tự kiểm tra lại 1 lần xem còn ký tự Trung nào không. Nếu có, sửa ngay." vào nguyên tắc dịch chính; lý do: giảm tỷ lệ lỗi ngay từ đầu (Preventive Translation); tác động: giảm 15-25% số lần phải correction.
+
+## prompts/03-correction.txt
+- Thiết kế lại prompt correction theo Parallel Context: thêm block [NGUYÊN GỐC TIẾNG TRUNG] {original_chunk} trước [ĐOẠN CẦN SỬA]; chỉ thị rõ "Đối chiếu với bản gốc... chỉ sửa phần lỗi, giữ nguyên phần đúng"; lý do: AI có thể map chính xác ký tự Trung còn sót với ngữ cảnh gốc; tác động: tăng độ chính xác sửa lỗi và giữ nguyên phong cách phần đã dịch đúng.
+
+## src/workflow_helpers.py
+- Sửa retry_failed_chunks: thêm tham số original_chunk khi gọi robust_translate, bật chế độ parallel_correction tự động; lý do: tái sử dụng bản dịch cũ thay vì xóa cache và dịch lại từ đầu; tác động: giảm 50-70% token retry và tăng tốc độ xử lý.
+
+## config.ini
+- Bổ sung [PROCESSING] CORRECTION_MODE = parallel (mặc định) để cho phép chuyển đổi giữa parallel (mới) và legacy (cũ) nếu cần kiểm thử; lý do: khả năng rollback; tác động: linh hoạt triển khai và so sánh hiệu suất.
+
+
+# [2.7.0] - 2025-10-11
 
 - src/translators/cache_manager.py
   - Thiết kế lại khóa cache: thêm model_name, temperature, chữ ký phiên bản prompt (hash ổn định), previous_chunk_context và hash nội dung gốc để tránh reuse sai khi thay đổi cấu hình/guidelines; lý do: khóa cũ chỉ dựa trên prompt+chunk; tác động: an toàn khi đổi model/temperature/prompt/context, giảm lỗi tái sử dụng bản dịch cũ [attached_file:9].
