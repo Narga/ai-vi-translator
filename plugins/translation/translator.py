@@ -13,9 +13,13 @@ import re
 from typing import Optional, Tuple, Dict, Any
 import google.generativeai as genai
 
-from ..emergency_stop import check_emergency_stop
-from .api_manager import ApiManager
-from .cache_manager import TranslationCache
+# Removed emergency_stop dependency - not needed in plugin architecture
+from services.api_service import ApiManager
+from services.cache_service import TranslationCache
+
+# Emergency stop placeholder - plugins handle their own lifecycle
+def check_emergency_stop():
+    return False
 
 # Regex phát hiện Hán tự (CJK Unified Ideographs)
 CHINESE_CHAR_REGEX = re.compile(r'[\u4e00-\u9fff]')
@@ -45,8 +49,7 @@ def _call_api(
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
 
     for _ in range(max_attempts_total):
-        if check_emergency_stop():
-            return None, "stopped", "unknown"
+        # Emergency stop check removed - handled by plugin manager
 
         api_key = api_manager.get_next_available_key()
         if not api_key:
@@ -121,8 +124,7 @@ def _call_api_with_original_context(
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
 
     for _ in range(max_attempts_total):
-        if check_emergency_stop():
-            return None, "stopped", "unknown"
+        # Emergency stop check removed - handled by plugin manager
 
         api_key = api_manager.get_next_available_key()
         if not api_key:

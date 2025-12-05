@@ -6,9 +6,14 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .api_manager import ApiManager
-from .cache_manager import TranslationCache
-from .core import _call_api  # tái sử dụng cơ chế gọi API
+from services.api_service import ApiManager
+from services.cache_service import TranslationCache
+
+# Import from translation plugin - plugins can access each other's modules 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / 'translation'))
+from translator import _call_api  # Re-use API call from translation plugin
 
 def consistency_check_chunk(
     chunk_file: Path,

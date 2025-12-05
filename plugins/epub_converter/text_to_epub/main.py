@@ -7,14 +7,14 @@ import shutil
 import re
 import html
 
-from file_utils import find_text_files, read_text_file, write_html_file
-from metadata_parser import parse_metadata
-from parser import (
+from .file_utils import find_text_files, read_text_file, write_html_file
+from .metadata_parser import parse_metadata
+from .parser import (
     parse_text_into_chapters, convert_plaintext_to_html_body,
     extract_title_from_markdown, convert_markdown_to_html_body,
     build_xhtml, HAS_MARKDOWN
 )
-from epub_creator import create_epub
+from .epub_creator import create_epub
 
 def process_book_directory(directory: Path, use_markdown: bool, split_chapters: bool):
     """
