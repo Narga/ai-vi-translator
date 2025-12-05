@@ -1,0 +1,147 @@
+# plugins/epub_converter/plugin.py - v3.0.0
+# EPUB Converter plugin
+
+from core.interfaces import ConverterPlugin
+from pathlib import Path
+from typing import List, Tuple, Dict, Any
+import sys
+
+# Add epub converter modules to path
+sys.path.insert(0, str(Path(__file__).parent))
+
+from epub_to_text.epub2text import convert_epub as epub_to_text_converter
+from text_to_epub.main import process_book_directory
+
+
+class Plugin(ConverterPlugin):
+    """
+    EPUB Converter plugin.
+    
+    Supports:
+    - EPUB → Text/Markdown
+    - Text/Markdown → EPUB
+    """
+    
+    @property
+    def name(self) -> str:
+        return "epub_converter"
+    
+    @property
+    def version(self) -> str:
+        return "3.0.0"
+    
+    @property
+    def display_name(self) -> str:
+        return "EPUB Converter"
+    
+    def initialize(self, config: Dict[str, Any]) -> bool:
+        """Initialize EPUB converter plugin"""
+        try:
+            self.config = config
+            self.logger.info(f"✓ {self.display_name} initialized")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to initialize: {e}")
+            return False
+    
+    def cleanup(self) -> None:
+        """Cleanup resources"""
+        pass
+    
+    def get_capabilities(self) -> Dict[str, Any]:
+        """Return plugin capabilities"""
+        return {
+            'features': ['epub_to_text', 'text_to_epub'],
+            'supported_conversions': self.get_supported_conversions()
+        }
+    
+    def convert(
+        self,
+        input_path: Path,
+        output_path: Path,
+        **options
+    ) -> bool:
+        """
+        Convert between EPUB and text formats.
+        
+        Args:
+            input_path: Input file path
+            output_path: Output file/directory path
+            **options: Conversion options
+        
+        Returns:
+            bool: True if successful
+        """
+        try:
+            from_format = self.detect_format(input_path)
+            to_format = self.detect_format(output_path)
+            
+            if from_format == 'epub' and to_format in ['txt', 'md']:
+                return self._epub_to_text(input_path, output_path, **options)
+            
+            elif from_format in ['txt', 'md'] and to_format == 'epub':
+                return self._text_to_epub(input_path, output_path, **options)
+            
+            else:
+                self.logger.error(f"Unsupported conversion: {from_format} → {to_format}")
+                return False
+        
+        except Exception as e:
+            self.logger.error(f"Conversion failed: {e}", exc_info=True)
+            return False
+    
+    def _epub_to_text(self, input_path: Path, output_path: Path, **options) -> bool:
+        """Convert EPUB to text/markdown"""
+        try:
+            # Prepare arguments for epub2text converter
+            class Args:
+                pass
+            
+            args = Args()
+            args.epub_file = str(input_path)
+            args.output_dir = str(output_path.parent if output_path.is_file() else output_path)
+            args.single_file = options.get('single_file', False)
+            args.preserve_underline = options.get('preserve_underline', False)
+            args.include_nonspine = options.get('include_nonspine', False)
+            args.extract_metadata = options.get('extract_metadata', True)
+            
+            # Convert
+            epub_to_text_converter(args)
+            
+            self.logger.info(f"Converted {input_path} → {output_path}")
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"EPUB to text failed: {e}")
+            return False
+    
+    def _text_to_epub(self, input_path: Path, output_path: Path, **options) -> bool:
+        """Convert text/markdown to EPUB"""
+        try:
+            # text2epub expects a directory
+            if input_path.is_file():
+                input_dir = input_path.parent
+            else:
+                input_dir = input_path
+            
+            use_markdown = options.get('use_markdown', False)
+            split_chapters = options.get('split_chapters', True)
+            
+            # Convert
+            process_book_directory(input_dir, use_markdown, split_chapters)
+            
+            self.logger.info(f"Converted {input_path} → EPUB")
+            return True
+        
+        except Exception as e:
+            self.logger.error(f"Text to EPUB failed: {e}")
+            return False
+    
+    def get_supported_conversions(self) -> List[Tuple[str, str]]:
+        """Get supported format conversions"""
+        return [
+            ('epub', 'txt'),
+            ('epub', 'md'),
+            ('txt', 'epub'),
+            ('md', 'epub'),
+        ]
