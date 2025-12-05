@@ -1,72 +1,176 @@
-# Công cụ Dịch Thuật Tiểu Thuyết v1.1
+# Novel Translator v3.0.0 - Plugin Architecture
 
-Công cụ này sử dụng AI của Google (Gemini) để dịch thuật tiểu thuyết từ tiếng Trung hoặc tiếng Anh sang tiếng Việt. Dự án được thiết kế theo dạng module, dễ dàng cấu hình, có khả năng tự sửa lỗi và hỗ trợ các quy trình làm việc linh hoạt.
+Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, extensible, và error-isolated.
 
-## Tính năng nổi bật
+## 🎯 Tính năng Mới v3.0
 
--   **Xử lý đầu vào linh hoạt**:
-    -   **Dịch file lẻ**: Kéo một file truyện (`.txt`, `.docx`...) vào thư mục `input` để chương trình tự động đọc và chia nhỏ.
-    -   **Dịch nguyên thư mục**: Kéo một thư mục chứa các file chương (`001.txt`, `002.txt`...) vào `input`, chương trình sẽ coi đó là một cuốn truyện và dịch lần lượt.
+### Plugin Architecture
+- **Extensible**: Thêm features mới = tạo plugin mới
+- **Error Isolation**: Plugin crash không ảnh hưởng hệ thống
+- **Event-Driven**: Plugins giao tiếp qua events
+- **Service-Oriented**: Shared services qua ServiceBus
 
--   **Thuật toán "Chia file Thông minh"**:
-    -   **Nhận diện chương gốc**: Tự động nhận diện các tiêu đề chương/hồi trong văn bản gốc và bọc chúng trong định dạng `**...**` để AI hiểu và giữ lại.
-    -   **Tối ưu hóa chunk**: Khi dịch một thư mục truyện, các file chương có dung lượng nhỏ hơn `CHUNK_SIZE` sẽ được coi là một chunk duy nhất để tiết kiệm tài nguyên và giữ ngữ cảnh tốt hơn. Chỉ các file lớn hơn mới bị chia nhỏ.
+### Plugins Hiện tại
+1. **Translation** - Core translation engine
+   - Smart chunking
+   - Text normalization
+   - Chinese character detection & fixing
+   - Context chaining
 
--   **Thuật toán "Sửa lỗi Lặp lại" (Iterative Correction)**:
-    -   Đây là tính năng cốt lõi để đảm bảo chất lượng. Sau khi dịch một chunk, chương trình sẽ tự động quét lại bản dịch.
-    -   Nếu phát hiện còn sót ký tự tiếng Trung, nó sẽ không chuyển sang chunk tiếp theo. Thay vào đó, nó sẽ gửi lại chính bản dịch lỗi đó cho AI và ra lệnh: "Hãy tìm và dịch nốt các ký tự còn sót này".
-    -   Quá trình này tự động lặp lại cho đến khi chunk hoàn toàn "sạch" ký tự Trung, giúp diệt trừ gần như 100% lỗi sót.
+2. **EPUB Converter** - Format conversion
+   - EPUB → Text/Markdown
+   - Text/Markdown → EPUB
 
--   **Quản lý API Key thông minh**:
-    -   **Đa luồng**: Số luồng dịch được tự động điều chỉnh bằng đúng số lượng API key bạn cung cấp, tối ưu hóa tốc độ.
-    -   **Tự động xử lý Quota**: Khi một API key hết quota, chương trình sẽ tự động phát hiện, tạm vô hiệu hóa key đó và chuyển sang key tiếp theo mà không làm gián đoạn quá trình.
+3. **Consistency Check** - QA checking
+   - Character name consistency
+   - Terminology consistency
 
--   **Độ tin cậy cao**:
-    -   **Tính năng Resume**: Mọi tiến trình đều được lưu lại trong thư mục `progress`. Nếu chương trình bị dừng đột ngột (mất mạng, mất điện...), bạn chỉ cần chạy lại và chọn "tiếp tục" (y), nó sẽ dịch nốt phần còn dang dở.
-    -   **Hệ thống Logging**: Mọi hoạt động, cảnh báo, lỗi đều được ghi lại trong một file log có định dạng `YYYY-MM-DD_HH-MM_translator.log` trong thư mục `progress`, giúp dễ dàng chẩn đoán sự cố.
+4. **Chinese Detector** - Quality assurance
+   - Detect untranslated Chinese characters
+   - File/chunk scanning
 
--   **Cấu hình Toàn diện**:
-    -   **`config.ini`**: Cho phép tùy chỉnh mọi thứ từ model AI, kích thước chunk, độ trễ giữa các request, cho đến số lần AI tự sửa lỗi.
-    -   **`prompts.ini`**: Toàn bộ "bộ não" của AI nằm ở đây. Bạn có thể tùy chỉnh văn phong, quy tắc dịch thuật mà không cần đụng đến một dòng code nào.
+## 🚀 Quick Start
 
--   **Đầu ra có cấu trúc**:
-    -   Kết quả được lưu vào thư mục `output/[tên truyện]`.
-    -   Tự động tạo các file `.txt` riêng cho từng chương và một file `_full.txt` tổng hợp toàn bộ truyện.
-
-## Hướng dẫn cài đặt và sử dụng
-
-### 1. Yêu cầu
-
--   Python 3.8 trở lên.
-
-### 2. Cài đặt
-
-Mở terminal (hoặc Command Prompt) trong thư mục dự án và chạy lệnh:
+### Requirements
 ```bash
+Python 3.10+
 pip install -r requirements.txt
 ```
 
-### 3. Cấu hình
+### Configuration
+1. Create `API.txt` with your Gemini API keys (one per line)
+2. Adjust `config/app.ini` if needed
 
-a. **File `config.ini`**:
-   - Mở file và dán các API key của bạn vào dòng `GEMINI_API_KEYS`. Nếu có nhiều key, hãy ngăn cách chúng bằng dấu phẩy (`,`).
-   - Tinh chỉnh các thông số khác nếu cần.
+### Run
+```bash
+python main.py
+```
 
-b. **File `prompts.ini`**:
-   - File này chứa các chỉ thị cho AI. Bạn có thể tùy chỉnh để thay đổi văn phong dịch.
+## 📁 Project Structure
 
-### 4. Sử dụng
+```
+novel-translator/
+├── main.py                 # New plugin-based entry point
+├── main_legacy.py         # Old monolithic version (backup)
+│
+├── core/                  # Core infrastructure
+│   ├── plugin_manager.py  # Plugin lifecycle management
+│   ├── service_bus.py     # Service registry
+│   ├── event_bus.py       # Event system
+│   └── interfaces/        # Plugin interfaces
+│
+├── services/              # Shared services
+│   ├── api_service.py     # API key management
+│   ├── cache_service.py   # Translation caching
+│   └── config_service.py  # Configuration
+│
+├── plugins/               # Plugin directory
+│   ├── translation/       # Translation plugin
+│   ├── epub_converter/    # EPUB conversion plugin
+│   ├── consistency_check/ # Consistency checking
+│   └── chinese_detector/  # Chinese character detection
+│
+├── config/
+│   ├── app.ini           # Main configuration
+│   └── plugins/          # Plugin-specific configs
+│
+└── src/                  # Legacy code (kept for reference)
+```
 
-a. **Chuẩn bị file nguồn**:
-   - **Cách 1 (File lẻ):** Đặt một file truyện (ví dụ: `truyen_goc.txt`) vào thư mục `input`.
-   - **Cách 2 (Thư mục truyện):** Đặt một thư mục (ví dụ: `[Tên Truyện]`) chứa các file chương (`001.txt`, `002.txt`...) vào thư mục `input`.
+## 🔌 Creating a Plugin
 
-b. **Chạy chương trình**:
-   Mở terminal và chạy lệnh:
-   ```bash
-   python main.py
-   ```
+### 1. Create Plugin Directory
+```bash
+mkdir plugins/my_plugin
+```
 
-c. **Theo dõi và nhận kết quả**:
-   - Theo dõi tiến trình dịch trên màn hình.
-   - Kết quả sẽ nằm trong thư mục `output/[tên truyện]`.
+### 2. Create `plugin.py`
+```python
+from core.interfaces import ProcessorPlugin
+from typing import Dict, Any, Tuple
+
+class Plugin(ProcessorPlugin):
+    @property
+    def name(self) -> str:
+        return "my_plugin"
+    
+    @property
+    def version(self) -> str:
+        return "1.0.0"
+    
+    def initialize(self, config: Dict[str, Any]) -> bool:
+        # Initialize plugin
+        self.service_bus.get_service('logger').info("My plugin initialized!")
+        return True
+    
+    def cleanup(self) -> None:
+        pass
+    
+    def get_capabilities(self) -> Dict[str, Any]:
+        return {'features': ['my_feature']}
+    
+    def process(self, input_data: Any, context: Dict[str, Any] = None) -> Tuple[Any, str]:
+        # Process data
+        result = f"Processed: {input_data}"
+        return result, 'success'
+    
+    def supports_format(self, format: str) -> bool:
+        return format in ['txt', 'md']
+```
+
+### 3. Plugin Will Auto-Load
+Plugin Manager auto-discovers plugins in `plugins/` directory.
+
+## 🛠️ Development
+
+### Run Tests
+```bash
+python -m pytest tests/
+```
+
+### Debug Mode
+Set logging level in code:
+```python
+logging.basicConfig(level=logging.DEBUG)
+```
+
+## 📊 Architecture Benefits
+
+| Feature | v2.x (Monolithic) | v3.0 (Plugin) |
+|---------|-------------------|---------------|
+| Add new feature | Modify core code | Create new plugin |
+| Error isolation | ❌ One error crashes all | ✅ Plugin errors contained |
+| Extensibility | ⚠️ Limited | ✅ Unlimited |
+| Testing | ⚠️ Full system | ✅ Per-plugin |
+| Maintenance | ⚠️ Complex | ✅ Simple |
+
+## 🔄 Migration from v2.x
+
+Old code still works! `main_legacy.py` contains the original implementation.
+
+To migrate:
+1. Use `main.py` for new plugin-based workflow
+2. Gradually port custom modifications to plugins
+3. Test both versions side-by-side
+
+## 📝 Documentation
+
+- [Implementation Plan](file:///Users/narga/.gemini/antigravity/brain/fc8c458b-838b-463d-a6b3-95ce68d2b8f4/implementation_plan.md)
+- [Development Walkthrough](file:///Users/narga/.gemini/antigravity/brain/fc8c458b-838b-463d-a6b3-95ce68d2b8f4/walkthrough.md)
+
+## 🤝 Contributing
+
+1. Create a new plugin in `plugins/`
+2. Follow the interface conventions
+3. Add tests in `tests/plugins/`
+4. Submit PR
+
+## 📄 License
+
+Same as v2.x
+
+---
+
+**Version**: 3.0.0  
+**Author**: Narga  
+**Architecture**: Plugin-based with ServiceBus and EventBus
