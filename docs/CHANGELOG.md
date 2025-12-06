@@ -4,6 +4,57 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [3.0.2] - 2025-12-06 - Pure Plugin Architecture
+
+### 🎉 Breaking Changes
+
+**100% Plugin Architecture:**
+- Loại bỏ hoàn toàn legacy code từ master branch
+- Xóa `src/` directory (20 files, 3,280 lines)
+- Xóa `utils/content-analysis/` (8 files, 909 lines)
+- Master branch giờ là pure v3.0 plugin system
+
+**Legacy Preservation:**
+- Tất cả code v2.7 được bảo toàn trong branch `legacy`
+- Có thể access bất cứ lúc nào: `git checkout legacy`
+
+### ✨ New Features
+
+**Simplified main.py:**
+- Viết lại hoàn toàn từ đầu (200 lines vs 3000+)
+- Workflow translation hoàn chỉnh sử dụng plugins
+- Không dependency vào legacy code
+
+**Workflow:**
+1. Initialize services (Config, API, Cache)
+2. Load translation plugin
+3. Find files in `workspace/input/`
+4. Chunk and translate using plugin
+5. Save to `workspace/output/`
+
+### 🔧 Improvements
+
+- Giảm 95% code size (4,061 lines removed)
+- Clean architecture: ServiceBus + EventBus + Plugins only
+- Easier to maintain và extend
+- Production ready với minimal code
+
+### 📦 Structure
+
+```
+novel-translator/ (v3.0.2)
+├── main.py              # Pure plugin workflow (200 lines)
+├── core/               # Plugin infrastructure
+├── services/           # Shared services
+├── plugins/            # All features as plugins
+├── config/API.txt      # User's API keys
+└── workspace/
+    ├── input/          # Source files
+    └── output/         # Translations
+```
+
+---
+
 ## [3.0.0] - 2025-12-05 - Kiến trúc Plugin - Tái thiết kế Toàn diện
 
 ### 🎉 Thay đổi Lớn (Breaking Changes)
