@@ -4,6 +4,56 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [3.0.3] - 2025-12-06 - Plugin OCR
+
+### ✨ Tính năng Mới
+
+**Plugin OCR:**
+- Nhận dạng text từ PDF scan và ảnh (JPG, PNG, BMP, TIFF)
+- Hỗ trợ đa ngôn ngữ  (Tiếng Việt, Anh, Trung)
+- AI cleanup và spell check (tích hợp Gemini API)
+- Table extraction với 3 tầng fallback (unstructured → pdfplumber → OpenCV)
+- Xuất đa định dạng (DOCX, TXT)
+
+**Chức năng chính:**
+- OCR PDF (cả scan và text-based)
+- OCR image (JPG, PNG, BMP, TIFF, etc.)
+- Auto-rotate dựa trên EXIF và OSD
+- Chinese variant detection (giản thể/phồn thể)
+- Format preservation trong DOCX output
+- Resume capability cho long processing
+
+**Technical:**
+- Lazy dependency loading (chỉ install khi cần)
+- Tesseract OCR integration
+- OCRmyPDF fallback cho PDF phức tạp
+- Gemini API cho cleanup và spellcheck
+- ServiceBus integration cho config và API management
+- Kế thừa từ `ConverterPlugin` interface
+
+**Cấu trúc:**
+```
+plugins/ocr/
+├── __init__.py
+├── plugin.py           # ConverterPlugin implementation
+└── ocr_engine.py       # Core OCR logic (7659 dòng)
+```
+
+### 🗑️ Xóa
+
+- ❌ `ocr_reader.py` (7659 dòng - đã tích hợp vào plugin)
+- ❌ `orc.txt` (documentation - không còn cần thiết)
+
+### 📦 Dependencies
+
+Thêm vào `requirements.txt`:
+- pytesseract, pdf2image, Pillow (core OCR)
+- pdfplumber, PyPDF2, PyMuPDF (PDF processing)
+- python-docx, ocrmypdf (output generation)
+- unstructured, opencv-python (optional - advanced features)
+
+---
+
 ## [3.0.2] - 2025-12-06 - Kiến trúc Plugin Thuần túy
 
 ### 🎉 Thay đổi Lớn
