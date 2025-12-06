@@ -4,53 +4,53 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
-## [3.0.2] - 2025-12-06 - Pure Plugin Architecture
+## [3.0.2] - 2025-12-06 - Kiến trúc Plugin Thuần túy
 
-### 🎉 Breaking Changes
+### 🎉 Thay đổi Lớn
 
-**100% Plugin Architecture:**
-- Loại bỏ hoàn toàn legacy code từ master branch
-- Xóa `src/` directory (20 files, 3,280 lines)
-- Xóa `utils/content-analysis/` (8 files, 909 lines)
-- Master branch giờ là pure v3.0 plugin system
+**100% Kiến trúc Plugin:**
+- Loại bỏ hoàn toàn mã nguồn legacy khỏi nhánh master
+- Xóa thư mục `src/` (20 files, 3,280 dòng)
+- Xóa `utils/content-analysis/` (8 files, 909 dòng)
+- Master giờ là hệ thống plugin thuần túy
 
-**Legacy Preservation:**
-- Tất cả code v2.7 được bảo toàn trong branch `legacy`
-- Có thể access bất cứ lúc nào: `git checkout legacy`
+**Bảo toàn Legacy:**
+- Toàn bộ code v2.7 được lưu trong nhánh `legacy`
+- Truy cập bất cứ lúc: `git checkout legacy`
 
-### ✨ New Features
+### ✨ Tính năng Mới
 
-**Simplified main.py:**
-- Viết lại hoàn toàn từ đầu (200 lines vs 3000+)
-- Workflow translation hoàn chỉnh sử dụng plugins
-- Không dependency vào legacy code
+**main.py Đơn giản:**
+- Viết lại hoàn toàn (200 dòng vs 3000+)
+- Quy trình dịch hoàn chỉnh qua plugins
+- Không phụ thuộc vào legacy
 
-**Workflow:**
-1. Initialize services (Config, API, Cache)
-2. Load translation plugin
-3. Find files in `workspace/input/`
-4. Chunk and translate using plugin
-5. Save to `workspace/output/`
+**Quy trình:**
+1. Khởi tạo services (Config, API, Cache)
+2. Nạp translation plugin
+3. Tìm files trong `workspace/input/`
+4. Chia chunk và dịch qua plugin
+5. Lưu vào `workspace/output/`
 
-### 🔧 Improvements
+### 🔧 Cải tiến
 
-- Giảm 95% code size (4,061 lines removed)
-- Clean architecture: ServiceBus + EventBus + Plugins only
-- Easier to maintain và extend
-- Production ready với minimal code
+- Giảm 95% kích thước code (xóa 4,061 dòng)
+- Kiến trúc sạch: ServiceBus + EventBus + Plugins
+- Dễ bảo trì và mở rộng
+- Production-ready với code tối thiểu
 
-### 📦 Structure
+### 📦 Cấu trúc
 
 ```
 novel-translator/ (v3.0.2)
-├── main.py              # Pure plugin workflow (200 lines)
-├── core/               # Plugin infrastructure
-├── services/           # Shared services
-├── plugins/            # All features as plugins
-├── config/API.txt      # User's API keys
+├── main.py              # Quy trình plugin (200 dòng)
+├── core/               # Hạ tầng plugin
+├── services/           # Services dùng chung
+├── plugins/            # Tất cả tính năng
+├── config/API.txt      # API keys người dùng
 └── workspace/
-    ├── input/          # Source files
-    └── output/         # Translations
+    ├── input/          # Files nguồn
+    └── output/         # Bản dịch
 ```
 
 ---
