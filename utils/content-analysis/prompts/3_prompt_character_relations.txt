@@ -1,0 +1,99 @@
+Hãy phân tích TẤT CẢ tương tác hội thoại giữa các nhân vật trong tiểu thuyết này và tạo bảng CSV.
+
+Output format (CSV với header):
+Speaker_ID,Listener_ID,Relationship_Type,Context,Environment,Power_Dynamic,Emotional_State,Speaker_Pronoun,Listener_Term,Listener_Pronoun,Speaker_Term,Notes
+
+GIẢI THÍCH CÁC CỘT:
+
+1. **Speaker_ID**: Tên người nói (dùng Pinyin)
+   - Ví dụ: Cui Xiao Xuan
+
+2. **Listener_ID**: Tên người nghe (dùng Pinyin)
+   - Ví dụ: Cheng Shui Ruo
+
+3. **Relationship_Type**: Loại quan hệ (có thể nhiều, ngăn cách bằng +)
+   - romantic_interest (người yêu/crush)
+   - family (gia đình: father-son, mother-daughter, siblings...)
+   - master-disciple (sư đồ)
+   - same_sect (cùng môn phái)
+   - friends (bạn bè)
+   - rivals (đối thủ)
+   - enemies (thù địch)
+   - superior-subordinate (cấp trên-cấp dưới)
+   - business (đối tác)
+   - Ví dụ: "romantic_interest+same_sect"
+
+4. **Context**: Tình huống cụ thể (5-15 từ)
+   - Ví dụ: "Chuyện trò trên núi khi tìm Hỏa Mị"
+   - Ví dụ: "Báo cáo nhiệm vụ với sư phụ"
+
+5. **Environment**: Môi trường giao tiếp
+   - formal (trang trọng): đại điện, họp môn phái, triều đình
+   - semi-formal: văn phòng, gặp gỡ ngoài
+   - informal (thoải mái): riêng tư, bạn bè, gia đình
+   - combat (chiến đấu)
+   - Thêm chi tiết: "formal (đại điện Huyền Giáo)"
+
+6. **Power_Dynamic**: Quan hệ quyền lực
+   - much_superior (cao hơn rất nhiều): hoàng đế-thần dân
+   - superior (cao hơn): sư phụ-đệ tử, cha-con
+   - slightly_superior (hơn một chút): sư huynh-sư đệ
+   - equal (ngang bằng): bạn bè, đồng môn
+   - slightly_inferior (thấp hơn một chút)
+   - inferior (thấp hơn): đệ tử-sư phụ
+   - much_inferior (thấp hơn rất nhiều)
+
+7. **Emotional_State**: Trạng thái cảm xúc khi nói (có thể nhiều, dùng +)
+   - happy, sad, angry, fearful, surprised
+   - playful (đùa giỡn), serious (nghiêm túc), teasing (trêu chọc)
+   - affectionate (trìu mến), respectful (tôn trọng)
+   - embarrassed (ngượng), nervous (lo lắng), confident
+   - Ví dụ: "embarrassed+angry"
+
+8. **Speaker_Pronoun**: Cách speaker xưng mình
+   - Ví dụ: Ta, Ngươi, Đệ tử, Bần đạo, Tại hạ, Con, Trẫm...
+
+9. **Listener_Term**: Cách speaker gọi listener
+   - Ví dụ: Ngươi, Sư phụ, Sư đệ, Sư tỷ, Tên riêng, Cha, Mẹ...
+
+10. **Listener_Pronoun**: Cách listener xưng mình (khi họ nói lại)
+    - Để trống nếu không rõ, sẽ điền sau
+
+11. **Speaker_Term**: Cách listener gọi speaker (khi họ nói lại)
+    - Để trống nếu không rõ
+
+12. **Notes**: Ghi chú đặc biệt
+    - Biệt danh thân mật
+    - Thay đổi cách gọi theo tình huống
+    - Lưu ý văn hóa
+
+YÊU CẦU:
+
+1. Tạo NHIỀU DÒNG cho cùng một cặp nhân vật nếu cách xưng hô THAY ĐỔI theo context
+   - Ví dụ: Cui Xiao Xuan vs Cheng Shui Ruo có thể có 5-6 dòng:
+     * Khi mới quen (formal)
+     * Khi thân thiết hơn (informal)
+     * Khi tức giận
+     * Sau khi đính hôn
+     * Khi ở nơi công cộng vs riêng tư
+
+2. Ưu tiên:
+   - Nhân vật chính và các tương tác của họ
+   - Các cặp có nhiều hội thoại
+   - Những mối quan hệ phức tạp (thay đổi theo thời gian)
+
+3. Phải có ít nhất 50-100 dòng (càng nhiều càng tốt)
+
+4. Đặc biệt chú ý:
+   - Relationship evolution (quan hệ thay đổi theo thời gian)
+   - Context-dependent pronouns (xưng hô theo tình huống)
+   - Emotional variations (cảm xúc khác nhau)
+
+VÍ DỤ OUTPUT:
+
+Speaker_ID,Listener_ID,Relationship_Type,Context,Environment,Power_Dynamic,Emotional_State,Speaker_Pronoun,Listener_Term,Listener_Pronoun,Speaker_Term,Notes
+Cui Xiao Xuan,Cheng Shui Ruo,romantic_interest+same_sect,Chuyện trò trên núi khi tìm Hỏa Mị,Trong bụi rậm trên núi (informal),equal,playful,Sư đệ,Tam sư tỷ,Ta,Trư Đầu Tiểu Huyền,""
+Cheng Shui Ruo,Cui Xiao Xuan,romantic_interest+same_sect,Khi Thủy Nhược bị Tiểu Huyền trêu chọc,Sau khi thoát khỏi ma quật (informal),equal,embarrassed+angry,Ta,"Ngươi,Trư Đầu,Xú Trư Đầu",Ngươi,Tiểu Huyền,"Dùng 'Xú Trư Đầu' khi tức giận"
+Cui Xiao Xuan,Master Zhang,master-disciple,Báo cáo nhiệm vụ trừ ma,Đại điện Huyền Giáo (very formal),much_inferior,respectful,"Đệ tử,Bần đạo","Sư phụ,Trưởng môn",Bản tọa,Tiểu Huyền,"Dùng Bần đạo trong môn phái chính thức"
+
+Bắt đầu phân tích:
