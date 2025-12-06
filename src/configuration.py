@@ -12,7 +12,7 @@ from typing import Dict, List
 from .translation_guide import load_guidelines_from_instructions_dir
 
 
-def load_api_keys(api_file_path: str = 'API.txt') -> List[str]:
+def load_api_keys(api_file_path: str = 'config/API.txt') -> List[str]:
     """
     Đọc danh sách API keys từ file text.
     

@@ -107,7 +107,7 @@ def run_translation_workflow(config_parser, dirs: Dict[str, Path]) -> None:
     cache_dir = dirs['cache']
 
     try:
-        api_keys = load_api_keys('API.txt')
+        api_keys = load_api_keys('config/API.txt')
     except (FileNotFoundError, ValueError) as e:
         logging.critical(f"❌ {e}")
         return

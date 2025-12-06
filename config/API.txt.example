@@ -1,0 +1,8 @@
+# config/API.txt
+# Gemini API Keys - one per line
+# Lines starting with # are treated as comments
+
+# Get your API keys from: https://aistudio.google.com/app/apikey
+# Add your keys below (one per line):
+
+# AIzaSy...your-api-key-here
