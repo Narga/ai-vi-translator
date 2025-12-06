@@ -62,12 +62,14 @@ pip install -r requirements.txt
 
 ### 3. Cấu hình
 
-a. **File `config.ini`**:
-   - Mở file và dán các API key của bạn vào dòng `GEMINI_API_KEYS`. Nếu có nhiều key, hãy ngăn cách chúng bằng dấu phẩy (`,`).
-   - Tinh chỉnh các thông số khác nếu cần.
+a. **File `config/API.txt`**:
+   - Sao chép `config/API.txt.example` thành `config/API.txt`
+   - Mở file `config/API.txt` và thêm các API key của bạn (mỗi key một dòng)
+   - Lấy API key từ: https://aistudio.google.com/app/apikey
 
-b. **File `prompts.ini`**:
-   - File này chứa các chỉ thị cho AI. Bạn có thể tùy chỉnh để thay đổi văn phong dịch.
+b. **File `config.ini`**:
+   - File cấu hình chính đã được thiết lập sẵn với các giá trị tối ưu
+   - Bạn có thể tinh chỉnh các thông số nếu cần (model, chunk size, temperature, etc.)
 
 ### 4. Sử dụng
 
