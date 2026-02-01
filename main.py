@@ -165,9 +165,12 @@ def main():
         event_bus = EventBus(enable_history=True)
         plugin_manager = PluginManager(service_bus, event_bus, Path('plugins'), Path('config'))
         
-        load_results = plugin_manager.load_all_plugins()
-        logging.info(f"Plugins: {sum(load_results.values())}/{len(load_results)}")
-        
+        # v4.0.0: Chỉ nạp plugin dịch thuật cho luồng main
+        # Tránh nạp OCR, EPUB Converter... không cần thiết làm chậm và nhiễu log
+        if not plugin_manager.load_plugin('translation'):
+            logging.critical("Failed to load translation plugin")
+            return 1
+            
         translation_plugin = plugin_manager.get_plugin('translation')
         if not translation_plugin:
             logging.critical("Translation plugin not found")
