@@ -36,23 +36,22 @@ def _get_client(api_key: str, config: Dict[str, Any]) -> GenAIClient:
     
     Args:
         api_key (str): API key
-        config (Dict[str, Any]): Cấu hình chứa SDK type và model
+        config (Dict[str, Any]): Cấu hình chứa model và thinking_level
     
     Returns:
         GenAIClient: Client instance
     """
     global _client_cache
     
-    sdk = config.get('sdk', 'google-genai')
     default_model = config.get('model_name', 'gemini-3-flash-preview')
     thinking_level = config.get('thinking_level', 'MEDIUM')
     
-    cache_key = f"{api_key}_{sdk}"
+    # Cache key chỉ dựa trên API key (SDK đã fixed là google-genai)
+    cache_key = api_key
     
     if cache_key not in _client_cache:
         _client_cache[cache_key] = GenAIClient(
             api_key=api_key,
-            sdk=sdk,
             default_model=default_model,
             thinking_level=thinking_level
         )

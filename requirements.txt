@@ -3,7 +3,6 @@
 
 # Gemini API SDKs
 google-genai>=1.0.0              # SDK mới (khuyến nghị, mặc định)
-google-generativeai>=0.8.0       # SDK cũ (fallback, legacy)
 
 # Tiện ích
 chardet
