@@ -1,4 +1,9 @@
-# main.py - v3.0.2 Pure Plugin Architecture
+# main.py - v4.0.0 Pure Plugin Architecture + google-genai SDK
+# Tác giả: Narga
+# Changelog v4.0.0:
+# - Tích hợp google-genai SDK mới (thay thế google-generativeai)
+# - Model mặc định: gemini-3-flash-preview
+# - Emergency stop và signal handlers cho graceful shutdown
 
 import sys
 import logging
@@ -10,6 +15,7 @@ from core import PluginManager, ServiceBus, EventBus
 from services.api_service import ApiManager
 from services.cache_service import TranslationCache
 from services.config_service import ConfigService
+from services.emergency_stop import setup_signal_handlers, reset_emergency_stop
 
 
 def setup_logging(log_dir: Path) -> None:
@@ -129,8 +135,12 @@ def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> b
 def main():
     try:
         print("=" * 80)
-        print("📚 Novel Translator v3.0.2")
+        print("📚 Novel Translator v4.0.0 | SDK: google-genai | Model: gemini-3-flash-preview")
         print("=" * 80)
+        
+        # Cài đặt signal handlers cho graceful shutdown
+        setup_signal_handlers()
+        reset_emergency_stop()  # Reset từ session trước (nếu có)
         
         config_service = ConfigService(Path('config'))
         setup_logging(Path(config_service.get('DIRECTORIES', 'PROGRESS_DIR', fallback='workspace/progress')))

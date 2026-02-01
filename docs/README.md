@@ -1,10 +1,22 @@
-# Novel Translator v3.0.0 - Plugin Architecture
+# Novel Translator v4.0.0 - SDK Migration & Core Upgrades
 
-Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, extensible, và error-isolated.
+Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK** và model **gemini-3-flash-preview**.
 
-## 🎯 Tính năng Mới v3.0
+## 🎯 Tính năng Mới v4.0
 
-### Plugin Architecture
+### SDK Migration
+- **google-genai SDK**: SDK mới của Google (thay thế google-generativeai)
+- **gemini-3-flash-preview**: Model mới nhất với 1M context window
+- **thinking_level**: Control reasoning depth (MINIMAL/LOW/MEDIUM/HIGH)
+- **Fallback support**: Tự động fallback sang SDK cũ nếu cần
+
+### Protection Services (từ Book_translator)
+- **AdaptiveRateLimiter**: Progressive backoff 30s→300s, daily quota tracking
+- **CircuitBreaker**: Ngăn cascade failures với 3 states (CLOSED/OPEN/HALF_OPEN)
+- **HealthMonitor**: Giám sát runtime (max 48h) và stall detection (30 phút)
+- **Emergency Stop**: Thread-safe graceful shutdown với signal handlers
+
+### Plugin Architecture (v3.0)
 - **Extensible**: Thêm features mới = tạo plugin mới
 - **Error Isolation**: Plugin crash không ảnh hưởng hệ thống
 - **Event-Driven**: Plugins giao tiếp qua events
@@ -12,22 +24,10 @@ Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, extensi
 
 ### Plugins Hiện tại
 1. **Translation** - Core translation engine
-   - Smart chunking
-   - Text normalization
-   - Chinese character detection & fixing
-   - Context chaining
-
-2. **EPUB Converter** - Format conversion
-   - EPUB → Text/Markdown
-   - Text/Markdown → EPUB
-
+2. **EPUB Converter** - Format conversion (EPUB ↔ Text/Markdown)
 3. **Consistency Check** - QA checking
-   - Character name consistency
-   - Terminology consistency
-
 4. **Chinese Detector** - Quality assurance
-   - Detect untranslated Chinese characters
-   - File/chunk scanning
+5. **OCR** - PDF/Image text recognition
 
 ## 🚀 Quick Start
 
@@ -38,8 +38,8 @@ pip install -r requirements.txt
 ```
 
 ### Configuration
-1. Create `API.txt` with your Gemini API keys (one per line)
-2. Adjust `config/app.ini` if needed
+1. Tạo `config/API.txt` với Gemini API keys (mỗi key một dòng)
+2. Điều chỉnh `config/app.ini` nếu cần (SDK, model, thinking_level)
 
 ### Run
 ```bash
@@ -50,31 +50,31 @@ python main.py
 
 ```
 novel-translator/
-├── main.py                 # New plugin-based entry point
-├── main_legacy.py         # Old monolithic version (backup)
+├── main.py                 # Entry point v4.0 (google-genai SDK)
+├── core/                   # Core infrastructure
+│   ├── plugin_manager.py   # Plugin lifecycle management
+│   ├── service_bus.py      # Service registry
+│   └── event_bus.py        # Event system
 │
-├── core/                  # Core infrastructure
-│   ├── plugin_manager.py  # Plugin lifecycle management
-│   ├── service_bus.py     # Service registry
-│   ├── event_bus.py       # Event system
-│   └── interfaces/        # Plugin interfaces
+├── services/               # Shared services
+│   ├── genai_client.py     # ✨ GenAI wrapper (SDK mới + fallback)
+│   ├── api_service.py      # AdaptiveRateLimiter (20 RPD/key)
+│   ├── circuit_breaker.py  # ✨ Circuit Breaker pattern
+│   ├── health_monitor.py   # ✨ Runtime/stall monitoring
+│   ├── emergency_stop.py   # ✨ Graceful shutdown
+│   ├── cache_service.py    # Translation caching
+│   └── config_service.py   # Configuration
 │
-├── services/              # Shared services
-│   ├── api_service.py     # API key management
-│   ├── cache_service.py   # Translation caching
-│   └── config_service.py  # Configuration
+├── plugins/                # Plugin directory
+│   ├── translation/        # Core translation (GenAIClient)
+│   ├── epub_converter/     # EPUB conversion
+│   ├── consistency_check/  # Consistency checking
+│   ├── chinese_detector/   # Chinese detection
+│   └── ocr/               # OCR plugin
 │
-├── plugins/               # Plugin directory
-│   ├── translation/       # Translation plugin
-│   ├── epub_converter/    # EPUB conversion plugin
-│   ├── consistency_check/ # Consistency checking
-│   └── chinese_detector/  # Chinese character detection
-│
-├── config/
-│   ├── app.ini           # Main configuration
-│   └── plugins/          # Plugin-specific configs
-│
-└── src/                  # Legacy code (kept for reference)
+└── config/
+    ├── app.ini            # Main config (SDK, model, thinking_level)
+    └── API.txt            # API keys
 ```
 
 ## 🔌 Creating a Plugin
@@ -171,6 +171,6 @@ Same as v2.x
 
 ---
 
-**Version**: 3.0.0  
+**Version**: 4.0.0  
 **Author**: Narga  
-**Architecture**: Plugin-based with ServiceBus and EventBus
+**Architecture**: Plugin-based with google-genai SDK

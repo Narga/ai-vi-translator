@@ -4,6 +4,78 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.0] - 2026-02-01 - SDK Migration & Core Upgrades
+
+### 🎉 Thay đổi Lớn
+
+**SDK Migration:**
+- ✅ Chuyển từ `google-generativeai` sang `google-genai` SDK mới
+- ✅ Model mặc định: `gemini-3-flash-preview` (1M context window)
+- ✅ Hỗ trợ `thinking_level` parameter (MINIMAL/LOW/MEDIUM/HIGH)
+- ✅ Giữ `google-generativeai` làm fallback SDK
+
+**API Rate Limiting (30 keys = 600 RPD):**
+- ✅ `AdaptiveRateLimiter`: Progressive backoff 30s→300s
+- ✅ Daily quota tracking với auto-reset 0:00 UTC
+- ✅ Tối ưu cho 20 RPD/key limit của Google API mới
+
+### ✨ Tính năng Mới (Merge từ Book_translator)
+
+**GenAI Client Wrapper:**
+- `services/genai_client.py`: Unified API wrapper cho cả 2 SDK
+- Client caching theo API key để giảm overhead
+- Auto-fallback khi SDK chính không khả dụng
+
+**Circuit Breaker:**
+- `services/circuit_breaker.py`: Ngăn cascade failures
+- 3 states: CLOSED → OPEN → HALF_OPEN
+- Failure threshold = 10, timeout = 5 phút
+
+**Health Monitor:**
+- `services/health_monitor.py`: Giám sát runtime và stall
+- Max runtime: 48 giờ
+- Stall detection: 30 phút không tiến độ
+- Memory usage tracking (psutil optional)
+
+**Emergency Stop:**
+- `services/emergency_stop.py`: Thread-safe global stop flag
+- Signal handlers (SIGINT, SIGTERM) cho graceful shutdown
+- Decorator `@emergency_check` cho functions
+
+### ♻️ Thay đổi
+
+**Cấu hình (`config/app.ini`):**
+```ini
+[SDK]
+SDK = google-genai           # SDK mới (mặc định)
+FALLBACK_SDK = google-generativeai
+
+[MODEL]
+MODEL = gemini-3-flash-preview
+THINKING_LEVEL = MEDIUM
+TEMPERATURE = 1.0            # Gemini 3 khuyến nghị
+
+[PROCESSING]
+REQUEST_DELAY = 1            # Giảm từ 2s do có nhiều keys
+```
+
+**Files đã sửa:**
+| File | Thay đổi |
+|------|----------|
+| `main.py` | v4.0.0 + signal handlers |
+| `services/api_service.py` | v4.0.0 + AdaptiveRateLimiter |
+| `services/__init__.py` | Export services mới |
+| `plugins/translation/translator.py` | v4.0.0 + GenAIClient |
+| `requirements.txt` | v4.0.0 + google-genai SDK |
+
+### 📦 Dependencies
+
+Thêm vào `requirements.txt`:
+- `google-genai>=1.0.0` (SDK mới, khuyến nghị)
+- `psutil` (optional, cho memory monitoring)
+
+---
+
 ## [3.0.3] - 2025-12-06 - Plugin OCR
 
 ### ✨ Tính năng Mới

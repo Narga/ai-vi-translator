@@ -1,28 +1,63 @@
-# src/translators/core.py - v2.8.2
+# plugins/translation/translator.py - v4.0.0
 # Tác giả: Narga
 # Chức năng: Lõi gọi API và quy trình robust_translate (dịch - kiểm độ dài - sửa Hán tự - chuẩn hóa - cache).
 # 
-# Nâng cấp v2.8.2:
-# - Loại bỏ _compose_contents() và project_file_uri logic (không còn GeminiProjectFileManager).
-# - Thêm _call_api_with_original_context() cho Parallel Context Correction (Phương án 2).
-# - Thêm logic correction_mode để chuyển đổi parallel/legacy.
+# Nâng cấp v4.0.0:
+# - Tích hợp GenAIClient wrapper hỗ trợ cả google-genai SDK mới và google-generativeai SDK cũ
+# - Tích hợp emergency_stop module thực sự (thay vì placeholder)
+# - Support gemini-3-flash-preview với thinking_level parameter
+# - Tối ưu cho 20 RPD/key với AdaptiveRateLimiter
 
 import time
 import logging
 import re
 from typing import Optional, Tuple, Dict, Any
-import google.generativeai as genai
 
-# Removed emergency_stop dependency - not needed in plugin architecture
+# Import GenAI Client wrapper (hỗ trợ cả SDK mới và cũ)
+from services.genai_client import GenAIClient, SDKType
+
+# Import services
 from services.api_service import ApiManager
 from services.cache_service import TranslationCache
 
-# Emergency stop placeholder - plugins handle their own lifecycle
-def check_emergency_stop():
-    return False
+# Import emergency stop module
+from services.emergency_stop import check_emergency_stop, EmergencyStopError
 
 # Regex phát hiện Hán tự (CJK Unified Ideographs)
 CHINESE_CHAR_REGEX = re.compile(r'[\u4e00-\u9fff]')
+
+# Cache GenAI clients theo API key để tránh khởi tạo lại
+_client_cache: Dict[str, GenAIClient] = {}
+
+
+def _get_client(api_key: str, config: Dict[str, Any]) -> GenAIClient:
+    """
+    Lấy hoặc tạo GenAIClient cho API key (có cache).
+    
+    Args:
+        api_key (str): API key
+        config (Dict[str, Any]): Cấu hình chứa SDK type và model
+    
+    Returns:
+        GenAIClient: Client instance
+    """
+    global _client_cache
+    
+    sdk = config.get('sdk', 'google-genai')
+    default_model = config.get('model_name', 'gemini-3-flash-preview')
+    thinking_level = config.get('thinking_level', 'MEDIUM')
+    
+    cache_key = f"{api_key}_{sdk}"
+    
+    if cache_key not in _client_cache:
+        _client_cache[cache_key] = GenAIClient(
+            api_key=api_key,
+            sdk=sdk,
+            default_model=default_model,
+            thinking_level=thinking_level
+        )
+    
+    return _client_cache[cache_key]
 
 
 def _call_api(
@@ -34,12 +69,14 @@ def _call_api(
 ) -> Tuple[Optional[str], str, str]:
     """
     Hàm gọi API chung: lấy key khả dụng, cấu hình model/temperature, gọi API và xử lý lỗi.
+    
+    Hỗ trợ cả google-genai SDK mới và google-generativeai SDK cũ thông qua GenAIClient.
 
     Args:
         text_to_process (str): Văn bản cần gửi cho AI xử lý
         prompt (str): Prompt chỉ thị cho AI
         api_manager (ApiManager): Quản lý API keys
-        config (Dict[str, Any]): Cấu hình (model, temperature, delay,...)
+        config (Dict[str, Any]): Cấu hình (model, temperature, delay, sdk, thinking_level,...)
         model_override (Optional[str]): Model ghi đè (dùng cho QA/correction)
 
     Returns:
@@ -48,8 +85,11 @@ def _call_api(
     """
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
 
-    for _ in range(max_attempts_total):
-        # Emergency stop check removed - handled by plugin manager
+    for attempt in range(max_attempts_total):
+        # Kiểm tra emergency stop
+        if check_emergency_stop():
+            logging.warning("⛔ Translation interrupted by emergency stop")
+            return None, "stopped", "unknown"
 
         api_key = api_manager.get_next_available_key()
         if not api_key:
@@ -61,25 +101,38 @@ def _call_api(
             continue
 
         try:
-            # Tôn trọng RPM
+            # Tôn trọng request delay
             delay = float(config.get('request_delay', 0.0))
             if delay > 0:
                 time.sleep(delay)
 
-            genai.configure(api_key=api_key)
-            model_name = model_override or config['model_name']
-            model = genai.GenerativeModel(model_name)
-            generation_config = genai.types.GenerationConfig(
-                temperature=float(config.get('temperature', 0.7))
+            # Lấy client từ cache
+            client = _get_client(api_key, config)
+            
+            # Build prompt đầy đủ
+            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
+            
+            # Gọi API
+            model_name = model_override or config.get('model_name', 'gemini-3-flash-preview')
+            temperature = float(config.get('temperature', 1.0))  # Gemini 3 khuyến nghị 1.0
+            thinking_level = config.get('thinking_level', 'MEDIUM')
+            
+            result_text, status = client.generate_content(
+                prompt=full_prompt,
+                model=model_name,
+                temperature=temperature,
+                thinking_level=thinking_level
             )
 
-            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
-            response = model.generate_content(full_prompt, generation_config=generation_config)
+            if status == "success" and result_text:
+                api_manager.mark_success(api_key)
+                return result_text.strip(), "success", api_key
+            else:
+                logging.warning(f"Empty response từ API (attempt {attempt + 1})")
+                continue
 
-            api_manager.mark_success(api_key)
-            result_text = response.text.strip() if response and response.text else ""
-            return result_text, "success", api_key
-
+        except EmergencyStopError:
+            return None, "stopped", api_key
         except Exception as e:
             error_msg = str(e)
             logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")

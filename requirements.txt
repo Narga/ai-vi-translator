@@ -1,9 +1,14 @@
-# v1.0
+# v4.0.0
 # Các thư viện cần thiết cho dự án Novel Translator
 
-google-generativeai
+# Gemini API SDKs
+google-genai>=1.0.0              # SDK mới (khuyến nghị, mặc định)
+google-generativeai>=0.8.0       # SDK cũ (fallback, legacy)
+
+# Tiện ích
 chardet
 tqdm
+psutil  # Cho Health Monitor memory tracking (optional)
 
 # Các gói cần thiết cho Tiện ích chuyển đổi Văn bản sang EPUB
 
