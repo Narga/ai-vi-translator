@@ -4,6 +4,35 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.4] - 2026-02-15 - WebUI Enhancements
+
+### ✨ Tính năng WebUI
+
+- **Input Files List**: Liệt kê files trong input, click để load nội dung
+- **Cache Priority**: Kiểm tra cache trước khi gọi API, hiển thị số chunks từ cache
+- **Download**: Tải file đã dịch về máy (text file)
+- **Prompt Editor**: Chỉnh sửa và lưu prompts theo ngôn ngữ
+- **Output Files**: Danh sách files đã dịch với link tải
+
+### 🔧 Script Enhancements
+
+- **Auto-merge Small Files**: Tự động gộp files nhỏ để đủ kích thước chunk tối thiểu
+- Hàm `merge_small_files()` trong main.py
+
+### 🚀 Fix
+
+- Default port: 7860 (tránh macOS AirPlay conflict)
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `webui.py` | Complete rewrite với tất cả APIs mới |
+| `templates/index.html` | UI với file list, prompt editor |
+| `main.py` | Thêm merge_small_files() |
+
+---
+
 ## [4.0.3] - 2026-02-15 - Web UI & uv Support
 
 ### ✨ Tính năng Mới

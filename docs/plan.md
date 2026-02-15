@@ -1,12 +1,12 @@
 # Novel Translator - Development Plan
 
-**Version**: 4.0.3  
+**Version**: 4.0.4  
 **Last Updated**: 2026-02-15  
 **Status**: Stable & Production Ready
 
 ---
 
-## ✅ COMPLETED TASKS (v4.0.0 - v4.0.2)
+## ✅ COMPLETED TASKS (v4.0.0 - v4.0.4)
 
 ### v4.0.0 - SDK Migration
 - [x] Migrate from `google-generativeai` to `google-genai` SDK
@@ -42,6 +42,14 @@
 - [x] pyproject.toml for uv package manager
 - [x] Optional dependencies (epub, ocr, async, dev)
 
+### v4.0.4 - WebUI Enhancements
+- [x] Input Files List: click to load content
+- [x] Cache Priority: check cache before API call
+- [x] Download translated file
+- [x] Prompt Editor with save functionality
+- [x] Output Files list with download links
+- [x] Auto-merge small files for minimum chunk size
+
 ---
 
 ## 🎯 UPCOMING TASKS (v4.1.0+)
@@ -53,7 +61,6 @@
 - [ ] **Translation Quality Metrics**: BLEU score or similar
 
 ### Medium Priority
-- [x] ~~**Web UI (Simple)**: Basic Flask/FastAPI interface~~ ✅ v4.0.3
 - [ ] **PDF Export Plugin**: Generate formatted PDF output
 - [ ] **Translation Memory**: Learn from previous translations
 - [ ] **Auto-detection**: Detect source language automatically

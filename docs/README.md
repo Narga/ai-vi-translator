@@ -68,7 +68,7 @@ uv run python main.py
 uv run python cli.py translate -i input/novel.txt
 
 # Hoặc chạy Web UI
-uv run python webui.py
+uv run python webui.py --port 7860
 ```
 
 ### Chạy thông thường (pip)
@@ -162,17 +162,20 @@ Giao diện web đơn giản với Flask, hỗ trợ real-time progress.
 ### Chạy Web UI
 ```bash
 uv run python webui.py
-# Hoặc: python webui.py
+# Hoặc: python webui.py --port 7860
 
-# Mở trình duyệt: http://localhost:5000
+# Mở trình duyệt: http://localhost:7860
 ```
 
-### Tính năng Web UI
+### Tính năng Web UI (v4.0.4)
 - ✅ **Real-time Progress**: Progress bar cập nhật live với SSE
 - ✅ **Form Cấu hình**: Chọn model, ngôn ngữ, temperature, chunk size
 - ✅ **Text Input**: Nhập trực tiếp text (không cần upload file)
-- ✅ **Log Console**: Xem log quá trình dịch
-- ✅ **Kết quả**: Hiển thị và copy kết quả dễ dàng
+- ✅ **Input Files**: Liệt kê files trong input, click để load
+- ✅ **Cache Priority**: Kiểm tra cache trước khi gọi API
+- ✅ **Download**: Tải file đã dịch về máy
+- ✅ **Prompt Editor**: Chỉnh sửa và lưu prompts theo ngôn ngữ
+- ✅ **Output Files**: Danh sách files đã dịch với link tải
 
 ### Cấu trúc Web UI
 ```
