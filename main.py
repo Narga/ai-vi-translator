@@ -110,6 +110,57 @@ def find_input_files(input_dir: Path) -> List[Path]:
     return []
 
 
+def merge_small_files(files: List[Path], min_chunk_size: int = 15000) -> List[Path]:
+    """
+    Gộp các file nhỏ lại để đủ kích thước tối thiểu của chunk.
+
+    Args:
+        files: Danh sách các file cần xử lý
+        min_chunk_size: Kích thước tối thiểu mong muốn
+
+    Returns:
+        Danh sách file đã gộp (nếu cần) hoặc file gốc
+    """
+    if not files:
+        return []
+
+    # Nếu chỉ có 1 file hoặc file đầu tiên đã đủ lớn, giữ nguyên
+    first_file_size = files[0].stat().st_size
+    if len(files) == 1 or first_file_size >= min_chunk_size * 0.8:
+        logging.info(f"File đầu tiên đủ lớn ({first_file_size:,} chars), không cần gộp")
+        return files
+
+    # Đọc tất cả files và tính tổng kích thước
+    total_size = 0
+    file_contents = []
+    for f in files:
+        try:
+            with open(f, "r", encoding="utf-8") as fp:
+                content = fp.read()
+                file_contents.append((f, content))
+                total_size += len(content)
+        except Exception as e:
+            logging.warning(f"Không thể đọc file {f}: {e}")
+
+    if total_size < min_chunk_size:
+        # Tổng kích thước nhỏ hơn min, gộp thành 1 file
+        merged_name = f"merged_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        merged_path = Path("workspace/input") / merged_name
+
+        merged_content = "\n\n".join([content for _, content in file_contents])
+
+        with open(merged_path, "w", encoding="utf-8") as f:
+            f.write(merged_content)
+
+        logging.info(
+            f"✅ Gộp {len(files)} files thành 1 file: {merged_name} ({len(merged_content):,} chars)"
+        )
+        return [merged_path]
+
+    # Nếu tổng lớn hơn min, giữ nguyên
+    return files
+
+
 def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> bool:
     try:
         logging.info(f"\n{'=' * 80}\n{filepath.name}\n{'=' * 80}")
@@ -125,9 +176,7 @@ def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> b
         translated = []
         prev_context = ""
 
-        for i, chunk in enumerate(
-            tqdm(chunks, desc=f"Translating {filepath.name}", unit="chunk")
-        ):
+        for i, chunk in enumerate(tqdm(chunks, desc=f"Translating {filepath.name}", unit="chunk")):
             # logging.info(f"\nChunk {i + 1}/{len(chunks)}")
 
             context = {
@@ -164,9 +213,7 @@ def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> b
 def main():
     try:
         print("=" * 80)
-        print(
-            "📚 Novel Translator v4.0.0 | SDK: google-genai | Model: gemini-3-flash-preview"
-        )
+        print("📚 Novel Translator v4.0.0 | SDK: google-genai | Model: gemini-3-flash-preview")
         print("=" * 80)
 
         # Cài đặt signal handlers cho graceful shutdown
@@ -175,11 +222,7 @@ def main():
 
         config_service = ConfigService(Path("config"))
         setup_logging(
-            Path(
-                config_service.get(
-                    "DIRECTORIES", "PROGRESS_DIR", fallback="workspace/progress"
-                )
-            )
+            Path(config_service.get("DIRECTORIES", "PROGRESS_DIR", fallback="workspace/progress"))
         )
 
         logging.info("=" * 80)
@@ -189,12 +232,8 @@ def main():
         logging.info(f"API keys: {len(api_keys)}")
 
         api_service = ApiManager(api_keys)
-        cache_dir = Path(
-            config_service.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache")
-        )
-        cache_enabled = config_service.get(
-            "CACHE", "ENABLE_CACHE", fallback=True, value_type=bool
-        )
+        cache_dir = Path(config_service.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache"))
+        cache_enabled = config_service.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool)
         cache_service = TranslationCache(str(cache_dir), enabled=cache_enabled)
 
         service_bus = ServiceBus()
@@ -204,9 +243,7 @@ def main():
         service_bus.register_service("logger", logging.getLogger())
 
         event_bus = EventBus(enable_history=True)
-        plugin_manager = PluginManager(
-            service_bus, event_bus, Path("plugins"), Path("config")
-        )
+        plugin_manager = PluginManager(service_bus, event_bus, Path("plugins"), Path("config"))
 
         # v4.0.0: Chỉ nạp plugin dịch thuật cho luồng main
         # Tránh nạp OCR, EPUB Converter... không cần thiết làm chậm và nhiễu log
@@ -221,9 +258,7 @@ def main():
 
         prompts = load_prompts()
 
-        input_dir = Path(
-            config_service.get("DIRECTORIES", "INPUT_DIR", fallback="workspace/input")
-        )
+        input_dir = Path(config_service.get("DIRECTORIES", "INPUT_DIR", fallback="workspace/input"))
         files = find_input_files(input_dir)
 
         if not files:
