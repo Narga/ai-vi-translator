@@ -254,10 +254,19 @@ def get_stats():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Novel Translator Web UI")
+    parser.add_argument(
+        "--port", "-p", type=int, default=7860, help="Port to run server (default: 7860)"
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)")
+    args = parser.parse_args()
+
     print("=" * 60)
     print("📚 Novel Translator Web UI")
     print("=" * 60)
-    print("\nMở trình duyệt và truy cập: http://localhost:5000")
+    print(f"\n🌐 Mở trình duyệt và truy cập: http://localhost:{args.port}")
     print("\nNhấn Ctrl+C để dừng\n")
 
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    app.run(host=args.host, port=args.port, debug=False, threaded=True)

@@ -1,6 +1,6 @@
 # Novel Translator - Development Plan
 
-**Version**: 4.0.2  
+**Version**: 4.0.3  
 **Last Updated**: 2026-02-15  
 **Status**: Stable & Production Ready
 
