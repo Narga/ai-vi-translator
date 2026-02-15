@@ -56,8 +56,25 @@ cp .env.example .env
 # Tạo config/API.txt với mỗi key một dòng
 ```
 
-### Run
+### Chạy với uv (Khuyến nghị)
 ```bash
+# Cài đặt dependencies
+uv sync
+
+# Chạy trực tiếp
+uv run python main.py
+
+# Hoặc chạy CLI
+uv run python cli.py translate -i input/novel.txt
+
+# Hoặc chạy Web UI
+uv run python webui.py
+```
+
+### Chạy thông thường (pip)
+```bash
+pip install -r requirements.txt
+
 # Cách 1: Chạy trực tiếp
 python main.py
 
@@ -137,6 +154,34 @@ novel-translator/
 │
 └── .env.example          # ✨ Environment template
 ```
+
+## 🌐 Web UI (v4.0.3+)
+
+Giao diện web đơn giản với Flask, hỗ trợ real-time progress.
+
+### Chạy Web UI
+```bash
+uv run python webui.py
+# Hoặc: python webui.py
+
+# Mở trình duyệt: http://localhost:5000
+```
+
+### Tính năng Web UI
+- ✅ **Real-time Progress**: Progress bar cập nhật live với SSE
+- ✅ **Form Cấu hình**: Chọn model, ngôn ngữ, temperature, chunk size
+- ✅ **Text Input**: Nhập trực tiếp text (không cần upload file)
+- ✅ **Log Console**: Xem log quá trình dịch
+- ✅ **Kết quả**: Hiển thị và copy kết quả dễ dàng
+
+### Cấu trúc Web UI
+```
+webui.py              # Flask app chính
+templates/
+└── index.html        # Giao diện ngườii dùng
+```
+
+---
 
 ## 🔌 Creating a Plugin
 

@@ -35,6 +35,13 @@
 - [x] Cache compression (gzip)
 - [x] Memory optimization (chunk_text_generator)
 
+### v4.0.3 - Web UI & uv Support
+- [x] Web UI with Flask (real-time progress, form config)
+- [x] Server-Sent Events (SSE) for live updates
+- [x] Direct text input (no file upload needed)
+- [x] pyproject.toml for uv package manager
+- [x] Optional dependencies (epub, ocr, async, dev)
+
 ---
 
 ## 🎯 UPCOMING TASKS (v4.1.0+)
@@ -46,7 +53,7 @@
 - [ ] **Translation Quality Metrics**: BLEU score or similar
 
 ### Medium Priority
-- [ ] **Web UI (Simple)**: Basic Flask/FastAPI interface
+- [x] ~~**Web UI (Simple)**: Basic Flask/FastAPI interface~~ ✅ v4.0.3
 - [ ] **PDF Export Plugin**: Generate formatted PDF output
 - [ ] **Translation Memory**: Learn from previous translations
 - [ ] **Auto-detection**: Detect source language automatically

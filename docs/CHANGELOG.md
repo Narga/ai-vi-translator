@@ -4,6 +4,39 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.3] - 2026-02-15 - Web UI & uv Support
+
+### ✨ Tính năng Mới
+
+**Web UI (Flask):**
+- Giao diện web đơn giản, tối giản
+- Real-time progress với Server-Sent Events (SSE)
+- Form cấu hình: model, ngôn ngữ, temperature, chunk size
+- Text input trực tiếp (không cần upload file)
+- Log console hiển thị quá trình
+- Copy kết quả dễ dàng
+
+**uv Support:**
+- Thêm `pyproject.toml` cho uv package manager
+- Có thể chạy với `uv run python webui.py`
+- Optional dependencies: epub, ocr, async, dev
+
+### 📁 Files Mới
+
+| File | Mô tả |
+|------|-------|
+| `webui.py` | Flask web application |
+| `templates/index.html` | Web UI template |
+| `pyproject.toml` | uv configuration |
+
+### 📦 Dependencies
+
+Thêm vào `pyproject.toml`:
+- `flask>=2.0.0` - Web framework
+- `flask-sock` - WebSocket support (future)
+
+---
+
 ## [4.0.2] - 2026-02-15 - LSP Fixes & Optimizations
 
 ### 🔧 LSP/Type Fixes

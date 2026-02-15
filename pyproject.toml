@@ -1,0 +1,80 @@
+[project]
+name = "novel-translator"
+version = "4.0.2"
+description = "AI Novel Translator - Dịch tiểu thuyết tự động"
+readme = "docs/README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Narga", email = "narga@example.com"}
+]
+keywords = ["translation", "ai", "gemini", "novel"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "google-genai>=1.0.0",
+    "chardet",
+    "tqdm",
+    "psutil",
+    "python-dotenv",
+    "flask>=2.0.0",
+    "flask-sock",
+]
+
+[project.optional-dependencies]
+epub = [
+    "python-markdown",
+    "ebooklib",
+    "lxml",
+    "beautifulsoup4",
+    "html2text",
+]
+ocr = [
+    "pytesseract>=0.3.10",
+    "pdf2image>=1.17.0",
+    "Pillow>=10.0.0",
+    "pdfplumber>=0.9.0",
+    "PyPDF2>=3.0.0",
+    "PyMuPDF>=1.23.0,<1.26.5",
+    "python-docx>=1.0.0",
+    "ocrmypdf>=15.0.0",
+    "PyYAML",
+]
+async = [
+    "aiohttp",
+]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[project.scripts]
+novel-translator = "main:main"
+nt = "cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Narga/ai-vi-translator"
+Documentation = "https://github.com/Narga/ai-vi-translator/blob/main/docs/README.md"
+Repository = "https://github.com/Narga/ai-vi-translator"
+Issues = "https://github.com/Narga/ai-vi-translator/issues"
+
+[tool.setuptools]
+packages = ["core", "services", "plugins"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+select = ["E", "F", "I"]
+ignore = ["E501"]
