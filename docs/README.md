@@ -82,7 +82,27 @@ python cli.py resume --checkpoint workspace/checkpoints/xxx.json
 ### Performance Tips
 - **Nhiều API keys**: Tăng throughput (mỗi key 20 RPD)
 - **Cache**: Bật cache để tránh dịch lại text đã dịch
+- **Cache Compression**: Cache files được nén gzip (giảm ~60-80%)
 - **Chunk size**: Điều chỉnh `MAX_CHARS_PER_CHUNK` (mặc định 22000)
+- **Memory Mode**: Dùng `chunk_text_generator()` cho file lớn
+
+## 🌏 Multi-language Support (v4.0.2+)
+
+### Supported Languages
+
+| Language | Code | Character Detection |
+|----------|------|-------------------|
+| Chinese | CN | 中文字符 |
+| Japanese | JP | ひらがな / カタカナ |
+| Korean | KR | 한글 |
+
+### Configuration
+```ini
+[PROCESSING]
+INPUT_LANG = CN  # Options: CN, JP, KR
+```
+
+Hệ thống tự động detect và sửa ký tự gốc còn sót dựa trên ngôn ngữ đã chọn.
 
 ## 📁 Project Structure
 

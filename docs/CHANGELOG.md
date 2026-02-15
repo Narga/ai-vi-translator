@@ -4,6 +4,55 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.2] - 2026-02-15 - LSP Fixes & Optimizations
+
+### 🔧 LSP/Type Fixes
+
+- **genai_client.py**: Sửa type hints cho `generation_config`
+- **chunker.py**: Fix lỗi `cut_pos` possibly unbound
+- **plugin.py**: Fix Optional type cho `context` parameter
+
+### ✨ Tính năng Mới
+
+**Progress Bar (tqdm):**
+- Tích hợp `tqdm` vào main loop
+- Hiển thị tiến trình dịch cho mỗi file
+- Tắt log verbose, giữ lại error messages
+
+**Multi-language Support:**
+- Hỗ trợ 3 ngôn ngữ: CN (Chinese), JP (Japanese), KR (Korean)
+- Tự động detect ký tự gốc còn sót dựa trên `INPUT_LANG`
+- Thêm LANGUAGE_REGEX cho mỗi ngôn ngữ
+
+### 🚀 Optimizations
+
+**Regex Optimization:**
+- Đưa `DELIMITERS` lên module-level constant
+- Tránh re-create list mỗi lần gọi `_find_best_cut_position()`
+
+**Cache Compression:**
+- Thêm gzip compression cho cache files
+- File extension: `.pkl.gz` (tương thích ngược với `.pkl`)
+- Giảm ~60-80% kích thước cache
+
+**Memory Optimization:**
+- Thêm `chunk_text_generator()` - generator-based chunking
+- Xử lý chunk-by-chunk thay vì load all vào memory
+- Phù hợp cho file lớn (>10MB)
+
+### Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `main.py` | Thêm tqdm progress bar |
+| `services/genai_client.py` | Fix type hints |
+| `services/cache_service.py` | Thêm gzip compression |
+| `plugins/translation/chunker.py` | Regex optimization, generator |
+| `plugins/translation/plugin.py` | Fix Optional type |
+| `plugins/translation/translator.py` | Multi-language support |
+
+---
+
 ## [4.0.1] - 2026-02-15 - Rate Limiting & CLI Upgrades
 
 ### 🎯 Code Review & Optimizations
