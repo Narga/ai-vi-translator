@@ -4,23 +4,30 @@
 # v3.0.0: Di chuyển từ src/translators/ sang services/ cho plugin architecture.
 #         Giữ nguyên logic cache với khóa gồm: model_name, temperature, prompts signature,
 #         previous_chunk_context hash, và original_chunk hash để tránh reuse sai.
+# v4.0.1: Thêm gzip compression để giảm disk I/O.
 
 
 import os
 import json
 import pickle
+import gzip
 import hashlib
 import logging
 from threading import Lock
 from typing import Optional, Dict, Any
 
+
 class TranslationCache:
     """
     Cache file-based đơn giản để giảm chi phí API.
-    - Mỗi item lưu vào một .pkl đặt tên theo MD5 của key.
+    - Mỗi item lưu vào một .pkl.gz đặt tên theo MD5 của key.
     - Thread-safe khi đọc/ghi.
+    - Sử dụng gzip compression để giảm kích thước file.
     - Khóa thiết kế mới (v2.7.0) giúp tránh reuse sai khi cấu hình thay đổi.
     """
+
+    COMPRESS = True  # Enable gzip compression by default
+
     def __init__(self, cache_dir: str, enabled: bool = True) -> None:
         self.enabled = enabled
         if not self.enabled:
@@ -29,7 +36,9 @@ class TranslationCache:
         self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
         self._lock = Lock()
-        logging.info(f"📦 Cache dịch thuật được bật. Thư mục: '{self.cache_dir}'")
+        logging.info(
+            f"📦 Cache dịch thuật được bật. Thư mục: '{self.cache_dir}' (gzip: {self.COMPRESS})"
+        )
 
     def _md5(self, data: bytes) -> str:
         """Tính MD5 nhanh và ổn định cho dữ liệu nhị phân."""
@@ -47,7 +56,9 @@ class TranslationCache:
         - Sử dụng JSON chuẩn hóa key-sorted và không escape ASCII để ổn định cross-platform.
         """
         try:
-            normalized = json.dumps(prompts or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            normalized = json.dumps(
+                prompts or {}, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
         except Exception:
             # Phòng hờ: nếu có object không JSON được, fallback sang str() rồi hash
             normalized = str(prompts)
@@ -58,7 +69,7 @@ class TranslationCache:
         original_chunk: str,
         prompts: Dict[str, str],
         config: Dict[str, Any],
-        previous_chunk_context: str
+        previous_chunk_context: str,
     ) -> str:
         """
         Xây dựng khóa logic (string) chứa đầy đủ thành phần ảnh hưởng kết quả dịch:
@@ -82,13 +93,16 @@ class TranslationCache:
             # Có thể mở rộng thêm các trường cấu hình quan trọng khác trong tương lai (ví dụ: min/max ratio)
         }
         # Trả về chuỗi JSON ổn định, phần _get_cache_key sẽ băm MD5 làm tên file
-        return json.dumps(key_obj, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return json.dumps(
+            key_obj, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
 
     def _get_cache_path_from_logical_key(self, logical_key: str) -> str:
         """
-        Nhận logical_key (JSON string) và trả về đường dẫn file cache (.pkl) tương ứng.
+        Nhận logical_key (JSON string) và trả về đường dẫn file cache (.pkl.gz) tương ứng.
         """
-        file_name = self._md5(logical_key.encode("utf-8")) + ".pkl"
+        ext = ".pkl.gz" if self.COMPRESS else ".pkl"
+        file_name = self._md5(logical_key.encode("utf-8")) + ext
         return os.path.join(self.cache_dir, file_name)
 
     # API cũ vẫn giữ để tương thích (ít dùng trong v2.7.0)
@@ -97,12 +111,23 @@ class TranslationCache:
         if not self.enabled:
             return None
         path = self._get_cache_path_from_logical_key(logical_key)
-        if os.path.exists(path):
+
+        # Try .pkl.gz first, then fallback to .pkl (legacy)
+        if self.COMPRESS and os.path.exists(path):
             try:
-                with self._lock, open(path, 'rb') as f:
+                with self._lock, gzip.open(path, "rb") as f:
                     return pickle.load(f)
             except Exception:
-                return None
+                pass
+
+        # Try legacy .pkl without gzip
+        legacy_path = path.replace(".pkl.gz", ".pkl")
+        if os.path.exists(legacy_path):
+            try:
+                with self._lock, open(legacy_path, "rb") as f:
+                    return pickle.load(f)
+            except Exception:
+                pass
         return None
 
     def set(self, logical_key: str, translation: str) -> None:
@@ -111,8 +136,12 @@ class TranslationCache:
             return
         path = self._get_cache_path_from_logical_key(logical_key)
         try:
-            with self._lock, open(path, 'wb') as f:
-                pickle.dump(translation, f)
+            if self.COMPRESS:
+                with self._lock, gzip.open(path, "wb") as f:
+                    pickle.dump(translation, f)
+            else:
+                with self._lock, open(path, "wb") as f:
+                    pickle.dump(translation, f)
         except Exception as e:
             logging.warning(f"⚠️ Không thể lưu cache: {e}")
 
@@ -122,7 +151,7 @@ class TranslationCache:
         original_chunk: str,
         prompts: Dict[str, str],
         config: Dict[str, Any],
-        previous_chunk_context: str
+        previous_chunk_context: str,
     ) -> Optional[str]:
         """Xây khóa từ các thành phần và truy xuất cache."""
         key = self.build_key(original_chunk, prompts, config, previous_chunk_context)
@@ -134,7 +163,7 @@ class TranslationCache:
         prompts: Dict[str, str],
         config: Dict[str, Any],
         previous_chunk_context: str,
-        translation: str
+        translation: str,
     ) -> None:
         """Xây khóa từ các thành phần và lưu cache."""
         key = self.build_key(original_chunk, prompts, config, previous_chunk_context)

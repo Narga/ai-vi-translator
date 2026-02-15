@@ -11,6 +11,8 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
 
+from tqdm import tqdm
+
 from core import PluginManager, ServiceBus, EventBus
 from services.api_service import ApiManager
 from services.cache_service import TranslationCache
@@ -123,8 +125,10 @@ def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> b
         translated = []
         prev_context = ""
 
-        for i, chunk in enumerate(chunks):
-            logging.info(f"\nChunk {i + 1}/{len(chunks)}")
+        for i, chunk in enumerate(
+            tqdm(chunks, desc=f"Translating {filepath.name}", unit="chunk")
+        ):
+            # logging.info(f"\nChunk {i + 1}/{len(chunks)}")
 
             context = {
                 "prompts": prompts,
@@ -138,9 +142,9 @@ def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> b
                 translated.append(result)
                 ctx_len = plugin.translation_config.get("context_char_count", 500)
                 prev_context = result[-ctx_len:] if len(result) > ctx_len else result
-                logging.info(f"✅ Done")
+                # logging.info(f"✅ Done")
             else:
-                logging.error(f"❌ Failed")
+                logging.error(f"❌ Failed at chunk {i + 1}")
                 return False
 
         output_dir.mkdir(parents=True, exist_ok=True)

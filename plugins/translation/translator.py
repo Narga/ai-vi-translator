@@ -320,11 +320,26 @@ def robust_translate(
             logging.error("Dịch lại để chống cắt ngắn thất bại.")
             return "Dịch chunk thất bại.", "failed", api_key_used
 
-    # Bước 3: Sửa ký tự Trung còn sót (chỉ khi INPUT_LANG=CN)
+    # Bước 3: Sửa ký tự gốc còn sót (chỉ khi INPUT_LANG được cấu hình)
     input_lang = str(config_params.get("input_lang", "CN")).upper()
     correction_mode = str(config_params.get("correction_mode", "parallel")).lower()
 
-    if input_lang == "CN":
+    # Language-specific character detection
+    import re
+
+    LANGUAGE_REGEX = {
+        "CN": re.compile(r"[\u4e00-\u9fff]"),  # Chinese
+        "JP": re.compile(r"[\u3040-\u309f\u30a0-\u30ff]"),  # Japanese Hiragana/Katakana
+        "KR": re.compile(r"[\uac00-\ud7af]"),  # Korean Hangul
+    }
+
+    # Get regex pattern for current language
+    lang_regex = LANGUAGE_REGEX.get(
+        input_lang, LANGUAGE_REGEX.get("CN", CHINESE_CHAR_REGEX)
+    )
+    lang_name = {"CN": "Trung", "JP": "Nhật", "KR": "Hàn"}.get(input_lang, input_lang)
+
+    if input_lang in LANGUAGE_REGEX:
         refinement_count = 0
         correction_prompt_template = prompts.get("correction", "")
         max_refine = int(config_params.get("max_refinement_attempts", 2))
