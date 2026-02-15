@@ -1,7 +1,7 @@
 # plugins/translation/translator.py - v4.0.0
 # Tác giả: Narga
 # Chức năng: Lõi gọi API và quy trình robust_translate (dịch - kiểm độ dài - sửa Hán tự - chuẩn hóa - cache).
-# 
+#
 # Nâng cấp v4.0.0:
 # - Tích hợp GenAIClient wrapper hỗ trợ cả google-genai SDK mới và google-generativeai SDK cũ
 # - Tích hợp emergency_stop module thực sự (thay vì placeholder)
@@ -24,7 +24,7 @@ from services.cache_service import TranslationCache
 from services.emergency_stop import check_emergency_stop, EmergencyStopError
 
 # Regex phát hiện Hán tự (CJK Unified Ideographs)
-CHINESE_CHAR_REGEX = re.compile(r'[\u4e00-\u9fff]')
+CHINESE_CHAR_REGEX = re.compile(r"[\u4e00-\u9fff]")
 
 # Cache GenAI clients theo API key để tránh khởi tạo lại
 _client_cache: Dict[str, GenAIClient] = {}
@@ -33,29 +33,27 @@ _client_cache: Dict[str, GenAIClient] = {}
 def _get_client(api_key: str, config: Dict[str, Any]) -> GenAIClient:
     """
     Lấy hoặc tạo GenAIClient cho API key (có cache).
-    
+
     Args:
         api_key (str): API key
         config (Dict[str, Any]): Cấu hình chứa model và thinking_level
-    
+
     Returns:
         GenAIClient: Client instance
     """
     global _client_cache
-    
-    default_model = config.get('model_name', 'gemini-3-flash-preview')
-    thinking_level = config.get('thinking_level', 'MEDIUM')
-    
+
+    default_model = config.get("model_name", "gemini-3-flash-preview")
+    thinking_level = config.get("thinking_level", "MEDIUM")
+
     # Cache key chỉ dựa trên API key (SDK đã fixed là google-genai)
     cache_key = api_key
-    
+
     if cache_key not in _client_cache:
         _client_cache[cache_key] = GenAIClient(
-            api_key=api_key,
-            default_model=default_model,
-            thinking_level=thinking_level
+            api_key=api_key, default_model=default_model, thinking_level=thinking_level
         )
-    
+
     return _client_cache[cache_key]
 
 
@@ -64,11 +62,11 @@ def _call_api(
     prompt: str,
     api_manager: ApiManager,
     config: Dict[str, Any],
-    model_override: Optional[str] = None
+    model_override: Optional[str] = None,
 ) -> Tuple[Optional[str], str, str]:
     """
     Hàm gọi API chung: lấy key khả dụng, cấu hình model/temperature, gọi API và xử lý lỗi.
-    
+
     Hỗ trợ cả google-genai SDK mới và google-generativeai SDK cũ thông qua GenAIClient.
 
     Args:
@@ -90,6 +88,12 @@ def _call_api(
             logging.warning("⛔ Translation interrupted by emergency stop")
             return None, "stopped", "unknown"
 
+        # Acquire RPM token trước khi gọi API
+        if not api_manager.acquire_rpm(blocking=True, timeout=120.0):
+            logging.warning("RPM limit timeout, waiting 10s...")
+            time.sleep(10.0)
+            continue
+
         api_key = api_manager.get_next_available_key()
         if not api_key:
             if api_manager.all_keys_exhausted():
@@ -101,26 +105,32 @@ def _call_api(
 
         try:
             # Tôn trọng request delay
-            delay = float(config.get('request_delay', 0.0))
+            delay = float(config.get("request_delay", 0.0))
             if delay > 0:
                 time.sleep(delay)
 
             # Lấy client từ cache
             client = _get_client(api_key, config)
-            
+
             # Build prompt đầy đủ
-            full_prompt = f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
-            
+            full_prompt = (
+                f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
+            )
+
             # Gọi API
-            model_name = model_override or config.get('model_name', 'gemini-3-flash-preview')
-            temperature = float(config.get('temperature', 1.0))  # Gemini 3 khuyến nghị 1.0
-            thinking_level = config.get('thinking_level', 'MEDIUM')
-            
+            model_name = model_override or config.get(
+                "model_name", "gemini-3-flash-preview"
+            )
+            temperature = float(
+                config.get("temperature", 1.0)
+            )  # Gemini 3 khuyến nghị 1.0
+            thinking_level = config.get("thinking_level", "MEDIUM")
+
             result_text, status = client.generate_content(
                 prompt=full_prompt,
                 model=model_name,
                 temperature=temperature,
-                thinking_level=thinking_level
+                thinking_level=thinking_level,
             )
 
             if status == "success" and result_text:
@@ -155,7 +165,7 @@ def _call_api_with_original_context(
     model_override: Optional[str] = None,
 ) -> Tuple[Optional[str], str, str]:
     """
-    Gọi API với prompt correction song song (Parallel Context Correction - Phương án 2):
+    Gọi API với prompt correction song song (Parallel Context Correction):
     gửi cả bản gốc (Trung) và bản dịch (Việt có lỗi) để AI đối chiếu và chỉ sửa phần lỗi.
 
     Args:
@@ -169,15 +179,12 @@ def _call_api_with_original_context(
     Returns:
         Tuple[Optional[str], str, str]: (kết_quả_text, status, api_key_dùng)
     """
-    # Format prompt: thay thế placeholder
     prompt_filled = prompt_template.replace("{original_chunk}", original_chunk)
     prompt_filled = prompt_filled.replace("{contextual_snippet}", translated_text)
 
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
 
     for _ in range(max_attempts_total):
-        # Emergency stop check removed - handled by plugin manager
-
         api_key = api_manager.get_next_available_key()
         if not api_key:
             if api_manager.all_keys_exhausted():
@@ -188,23 +195,28 @@ def _call_api_with_original_context(
             continue
 
         try:
-            delay = float(config.get('request_delay', 0.0))
+            delay = float(config.get("request_delay", 0.0))
             if delay > 0:
                 time.sleep(delay)
 
-            genai.configure(api_key=api_key)
-            model_name = model_override or config['model_name']
-            model = genai.GenerativeModel(model_name)
-            generation_config = genai.types.GenerationConfig(
-                temperature=float(config.get('temperature', 0.7))
+            client = _get_client(api_key, config)
+            model_name = model_override or config.get(
+                "model_name", "gemini-3-flash-preview"
+            )
+            temperature = float(config.get("temperature", 0.7))
+
+            result_text, status = client.generate_content(
+                prompt=prompt_filled,
+                model=model_name,
+                temperature=temperature,
             )
 
-            # Prompt đã chứa cả gốc và dịch, gửi trực tiếp
-            response = model.generate_content(prompt_filled, generation_config=generation_config)
-
-            api_manager.mark_success(api_key)
-            result_text = response.text.strip() if response and response.text else ""
-            return result_text, "success", api_key
+            if status == "success" and result_text:
+                api_manager.mark_success(api_key)
+                return result_text.strip(), "success", api_key
+            else:
+                logging.warning(f"Empty response từ API (parallel correction)")
+                continue
 
         except Exception as e:
             error_msg = str(e)
@@ -227,7 +239,7 @@ def robust_translate(
     prompts: Dict[str, str],
     config_params: Dict[str, Any],
     previous_chunk_context: str = "",
-    normalizer: Any = None
+    normalizer: Any = None,
 ) -> Tuple[str, str, str]:
     """
     Quy trình dịch chuẩn cho mỗi chunk (v2.8.2):
@@ -254,8 +266,10 @@ def robust_translate(
         Tuple[str, str, str]: (kết_quả_dịch, trạng_thái, api_key_đã_dùng)
     """
     # Prompt chính có ngữ cảnh
-    main_prompt_template = prompts.get('main', '')
-    main_prompt = main_prompt_template.replace('{previous_chunk_context}', previous_chunk_context)
+    main_prompt_template = prompts.get("main", "")
+    main_prompt = main_prompt_template.replace(
+        "{previous_chunk_context}", previous_chunk_context
+    )
 
     # Cache với khóa theo thành phần đầy đủ
     cached_translation = cache.get_by_components(
@@ -280,16 +294,26 @@ def robust_translate(
     # Bước 2: Kiểm tra độ dài (chống cắt ngắn hoặc quá lệch)
     original_len = len(original_chunk)
     translated_len = len(translated_text)
-    min_ratio = float(config_params.get('min_length_ratio', 0.5))
-    max_ratio = float(config_params.get('max_length_ratio', 2.0))
+    min_ratio = float(config_params.get("min_length_ratio", 0.5))
+    max_ratio = float(config_params.get("max_length_ratio", 2.0))
 
-    if original_len > 200 and not (min_ratio * original_len <= translated_len <= max_ratio * original_len):
-        logging.warning(f"Phát hiện độ dài không hợp lệ ({translated_len}/{original_len}). Dịch lại để chống cắt ngắn...")
-        retranslate_prompt_template = prompts.get('retranslate', main_prompt)
-        retranslate_prompt = retranslate_prompt_template.replace('{previous_chunk_context}', previous_chunk_context)
+    if original_len > 200 and not (
+        min_ratio * original_len <= translated_len <= max_ratio * original_len
+    ):
+        logging.warning(
+            f"Phát hiện độ dài không hợp lệ ({translated_len}/{original_len}). Dịch lại để chống cắt ngắn..."
+        )
+        retranslate_prompt_template = prompts.get("retranslate", main_prompt)
+        retranslate_prompt = retranslate_prompt_template.replace(
+            "{previous_chunk_context}", previous_chunk_context
+        )
 
         translated_text, status, api_key_used = _call_api(
-            original_chunk, retranslate_prompt, api_manager, config_params, model_override=config_params.get('qa_model')
+            original_chunk,
+            retranslate_prompt,
+            api_manager,
+            config_params,
+            model_override=config_params.get("qa_model"),
         )
 
         if status != "success" or not translated_text:
@@ -297,34 +321,43 @@ def robust_translate(
             return "Dịch chunk thất bại.", "failed", api_key_used
 
     # Bước 3: Sửa ký tự Trung còn sót (chỉ khi INPUT_LANG=CN)
-    input_lang = str(config_params.get('input_lang', 'CN')).upper()
-    correction_mode = str(config_params.get('correction_mode', 'parallel')).lower()
+    input_lang = str(config_params.get("input_lang", "CN")).upper()
+    correction_mode = str(config_params.get("correction_mode", "parallel")).lower()
 
-    if input_lang == 'CN':
+    if input_lang == "CN":
         refinement_count = 0
-        correction_prompt_template = prompts.get('correction', '')
-        max_refine = int(config_params.get('max_refinement_attempts', 2))
+        correction_prompt_template = prompts.get("correction", "")
+        max_refine = int(config_params.get("max_refinement_attempts", 2))
 
-        while CHINESE_CHAR_REGEX.search(translated_text) and refinement_count < max_refine:
+        while (
+            CHINESE_CHAR_REGEX.search(translated_text) and refinement_count < max_refine
+        ):
             refinement_count += 1
 
-            if correction_mode == 'parallel':
+            if correction_mode == "parallel":
                 # Parallel Context Correction (Phương án 2): gửi song song gốc + dịch lỗi
-                logging.warning(f"Phát hiện ký tự Trung. Parallel Correction lần {refinement_count}...")
+                logging.warning(
+                    f"Phát hiện ký tự Trung. Parallel Correction lần {refinement_count}..."
+                )
                 corrected_text, status, api_key_used = _call_api_with_original_context(
                     translated_text=translated_text,
                     original_chunk=original_chunk,
                     prompt_template=correction_prompt_template,
                     api_manager=api_manager,
                     config=config_params,
-                    model_override=config_params.get('qa_model'),
+                    model_override=config_params.get("qa_model"),
                 )
             else:
                 # Legacy mode: chỉ gửi dịch lỗi
-                logging.warning(f"Phát hiện ký tự Trung. Sửa lỗi (legacy) lần {refinement_count}...")
+                logging.warning(
+                    f"Phát hiện ký tự Trung. Sửa lỗi (legacy) lần {refinement_count}..."
+                )
                 corrected_text, status, api_key_used = _call_api(
-                    translated_text, correction_prompt_template, api_manager, config_params,
-                    model_override=config_params.get('qa_model')
+                    translated_text,
+                    correction_prompt_template,
+                    api_manager,
+                    config_params,
+                    model_override=config_params.get("qa_model"),
                 )
 
             if status == "success" and corrected_text:
@@ -333,7 +366,9 @@ def robust_translate(
                 logging.error(f"Sửa lỗi lần {refinement_count} thất bại.")
 
         if CHINESE_CHAR_REGEX.search(translated_text):
-            logging.error(f"Không thể loại bỏ hết ký tự Trung sau {max_refine} lần thử (mode: {correction_mode}).")
+            logging.error(
+                f"Không thể loại bỏ hết ký tự Trung sau {max_refine} lần thử (mode: {correction_mode})."
+            )
 
     # Bước 4: Chuẩn hóa văn bản
     if normalizer:

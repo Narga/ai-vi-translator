@@ -4,6 +4,51 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.1] - 2026-02-15 - Rate Limiting & CLI Upgrades
+
+### 🎯 Code Review & Optimizations
+
+**Security:**
+- ✅ Thêm `.env` support với `python-dotenv`
+- ✅ API keys ưu tiên từ environment variables
+- ✅ Fallback về `config/API.txt` (legacy)
+
+**API Rate Limiting:**
+- ✅ `GlobalRPMRateLimiter`: Sliding window 60s, giới hạn 15 RPM toàn cục
+- ✅ `TokenBudgetLimiter`: Ước tính tokens (2.5 chars/token), giới hạn 1M TPM
+- ✅ Fix race condition trong `get_next_available_key()`
+- ✅ Fix dead code (old SDK) trong `_call_api_with_original_context`
+
+**CLI & Automation:**
+- ✅ `cli.py`: Command-line interface với argparse
+- ✅ `CheckpointService`: Lưu/khôi phục tiến trình dịch
+- ✅ Auto-save checkpoint sau mỗi chunk
+- ✅ Resume từ checkpoint khi bị gián đoạn
+
+**Async Support:**
+- ✅ `services/async_genai_client.py`: Async wrapper với aiohttp
+- ✅ `AsyncApiManager`: Concurrent requests với semaphore
+
+### 📦 Dependencies
+
+Thêm vào `requirements.txt`:
+- `python-dotenv` - .env file support
+- `aiohttp` - Async HTTP calls (optional)
+
+### Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `main.py` | Thêm .env support |
+| `cli.py` | ✨ NEW - CLI với argparse |
+| `services/api_service.py` | Thêm RPM + TPM limiters |
+| `services/async_genai_client.py` | ✨ NEW - Async support |
+| `services/checkpoint_service.py` | ✨ NEW - Checkpoint/Resume |
+| `plugins/translation/translator.py` | Fix dead code |
+| `requirements.txt` | Thêm python-dotenv, aiohttp |
+
+---
+
 ## [4.0.0] - 2026-02-01 - SDK Migration & Core Upgrades
 
 ### 🎉 Thay đổi Lớn

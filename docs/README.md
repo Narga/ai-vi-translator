@@ -8,13 +8,23 @@ Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử d�
 - **google-genai SDK**: SDK mới của Google (thay thế google-generativeai)
 - **gemini-3-flash-preview**: Model mới nhất với 1M context window
 - **thinking_level**: Control reasoning depth (MINIMAL/LOW/MEDIUM/HIGH)
-- **Fallback support**: Tự động fallback sang SDK cũ nếu cần
 
 ### Protection Services (từ Book_translator)
-- **AdaptiveRateLimiter**: Progressive backoff 30s→300s, daily quota tracking
+- **AdaptiveRateLimiter**: Progressive backoff 30s→300s, daily quota tracking (20 RPD/key)
+- **GlobalRPMRateLimiter**: Giới hạn 15 RPM toàn cục (sliding window)
+- **TokenBudgetLimiter**: Giới hạn 1M TPM (token estimation)
 - **CircuitBreaker**: Ngăn cascade failures với 3 states (CLOSED/OPEN/HALF_OPEN)
 - **HealthMonitor**: Giám sát runtime (max 48h) và stall detection (30 phút)
 - **Emergency Stop**: Thread-safe graceful shutdown với signal handlers
+
+### CLI & Automation
+- **Argparse CLI**: Giao diện dòng lệnh mạnh mẽ (`cli.py`)
+- **Checkpoint/Resume**: Lưu tiến trình, tiếp tục khi bị gián đoạn
+- **Async Support**: AsyncGenAIClient cho concurrent requests
+
+### Security
+- **.env Support**: API keys từ environment variables (ưu tiên)
+- **Fallback**: Vẫn hỗ trợ file `config/API.txt` (legacy)
 
 ### Plugin Architecture (v3.0)
 - **Extensible**: Thêm features mới = tạo plugin mới
@@ -25,9 +35,7 @@ Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử d�
 ### Plugins Hiện tại
 1. **Translation** - Core translation engine
 2. **EPUB Converter** - Format conversion (EPUB ↔ Text/Markdown)
-3. **Consistency Check** - QA checking
-4. **Chinese Detector** - Quality assurance
-5. **OCR** - PDF/Image text recognition
+3. **OCR** - PDF/Image text recognition
 
 ## 🚀 Quick Start
 
@@ -37,44 +45,77 @@ Python 3.10+
 pip install -r requirements.txt
 ```
 
-### Configuration
-1. Tạo `config/API.txt` với Gemini API keys (mỗi key một dòng)
-2. Điều chỉnh `config/app.ini` nếu cần (SDK, model, thinking_level)
+### Configuration (Khuyến nghị: dùng .env)
+```bash
+# Cách 1: Sử dụng .env (khuyến nghị)
+cp .env.example .env
+# Edit .env và thêm API keys:
+# GEMINI_API_KEYS=key1,key2,key3
+
+# Cách 2: Sử dụng file text (legacy)
+# Tạo config/API.txt với mỗi key một dòng
+```
 
 ### Run
 ```bash
+# Cách 1: Chạy trực tiếp
 python main.py
+
+# Cách 2: Sử dụng CLI
+python cli.py translate -i input/novel.txt -o output/
+python cli.py translate -i input/ --dry-run  # Chạy thử không gọi API
+python cli.py status --api-keys               # Xem trạng thái
+
+# Resume từ checkpoint
+python cli.py resume --checkpoint workspace/checkpoints/xxx.json
 ```
+
+## ⚙️ Rate Limiting & Optimization
+
+### Gemini API Free Tier Limits
+| Limit | Value | How We Handle |
+|-------|-------|---------------|
+| RPM | 15 | GlobalRPMRateLimiter (sliding window 60s) |
+| TPM | 1M | TokenBudgetLimiter (estimate ~2.5 chars/token) |
+| RPD | 1500/key | AdaptiveRateLimiter (20 RPD/key) |
+
+### Performance Tips
+- **Nhiều API keys**: Tăng throughput (mỗi key 20 RPD)
+- **Cache**: Bật cache để tránh dịch lại text đã dịch
+- **Chunk size**: Điều chỉnh `MAX_CHARS_PER_CHUNK` (mặc định 22000)
 
 ## 📁 Project Structure
 
 ```
 novel-translator/
-├── main.py                 # Entry point v4.0 (google-genai SDK)
+├── main.py                 # Entry point v4.0
+├── cli.py                  # ✨ CLI with argparse
 ├── core/                   # Core infrastructure
 │   ├── plugin_manager.py   # Plugin lifecycle management
 │   ├── service_bus.py      # Service registry
-│   └── event_bus.py        # Event system
+│   └── event_bus.py       # Event system
 │
 ├── services/               # Shared services
-│   ├── genai_client.py     # ✨ GenAI wrapper (SDK mới + fallback)
-│   ├── api_service.py      # AdaptiveRateLimiter (20 RPD/key)
-│   ├── circuit_breaker.py  # ✨ Circuit Breaker pattern
-│   ├── health_monitor.py   # ✨ Runtime/stall monitoring
-│   ├── emergency_stop.py   # ✨ Graceful shutdown
+│   ├── genai_client.py     # GenAI wrapper
+│   ├── async_genai_client.py  # ✨ Async support
+│   ├── api_service.py      # ✨ RPM + TPM limiters
 │   ├── cache_service.py    # Translation caching
+│   ├── checkpoint_service.py # ✨ Checkpoint/Resume
+│   ├── circuit_breaker.py  # Circuit Breaker pattern
+│   ├── health_monitor.py   # Runtime monitoring
+│   ├── emergency_stop.py   # Graceful shutdown
 │   └── config_service.py   # Configuration
 │
 ├── plugins/                # Plugin directory
-│   ├── translation/        # Core translation (GenAIClient)
-│   ├── epub_converter/     # EPUB conversion
-│   ├── consistency_check/  # Consistency checking
-│   ├── chinese_detector/   # Chinese detection
-│   └── ocr/               # OCR plugin
+│   ├── translation/       # Core translation
+│   ├── epub_converter/    # EPUB conversion
+│   └── ocr/              # OCR plugin
 │
-└── config/
-    ├── app.ini            # Main config (SDK, model, thinking_level)
-    └── API.txt            # API keys
+├── config/
+│   ├── app.ini           # Main config
+│   └── API.txt           # API keys (legacy)
+│
+└── .env.example          # ✨ Environment template
 ```
 
 ## 🔌 Creating a Plugin
@@ -120,6 +161,30 @@ class Plugin(ProcessorPlugin):
 
 ### 3. Plugin Will Auto-Load
 Plugin Manager auto-discovers plugins in `plugins/` directory.
+
+## 💻 CLI Usage
+
+```bash
+# Dịch file
+python cli.py translate -i input/novel.txt -o output/
+
+# Dịch thư mục
+python cli.py translate -i input/ -o output/
+
+# Chạy thử (không gọi API)
+python cli.py translate -i input/novel.txt --dry-run
+
+# Xem trạng thái
+python cli.py status
+python cli.py status --api-keys
+python cli.py status --cache
+
+# Tiếp tục từ checkpoint
+python cli.py resume --checkpoint workspace/checkpoints/abc123.json
+
+# Tùy chọn khác
+python cli.py translate -i input/ -o output/ --lang CN --model gemini-3-flash-preview --chunk-size 20000
+```
 
 ## 🛠️ Development
 

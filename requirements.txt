@@ -8,6 +8,8 @@ google-genai>=1.0.0              # SDK mới (khuyến nghị, mặc định)
 chardet
 tqdm
 psutil  # Cho Health Monitor memory tracking (optional)
+python-dotenv  # Cho .env file support (API keys security)
+aiohttp  # Cho async API calls (tùy chọn)
 
 # Các gói cần thiết cho Tiện ích chuyển đổi Văn bản sang EPUB
 
