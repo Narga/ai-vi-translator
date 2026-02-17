@@ -265,9 +265,10 @@
         });
         
         function switchTab(tab) {
+            var evt = event || window.event;
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
+            if (evt && evt.target) evt.target.classList.add('active');
             document.getElementById('tab-' + tab).classList.add('active');
             
             if (tab === 'input') {
@@ -304,6 +305,10 @@
                             </div>
                         </div>`;
                     }).join('');
+                })
+                .catch(function(err) {
+                    console.error('Error loading files:', err);
+                    document.getElementById('file-list').innerHTML = '<p style="color: #dc3545; text-align: center; padding: 20px;">Lỗi tải files</p>';
                 });
         }
         
@@ -327,6 +332,9 @@
                         </div>
                         <span class="file-badge badge-done">✓ Done</span>
                     </div>`).join('');
+                })
+                .catch(function(err) {
+                    console.error('Error loading done files:', err);
                 });
         }
         
@@ -399,19 +407,31 @@
                     modelSelect.innerHTML = availableModels.map(m => 
                         `<option value="${m}" ${m === data.default ? 'selected' : ''}>${m}</option>`
                     ).join('');
+                })
+                .catch(function(err) {
+                    console.error('Error loading models:', err);
+                    const modelSelect = document.getElementById('model');
+                    modelSelect.innerHTML = availableModels.map(m => 
+                        `<option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>`
+                    ).join('');
                 });
         }
         
         function loadStats() {
-            fetch('/api/stats').then(r => r.json()).then(data => {
-                document.getElementById('api-keys-count').textContent = data.api_keys_count || 0;
-                document.getElementById('cache-count').textContent = data.cache_files || 0;
-                document.getElementById('cache-size').textContent = data.cache_size_mb || 0;
-                document.getElementById('tm-entries').textContent = data.tm_entries || 0;
-                document.getElementById('translated-words').textContent = (data.translated_words || 0).toLocaleString();
-                document.getElementById('pending-words').textContent = (data.pending_words || 0).toLocaleString();
-                document.getElementById('done-files-count').textContent = data.done_files_count || 0;
-            });
+            fetch('/api/stats')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('api-keys-count').textContent = data.api_keys_count || 0;
+                    document.getElementById('cache-count').textContent = data.cache_files || 0;
+                    document.getElementById('cache-size').textContent = data.cache_size_mb || 0;
+                    document.getElementById('tm-entries').textContent = data.tm_entries || 0;
+                    document.getElementById('translated-words').textContent = (data.translated_words || 0).toLocaleString();
+                    document.getElementById('pending-words').textContent = (data.pending_words || 0).toLocaleString();
+                    document.getElementById('done-files-count').textContent = data.done_files_count || 0;
+                })
+                .catch(function(err) {
+                    console.error('Error loading stats:', err);
+                });
         }
         
         function clearCache() {
