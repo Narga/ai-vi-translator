@@ -523,9 +523,10 @@ def index():
         "index.html",
         input_files=input_files,
         prompts=prompts,
+        prompts_json=prompts_json,
         default_chunk=default_chunk,
         default_model=default_model,
-        available_models=available_models,
+        available_models=json.dumps(available_models),
     )
 
 
