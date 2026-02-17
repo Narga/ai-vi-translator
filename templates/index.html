@@ -164,13 +164,6 @@
                         <button class="btn btn-danger btn-sm" onclick="clearCache()">🗑️ Xóa Cache</button>
                     </div>
                 </div>
-                
-                <div class="panel">
-                    <h2>✅ Đã dịch (Output)</h2>
-                    <div class="output-list" id="output-list">
-                        <p style="color: #888; text-align: center; padding: 20px;">Chưa có file</p>
-                    </div>
-                </div>
             </aside>
             
             <main>
@@ -193,32 +186,62 @@
                             <button class="btn btn-secondary" onclick="selectAll()">✓ Chọn tất cả</button>
                             <button class="btn" onclick="deselectAll()">✗ Bỏ chọn tất cả</button>
                         </div>
+                        
+                        <div class="panel" style="margin-top: 20px; border: 2px solid #667eea;">
+                            <h2>📝 Văn bản gốc</h2>
+                            <textarea id="source-text" placeholder="Nhập văn bản cần dịch ở đây hoặc chọn file từ danh sách trên..."></textarea>
+                            
+                            <div class="action-row">
+                                <button class="btn" id="translate-btn" onclick="startTranslation()">🚀 Bắt đầu dịch</button>
+                            </div>
+                            
+                            <div class="progress-container" id="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progress-fill">0%</div>
+                                </div>
+                                <div class="progress-text" id="progress-text">Đang chuẩn bị...</div>
+                            </div>
+                            
+                            <div class="log-container" id="log-container"></div>
+                        </div>
                     </div>
                     
                     <div class="tab-content" id="tab-done">
-                        <div class="info-box">💡 Các file đã dịch xong. Có thể dịch lại hoặc xem nội dung.</div>
+                        <div class="info-box">💡 Các file đã dịch xong. Chọn file để xem nội dung và sử dụng Retranslate/Correction.</div>
                         <div class="file-list" id="done-list">
                             <p style="color: #888; text-align: center; padding: 20px;">Chưa có file đã dịch</p>
                         </div>
-                    </div>
-                </div>
-                
-                <div class="panel">
-                    <h2>📝 Văn bản gốc</h2>
-                    <textarea id="source-text" placeholder="Nhập văn bản cần dịch ở đây hoặc chọn file từ danh sách trên..."></textarea>
-                    
-                    <div class="action-row">
-                        <button class="btn" id="translate-btn" onclick="startTranslation()">🚀 Bắt đầu dịch</button>
-                    </div>
-                    
-                    <div class="progress-container" id="progress-container">
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progress-fill">0%</div>
+                        
+                        <div class="panel" style="margin-top: 20px; border: 2px solid #28a745;">
+                            <h2>📝 Nội dung đã dịch</h2>
+                            <textarea id="done-text" placeholder="Chọn file từ danh sách trên để xem nội dung..."></textarea>
+                            
+                            <div class="action-row">
+                                <button class="btn btn-warning" onclick="runRetranslate()">🔄 Retranslate</button>
+                                <button class="btn btn-secondary" onclick="runCorrection()">✏️ Correction</button>
+                                <button class="btn btn-success" onclick="runBoth()">⚡ Retranslate + Correction</button>
+                            </div>
+                            
+                            <div class="progress-container" id="done-progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="done-progress-fill">0%</div>
+                                </div>
+                                <div class="progress-text" id="done-progress-text">Đang xử lý...</div>
+                            </div>
+                            
+                            <div class="log-container" id="done-log-container"></div>
                         </div>
-                        <div class="progress-text" id="progress-text">Đang chuẩn bị...</div>
+                        
+                        <div class="result-container" id="done-result-container">
+                            <h2>✅ Kết quả</h2>
+                            <div class="result-stats" id="done-result-stats"></div>
+                            <textarea id="done-result-text" readonly></textarea>
+                            <div class="action-row">
+                                <button class="btn btn-secondary" onclick="copyDoneResult()">📋 Copy kết quả</button>
+                                <button class="btn" id="done-download-btn" onclick="downloadDoneResult()">💾 Tải file</button>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="log-container" id="log-container"></div>
                 </div>
                 
                 <div class="panel result-container" id="result-container">
@@ -512,11 +535,170 @@
             fetch('/api/done/' + encodeURIComponent(filename))
                 .then(r => r.json())
                 .then(data => {
-                    document.getElementById('result-container').classList.add('active');
-                    document.getElementById('result-text').value = data.content;
-                    document.getElementById('result-stats').innerHTML = '<div class="result-stat">📄 File: ' + data.name + '</div><div class="result-stat">📝 Kích thước: ' + (data.size / 1024).toFixed(1) + ' KB</div>';
+                    document.getElementById('done-text').value = data.content;
+                    currentDoneFile = filename;
+                    document.getElementById('done-result-container').classList.remove('active');
+                    addDoneLog('Đã tải: ' + filename, 'info');
                 })
-                .catch(e => addLog('Lỗi: ' + e.message, 'error'));
+                .catch(e => addDoneLog('Lỗi: ' + e.message, 'error'));
+        }
+        
+        let currentDoneFile = '';
+        
+        function addDoneLog(message, type) {
+            const container = document.getElementById('done-log-container');
+            container.classList.add('active');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function showDoneProgress(percent, text) {
+            document.getElementById('done-progress-container').classList.add('active');
+            document.getElementById('done-progress-fill').style.width = percent + '%';
+            document.getElementById('done-progress-fill').textContent = percent + '%';
+            document.getElementById('done-progress-text').textContent = text;
+        }
+        
+        function hideDoneProgress() {
+            document.getElementById('done-progress-container').classList.remove('active');
+        }
+        
+        function runRetranslate() {
+            const text = document.getElementById('done-text').value;
+            if (!text.trim()) {
+                addDoneLog('Chưa có nội dung để dịch lại', 'error');
+                return;
+            }
+            runTranslationProcess(text, 'retranslate');
+        }
+        
+        function runCorrection() {
+            const text = document.getElementById('done-text').value;
+            if (!text.trim()) {
+                addDoneLog('Chưa có nội dung để sửa', 'error');
+                return;
+            }
+            runTranslationProcess(text, 'correction');
+        }
+        
+        function runBoth() {
+            const text = document.getElementById('done-text').value;
+            if (!text.trim()) {
+                addDoneLog('Chưa có nội dung để xử lý', 'error');
+                return;
+            }
+            addDoneLog('Bắt đầu Retranslate...', 'info');
+            runTranslationProcess(text, 'retranslate', () => {
+                addDoneLog('Tiếp tục Correction...', 'info');
+                const retanslatedText = document.getElementById('done-result-text').value;
+                runTranslationProcess(retanslatedText, 'correction', null, true);
+            });
+        }
+        
+        function runTranslationProcess(text, mode, callback, appendResult) {
+            const model = document.getElementById('model').value;
+            const temperature = parseFloat(document.getElementById('temperature').value);
+            const chunkSize = parseInt(document.getElementById('chunk-size').value);
+            
+            showDoneProgress(0, 'Đang chuẩn bị...');
+            addDoneLog('Bắt đầu ' + (mode === 'retranslate' ? 'Retranslate' : 'Correction') + '...', 'info');
+            
+            fetch('/api/translate-text', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    text: text,
+                    mode: mode,
+                    prompts: prompts,
+                    model: model,
+                    temperature: temperature,
+                    chunk_size: chunkSize,
+                    input_lang: document.getElementById('input-lang').value
+                })
+            }).then(r => r.json()).then(data => {
+                if (data.error) {
+                    addDoneLog('Lỗi: ' + data.error, 'error');
+                    hideDoneProgress();
+                    return;
+                }
+                
+                if (data.chunks && data.chunks.length > 0) {
+                    let processed = 0;
+                    data.chunks.forEach((chunk, i) => {
+                        fetch('/api/translate-chunk', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({
+                                chunk: chunk,
+                                mode: mode,
+                                prompts: prompts,
+                                model: model,
+                                temperature: temperature,
+                                input_lang: document.getElementById('input-lang').value
+                            })
+                        }).then(r => r.json()).then(result => {
+                            processed++;
+                            const percent = Math.round((processed / data.chunks.length) * 100);
+                            showDoneProgress(percent, 'Đang xử lý: ' + processed + '/' + data.chunks.length);
+                            
+                            if (processed === data.chunks.length) {
+                                hideDoneProgress();
+                                const finalText = data.full_text || result.translated;
+                                if (appendResult) {
+                                    document.getElementById('done-text').value = finalText;
+                                } else {
+                                    document.getElementById('done-result-text').value = finalText;
+                                }
+                                document.getElementById('done-result-container').classList.add('active');
+                                addDoneLog(mode === 'retranslate' ? 'Retranslate hoàn tất!' : 'Correction hoàn tất!', 'success');
+                                if (callback) callback();
+                            }
+                        });
+                    });
+                } else {
+                    hideDoneProgress();
+                    if (appendResult) {
+                        document.getElementById('done-text').value = data.translated || text;
+                    } else {
+                        document.getElementById('done-result-text').value = data.translated || text;
+                    }
+                    document.getElementById('done-result-container').classList.add('active');
+                    addDoneLog(mode === 'retranslate' ? 'Retranslate hoàn tất!' : 'Correction hoàn tất!', 'success');
+                    if (callback) callback();
+                }
+            }).catch(e => {
+                addDoneLog('Lỗi: ' + e.message, 'error');
+                hideDoneProgress();
+            });
+        }
+        
+        function copyDoneResult() {
+            const text = document.getElementById('done-result-text').value;
+            navigator.clipboard.writeText(text).then(() => {
+                addDoneLog('Đã copy vào clipboard', 'success');
+            }).catch(() => {
+                addDoneLog('Lỗi copy', 'error');
+            });
+        }
+        
+        function downloadDoneResult() {
+            const text = document.getElementById('done-result-text').value;
+            if (!text) {
+                addDoneLog('Không có nội dung để tải', 'error');
+                return;
+            }
+            const filename = currentDoneFile ? currentDoneFile.replace('.txt', '_fixed.txt') : 'translated_fixed.txt';
+            const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            addDoneLog('Đã tải: ' + filename, 'success');
         }
         
         function moveBackToInput(filename) {

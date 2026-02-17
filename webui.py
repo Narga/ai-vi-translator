@@ -1033,6 +1033,60 @@ def tm_import():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/translate-text", methods=["POST"])
+def translate_text():
+    """Dịch text trực tiếp (cho Retranslate/Correction)."""
+    try:
+        from plugins.translation.translator import robust_translate
+        from services.api_service import ApiManager
+        from services.cache_service import TranslationCache
+
+        data = request.json
+        text = data.get("text", "")
+        mode = data.get("mode", "main")
+        prompts = data.get("prompts", {})
+        model = data.get("model", "gemini-3-flash-preview")
+        temperature = float(data.get("temperature", 1.0))
+        input_lang = data.get("input_lang", "CN")
+
+        if not text.strip():
+            return jsonify({"error": "Vui lòng nhập văn bản"}), 400
+
+        if not prompts:
+            prompts = load_prompts(input_lang)
+
+        prompt_key = mode if mode in prompts else "main"
+        prompt = prompts.get(prompt_key, prompts.get("main", ""))
+
+        if not prompt:
+            prompt = load_prompts(input_lang).get("main", "")
+
+        api_keys = load_api_keys()
+        if not api_keys:
+            return jsonify({"error": "Không tìm thấy API keys"}), 400
+
+        api_manager = ApiManager(api_keys)
+        cache = TranslationCache("workspace/cache", enabled=True)
+
+        config_params = {
+            "model_name": model,
+            "qa_model": model,
+            "temperature": temperature,
+            "input_lang": input_lang,
+            "chunk_size": 22000,
+        }
+
+        translated, stats, log = robust_translate(
+            text, api_manager, cache, {"main": prompt}, config_params
+        )
+
+        return jsonify({"translated": translated, "mode": mode, "chars": len(text)})
+
+    except Exception as e:
+        logger.error(f"Translate text error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     import argparse
 
