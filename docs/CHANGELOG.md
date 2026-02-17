@@ -4,6 +4,33 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.6] - 2026-02-17 - Translation Memory & Optimizations
+
+### ✨ Tính năng Mới
+
+**Translation Memory (TM):**
+- Dịch vụ TM với fuzzy matching
+- Lưu trữ các cặp dịch (source → target)
+- Tìm kiếm fuzzy với similarity threshold có thể điều chỉnh
+- Tự động học từ các bản dịch đã thực hiện
+- N-gram based similarity (Jaccard)
+- Export/Import TM
+- Thống kê TM (số entries, kích thước)
+
+**API Optimization:**
+- Chunk size có thể lên đến 100K chars (đọc từ config)
+- Cache check trước khi gọi TM
+- TM check cho similarity ≥ 90% trước khi gọi API
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `services/translation_memory.py` | ✨ NEW - Translation Memory service |
+| `webui.py` | Thêm TM integration, APIs |
+
+---
+
 ## [4.0.5] - 2026-02-17 - Batch Translation & Dynamic Models
 
 ### ✨ Tính năng Mới

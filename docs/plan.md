@@ -1,12 +1,12 @@
 # Novel Translator - Development Plan
 
-**Version**: 4.0.5  
+**Version**: 4.0.6  
 **Last Updated**: 2026-02-17  
 **Status**: Stable & Production Ready
 
 ---
 
-## ✅ COMPLETED TASKS (v4.0.0 - v4.0.5)
+## ✅ COMPLETED TASKS (v4.0.0 - v4.0.6)
 
 ### v4.0.0 - SDK Migration
 - [x] Migrate from `google-generativeai` to `google-genai` SDK
@@ -58,6 +58,14 @@
 - [x] Chunk size input thay vì select cố định
 - [x] Đọc default chunk size từ config/app.ini
 - [x] Thống kê chi tiết (input files, done files, words count)
+
+### v4.0.6 - Translation Memory & Optimizations
+- [x] Translation Memory service với fuzzy matching
+- [x] N-gram based similarity (Jaccard)
+- [x] TM auto-learning từ translations
+- [x] TM Export/Import
+- [x] TM APIs (/api/tm/stats, /api/tm/find, /api/tm/add, /api/tm/clear)
+- [x] Integration TM vào translate_worker
 
 ---
 

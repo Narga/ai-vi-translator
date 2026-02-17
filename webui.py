@@ -1,4 +1,4 @@
-# webui.py - v4.0.5
+# webui.py - v4.0.6
 # Tác giả: Narga
 # Chức năng: Web UI tối giản cho Novel Translator với Flask
 
@@ -20,6 +20,7 @@ Features:
 - Batch translation với checkbox
 - Auto-detect available models
 - Detailed statistics
+- Translation Memory với fuzzy matching
 """
 
 import os
@@ -53,7 +54,22 @@ translation_stats = {
     "total_translation_time": 0,
     "total_chunks_translated": 0,
     "cache_hit_rate": 0,
+    "tm_hits": 0,
 }
+
+# Translation Memory
+try:
+    from services.translation_memory import TranslationMemory
+
+    translation_memory = TranslationMemory(
+        tm_dir="workspace/translation_memory",
+        enabled=True,
+        min_match_length=20,
+        similarity_threshold=0.85,
+    )
+except Exception as e:
+    logger.warning(f"Translation Memory init failed: {e}")
+    translation_memory = None
 
 # Available Gemini models (dynamically updated)
 AVAILABLE_MODELS = [
@@ -108,9 +124,10 @@ def get_available_models():
                 client = genai.Client(api_key=first_key)
                 try:
                     for model in client.models.list():
-                        model_name = model.name.replace("models/", "")
-                        if "gemini" in model_name and model_name not in models:
-                            models.insert(0, model_name)
+                        if model and model.name:
+                            model_name = model.name.replace("models/", "")
+                            if "gemini" in model_name and model_name not in models:
+                                models.insert(0, model_name)
                 except Exception:
                     pass
             except Exception:
@@ -260,6 +277,11 @@ def calculate_stats():
     api_keys = load_api_keys()
     config = load_config()
 
+    # Get TM stats
+    tm_stats = {}
+    if translation_memory:
+        tm_stats = translation_memory.get_stats()
+
     translation_stats = {
         "translated_words": done_words,
         "pending_words": pending_words,
@@ -273,6 +295,8 @@ def calculate_stats():
         "done_files_count": len(done_files),
         "default_model": get_default_model(),
         "default_chunk_size": get_default_chunk_size(),
+        "tm_entries": tm_stats.get("total_entries", 0),
+        "tm_size_mb": tm_stats.get("memory_size_mb", 0),
     }
 
     return translation_stats
@@ -366,6 +390,7 @@ def translate_worker(text, config, output_filename="translated", input_file_path
         prev_context = ""
         cached_count = 0
         total_tokens = 0
+        tm_hits = 0
 
         for i, chunk in enumerate(chunks):
             progress_queue.put(
@@ -396,25 +421,46 @@ def translate_worker(text, config, output_filename="translated", input_file_path
                 )
                 continue
 
-            result, status, api_key = robust_translate(
-                original_chunk=chunk,
-                api_manager=api_manager,
-                cache=cache,
-                prompts=prompts,
-                config_params=config,
-                previous_chunk_context=prev_context,
-            )
+            # Check Translation Memory for similar content
+            tm_match = None
+            if translation_memory:
+                tm_match = translation_memory.find_match(chunk)
 
-            if status == "success" and result:
+            if tm_match and tm_match.get("similarity", 0) >= 0.9:
+                # High similarity - use TM translation
+                tm_hits += 1
+                result = tm_match["translation"]
+                progress_queue.put(
+                    {
+                        "type": "info",
+                        "message": f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚",
+                    }
+                )
+            else:
+                result, status, api_key = robust_translate(
+                    original_chunk=chunk,
+                    api_manager=api_manager,
+                    cache=cache,
+                    prompts=prompts,
+                    config_params=config,
+                    previous_chunk_context=prev_context,
+                )
+
+                if status == "success" and result:
+                    # Add to Translation Memory
+                    if translation_memory:
+                        translation_memory.add_translation(chunk, result, output_filename)
+                    total_tokens += len(chunk) // 2
+                else:
+                    progress_queue.put(
+                        {"type": "error", "message": f"Dịch thất bại tại chunk {i + 1}: {status}"}
+                    )
+                    return
+
+            if result:
                 translated.append(result)
-                total_tokens += len(chunk) // 2
                 ctx_len = config.get("context_char_count", 500)
                 prev_context = result[-ctx_len:] if len(result) > ctx_len else result
-            else:
-                progress_queue.put(
-                    {"type": "error", "message": f"Dịch thất bại tại chunk {i + 1}: {status}"}
-                )
-                return
 
         full_translation = "\n\n".join(translated)
 
@@ -438,13 +484,18 @@ def translate_worker(text, config, output_filename="translated", input_file_path
 
         calculate_stats()
 
+        # Build completion message
+        cache_info = f"{cached_count}/{len(chunks)} cache"
+        tm_info = f", {tm_hits} TM" if tm_hits > 0 else ""
+
         progress_queue.put(
             {
                 "type": "complete",
-                "message": f"Dịch hoàn tất! ({cached_count}/{len(chunks)} chunks từ cache)",
+                "message": f"Dịch hoàn tất! ({cache_info}{tm_info})",
                 "result": full_translation,
                 "chunks": len(chunks),
                 "cached": cached_count,
+                "tm_hits": tm_hits,
                 "source_length": len(text),
                 "translated_length": len(full_translation),
                 "output_file": str(output_file.name),
@@ -886,6 +937,100 @@ def remove_done_file():
     file_path.unlink()
 
     return jsonify({"success": True})
+
+
+@app.route("/api/tm/stats")
+def get_tm_stats():
+    """Lấy thống kê Translation Memory."""
+    try:
+        if translation_memory:
+            stats = translation_memory.get_stats()
+            return jsonify(stats)
+        return jsonify({"enabled": False})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tm/find", methods=["POST"])
+def tm_find():
+    """Tìm kiếm trong Translation Memory."""
+    try:
+        data = request.json
+        text = data.get("text", "")
+
+        if not translation_memory:
+            return jsonify({"error": "Translation Memory not enabled"}), 400
+
+        match = translation_memory.find_match(text)
+        if match:
+            return jsonify(match)
+        return jsonify({"found": False})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tm/add", methods=["POST"])
+def tm_add():
+    """Thêm translation vào TM."""
+    try:
+        data = request.json
+        source = data.get("source", "")
+        target = data.get("target", "")
+        context = data.get("context", "")
+
+        if not translation_memory:
+            return jsonify({"error": "Translation Memory not enabled"}), 400
+
+        translation_memory.add_translation(source, target, context)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tm/clear", methods=["POST"])
+def tm_clear():
+    """Xóa toàn bộ TM."""
+    try:
+        if translation_memory:
+            count = translation_memory.clear()
+            return jsonify({"success": True, "deleted": count})
+        return jsonify({"error": "Translation Memory not enabled"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tm/export", methods=["POST"])
+def tm_export():
+    """Export TM ra file."""
+    try:
+        data = request.json
+        filepath = data.get("filepath", "workspace/translation_memory_export.json")
+
+        if translation_memory:
+            if translation_memory.export_tm(filepath):
+                return jsonify({"success": True, "filepath": filepath})
+        return jsonify({"error": "Export failed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/tm/import", methods=["POST"])
+def tm_import():
+    """Import TM từ file."""
+    try:
+        data = request.json
+        filepath = data.get("filepath", "")
+        merge = data.get("merge", True)
+
+        if not filepath:
+            return jsonify({"error": "Thiếu filepath"}), 400
+
+        if translation_memory:
+            if translation_memory.import_tm(filepath, merge):
+                return jsonify({"success": True})
+        return jsonify({"error": "Import failed"}), 500
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

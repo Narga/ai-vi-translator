@@ -1,8 +1,19 @@
-# Novel Translator v4.0.5 - Batch Translation & Dynamic Models
+# Novel Translator v4.0.6 - Translation Memory & Optimizations
 
 Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK**.
 
-## 🎯 Tính năng Mới v4.0.5
+## 🎯 Tính năng Mới v4.0.6
+
+### Translation Memory
+- **Fuzzy Matching**: Tìm kiếm các đoạn tương tự đã dịch trước đó
+- **N-gram Similarity**: Sử dụng Jaccard similarity với n-grams
+- **Auto-learning**: Tự động học từ các bản dịch thành công
+- **Configurable**: Ngưỡng similarity có thể điều chỉnh (default 85%)
+- **Export/Import**: Chia sẻ TM giữa các phiên làm việc
+
+### API Optimizations
+- Chunk size lên đến 100K chars (từ config)
+- Priority: Cache → TM → API
 
 ### SDK Migration
 - **google-genai SDK**: SDK mới của Google (thay thế google-generativeai)
@@ -167,7 +178,7 @@ uv run python webui.py
 # Mở trình duyệt: http://localhost:7860
 ```
 
-### Tính năng Web UI (v4.0.5)
+### Tính năng Web UI (v4.0.6)
 - ✅ **Real-time Progress**: Progress bar cập nhật live với SSE
 - ✅ **Form Cấu hình**: Chọn model, ngôn ngữ, temperature, chunk size
 - ✅ **Dynamic Models**: Tự động phát hiện models khả dụng từ API
@@ -177,6 +188,8 @@ uv run python webui.py
 - ✅ **Retranslate**: Dịch lại file đã hoàn thành
 - ✅ **File Management**: Di chuyển file giữa done/input
 - ✅ **Detailed Stats**: Số từ đã dịch, đang chờ, số file input/output/done
+- ✅ **Translation Memory**: Fuzzy matching với similarity threshold
+- ✅ **TM Stats**: Hiển thị số entries, kích thước TM
 
 ### Cấu trúc Web UI
 ```
