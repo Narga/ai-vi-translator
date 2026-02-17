@@ -4,6 +4,44 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.5] - 2026-02-17 - Batch Translation & Dynamic Models
+
+### ✨ Tính năng Mới
+
+**Batch Translation:**
+- Checkbox để chọn nhiều file cùng lúc
+- Nút "Dịch file đã chọn" để dịch hàng loạt
+- Tab "Đã dịch xong" hiển thị file trong thư mục done
+
+**File Management:**
+- File đã dịch tự động chuyển vào thư mục `workspace/done`
+- Chức năng "Dịch lại" cho file đã dịch
+- Chức năng "Xem" để xem nội dung file đã dịch
+- Di chuyển file từ done về input
+
+**Dynamic Models:**
+- Tự động phát hiện models khả dụng từ Google API
+- Danh sách models động thay vì hard-code
+- Model mặc định từ config
+
+**Input Form:**
+- Chunk size có thể nhập tay (input number) thay vì select cố định
+- Giá trị mặc định được đọc từ `config/app.ini`
+
+**Thống kê chi tiết:**
+- Số từ đã dịch / đang chờ
+- Số file input / output / done
+- Kích thước cache
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `webui.py` | Thêm batch translate, done folder, dynamic models |
+| `templates/index.html` | Checkbox, tabs, dynamic model dropdown |
+
+---
+
 ## [4.0.4] - 2026-02-15 - WebUI Enhancements
 
 ### ✨ Tính năng WebUI

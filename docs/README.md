@@ -1,8 +1,8 @@
-# Novel Translator v4.0.0 - SDK Migration & Core Upgrades
+# Novel Translator v4.0.5 - Batch Translation & Dynamic Models
 
-Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK** và model **gemini-3-flash-preview**.
+Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK**.
 
-## 🎯 Tính năng Mới v4.0
+## 🎯 Tính năng Mới v4.0.5
 
 ### SDK Migration
 - **google-genai SDK**: SDK mới của Google (thay thế google-generativeai)
@@ -167,15 +167,16 @@ uv run python webui.py
 # Mở trình duyệt: http://localhost:7860
 ```
 
-### Tính năng Web UI (v4.0.4)
+### Tính năng Web UI (v4.0.5)
 - ✅ **Real-time Progress**: Progress bar cập nhật live với SSE
 - ✅ **Form Cấu hình**: Chọn model, ngôn ngữ, temperature, chunk size
-- ✅ **Text Input**: Nhập trực tiếp text (không cần upload file)
-- ✅ **Input Files**: Liệt kê files trong input, click để load
-- ✅ **Cache Priority**: Kiểm tra cache trước khi gọi API
-- ✅ **Download**: Tải file đã dịch về máy
-- ✅ **Prompt Editor**: Chỉnh sửa và lưu prompts theo ngôn ngữ
-- ✅ **Output Files**: Danh sách files đã dịch với link tải
+- ✅ **Dynamic Models**: Tự động phát hiện models khả dụng từ API
+- ✅ **Chunk Size Input**: Nhập giá trị tay thay vì chọn cố định
+- ✅ **Batch Translation**: Checkbox chọn nhiều file, dịch hàng loạt
+- ✅ **Done Folder**: File đã dịch tự động chuyển vào workspace/done
+- ✅ **Retranslate**: Dịch lại file đã hoàn thành
+- ✅ **File Management**: Di chuyển file giữa done/input
+- ✅ **Detailed Stats**: Số từ đã dịch, đang chờ, số file input/output/done
 
 ### Cấu trúc Web UI
 ```

@@ -1,12 +1,12 @@
 # Novel Translator - Development Plan
 
-**Version**: 4.0.4  
-**Last Updated**: 2026-02-15  
+**Version**: 4.0.5  
+**Last Updated**: 2026-02-17  
 **Status**: Stable & Production Ready
 
 ---
 
-## ✅ COMPLETED TASKS (v4.0.0 - v4.0.4)
+## ✅ COMPLETED TASKS (v4.0.0 - v4.0.5)
 
 ### v4.0.0 - SDK Migration
 - [x] Migrate from `google-generativeai` to `google-genai` SDK
@@ -49,6 +49,15 @@
 - [x] Prompt Editor with save functionality
 - [x] Output Files list with download links
 - [x] Auto-merge small files for minimum chunk size
+
+### v4.0.5 - Batch Translation & Dynamic Models
+- [x] Batch translation với checkbox
+- [x] File đã dịch tự động chuyển vào done folder
+- [x] Tab "Đã dịch xong" với chức năng dịch lại, xem, di chuyển
+- [x] Dynamic model detection từ Google API
+- [x] Chunk size input thay vì select cố định
+- [x] Đọc default chunk size từ config/app.ini
+- [x] Thống kê chi tiết (input files, done files, words count)
 
 ---
 
