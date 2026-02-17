@@ -1,12 +1,12 @@
 # Novel Translator - Development Plan
 
-**Version**: 4.0.6  
+**Version**: 4.0.7  
 **Last Updated**: 2026-02-17  
 **Status**: Stable & Production Ready
 
 ---
 
-## ✅ COMPLETED TASKS (v4.0.0 - v4.0.6)
+## ✅ COMPLETED TASKS (v4.0.0 - v4.0.7)
 
 ### v4.0.0 - SDK Migration
 - [x] Migrate from `google-generativeai` to `google-genai` SDK
@@ -66,6 +66,14 @@
 - [x] TM Export/Import
 - [x] TM APIs (/api/tm/stats, /api/tm/find, /api/tm/add, /api/tm/clear)
 - [x] Integration TM vào translate_worker
+
+### v4.0.7 - UI Redesign
+- [x] Clean layout - thiết kế lại giao diện
+- [x] Color indicators cho file status
+- [x] Two modes - pending/done tabs với different forms
+- [x] Quick view - click file để load vào form
+- [x] Removed redundant sidebar output block
+- [x] Simplified stats bar
 
 ---
 

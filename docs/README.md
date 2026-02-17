@@ -1,8 +1,8 @@
-# Novel Translator v4.0.6 - Translation Memory & Optimizations
+# Novel Translator v4.0.7 - UI Redesign
 
 Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK**.
 
-## 🎯 Tính năng Mới v4.0.6
+## 🎯 Tính năng Mới v4.0.7
 
 ### Translation Memory
 - **Fuzzy Matching**: Tìm kiếm các đoạn tương tự đã dịch trước đó

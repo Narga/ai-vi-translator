@@ -4,6 +4,26 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.0.7] - 2026-02-17 - UI Redesign & Improvements
+
+### UI/UX Improvements
+- **Clean Layout**: Thiết kế lại giao diện, gọn gàng hơn
+- **Color Indicators**: Chỉ báo màu cho file đã dịch/chờ dịch
+- **Two Modes**: 
+  - Tab "Chờ dịch": Hiển thị form nhập text gốc + nút dịch
+  - Tab "Đã dịch xong": Hiển thị text đã dịch + nút Retranslate/Correction/Both
+- **Quick View**: Click vào file để load nội dung vào form
+- **Removed Redundant**: Bỏ block "Đã dịch (Output)" ở sidebar
+- **Simplified Stats**: Thanh header với thông tin cần thiết
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `templates/index.html` | Complete redesign |
+
+---
+
 ## [4.0.6] - 2026-02-17 - Translation Memory & Optimizations
 
 ### ✨ Tính năng Mới
