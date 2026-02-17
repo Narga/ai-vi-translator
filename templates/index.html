@@ -240,10 +240,10 @@
     </div>
     
     <script>
-        let prompts = JSON.parse({{ prompts_json | tojson | safe }});
+        let prompts = {{ prompts | tojson | safe }};
         let currentOutputFile = '';
         let selectedFiles = new Set();
-        let availableModels = JSON.parse({{ available_models | tojson | safe }});
+        let availableModels = {{ available_models | tojson | safe }};
         let defaultModel = {{ default_model | tojson | safe }};
         let currentMode = 'pending';
         let defaultChunk = {{ default_chunk }};
