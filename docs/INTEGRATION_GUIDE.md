@@ -204,7 +204,7 @@ ENABLE_CACHE = true
 INPUT_DIR = workspace/input
 OUTPUT_DIR = workspace/output
 CACHE_DIR = workspace/cache
-PROGRESS_DIR = workspace/progress
+LOGS_DIR = workspace/logs
 ARCHIVE_DIR_NAME = _archive
 
 [OUTPUT]
@@ -241,7 +241,7 @@ run_translation_workflow(config)
 **Kết quả:**
 - File dịch: `workspace/output/[tên truyện]_dich.txt`
 - Cache: `workspace/cache/`
-- Log: `workspace/progress/*.log`
+- Log: `workspace/logs/*.log`
 
 ---
 

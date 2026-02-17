@@ -196,11 +196,14 @@ def get_input_files():
 
 
 def get_done_files():
-    """Lấy danh sách files trong done directory."""
-    done_dir = Path("workspace/done")
+    """Lấy danh sách files đã dịch từ cả done và output directories."""
     files = []
-    if done_dir.exists():
-        for f in sorted(done_dir.glob("*.txt"), key=lambda x: x.stat().st_mtime, reverse=True):
+
+    # Helper function để scan một thư mục
+    def scan_dir(dir_path, location):
+        if not dir_path.exists():
+            return
+        for f in sorted(dir_path.glob("*.txt"), key=lambda x: x.stat().st_mtime, reverse=True):
             if f.name.startswith("."):
                 continue
             try:
@@ -217,10 +220,19 @@ def get_done_files():
                         if size < 1024 * 1024
                         else f"{size / 1024 / 1024:.1f} MB",
                         "word_count": word_count,
+                        "location": location,  # 'done' hoặc 'output'
                     }
                 )
             except Exception:
                 continue
+
+    # Scan cả 2 thư mục
+    scan_dir(Path("workspace/done"), "done")
+    scan_dir(Path("workspace/output"), "output")
+
+    # Sắp xếp theo thờigian sửa đổi (mới nhất lên đầu)
+    files.sort(key=lambda x: Path(x["path"]).stat().st_mtime, reverse=True)
+
     return files
 
 
@@ -757,10 +769,36 @@ def list_done_files():
 
 @app.route("/api/done/<filename>")
 def get_done_file(filename):
-    """Đọc nội dung file đã dịch trong done."""
+    """Đọc nội dung file đã dịch trong done hoặc output."""
     try:
+        # Thử tìm trong done trước
         done_dir = Path("workspace/done")
         file_path = done_dir / filename
+
+        # Nếu không có, thử tìm trong output
+        if not file_path.exists():
+            output_dir = Path("workspace/output")
+            file_path = output_dir / filename
+
+        if not file_path.exists():
+            return jsonify({"error": "File not found"}), 404
+
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        return jsonify(
+            {"content": content, "name": file_path.name, "size": file_path.stat().st_size}
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/output-file/<filename>")
+def get_output_file(filename):
+    """Đọc nội dung file trong output directory."""
+    try:
+        output_dir = Path("workspace/output")
+        file_path = output_dir / filename
 
         if not file_path.exists():
             return jsonify({"error": "File not found"}), 404

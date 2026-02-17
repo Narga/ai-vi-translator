@@ -235,6 +235,6 @@ ENABLE_CONSISTENCY_CHECK = true
 
 ## 🎉 Hoàn Thành!
 
-Bạn đã sẵn sàng dịch truyện. Nếu có vấn đề, check log file trong `workspace/progress/` hoặc xem documentation.
+Bạn đã sẵn sàng dịch truyện. Nếu có vấn đề, check log file trong `workspace/logs/` hoặc xem documentation.
 
 **Happy Translating! 🚀**

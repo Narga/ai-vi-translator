@@ -173,6 +173,7 @@
                     <div class="tabs">
                         <button class="tab active" onclick="switchTab('input')">📥 Chờ dịch</button>
                         <button class="tab" onclick="switchTab('done')">✅ Đã dịch xong</button>
+                        <button class="tab" onclick="switchTab('prompts')">📝 Prompts</button>
                     </div>
                     
                     <div class="tab-content active" id="tab-input">
@@ -242,6 +243,30 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="tab-content" id="tab-prompts">
+                        <div class="info-box">💡 Chỉnh sửa prompt theo ngôn ngữ gốc. Nhấn "Lưu Prompts" để lưu.</div>
+                        
+                        <div class="prompt-tabs">
+                            <button class="prompt-tab active" onclick="switchPromptTab('main')">Main</button>
+                            <button class="prompt-tab" onclick="switchPromptTab('retranslate')">Retranslate</button>
+                            <button class="prompt-tab" onclick="switchPromptTab('correction')">Correction</button>
+                        </div>
+                        
+                        <div class="prompt-editor active" id="prompt-main">
+                            <textarea id="prompt-main-text" placeholder="Main prompt..."></textarea>
+                        </div>
+                        <div class="prompt-editor" id="prompt-retranslate">
+                            <textarea id="prompt-retranslate-text" placeholder="Retranslate prompt..."></textarea>
+                        </div>
+                        <div class="prompt-editor" id="prompt-correction">
+                            <textarea id="prompt-correction-text" placeholder="Correction prompt..."></textarea>
+                        </div>
+                        
+                        <div class="action-row">
+                            <button class="btn btn-secondary" onclick="savePrompts()">💾 Lưu Prompts</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="panel result-container" id="result-container">
@@ -251,31 +276,6 @@
                     <div class="action-row">
                         <button class="btn btn-secondary" onclick="copyResult()">📋 Copy kết quả</button>
                         <button class="btn" id="download-btn" onclick="downloadResult()">💾 Tải file</button>
-                    </div>
-                </div>
-                
-                <div class="panel">
-                    <h2>📝 Prompt Editor</h2>
-                    <div class="info-box">💡 Chỉnh sửa prompt theo ngôn ngữ gốc. Nhấn "Lưu Prompts" để lưu.</div>
-                    
-                    <div class="prompt-tabs">
-                        <button class="prompt-tab active" onclick="switchPromptTab('main')">Main</button>
-                        <button class="prompt-tab" onclick="switchPromptTab('retranslate')">Retranslate</button>
-                        <button class="prompt-tab" onclick="switchPromptTab('correction')">Correction</button>
-                    </div>
-                    
-                    <div class="prompt-editor active" id="prompt-main">
-                        <textarea id="prompt-main-text" placeholder="Main prompt..."></textarea>
-                    </div>
-                    <div class="prompt-editor" id="prompt-retranslate">
-                        <textarea id="prompt-retranslate-text" placeholder="Retranslate prompt..."></textarea>
-                    </div>
-                    <div class="prompt-editor" id="prompt-correction">
-                        <textarea id="prompt-correction-text" placeholder="Correction prompt..."></textarea>
-                    </div>
-                    
-                    <div class="action-row">
-                        <button class="btn btn-secondary" onclick="savePrompts()">💾 Lưu Prompts</button>
                     </div>
                 </div>
             </main>
@@ -374,17 +374,20 @@
                         return;
                     }
                     
-                    container.innerHTML = files.map(f => `<div class="file-item done-item">
-                        <div class="file-info" onclick="loadDoneFile('${f.name.replace(/'/g, "\\'")}')">
-                            <span class="file-name">${f.name} (${f.word_count?.toLocaleString() || 0} từ)</span>
+                    container.innerHTML = files.map(f => {
+                        const locationBadge = f.location === 'output' ? '<span class="badge-pending" style="font-size: 0.7em; margin-left: 5px;">output</span>' : '<span class="badge-done" style="font-size: 0.7em; margin-left: 5px;">done</span>';
+                        return `<div class="file-item done-item">
+                        <div class="file-info" onclick="viewDoneFile('${f.name.replace(/'/g, "\\'")}', '${f.location}')">
+                            <span class="file-name">${f.name} ${locationBadge} (${f.word_count?.toLocaleString() || 0} từ)</span>
                             <span class="file-size">${f.size_display}</span>
                         </div>
                         <div class="file-actions">
-                            <button class="btn btn-sm" onclick="event.stopPropagation(); translateSingleFile('workspace/input/${f.name}', true)">Dịch lại</button>
-                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); moveBackToInput('${f.name.replace(/'/g, "\\'")}')">↩</button>
-                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewDoneFile('${f.name.replace(/'/g, "\\'")}')">Xem</button>
+                            <button class="btn btn-sm" onclick="event.stopPropagation(); translateSingleFile('workspace/input/${f.name.replace(/'/g, "\\'")}', true)">Dịch lại</button>
+                            ${f.location === 'done' ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); moveBackToInput('${f.name.replace(/'/g, "\\'")}')">↩</button>` : ''}
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewDoneFile('${f.name.replace(/'/g, "\\'")}', '${f.location}')">Xem</button>
                         </div>
-                    </div>`).join('');
+                    </div>`;
+                    }).join('');
                 });
         }
         
@@ -531,14 +534,17 @@
                 .catch(e => addLog('Lỗi: ' + e.message, 'error'));
         }
         
-        function viewDoneFile(filename) {
-            fetch('/api/done/' + encodeURIComponent(filename))
+        function viewDoneFile(filename, location) {
+            const endpoint = location === 'output' 
+                ? '/api/output-file/' + encodeURIComponent(filename)
+                : '/api/done/' + encodeURIComponent(filename);
+            fetch(endpoint)
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('done-text').value = data.content;
                     currentDoneFile = filename;
                     document.getElementById('done-result-container').classList.remove('active');
-                    addDoneLog('Đã tải: ' + filename, 'info');
+                    addDoneLog('Đã tải: ' + filename + ' (' + location + ')', 'info');
                 })
                 .catch(e => addDoneLog('Lỗi: ' + e.message, 'error'));
         }

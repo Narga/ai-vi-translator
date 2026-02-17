@@ -222,7 +222,7 @@ def main():
 
         config_service = ConfigService(Path("config"))
         setup_logging(
-            Path(config_service.get("DIRECTORIES", "PROGRESS_DIR", fallback="workspace/progress"))
+            Path(config_service.get("DIRECTORIES", "LOGS_DIR", fallback="workspace/logs"))
         )
 
         logging.info("=" * 80)
