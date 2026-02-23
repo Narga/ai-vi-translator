@@ -3,197 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Novel Translator v4.0.4</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        
-        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h1 { font-size: 2em; margin-bottom: 10px; }
-        .subtitle { opacity: 0.9; font-size: 1.1em; }
-        .stats-bar { display: flex; gap: 15px; margin-top: 20px; flex-wrap: wrap; }
-        .stat-item { background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 20px; font-size: 0.85em; display: flex; align-items: center; gap: 5px; }
-        
-        .main-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
-        @media (max-width: 1100px) { .main-grid { grid-template-columns: 1fr; } }
-        
-        .panel { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .panel h2 { margin-bottom: 20px; color: #667eea; font-size: 1.3em; display: flex; align-items: center; gap: 10px; }
-        
-        .form-group { margin-bottom: 18px; }
-        label { display: block; margin-bottom: 5px; font-weight: 500; color: #555; }
-        select, input[type="number"], input[type="text"], textarea { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 14px; transition: border-color 0.3s; }
-        select:focus, input:focus, textarea:focus { outline: none; border-color: #667eea; }
-        textarea { font-family: 'Courier New', monospace; min-height: 250px; resize: vertical; }
-        
-        .btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: transform 0.2s, box-shadow 0.2s; }
-        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-secondary { background: #6c757d; }
-        .btn-danger { background: #dc3545; }
-        .btn-success { background: #28a745; }
-        .btn-sm { padding: 6px 12px; font-size: 13px; }
-        .btn-warning { background: #ffc107; color: #333; }
-        
-        .progress-container { margin-top: 20px; display: none; }
-        .progress-container.active { display: block; }
-        .progress-bar { width: 100%; height: 30px; background: #e0e0e0; border-radius: 15px; overflow: hidden; position: relative; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-        .progress-text { margin-top: 10px; text-align: center; color: #666; }
-        
-        .log-container { margin-top: 20px; max-height: 200px; overflow-y: auto; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; font-family: 'Courier New', monospace; font-size: 13px; display: none; }
-        .log-container.active { display: block; }
-        .log-entry { margin-bottom: 5px; padding: 3px 0; }
-        .log-entry.info { color: #0066cc; }
-        .log-entry.success { color: #28a745; }
-        .log-entry.error { color: #dc3545; }
-        
-        .result-container { margin-top: 20px; display: none; }
-        .result-container.active { display: block; }
-        .result-stats { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
-        .result-stat { background: #f0f0f0; padding: 8px 15px; border-radius: 6px; font-size: 0.9em; }
-        
-        .checkbox-group { display: flex; align-items: center; gap: 10px; }
-        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-        
-        .info-box { background: #e3f2fd; border-left: 4px solid #2196f3; padding: 15px; margin-bottom: 20px; border-radius: 0 6px 6px 0; }
-        
-        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; vertical-align: middle; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .file-list { max-height: 300px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 6px; margin-bottom: 10px; }
-        .file-item { display: flex; align-items: center; padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; gap: 10px; }
-        .file-item:hover { background: #f0f0ff; }
-        .file-item:last-child { border-bottom: none; }
-        .file-item input[type="checkbox"] { margin: 0; }
-        .file-item.done-item { background: #e8f5e9; }
-        .file-item.done-item:hover { background: #c8e6c9; }
-        .file-info { flex: 1; display: flex; justify-content: space-between; align-items: center; }
-        .file-name { font-weight: 500; color: #333; }
-        .file-size { color: #888; font-size: 0.85em; }
-        .file-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
-        .badge-done { background: #4caf50; color: white; }
-        .badge-pending { background: #ff9800; color: white; }
-        
-        .output-list { max-height: 200px; overflow-y: auto; }
-        .output-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid #eee; }
-        .output-item a { color: #667eea; text-decoration: none; }
-        .output-item a:hover { text-decoration: underline; }
-        
-        .prompt-tabs { display: flex; gap: 5px; margin-bottom: 10px; border-bottom: 2px solid #e0e0e0; }
-        .prompt-tab { padding: 8px 16px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-        .prompt-tab.active { color: #667eea; border-bottom-color: #667eea; }
-        .prompt-editor { display: none; }
-        .prompt-editor.active { display: block; }
-        
-        .action-row { display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; }
-        .action-row .btn { flex: 1; min-width: 120px; }
-        
-        .batch-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-        .batch-actions .btn { flex: 1; }
-        
-        .selected-count { font-size: 0.9em; color: #666; margin-bottom: 10px; }
-        
-        .tabs { display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; }
-        .tab { padding: 10px 20px; cursor: pointer; border: none; background: none; font-size: 14px; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-        .tab.active { color: #667eea; border-bottom-color: #667eea; }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        
-        .file-actions { display: flex; gap: 5px; }
-        .file-actions .btn { padding: 4px 8px; font-size: 12px; }
-    </style>
+    <title>Novel Translator {{ app_version }}</title>
+    <!-- PicoCSS classless -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.classless.min.css">
+    <!-- Custom layout CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
+    <script>
+        // Init variables for main.js
+        window.initialPrompts = {{ prompts_json | safe }};
+        window.initialAvailableModels = {{ available_models | safe }};
+        window.initialDefaultModel = '{{ default_model }}';
+    </script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📚 Novel Translator v4.0.5</h1>
-            <p class="subtitle">Dịch tiểu thuyết tự động với Gemini AI</p>
-            <div class="stats-bar">
-                <span class="stat-item">🔑 API: <span id="api-keys-count">--</span></span>
-                <span class="stat-item">📦 Cache: <span id="cache-count">--</span> (<span id="cache-size">--</span> MB)</span>
-                <span class="stat-item">✨ Đã dịch: <span id="translated-words">--</span> từ</span>
-                <span class="stat-item">⏳ Chờ dịch: <span id="pending-words">--</span> từ</span>
-                <span class="stat-item">📄 Output: <span id="output-count">--</span> files</span>
-                <span class="stat-item">📥 Input: <span id="input-files-count">--</span> files</span>
-                <span class="stat-item">✅ Done: <span id="done-files-count">--</span> files</span>
-            </div>
-        </header>
-        
+    <header>
+        <h1>📚 Novel Translator {{ app_version }}</h1>
+        <p class="subtitle">Dịch tiểu thuyết tự động với Gemini AI</p>
+        <div class="stats-bar">
+            <span class="stat-item">🔑 API: <strong id="api-keys-count">--</strong></span>
+            <span class="stat-item">📦 Cache: <strong id="cache-count">--</strong> (<span id="cache-size">--</span> MB)</span>
+            <span class="stat-item">✨ Đã dịch: <strong id="translated-words">--</strong> từ</span>
+            <span class="stat-item">⏳ Chờ dịch: <strong id="pending-words">--</strong> từ</span>
+            <span class="stat-item">📄 Output: <strong id="output-count">--</strong> files</span>
+            <span class="stat-item">📥 Input: <strong id="input-files-count">--</strong> files</span>
+            <span class="stat-item">✅ Done: <strong id="done-files-count">--</strong> files</span>
+        </div>
+    </header>
+    
+    <main class="container">
         <div class="main-grid">
             <aside>
-                <div class="panel">
+                <article class="panel">
                     <h2>⚙️ Cấu hình</h2>
                     
-                    <div class="form-group">
-                        <label for="model">Model AI</label>
-                        <select id="model">
-                        </select>
-                    </div>
+                    <label for="model">Model AI</label>
+                    <select id="model"></select>
                     
-                    <div class="form-group">
-                        <label for="input-lang">Ngôn ngữ nguồn</label>
-                        <select id="input-lang" onchange="loadPromptsForLang(this.value)">
-                            <option value="CN" selected>Chinese (中文)</option>
-                            <option value="JP">Japanese (日本語)</option>
-                            <option value="KR">Korean (한국어)</option>
-                        </select>
-                    </div>
+                    <label for="input-lang">Ngôn ngữ nguồn</label>
+                    <select id="input-lang">
+                        <option value="CN" selected>Chinese (中文)</option>
+                        <option value="JP">Japanese (日本語)</option>
+                        <option value="KR">Korean (한국어)</option>
+                    </select>
                     
-                    <div class="form-group">
-                        <label for="temperature">Temperature: <span id="temp-value">1.0</span></label>
-                        <input type="range" id="temperature" min="0" max="2" step="0.1" value="1.0">
-                    </div>
+                    <label for="temperature">Temperature: <strong id="temp-value">1.0</strong></label>
+                    <input type="range" id="temperature" min="0" max="2" step="0.1" value="1.0">
                     
-                    <div class="form-group">
-                        <label for="chunk-size">Kích thước chunk (chars)</label>
-                        <input type="number" id="chunk-size" min="5000" max="200000" step="1000" value="{{ default_chunk }}">
-                        <small style="color: #888;">Mặc định: {{ default_chunk }} (từ config)</small>
-                    </div>
+                    <label for="chunk-size">Kích thước chunk (chars)</label>
+                    <input type="number" id="chunk-size" min="5000" max="200000" step="1000" value="{{ default_chunk }}">
+                    <small>Mặc định: {{ default_chunk }} (từ config)</small>
                     
-                    <div class="form-group">
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="use-cache" checked>
-                            <label for="use-cache" style="margin-bottom: 0;">Sử dụng cache</label>
-                        </div>
-                    </div>
+                    <fieldset>
+                        <label for="use-cache">
+                            <input type="checkbox" id="use-cache" role="switch" checked>
+                            Sử dụng cache
+                        </label>
+                    </fieldset>
                     
-                    <div class="form-group">
-                        <button class="btn btn-danger btn-sm" onclick="clearCache()">🗑️ Xóa Cache</button>
-                    </div>
-                </div>
+                    <button class="btn-danger btn-sm" id="btn-clear-cache">🗑️ Xóa Cache</button>
+                </article>
             </aside>
             
-            <main>
-                <div class="panel">
+            <section>
+                <article class="panel">
                     <h2>📁 Files</h2>
                     
                     <div class="tabs">
-                        <button class="tab active" onclick="switchTab('input')">📥 Chờ dịch</button>
-                        <button class="tab" onclick="switchTab('done')">✅ Đã dịch xong</button>
-                        <button class="tab" onclick="switchTab('prompts')">📝 Prompts</button>
+                        <button class="tab active" data-target="input">📥 Chờ dịch</button>
+                        <button class="tab" data-target="done">✅ Đã dịch xong</button>
+                        <button class="tab" data-target="prompts">📝 Prompts</button>
                     </div>
                     
                     <div class="tab-content active" id="tab-input">
                         <div class="info-box">💡 Chọn file bằng checkbox và nhấn "Dịch file đã chọn" để bắt đầu.</div>
                         <div class="selected-count">Đã chọn: <span id="selected-count">0</span> file</div>
                         <div class="file-list" id="file-list">
-                            <p style="color: #888; text-align: center; padding: 20px;">Không có file trong input</p>
+                            <p style="text-align: center; padding: 20px;">Không có file trong input</p>
                         </div>
                         <div class="batch-actions">
-                            <button class="btn btn-success" onclick="translateSelected()">🚀 Dịch file đã chọn</button>
-                            <button class="btn btn-secondary" onclick="selectAll()">✓ Chọn tất cả</button>
-                            <button class="btn" onclick="deselectAll()">✗ Bỏ chọn tất cả</button>
+                            <button class="btn-success" id="btn-translate-selected">🚀 Dịch file đã chọn</button>
+                            <button class="secondary" id="btn-select-all">✓ Chọn tất cả</button>
+                            <button class="outline" id="btn-deselect-all">✗ Bỏ chọn tất cả</button>
                         </div>
                         
-                        <div class="panel" style="margin-top: 20px; border: 2px solid #667eea;">
+                        <article style="border: 2px solid var(--nt-primary);">
                             <h2>📝 Văn bản gốc</h2>
                             <textarea id="source-text" placeholder="Nhập văn bản cần dịch ở đây hoặc chọn file từ danh sách trên..."></textarea>
                             
                             <div class="action-row">
-                                <button class="btn" id="translate-btn" onclick="startTranslation()">🚀 Bắt đầu dịch</button>
+                                <button class="btn-gradient" id="translate-btn">🚀 Bắt đầu dịch</button>
                             </div>
                             
                             <div class="progress-container" id="progress-container">
@@ -204,23 +102,23 @@
                             </div>
                             
                             <div class="log-container" id="log-container"></div>
-                        </div>
+                        </article>
                     </div>
                     
                     <div class="tab-content" id="tab-done">
                         <div class="info-box">💡 Các file đã dịch xong. Chọn file để xem nội dung và sử dụng Retranslate/Correction.</div>
                         <div class="file-list" id="done-list">
-                            <p style="color: #888; text-align: center; padding: 20px;">Chưa có file đã dịch</p>
+                            <p style="text-align: center; padding: 20px;">Chưa có file đã dịch</p>
                         </div>
                         
-                        <div class="panel" style="margin-top: 20px; border: 2px solid #28a745;">
+                        <article style="border: 2px solid var(--nt-success);">
                             <h2>📝 Nội dung đã dịch</h2>
                             <textarea id="done-text" placeholder="Chọn file từ danh sách trên để xem nội dung..."></textarea>
                             
                             <div class="action-row">
-                                <button class="btn btn-warning" onclick="runRetranslate()">🔄 Retranslate</button>
-                                <button class="btn btn-secondary" onclick="runCorrection()">✏️ Correction</button>
-                                <button class="btn btn-success" onclick="runBoth()">⚡ Retranslate + Correction</button>
+                                <button class="btn-warning" id="btn-run-retranslate">🔄 Retranslate</button>
+                                <button class="secondary" id="btn-run-correction">✏️ Correction</button>
+                                <button class="btn-success" id="btn-run-both">⚡ Retranslate + Correction</button>
                             </div>
                             
                             <div class="progress-container" id="done-progress-container">
@@ -231,26 +129,26 @@
                             </div>
                             
                             <div class="log-container" id="done-log-container"></div>
-                        </div>
+                        </article>
                         
-                        <div class="result-container" id="done-result-container">
+                        <article class="result-container" id="done-result-container">
                             <h2>✅ Kết quả</h2>
                             <div class="result-stats" id="done-result-stats"></div>
                             <textarea id="done-result-text" readonly></textarea>
                             <div class="action-row">
-                                <button class="btn btn-secondary" onclick="copyDoneResult()">📋 Copy kết quả</button>
-                                <button class="btn" id="done-download-btn" onclick="downloadDoneResult()">💾 Tải file</button>
+                                <button class="secondary" id="btn-copy-done-result">📋 Copy kết quả</button>
+                                <button class="btn-gradient" id="btn-download-done-result">💾 Tải file</button>
                             </div>
-                        </div>
+                        </article>
                     </div>
                     
                     <div class="tab-content" id="tab-prompts">
                         <div class="info-box">💡 Chỉnh sửa prompt theo ngôn ngữ gốc. Nhấn "Lưu Prompts" để lưu.</div>
                         
                         <div class="prompt-tabs">
-                            <button class="prompt-tab active" onclick="switchPromptTab('main')">Main</button>
-                            <button class="prompt-tab" onclick="switchPromptTab('retranslate')">Retranslate</button>
-                            <button class="prompt-tab" onclick="switchPromptTab('correction')">Correction</button>
+                            <button class="prompt-tab active" data-target="main">Main</button>
+                            <button class="prompt-tab" data-target="retranslate">Retranslate</button>
+                            <button class="prompt-tab" data-target="correction">Correction</button>
                         </div>
                         
                         <div class="prompt-editor active" id="prompt-main">
@@ -264,635 +162,24 @@
                         </div>
                         
                         <div class="action-row">
-                            <button class="btn btn-secondary" onclick="savePrompts()">💾 Lưu Prompts</button>
+                            <button class="btn-gradient" id="btn-save-prompts">💾 Lưu Prompts</button>
                         </div>
                     </div>
-                </div>
+                </article>
                 
-                <div class="panel result-container" id="result-container">
+                <article class="panel result-container" id="result-container">
                     <h2>✅ Kết quả dịch</h2>
                     <div class="result-stats" id="result-stats"></div>
                     <textarea id="result-text" readonly></textarea>
                     <div class="action-row">
-                        <button class="btn btn-secondary" onclick="copyResult()">📋 Copy kết quả</button>
-                        <button class="btn" id="download-btn" onclick="downloadResult()">💾 Tải file</button>
+                        <button class="secondary" id="btn-copy-result">📋 Copy kết quả</button>
+                        <button class="btn-gradient" id="download-btn">💾 Tải file</button>
                     </div>
-                </div>
-            </main>
+                </article>
+
+            </section>
         </div>
-    </div>
-    
-    <script>
-        let prompts = {{ prompts_json | safe }};
-        let currentOutputFile = '';
-        let allFiles = [];
-        let selectedFiles = new Set();
-        let availableModels = {{ available_models | safe }};
-        let defaultModel = '{{ default_model }}';
-        
-        document.addEventListener('DOMContentLoaded', function() {
-            loadFiles();
-            loadDoneFiles();
-            loadOutputFiles();
-            loadStats();
-            loadModels();
-            setInterval(loadStats, 30000);
-            setInterval(loadOutputFiles, 10000);
-            setInterval(loadDoneFiles, 10000);
-            
-            document.getElementById('temperature').addEventListener('input', function() {
-                document.getElementById('temp-value').textContent = this.value;
-            });
-            
-            document.getElementById('prompt-main-text').value = prompts.main || '';
-            document.getElementById('prompt-retranslate-text').value = prompts.retranslate || '';
-            document.getElementById('prompt-correction-text').value = prompts.correction || '';
-        });
-        
-        function loadModels() {
-            fetch('/api/models')
-                .then(r => r.json())
-                .then(data => {
-                    const modelSelect = document.getElementById('model');
-                    if (data.models && data.models.length > 0) {
-                        availableModels = data.models;
-                    }
-                    modelSelect.innerHTML = availableModels.map(m => 
-                        `<option value="${m}" ${m === data.default ? 'selected' : ''}>${m}</option>`
-                    ).join('');
-                })
-                .catch(() => {
-                    const modelSelect = document.getElementById('model');
-                    modelSelect.innerHTML = availableModels.map(m => 
-                        `<option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>`
-                    ).join('');
-                });
-        }
-        
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('tab-' + tab).classList.add('active');
-        }
-        
-        function loadFiles() {
-            fetch('/api/files')
-                .then(r => r.json())
-                .then(files => {
-                    allFiles = files;
-                    const container = document.getElementById('file-list');
-                    if (files.length === 0) {
-                        container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Không có file trong input</p>';
-                        return;
-                    }
-                    
-                    container.innerHTML = files.map((f, i) => {
-                        const isSelected = selectedFiles.has(f.path);
-                        return `<div class="file-item">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleFile('${f.path.replace(/'/g, "\\'")}', this.checked)">
-                            <div class="file-info" onclick="loadFile('${f.name.replace(/'/g, "\\'")}')">
-                                <span class="file-name">${f.name}${f.is_done ? '<span class="file-badge badge-done">Đã dịch</span>' : ''}</span>
-                                <span class="file-size">${f.size_display}</span>
-                            </div>
-                            <div class="file-actions">
-                                <button class="btn btn-sm btn-warning" onclick="event.stopPropagation(); translateSingleFile('${f.path.replace(/'/g, "\\'")}')">Dịch</button>
-                            </div>
-                        </div>`;
-                    }).join('');
-                    updateSelectedCount();
-                });
-        }
-        
-        function loadDoneFiles() {
-            fetch('/api/done-files')
-                .then(r => r.json())
-                .then(files => {
-                    const container = document.getElementById('done-list');
-                    if (files.length === 0) {
-                        container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Chưa có file đã dịch</p>';
-                        return;
-                    }
-                    
-                    container.innerHTML = files.map(f => {
-                        const locationBadge = f.location === 'output' ? '<span class="badge-pending" style="font-size: 0.7em; margin-left: 5px;">output</span>' : '<span class="badge-done" style="font-size: 0.7em; margin-left: 5px;">done</span>';
-                        return `<div class="file-item done-item">
-                        <div class="file-info" onclick="viewDoneFile('${f.name.replace(/'/g, "\\'")}', '${f.location}')">
-                            <span class="file-name">${f.name} ${locationBadge} (${f.word_count?.toLocaleString() || 0} từ)</span>
-                            <span class="file-size">${f.size_display}</span>
-                        </div>
-                        <div class="file-actions">
-                            <button class="btn btn-sm" onclick="event.stopPropagation(); translateSingleFile('workspace/input/${f.name.replace(/'/g, "\\'")}', true)">Dịch lại</button>
-                            ${f.location === 'done' ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); moveBackToInput('${f.name.replace(/'/g, "\\'")}')">↩</button>` : ''}
-                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); viewDoneFile('${f.name.replace(/'/g, "\\'")}', '${f.location}')">Xem</button>
-                        </div>
-                    </div>`;
-                    }).join('');
-                });
-        }
-        
-        function toggleFile(path, checked) {
-            if (checked) {
-                selectedFiles.add(path);
-            } else {
-                selectedFiles.delete(path);
-            }
-            updateSelectedCount();
-        }
-        
-        function updateSelectedCount() {
-            document.getElementById('selected-count').textContent = selectedFiles.size;
-        }
-        
-        function selectAll() {
-            const checkboxes = document.querySelectorAll('#file-list input[type="checkbox"]');
-            checkboxes.forEach(cb => {
-                cb.checked = true;
-                const fileItem = cb.closest('.file-item');
-                const fileName = fileItem.querySelector('.file-info').getAttribute('onclick').match(/'([^']+)'/)[1];
-                selectedFiles.add('workspace/input/' + fileName);
-            });
-            updateSelectedCount();
-        }
-        
-        function deselectAll() {
-            selectedFiles.clear();
-            const checkboxes = document.querySelectorAll('#file-list input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = false);
-            updateSelectedCount();
-        }
-        
-        function translateSelected() {
-            if (selectedFiles.size === 0) {
-                alert('Vui lòng chọn ít nhất 1 file!');
-                return;
-            }
-            
-            const files = Array.from(selectedFiles);
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerHTML = '🔄 Đang dịch... ';
-            
-            document.getElementById('progress-container').classList.add('active');
-            document.getElementById('log-container').classList.add('active');
-            document.getElementById('log-container').innerHTML = '';
-            
-            addLog(`Bắt đầu dịch ${files.length} file...`, 'info');
-            
-            fetch('/api/translate-batch', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    files: files,
-                    model: document.getElementById('model').value,
-                    input_lang: document.getElementById('input-lang').value,
-                    temperature: parseFloat(document.getElementById('temperature').value),
-                    chunk_size: parseInt(document.getElementById('chunk-size').value),
-                    use_cache: document.getElementById('use-cache').checked,
-                    prompts: {
-                        main: document.getElementById('prompt-main-text').value,
-                        retranslate: document.getElementById('prompt-retranslate-text').value,
-                        correction: document.getElementById('prompt-correction-text').value
-                    }
-                })
-            }).then(r => r.json()).then(data => {
-                if (data.error) {
-                    addLog(data.error, 'error');
-                    btn.disabled = false;
-                    btn.innerHTML = '🚀 Dịch file đã chọn';
-                } else {
-                    connectToProgress();
-                }
-            }).catch(e => {
-                addLog(e.message, 'error');
-                btn.disabled = false;
-                btn.innerHTML = '🚀 Dịch file đã chọn';
-            });
-        }
-        
-        function translateSingleFile(filepath, isRetranslate = false) {
-            const btn = event.target;
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = '...';
-            }
-            
-            document.getElementById('progress-container').classList.add('active');
-            document.getElementById('log-container').classList.add('active');
-            document.getElementById('log-container').innerHTML = '';
-            
-            addLog(`Bắt đầu dịch file...`, 'info');
-            
-            fetch('/api/translate-file', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    filepath: filepath,
-                    model: document.getElementById('model').value,
-                    input_lang: document.getElementById('input-lang').value,
-                    temperature: parseFloat(document.getElementById('temperature').value),
-                    chunk_size: parseInt(document.getElementById('chunk-size').value),
-                    use_cache: document.getElementById('use-cache').checked,
-                    prompts: {
-                        main: document.getElementById('prompt-main-text').value,
-                        retranslate: document.getElementById('prompt-retranslate-text').value,
-                        correction: document.getElementById('prompt-correction-text').value
-                    }
-                })
-            }).then(r => r.json()).then(data => {
-                if (data.error) {
-                    addLog(data.error, 'error');
-                    if (btn) { btn.disabled = false; btn.innerHTML = 'Dịch'; }
-                } else {
-                    connectToProgress();
-                }
-            }).catch(e => {
-                addLog(e.message, 'error');
-                if (btn) { btn.disabled = false; btn.innerHTML = 'Dịch'; }
-            });
-        }
-        
-        function loadFile(filename) {
-            fetch('/api/file/' + encodeURIComponent(filename))
-                .then(r => r.json())
-                .then(data => {
-                    const textarea = document.getElementById('source-text');
-                    textarea.value += (textarea.value ? '\n\n' : '') + data.content;
-                    addLog('Đã tải: ' + data.name, 'info');
-                })
-                .catch(e => addLog('Lỗi: ' + e.message, 'error'));
-        }
-        
-        function loadDoneFile(filename) {
-            fetch('/api/done/' + encodeURIComponent(filename))
-                .then(r => r.json())
-                .then(data => {
-                    const textarea = document.getElementById('source-text');
-                    textarea.value += (textarea.value ? '\n\n' : '') + data.content;
-                    addLog('Đã tải: ' + data.name, 'info');
-                })
-                .catch(e => addLog('Lỗi: ' + e.message, 'error'));
-        }
-        
-        function viewDoneFile(filename, location) {
-            const endpoint = location === 'output' 
-                ? '/api/output-file/' + encodeURIComponent(filename)
-                : '/api/done/' + encodeURIComponent(filename);
-            fetch(endpoint)
-                .then(r => r.json())
-                .then(data => {
-                    document.getElementById('done-text').value = data.content;
-                    currentDoneFile = filename;
-                    document.getElementById('done-result-container').classList.remove('active');
-                    addDoneLog('Đã tải: ' + filename + ' (' + location + ')', 'info');
-                })
-                .catch(e => addDoneLog('Lỗi: ' + e.message, 'error'));
-        }
-        
-        let currentDoneFile = '';
-        
-        function addDoneLog(message, type) {
-            const container = document.getElementById('done-log-container');
-            container.classList.add('active');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        function showDoneProgress(percent, text) {
-            document.getElementById('done-progress-container').classList.add('active');
-            document.getElementById('done-progress-fill').style.width = percent + '%';
-            document.getElementById('done-progress-fill').textContent = percent + '%';
-            document.getElementById('done-progress-text').textContent = text;
-        }
-        
-        function hideDoneProgress() {
-            document.getElementById('done-progress-container').classList.remove('active');
-        }
-        
-        function runRetranslate() {
-            const text = document.getElementById('done-text').value;
-            if (!text.trim()) {
-                addDoneLog('Chưa có nội dung để dịch lại', 'error');
-                return;
-            }
-            runTranslationProcess(text, 'retranslate');
-        }
-        
-        function runCorrection() {
-            const text = document.getElementById('done-text').value;
-            if (!text.trim()) {
-                addDoneLog('Chưa có nội dung để sửa', 'error');
-                return;
-            }
-            runTranslationProcess(text, 'correction');
-        }
-        
-        function runBoth() {
-            const text = document.getElementById('done-text').value;
-            if (!text.trim()) {
-                addDoneLog('Chưa có nội dung để xử lý', 'error');
-                return;
-            }
-            addDoneLog('Bắt đầu Retranslate...', 'info');
-            runTranslationProcess(text, 'retranslate', () => {
-                addDoneLog('Tiếp tục Correction...', 'info');
-                const retanslatedText = document.getElementById('done-result-text').value;
-                runTranslationProcess(retanslatedText, 'correction', null, true);
-            });
-        }
-        
-        function runTranslationProcess(text, mode, callback, appendResult) {
-            const model = document.getElementById('model').value;
-            const temperature = parseFloat(document.getElementById('temperature').value);
-            const chunkSize = parseInt(document.getElementById('chunk-size').value);
-            
-            showDoneProgress(0, 'Đang chuẩn bị...');
-            addDoneLog('Bắt đầu ' + (mode === 'retranslate' ? 'Retranslate' : 'Correction') + '...', 'info');
-            
-            fetch('/api/translate-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    text: text,
-                    mode: mode,
-                    prompts: prompts,
-                    model: model,
-                    temperature: temperature,
-                    chunk_size: chunkSize,
-                    input_lang: document.getElementById('input-lang').value
-                })
-            }).then(r => r.json()).then(data => {
-                if (data.error) {
-                    addDoneLog('Lỗi: ' + data.error, 'error');
-                    hideDoneProgress();
-                    return;
-                }
-                
-                if (data.chunks && data.chunks.length > 0) {
-                    let processed = 0;
-                    data.chunks.forEach((chunk, i) => {
-                        fetch('/api/translate-chunk', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                chunk: chunk,
-                                mode: mode,
-                                prompts: prompts,
-                                model: model,
-                                temperature: temperature,
-                                input_lang: document.getElementById('input-lang').value
-                            })
-                        }).then(r => r.json()).then(result => {
-                            processed++;
-                            const percent = Math.round((processed / data.chunks.length) * 100);
-                            showDoneProgress(percent, 'Đang xử lý: ' + processed + '/' + data.chunks.length);
-                            
-                            if (processed === data.chunks.length) {
-                                hideDoneProgress();
-                                const finalText = data.full_text || result.translated;
-                                if (appendResult) {
-                                    document.getElementById('done-text').value = finalText;
-                                } else {
-                                    document.getElementById('done-result-text').value = finalText;
-                                }
-                                document.getElementById('done-result-container').classList.add('active');
-                                addDoneLog(mode === 'retranslate' ? 'Retranslate hoàn tất!' : 'Correction hoàn tất!', 'success');
-                                if (callback) callback();
-                            }
-                        });
-                    });
-                } else {
-                    hideDoneProgress();
-                    if (appendResult) {
-                        document.getElementById('done-text').value = data.translated || text;
-                    } else {
-                        document.getElementById('done-result-text').value = data.translated || text;
-                    }
-                    document.getElementById('done-result-container').classList.add('active');
-                    addDoneLog(mode === 'retranslate' ? 'Retranslate hoàn tất!' : 'Correction hoàn tất!', 'success');
-                    if (callback) callback();
-                }
-            }).catch(e => {
-                addDoneLog('Lỗi: ' + e.message, 'error');
-                hideDoneProgress();
-            });
-        }
-        
-        function copyDoneResult() {
-            const text = document.getElementById('done-result-text').value;
-            navigator.clipboard.writeText(text).then(() => {
-                addDoneLog('Đã copy vào clipboard', 'success');
-            }).catch(() => {
-                addDoneLog('Lỗi copy', 'error');
-            });
-        }
-        
-        function downloadDoneResult() {
-            const text = document.getElementById('done-result-text').value;
-            if (!text) {
-                addDoneLog('Không có nội dung để tải', 'error');
-                return;
-            }
-            const filename = currentDoneFile ? currentDoneFile.replace('.txt', '_fixed.txt') : 'translated_fixed.txt';
-            const blob = new Blob([text], {type: 'text/plain;charset=utf-8'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(url);
-            addDoneLog('Đã tải: ' + filename, 'success');
-        }
-        
-        function moveBackToInput(filename) {
-            if (!confirm('Di chuyển file này về input?')) return;
-            fetch('/api/move-back-to-input', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({filename: filename})
-            }).then(r => r.json()).then(data => {
-                if (data.success) {
-                    loadFiles();
-                    loadDoneFiles();
-                    addLog('Đã di chuyển file về input', 'success');
-                }
-            });
-        }
-        
-        function loadOutputFiles() {
-            fetch('/api/output-files')
-                .then(r => r.json())
-                .then(files => {
-                    const container = document.getElementById('output-list');
-                    if (files.length === 0) {
-                        container.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">Chưa có file</p>';
-                        return;
-                    }
-                    container.innerHTML = files.map(f => '<div class="output-item"><span>'+f.name+'</span><a href="/api/download/'+f.name+'" target="_blank">Tải</a></div>').join('');
-                });
-        }
-        
-        function loadStats() {
-            fetch('/api/stats').then(r => r.json()).then(data => {
-                document.getElementById('api-keys-count').textContent = data.api_keys_count || data.api_keys || 0;
-                document.getElementById('cache-count').textContent = data.cache_files || 0;
-                document.getElementById('cache-size').textContent = data.cache_size_mb || 0;
-                document.getElementById('translated-words').textContent = (data.translated_words || 0).toLocaleString();
-                document.getElementById('pending-words').textContent = (data.pending_words || 0).toLocaleString();
-                document.getElementById('output-count').textContent = data.output_files || 0;
-                document.getElementById('input-files-count').textContent = data.input_files_count || 0;
-                document.getElementById('done-files-count').textContent = data.done_files_count || 0;
-            });
-        }
-        
-        function clearCache() {
-            if (!confirm('Xóa tất cả cache?')) return;
-            fetch('/api/cache/clear', {method: 'POST'}).then(r => r.json()).then(data => {
-                alert('Đã xóa ' + data.deleted + ' files');
-                loadStats();
-            });
-        }
-        
-        function loadPromptsForLang(lang) {
-            fetch('/api/prompts?lang=' + lang).then(r => r.json()).then(data => {
-                prompts = data;
-                document.getElementById('prompt-main-text').value = data.main || '';
-                document.getElementById('prompt-retranslate-text').value = data.retranslate || '';
-                document.getElementById('prompt-correction-text').value = data.correction || '';
-            });
-        }
-        
-        function switchPromptTab(tab) {
-            document.querySelectorAll('.prompt-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.prompt-editor').forEach(e => e.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('prompt-' + tab).classList.add('active');
-        }
-        
-        function savePrompts() {
-            const lang = document.getElementById('input-lang').value;
-            fetch('/api/prompts', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    lang: lang,
-                    prompts: {
-                        main: document.getElementById('prompt-main-text').value,
-                        retranslate: document.getElementById('prompt-retranslate-text').value,
-                        correction: document.getElementById('prompt-correction-text').value
-                    }
-                })
-            }).then(r => r.json()).then(data => {
-                alert(data.success ? 'Đã lưu prompts!' : 'Lỗi: ' + data.error);
-            });
-        }
-        
-        function startTranslation() {
-            const btn = document.getElementById('translate-btn');
-            const text = document.getElementById('source-text').value;
-            if (!text.trim()) return alert('Vui lòng nhập văn bản!');
-            
-            btn.disabled = true;
-            btn.innerHTML = '🔄 Đang dịch... <span class="loading"></span>';
-            
-            document.getElementById('progress-container').classList.add('active');
-            document.getElementById('log-container').classList.add('active');
-            document.getElementById('result-container').classList.remove('active');
-            document.getElementById('log-container').innerHTML = '';
-            
-            fetch('/api/translate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    text: text,
-                    filename: 'translated_' + Date.now(),
-                    model: document.getElementById('model').value,
-                    input_lang: document.getElementById('input-lang').value,
-                    temperature: parseFloat(document.getElementById('temperature').value),
-                    chunk_size: parseInt(document.getElementById('chunk-size').value),
-                    use_cache: document.getElementById('use-cache').checked,
-                    prompts: {
-                        main: document.getElementById('prompt-main-text').value,
-                        retranslate: document.getElementById('prompt-retranslate-text').value,
-                        correction: document.getElementById('prompt-correction-text').value
-                    }
-                })
-            }).then(r => r.json()).then(data => {
-                if (data.error) { addLog(data.error, 'error'); resetButton(); }
-                else connectToProgress();
-            }).catch(e => { addLog(e.message, 'error'); resetButton(); });
-        }
-        
-        function connectToProgress() {
-            const evtSource = new EventSource('/api/progress');
-            evtSource.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'ping') return;
-                
-                if (data.type === 'progress') {
-                    document.getElementById('progress-fill').style.width = data.percent + '%';
-                    document.getElementById('progress-fill').textContent = data.percent + '%';
-                    document.getElementById('progress-text').textContent = data.message;
-                    addLog(data.message, 'info');
-                } else if (data.type === 'info') {
-                    addLog(data.message, 'info');
-                } else if (data.type === 'error') {
-                    addLog(data.message, 'error');
-                    evtSource.close(); resetButton();
-                } else if (data.type === 'complete') {
-                    document.getElementById('progress-fill').style.width = '100%';
-                    document.getElementById('progress-fill').textContent = '100%';
-                    addLog(data.message, 'success');
-                    
-                    document.getElementById('result-container').classList.add('active');
-                    document.getElementById('result-text').value = data.result;
-                    currentOutputFile = data.output_file;
-                    
-                    document.getElementById('result-stats').innerHTML = '<div class="result-stat">📄 Chunks: '+data.chunks+'</div><div class="result-stat">💾 Cache: '+data.cached+'/'+data.chunks+'</div><div class="result-stat">📝 Source: '+data.source_length.toLocaleString()+'</div><div class="result-stat">✨ Translated: '+data.translated_length.toLocaleString()+'</div>' + (data.tokens_used ? '<div class="result-stat">🔢 Tokens: '+data.tokens_used.toLocaleString()+'</div>' : '');
-                    
-                    evtSource.close(); resetButton(); 
-                    loadOutputFiles();
-                    loadFiles();
-                    loadDoneFiles();
-                    loadStats();
-                }
-            };
-            evtSource.onerror = function() { addLog('Mất kết nối', 'error'); evtSource.close(); resetButton(); };
-        }
-        
-        function addLog(message, type) {
-            const container = document.getElementById('log-container');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry ' + type;
-            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
-            container.appendChild(entry);
-            container.scrollTop = container.scrollHeight;
-        }
-        
-        function resetButton() {
-            const btn = document.getElementById('translate-btn');
-            btn.disabled = false;
-            btn.innerHTML = '🚀 Bắt đầu dịch';
-            
-            const batchBtn = document.querySelector('.batch-actions .btn-success');
-            if (batchBtn) {
-                batchBtn.disabled = false;
-                batchBtn.innerHTML = '🚀 Dịch file đã chọn';
-            }
-        }
-        
-        function copyResult() {
-            document.getElementById('result-text').select();
-            document.execCommand('copy');
-            alert('Đã copy!');
-        }
-        
-        function downloadResult() {
-            if (currentOutputFile) window.open('/api/download/' + currentOutputFile, '_blank');
-        }
-    </script>
+    </main>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>
 </body>
 </html>

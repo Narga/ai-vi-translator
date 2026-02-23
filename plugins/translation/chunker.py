@@ -163,7 +163,7 @@ def intelligent_chunking(full_text: str, min_chars: int, max_chars: int) -> List
         remaining = text_len - current_pos
 
         # Nếu phần còn lại đủ nhỏ, lấy hết một lần để giảm số mảnh.
-        if remaining <= int(max_chars * 1.2):
+        if remaining <= int(max_chars * 1.1):
             chunk = text_to_chunk[current_pos:].strip()
             if chunk:
                 chunks.append(chunk)

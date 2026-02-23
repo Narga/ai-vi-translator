@@ -523,22 +523,25 @@ def translate_worker(text, config, output_filename="translated", input_file_path
 @app.route("/")
 def index():
     """Render main page."""
-    input_files = get_input_files()
-    prompts = load_prompts()
-    prompts_json = json.dumps(prompts)
+    os.makedirs(app.config["INPUT_DIR"], exist_ok=True)
+    os.makedirs(app.config["OUTPUT_DIR"], exist_ok=True)
+    os.makedirs(app.config["DONE_DIR"], exist_ok=True)
 
-    default_chunk = get_default_chunk_size()
     default_model = get_default_model()
     available_models = get_available_models()
 
+    if default_model not in available_models:
+        available_models.insert(0, default_model)
+
+    prompts = load_prompts("CN")
+
     return render_template(
         "index.html",
-        input_files=input_files,
-        prompts=prompts,
-        prompts_json=prompts_json,
-        default_chunk=default_chunk,
+        default_chunk=get_default_chunk_size(),
         default_model=default_model,
         available_models=json.dumps(available_models),
+        prompts_json=json.dumps(prompts),
+        app_version="4.0.6",
     )
 
 

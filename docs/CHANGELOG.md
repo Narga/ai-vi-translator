@@ -4,6 +4,21 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [4.1.0] - Báo cáo cải tiến UI và Fixes
+
+### 🚀 Bug Fixes & Refactoring
+- **Sửa Lỗi Chunking**: Giảm `MIN_CHARS_PER_CHUNK` và `MAX_CHARS_PER_CHUNK` trong `config/app.ini` xuống `5000` và `8000` để tránh API tự động cắt ngắn output do vượt quá giới hạn token của LLM. Tối ưu lại điều kiện gom mảnh vụn cuối trong `plugins/translation/chunker.py` (hệ số `1.2` thành `1.1`).
+- **Refactor Web UI (PicoCSS)**:
+  - Tích hợp chuẩn **PicoCSS Classless** qua thẻ CDN. Rút gọn cấu trúc thẻ HTML sang Semantic (`<article>`, `<section>`, `<header>`).
+  - Gỡ bỏ toàn bộ Inline CSS và Inline Javascript khỏi template `templates/index.html`.
+  - Tách CSS ra thư mục tĩnh: `static/css/style.css` 
+  - Tách logic JS ra thư mục tĩnh: `static/js/main.js`
+- **Cache Busting**: Frontend script và styles hiện tại nhận biến tham số version `?v=4.0.6` truyền từ flask render_template để cập nhật cache trình duyệt ngay khi có thay đổi bản build.
+
+Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ được ghi nhận tại đây.
+
+---
+
 ## [4.0.7] - 2026-02-17 - UI Redesign & Improvements
 
 ### UI/UX Improvements

@@ -1,4 +1,4 @@
-# Novel Translator v4.0.7 - UI Redesign
+# Novel Translator v4.1.0 - UI Redesign & Standard Refactoring
 
 Công cụ dịch tiểu thuyết với kiến trúc plugin linh hoạt, sử dụng **google-genai SDK**.
 

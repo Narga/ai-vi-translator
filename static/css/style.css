@@ -1,0 +1,313 @@
+/* Custom CSS variables extending PicoCSS for specialized component styles */
+:root {
+  --nt-primary: #667eea;
+  --nt-secondary: #764ba2;
+  --gradient-bg: linear-gradient(135deg, var(--nt-primary) 0%, var(--nt-secondary) 100%);
+  --nt-success: #28a745;
+  --nt-warning: #ffc107;
+  --nt-danger: #dc3545;
+  --info-box-bg: #e3f2fd;
+  --info-box-border: #2196f3;
+}
+
+/* Header & Typography */
+body > header {
+  background: var(--gradient-bg);
+  color: white;
+  padding: 30px;
+  border-radius: var(--pico-border-radius);
+  margin-bottom: 30px;
+  box-shadow: var(--pico-box-shadow);
+}
+
+body > header h1 { 
+  font-size: 2em;
+  margin-bottom: 10px;
+  color: white;
+}
+
+.subtitle {
+  opacity: 0.9;
+  font-size: 1.1em;
+}
+
+.stats-bar {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Layout Utilities (Pico handles Grid mostly, these are bespoke UI components) */
+.main-grid {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 30px;
+}
+
+@media (max-width: 1100px) {
+  .main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel h2 {
+  margin-bottom: 20px;
+  color: var(--nt-primary);
+  font-size: 1.3em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Inputs & Textareas */
+textarea {
+  min-height: 250px;
+  resize: vertical;
+}
+
+/* Custom Buttons (Overriding Pico Defaults for some buttons) */
+button.btn-gradient {
+  background: var(--gradient-bg);
+  color: white;
+  border: none;
+  border-radius: var(--pico-border-radius);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button.btn-gradient:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-sm {
+  padding: calc(var(--pico-padding) * 0.5) calc(var(--pico-padding));
+  font-size: 0.85em;
+  width: auto;
+}
+
+.btn-warning {
+  --pico-background: var(--nt-warning);
+  --pico-border-color: var(--nt-warning);
+  --pico-colar: #333;
+}
+
+.btn-success {
+  --pico-background: var(--nt-success);
+  --pico-border-color: var(--nt-success);
+}
+.btn-danger {
+  --pico-background: var(--nt-danger);
+  --pico-border-color: var(--nt-danger);
+}
+
+/* Progress Bar */
+.progress-container {
+  margin-top: 20px;
+  display: none;
+}
+.progress-container.active { display: block; }
+
+.progress-bar {
+  width: 100%;
+  height: 30px;
+  background: var(--pico-muted-border-color);
+  border-radius: 15px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-bg);
+  width: 0%;
+  transition: width 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.progress-text {
+  margin-top: 10px;
+  text-align: center;
+  color: var(--pico-muted-color);
+}
+
+/* Logging Component */
+.log-container {
+  margin-top: 20px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  padding: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  display: none;
+}
+
+.log-container.active { display: block; }
+.log-entry { margin-bottom: 5px; padding: 3px 0; }
+.log-entry.info { color: #0066cc; }
+.log-entry.success { color: var(--nt-success); }
+.log-entry.error { color: var(--nt-danger); }
+
+/* Results Component */
+.result-container {
+  margin-top: 20px;
+  display: none;
+}
+
+.result-container.active { display: block; }
+.result-stats {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.result-stat {
+  background: var(--pico-card-background-color);
+  border: 1px solid var(--pico-muted-border-color);
+  padding: 8px 15px;
+  border-radius: var(--pico-border-radius);
+  font-size: 0.9em;
+}
+
+/* Info Box */
+.info-box {
+  background: var(--info-box-bg);
+  border-left: 4px solid var(--info-box-border);
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0;
+  color: #333;
+}
+
+/* Loading Spinner */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid var(--nt-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* File Listing Component */
+.file-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  margin-bottom: 10px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  cursor: pointer;
+  transition: background 0.2s;
+  gap: 10px;
+}
+
+.file-item:hover { background: var(--pico-form-element-background-color); }
+.file-item:last-child { border-bottom: none; }
+.file-item input[type="checkbox"] { margin: 0; width: 1.25em; height: 1.25em; cursor: pointer; }
+
+.file-item.done-item { background: rgba(76, 175, 80, 0.1); }
+.file-item.done-item:hover { background: rgba(76, 175, 80, 0.2); }
+
+.file-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-name { font-weight: 500; }
+.file-size { color: var(--pico-muted-color); font-size: 0.85em; }
+.file-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+
+.badge-done { background: var(--nt-success); color: white; }
+.badge-pending { background: var(--nt-warning); color: white; }
+
+/* Tabs Component */
+.tabs, .prompt-tabs {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid var(--pico-muted-border-color);
+}
+
+.tab, .prompt-tab {
+  padding: 10px 20px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--pico-muted-color);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab.active, .prompt-tab.active {
+  color: var(--nt-primary);
+  border-bottom-color: var(--nt-primary);
+}
+
+.tab-content, .prompt-editor { display: none; }
+.tab-content.active, .prompt-editor.active { display: block; }
+
+/* Action Rows */
+.action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.action-row button { flex: 1; min-width: 120px; }
+
+.batch-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.batch-actions button { flex: 1; margin-bottom: 0; }
+.file-actions { display: flex; gap: 5px; }
+
+.selected-count {
+  font-size: 0.9em;
+  color: var(--pico-muted-color);
+  margin-bottom: 10px;
+}
+
+.output-list { max-height: 200px; overflow-y: auto; }
+.output-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--pico-muted-border-color); }
+.output-item a { color: var(--nt-primary); text-decoration: none; }
+.output-item a:hover { text-decoration: underline; }
