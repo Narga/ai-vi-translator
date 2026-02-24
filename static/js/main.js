@@ -100,13 +100,13 @@ function loadFiles() {
             el.innerHTML = files.map(f => {
                 const esc = f.path.replace(/'/g, "\\'");
                 const nameEsc = f.name.replace(/'/g, "\\'");
-                return `<div class="file-item">
+                return `<div class="nt-file-item">
                     <input type="checkbox" ${selectedFiles.has(f.path) ? 'checked' : ''} onchange="toggleFile('${esc}',this.checked)">
-                    <div class="file-info" onclick="loadFile('${nameEsc}')">
-                        <span class="file-name">${f.name}${f.is_done ? '<span class="badge success" style="font-size:0.7em;margin-left:5px">Done</span>' : ''}</span>
-                        <span class="file-size">${f.size_display}</span>
+                    <div class="nt-file-info" onclick="loadFile('${nameEsc}')">
+                        <span class="nt-file-name">${f.name}${f.is_done ? '<span class="badge success" style="font-size:0.7em;margin-left:5px">Done</span>' : ''}</span>
+                        <span class="nt-file-size">${f.size_display}</span>
                     </div>
-                    <button data-variant="warning" style="padding:4px 8px;font-size:0.8em" onclick="event.stopPropagation();translateSingleFile('${esc}')">Dịch</button>
+                    <button data-variant="secondary" style="padding:4px 8px;font-size:0.8em" onclick="event.stopPropagation();translateSingleFile('${esc}')">Dịch</button>
                 </div>`;
             }).join('');
             updateSelectedCount();
@@ -124,10 +124,10 @@ function loadDoneFiles() {
                 const locBadge = f.location === 'output'
                     ? '<span class="badge" style="font-size:0.7em;margin-left:5px">output</span>'
                     : '<span class="badge success" style="font-size:0.7em;margin-left:5px">done</span>';
-                return `<div class="file-item done-item">
-                    <div class="file-info" onclick="viewDoneFile('${nameEsc}','${f.location}')">
-                        <span class="file-name">${f.name} ${locBadge} (${(f.word_count || 0).toLocaleString()} từ)</span>
-                        <span class="file-size">${f.size_display}</span>
+                return `<div class="nt-file-item">
+                    <div class="nt-file-info" onclick="viewDoneFile('${nameEsc}','${f.location}')">
+                        <span class="nt-file-name">${f.name} ${locBadge} (${(f.word_count || 0).toLocaleString()} từ)</span>
+                        <span class="nt-file-size">${f.size_display}</span>
                     </div>
                     ${f.location === 'done' ? `<button class="outline" style="padding:4px 8px;font-size:0.8em" onclick="event.stopPropagation();moveBackToInput('${nameEsc}')">↩</button>` : ''}
                 </div>`;
@@ -186,7 +186,7 @@ function loadOutputFiles() {
             const el = document.getElementById('output-list');
             if (!files.length) { el.innerHTML = '<p class="muted">Chưa có file</p>'; return; }
             el.innerHTML = files.map(f =>
-                `<div class="file-item"><span class="file-name">${f.name}</span><a href="/api/download/${f.name}" target="_blank"><button class="outline" style="padding:4px 8px;font-size:0.8em">Tải</button></a></div>`
+                `<div class="nt-file-item"><span class="nt-file-name">${f.name}</span><a href="/api/download/${f.name}" target="_blank"><button class="outline" style="padding:4px 8px;font-size:0.8em">Tải</button></a></div>`
             ).join('');
         });
 }
@@ -230,8 +230,8 @@ function startTranslation() {
 
     btn.disabled = true;
     btn.textContent = '🔄 Đang dịch...';
-    document.getElementById('progress-container').classList.add('active');
-    document.getElementById('result-container').classList.remove('active');
+    showProgress('progress-container', 'progress-bar', 0, 'Bắt đầu...');
+    document.getElementById('result-container').style.display = 'none';
     document.getElementById('log-container').classList.add('active');
     document.getElementById('log-container').innerHTML = '';
     addLog('Bắt đầu dịch...', 'info');
@@ -256,7 +256,7 @@ function translateSelected() {
     if (!selectedFiles.size) { alert('Chọn ít nhất 1 file!'); return; }
     const btn = document.getElementById('btn-translate-selected');
     btn.disabled = true; btn.textContent = '🔄 Đang dịch...';
-    document.getElementById('progress-container').classList.add('active');
+    showProgress('progress-container', 'progress-bar', 0, 'Bắt đầu...');
     document.getElementById('log-container').classList.add('active');
     document.getElementById('log-container').innerHTML = '';
     addLog(`Dịch ${selectedFiles.size} file...`, 'info');
@@ -279,7 +279,7 @@ function translateSelected() {
 }
 
 function translateSingleFile(filepath) {
-    document.getElementById('progress-container').classList.add('active');
+    showProgress('progress-container', 'progress-bar', 0, 'Bắt đầu...');
     document.getElementById('log-container').classList.add('active');
     document.getElementById('log-container').innerHTML = '';
     addLog('Dịch file...', 'info');
@@ -300,31 +300,37 @@ function translateSingleFile(filepath) {
     }).catch(e => addLog(e.message, 'error'));
 }
 
+function showProgress(containerId, barId, value, text) {
+    const c = document.getElementById(containerId);
+    c.classList.add('active');
+    document.getElementById(barId).value = value;
+    c.querySelector('small').textContent = text;
+}
+function hideProgress(containerId) {
+    document.getElementById(containerId).classList.remove('active');
+}
+
 function connectToProgress(btn = null) {
     const evtSource = new EventSource('/api/progress');
-    document.getElementById('progress-fill').style.width = '0%';
-    document.getElementById('progress-text').textContent = 'Kết nối...';
+    showProgress('progress-container', 'progress-bar', 0, 'Kết nối...');
 
     evtSource.onmessage = function (event) {
         const data = JSON.parse(event.data);
         if (data.type === 'progress') {
-            document.getElementById('progress-fill').style.width = data.percent + '%';
-            document.getElementById('progress-fill').textContent = data.percent + '%';
-            document.getElementById('progress-text').textContent = data.message;
+            showProgress('progress-container', 'progress-bar', data.percent, data.message);
         } else if (data.type === 'complete') {
             evtSource.close();
-            document.getElementById('progress-text').textContent = 'Hoàn tất!';
-            document.getElementById('progress-fill').style.width = '100%';
+            showProgress('progress-container', 'progress-bar', 100, 'Hoàn tất!');
             if (data.output_file) {
                 currentOutputFile = data.output_file;
                 document.getElementById('result-text').value = "Đã lưu: " + data.output_file;
             } else {
                 document.getElementById('result-text').value = data.translated_text || '';
             }
-            document.getElementById('result-container').classList.add('active');
+            document.getElementById('result-container').style.display = '';
             document.getElementById('result-stats').innerHTML =
-                `<span class="result-stat">💬 ${data.chunks_count || 0} chunks</span>
-                 <span class="result-stat">🔤 ${(data.char_count || 0).toLocaleString()} chars</span>`;
+                `<span class="nt-stat">💬 ${data.chunks_count || 0} chunks</span>
+                 <span class="nt-stat">🔤 ${(data.char_count || 0).toLocaleString()} chars</span>`;
             resetButton(btn);
             loadOutputFiles(); loadStats(); loadFiles(); loadDoneFiles();
             if (typeof ot !== 'undefined') ot.toast('Dịch hoàn tất!', 'Thành công', { variant: 'success' });
@@ -361,7 +367,7 @@ function runBoth() {
 }
 
 function runTranslationProcess(text, mode, callback, appendResult) {
-    showDoneProgress(0, 'Chuẩn bị...');
+    showProgress('done-progress-container', 'done-progress-bar', 0, 'Chuẩn bị...');
     fetch('/api/translate-text', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -372,24 +378,18 @@ function runTranslationProcess(text, mode, callback, appendResult) {
             input_lang: document.getElementById('input-lang').value
         })
     }).then(r => r.json()).then(data => {
-        if (data.error) { addDoneLog('Lỗi: ' + data.error, 'error'); hideDoneProgress(); return; }
-        hideDoneProgress();
+        if (data.error) { addDoneLog('Lỗi: ' + data.error, 'error'); hideProgress('done-progress-container'); return; }
+        hideProgress('done-progress-container');
         const result = data.translated || text;
         if (appendResult) document.getElementById('done-text').value = result;
         else document.getElementById('done-result-text').value = result;
-        document.getElementById('done-result-container').classList.add('active');
+        document.getElementById('done-result-container').style.display = '';
         addDoneLog(mode + ' hoàn tất!', 'success');
         if (callback) callback();
-    }).catch(e => { addDoneLog('Lỗi: ' + e.message, 'error'); hideDoneProgress(); });
+    }).catch(e => { addDoneLog('Lỗi: ' + e.message, 'error'); hideProgress('done-progress-container'); });
 }
 
-function showDoneProgress(p, t) {
-    document.getElementById('done-progress-container').classList.add('active');
-    document.getElementById('done-progress-fill').style.width = p + '%';
-    document.getElementById('done-progress-fill').textContent = p + '%';
-    document.getElementById('done-progress-text').textContent = t;
-}
-function hideDoneProgress() { document.getElementById('done-progress-container').classList.remove('active'); }
+// showProgress / hideProgress defined above connectToProgress
 
 function copyDoneResult() {
     navigator.clipboard.writeText(document.getElementById('done-result-text').value)
@@ -412,12 +412,12 @@ function loadGenres() {
         .then(r => r.json())
         .then(sets => {
             const el = document.getElementById('genre-list');
-            if (!sets.length) { el.innerHTML = '<p class="muted">Chưa có thể loại nào</p>'; return; }
+            if (!sets.length) { el.innerHTML = '<p><em>Chưa có thể loại nào</em></p>'; return; }
             el.innerHTML = sets.map(s =>
-                `<div class="genre-item ${s.slug === currentGenre ? 'active' : ''}" onclick="selectGenre('${s.slug}')">
+                `<div class="nt-genre-item ${s.slug === currentGenre ? 'active' : ''}" onclick="selectGenre('${s.slug}')">
                     <div>
-                        <div class="genre-name">${s.name}</div>
-                        <div class="genre-desc">${s.description || ''}</div>
+                        <div class="nt-genre-name">${s.name}</div>
+                        <div class="nt-genre-desc">${s.description || ''}</div>
                     </div>
                     <span class="badge">${s.has_main ? '✓' : '○'}</span>
                 </div>`
@@ -543,7 +543,7 @@ function addLog(message, type) {
     const el = document.getElementById('log-container');
     el.classList.add('active');
     const entry = document.createElement('div');
-    entry.className = 'log-entry ' + type;
+    entry.className = 'nt-log-entry ' + type;
     entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
     el.appendChild(entry);
     el.scrollTop = el.scrollHeight;
@@ -552,7 +552,7 @@ function addDoneLog(message, type) {
     const el = document.getElementById('done-log-container');
     el.classList.add('active');
     const entry = document.createElement('div');
-    entry.className = 'log-entry ' + type;
+    entry.className = 'nt-log-entry ' + type;
     entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
     el.appendChild(entry);
     el.scrollTop = el.scrollHeight;

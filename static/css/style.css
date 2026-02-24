@@ -1,236 +1,177 @@
-/* Novel Translator - Custom CSS (supplements oat.ink) */
+/* Novel Translator – Custom overrides for oat.ink */
 
-/* Header gradient */
-header {
+/* ── Header ── */
+.nt-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem 2rem;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+  color: #fff;
+  padding: var(--space-6) var(--space-8);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-6);
 }
 
-header h1 {
-  color: white;
-  margin: 0 0 0.3rem 0;
-}
-
-header h1 small {
-  font-size: 0.5em;
-  opacity: 0.8;
-}
-
-header p {
-  opacity: 0.9;
+.nt-header h2 {
+  color: #fff;
   margin: 0;
 }
 
-.stats-bar {
-  display: flex;
-  gap: 8px;
-  margin-top: 1rem;
-  flex-wrap: wrap;
+.nt-header h2 small {
+  opacity: .7;
+  font-size: .5em;
 }
 
-.stats-bar .badge {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 0.8em;
+.nt-header p {
+  margin: 0;
+  opacity: .85;
 }
 
-/* File list component */
-.file-list {
-  max-height: 300px;
+.nt-header .badge {
+  background: rgba(255, 255, 255, .2);
+  color: #fff;
+}
+
+/* ── File list (shared) ── */
+.nt-file-list {
+  max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--color-border);
-  border-radius: 6px;
-  margin: 0.5rem 0;
+  border-radius: var(--radius);
+  margin-bottom: var(--space-4);
 }
 
-.file-item {
+.nt-file-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background .15s;
 }
 
-.file-item:hover {
-  background: var(--color-bg-subtle);
-}
-
-.file-item:last-child {
+.nt-file-item:last-child {
   border-bottom: none;
 }
 
-.file-item input[type="checkbox"] {
+.nt-file-item:hover {
+  background: var(--color-bg-subtle, #f5f5f5);
+}
+
+.nt-file-item input[type="checkbox"] {
   margin: 0;
 }
 
-.file-item.done-item {
-  background: color-mix(in srgb, var(--color-success) 5%, transparent);
-}
-
-.file-info {
+.nt-file-info {
   flex: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.file-name {
+.nt-file-name {
   font-weight: 500;
-  font-size: 0.92em;
+  font-size: .92em;
 }
 
-.file-size {
-  color: var(--color-secondary);
-  font-size: 0.82em;
+.nt-file-size {
+  color: var(--color-muted, #888);
+  font-size: .82em;
 }
 
-/* Progress bar */
-.progress-container {
-  margin-top: 1rem;
-  display: none;
-}
-
-.progress-container.active {
-  display: block;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 22px;
-  background: var(--color-bg-subtle);
-  border-radius: 11px;
-  overflow: hidden;
-  position: relative;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #667eea, #764ba2);
-  width: 0%;
-  transition: width 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 600;
-  font-size: 0.75em;
-}
-
-.progress-text {
-  margin-top: 6px;
-  text-align: center;
-  color: var(--color-secondary);
-  font-size: 0.85em;
-}
-
-/* Log container */
-.log-container {
-  margin-top: 1rem;
-  max-height: 180px;
-  overflow-y: auto;
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 8px;
-  font-family: monospace;
-  font-size: 12px;
-  display: none;
-}
-
-.log-container.active {
-  display: block;
-}
-
-.log-entry {
-  margin-bottom: 3px;
-  padding: 2px 0;
-}
-
-.log-entry.info {
-  color: #0066cc;
-}
-
-.log-entry.success {
-  color: var(--color-success);
-}
-
-.log-entry.error {
-  color: var(--color-error);
-}
-
-/* Result container */
-.result-container {
-  display: none;
-}
-
-.result-container.active {
-  display: block;
-}
-
-.result-stats {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 0.75rem;
-  flex-wrap: wrap;
-}
-
-.result-stat {
-  background: var(--color-bg-subtle);
-  border: 1px solid var(--color-border);
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
-
-/* Selected count */
-.selected-count {
-  font-size: 0.85em;
-  color: var(--color-secondary);
-  margin-bottom: 6px;
-}
-
-/* Genre list */
-.genre-item {
+/* ── Genre list items ── */
+.nt-genre-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background .15s;
 }
 
-.genre-item:hover {
-  background: var(--color-bg-subtle);
-}
-
-.genre-item.active {
-  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
-  border-left: 3px solid var(--color-primary);
-}
-
-.genre-item:last-child {
+.nt-genre-item:last-child {
   border-bottom: none;
 }
 
-.genre-name {
+.nt-genre-item:hover {
+  background: var(--color-bg-subtle, #f5f5f5);
+}
+
+.nt-genre-item.active {
+  background: var(--color-bg-subtle, #eef);
+  border-left: 3px solid var(--color-primary, #667eea);
+}
+
+.nt-genre-name {
   font-weight: 600;
 }
 
-.genre-desc {
-  font-size: 0.8em;
-  color: var(--color-secondary);
+.nt-genre-desc {
+  font-size: .8em;
+  color: var(--color-muted, #888);
   margin-top: 2px;
 }
 
-/* Misc */
-.muted {
+/* ── Progress area ── */
+.nt-progress-area {
+  display: none;
+  margin: var(--space-4) 0;
+}
+
+.nt-progress-area.active {
+  display: block;
+}
+
+.nt-progress-area progress {
+  width: 100%;
+}
+
+.nt-progress-area small {
+  display: block;
   text-align: center;
-  padding: 20px;
-  color: var(--color-secondary);
+  margin-top: var(--space-1);
+  color: var(--color-muted, #888);
+}
+
+/* ── Log area ── */
+.nt-log {
+  display: none;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--color-bg-subtle, #f9f9f9);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-family: monospace;
+  font-size: .8em;
+  margin-bottom: var(--space-4);
+}
+
+.nt-log.active {
+  display: block;
+}
+
+.nt-log-entry {
+  padding: 2px 0;
+}
+
+.nt-log-entry.info {
+  color: #0066cc;
+}
+
+.nt-log-entry.success {
+  color: var(--color-success, #28a745);
+}
+
+.nt-log-entry.error {
+  color: var(--color-danger, #dc3545);
+}
+
+/* ── Result stat badges ── */
+.nt-stat {
+  display: inline-block;
+  background: var(--color-bg-subtle, #f1f3f5);
+  border: 1px solid var(--color-border);
+  padding: 2px 8px;
+  border-radius: var(--radius);
+  font-size: .82em;
 }

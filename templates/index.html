@@ -16,279 +16,264 @@
 </head>
 
 <body>
+
     <!-- HEADER -->
-    <header>
-        <h1>📚 Novel Translator <small>{{ app_version }}</small></h1>
+    <div class="nt-header">
+        <h2>📚 Novel Translator <small>{{ app_version }}</small></h2>
         <p>Dịch tiểu thuyết tự động với Gemini AI</p>
-        <div class="stats-bar">
-            <span class="badge">🔑 API: <strong id="api-keys-count">--</strong></span>
-            <span class="badge">📦 Cache: <strong id="cache-count">--</strong> (<span id="cache-size">--</span>
-                MB)</span>
-            <span class="badge success">✨ Đã dịch: <strong id="translated-words">--</strong> từ</span>
-            <span class="badge">⏳ Chờ: <strong id="pending-words">--</strong> từ</span>
-            <span class="badge">📄 Out: <strong id="output-count">--</strong></span>
-            <span class="badge">📥 In: <strong id="input-files-count">--</strong></span>
-            <span class="badge success">✅ Done: <strong id="done-files-count">--</strong></span>
+        <div class="hstack" style="gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4)">
+            <span class="badge">🔑 <strong id="api-keys-count">--</strong></span>
+            <span class="badge">📦 <strong id="cache-count">--</strong> (<span id="cache-size">--</span>MB)</span>
+            <span class="badge success">✨ <strong id="translated-words">--</strong> từ</span>
+            <span class="badge">⏳ <strong id="pending-words">--</strong> từ</span>
+            <span class="badge">📄 <strong id="output-count">--</strong></span>
+            <span class="badge">📥 <strong id="input-files-count">--</strong></span>
+            <span class="badge success">✅ <strong id="done-files-count">--</strong></span>
         </div>
-    </header>
+    </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="container">
-        <ot-tabs>
-            <div role="tablist">
-                <button role="tab">📥 Workspace</button>
-                <button role="tab">✅ Đã dịch</button>
-                <button role="tab">⚙️ Cấu hình</button>
-                <button role="tab">📝 Prompt Manager</button>
-            </div>
+    <!-- MAIN TABS -->
+    <ot-tabs>
+        <div role="tablist">
+            <button role="tab">📥 Workspace</button>
+            <button role="tab">✅ Đã dịch</button>
+            <button role="tab">⚙️ Cấu hình</button>
+            <button role="tab">📝 Prompts</button>
+        </div>
 
-            <!-- TAB 1: WORKSPACE -->
-            <div role="tabpanel">
-                <div class="row">
-                    <div class="col-5">
-                        <article class="card">
-                            <header>
-                                <h3>📁 Danh sách file nguồn</h3>
-                                <p>Chọn file và nhấn dịch, hoặc nhập trực tiếp bên phải.</p>
-                            </header>
-                            <div class="selected-count">Đã chọn: <span id="selected-count">0</span> file</div>
-                            <div class="file-list" id="file-list">
-                                <p class="muted">Không có file trong input</p>
-                            </div>
-                            <footer class="flex gap-2">
-                                <button id="btn-translate-selected" data-variant="success">🚀 Dịch đã chọn</button>
-                                <button id="btn-select-all" class="outline">✓ Tất cả</button>
-                                <button id="btn-deselect-all" class="outline">✗ Bỏ chọn</button>
-                            </footer>
-                        </article>
-                    </div>
-                    <div class="col-7">
-                        <article class="card">
-                            <header>
-                                <h3>📝 Văn bản gốc</h3>
-                            </header>
-                            <textarea id="source-text" rows="12"
-                                placeholder="Nhập văn bản cần dịch hoặc chọn file từ danh sách bên trái..."></textarea>
-                            <footer>
-                                <button id="translate-btn" data-variant="primary" style="width:100%">🚀 Bắt đầu
-                                    dịch</button>
-                            </footer>
-                        </article>
-
-                        <div class="progress-container" id="progress-container">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="progress-fill">0%</div>
-                            </div>
-                            <div class="progress-text" id="progress-text">Đang chuẩn bị...</div>
-                        </div>
-                        <div class="log-container" id="log-container"></div>
-
-                        <article class="card result-container" id="result-container">
-                            <header>
-                                <h3>✅ Kết quả dịch</h3>
-                            </header>
-                            <div class="result-stats" id="result-stats"></div>
-                            <textarea id="result-text" rows="10" readonly></textarea>
-                            <footer class="flex gap-2">
-                                <button id="btn-copy-result" class="outline">📋 Copy</button>
-                                <button id="download-btn" data-variant="primary">💾 Tải file</button>
-                            </footer>
-                        </article>
-                    </div>
+        <!-- ==================== TAB 1: WORKSPACE ==================== -->
+        <div role="tabpanel">
+            <article class="card">
+                <header>
+                    <h3>📁 Danh sách file nguồn</h3>
+                    <p>Đã chọn: <strong id="selected-count">0</strong> file</p>
+                </header>
+                <div class="nt-file-list" id="file-list">
+                    <p><em>Không có file trong input</em></p>
                 </div>
-            </div>
+                <footer class="hstack" style="gap: var(--space-2)">
+                    <button id="btn-translate-selected">🚀 Dịch đã chọn</button>
+                    <button class="outline" id="btn-select-all">✓ Tất cả</button>
+                    <button class="outline" id="btn-deselect-all">✗ Bỏ chọn</button>
+                </footer>
+            </article>
 
-            <!-- TAB 2: ĐÃ DỊCH -->
-            <div role="tabpanel">
-                <article class="card">
+            <article class="card">
+                <header>
+                    <h3>📝 Nhập văn bản</h3>
+                </header>
+                <label data-field>
+                    <textarea id="source-text" rows="10"
+                        placeholder="Nhập văn bản cần dịch hoặc chọn file ở trên..."></textarea>
+                </label>
+                <button id="translate-btn" style="width: 100%">🚀 Bắt đầu dịch</button>
+            </article>
+
+            <!-- Progress -->
+            <div id="progress-container" class="nt-progress-area">
+                <progress id="progress-bar" value="0" max="100"></progress>
+                <small id="progress-text">Đang chuẩn bị...</small>
+            </div>
+            <div class="nt-log" id="log-container"></div>
+
+            <!-- Result -->
+            <article class="card" id="result-container" style="display:none">
+                <header>
+                    <h3>✅ Kết quả dịch</h3>
+                </header>
+                <div class="hstack" style="gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4)"
+                    id="result-stats"></div>
+                <textarea id="result-text" rows="8" readonly></textarea>
+                <footer class="hstack" style="gap: var(--space-2)">
+                    <button class="outline" id="btn-copy-result">📋 Copy</button>
+                    <button id="download-btn">💾 Tải file</button>
+                </footer>
+            </article>
+        </div>
+
+        <!-- ==================== TAB 2: ĐÃ DỊCH ==================== -->
+        <div role="tabpanel">
+            <article class="card">
+                <header>
+                    <h3>📂 File đã dịch xong</h3>
+                    <p>Chọn file để xem nội dung, Retranslate hoặc Correction.</p>
+                </header>
+                <div class="nt-file-list" id="done-list">
+                    <p><em>Chưa có file đã dịch</em></p>
+                </div>
+            </article>
+
+            <article class="card">
+                <header>
+                    <h3>📝 Nội dung đã dịch</h3>
+                </header>
+                <label data-field>
+                    <textarea id="done-text" rows="12" placeholder="Chọn file ở trên để xem..."></textarea>
+                </label>
+                <div class="hstack" style="gap: var(--space-2)">
+                    <button data-variant="secondary" id="btn-run-retranslate">🔄 Retranslate</button>
+                    <button class="outline" id="btn-run-correction">✏️ Correction</button>
+                    <button id="btn-run-both">⚡ Cả hai</button>
+                </div>
+            </article>
+
+            <div id="done-progress-container" class="nt-progress-area">
+                <progress id="done-progress-bar" value="0" max="100"></progress>
+                <small id="done-progress-text">Đang xử lý...</small>
+            </div>
+            <div class="nt-log" id="done-log-container"></div>
+
+            <article class="card" id="done-result-container" style="display:none">
+                <header>
+                    <h3>✅ Kết quả</h3>
+                </header>
+                <div id="done-result-stats"></div>
+                <textarea id="done-result-text" rows="10" readonly></textarea>
+                <footer class="hstack" style="gap: var(--space-2)">
+                    <button class="outline" id="btn-copy-done-result">📋 Copy</button>
+                    <button id="btn-download-done-result">💾 Tải file</button>
+                </footer>
+            </article>
+        </div>
+
+        <!-- ==================== TAB 3: CẤU HÌNH ==================== -->
+        <div role="tabpanel">
+            <article class="card">
+                <header>
+                    <h3>🤖 Cài đặt dịch thuật</h3>
+                </header>
+                <form>
+                    <label data-field>
+                        Model AI
+                        <select id="model" aria-label="Model AI"></select>
+                    </label>
+
+                    <label data-field>
+                        Ngôn ngữ nguồn
+                        <select id="input-lang" aria-label="Ngôn ngữ nguồn">
+                            <option value="CN" selected>Chinese (中文)</option>
+                            <option value="JP">Japanese (日本語)</option>
+                            <option value="KR">Korean (한국어)</option>
+                        </select>
+                    </label>
+
+                    <label data-field>
+                        Temperature: <strong id="temp-value">1.0</strong>
+                        <input type="range" id="temperature" min="0" max="2" step="0.1" value="1.0">
+                    </label>
+
+                    <label data-field>
+                        Kích thước chunk (chars)
+                        <input type="number" id="chunk-size" min="5000" max="200000" step="1000"
+                            value="{{ default_chunk }}">
+                        <small data-hint>Mặc định: {{ default_chunk }}</small>
+                    </label>
+
+                    <label>
+                        <input type="checkbox" role="switch" id="use-cache" checked>
+                        Sử dụng cache
+                    </label>
+                </form>
+            </article>
+
+            <article class="card">
+                <header>
+                    <h3>🗑️ Cache & Output</h3>
+                </header>
+                <button data-variant="danger" id="btn-clear-cache">🗑️ Xóa toàn bộ Cache</button>
+                <hr>
+                <h4>📄 Output files</h4>
+                <div class="nt-file-list" id="output-list">
+                    <p><em>Chưa có file</em></p>
+                </div>
+            </article>
+        </div>
+
+        <!-- ==================== TAB 4: PROMPT MANAGER ==================== -->
+        <div role="tabpanel">
+            <article class="card">
+                <header>
+                    <h3>📚 Quản lý Prompt theo thể loại</h3>
+                    <p>Chọn thể loại sách → chỉnh sửa prompt → Lưu hoặc Nạp vào hệ thống.</p>
+                </header>
+
+                <div class="hstack" style="gap: var(--space-2); margin-bottom: var(--space-4)">
+                    <button id="btn-new-genre">+ Tạo thể loại mới</button>
+                    <button data-variant="danger" class="outline" id="btn-delete-genre" disabled>🗑️ Xóa</button>
+                </div>
+
+                <div class="nt-file-list" id="genre-list">
+                    <p><em>Đang tải...</em></p>
+                </div>
+            </article>
+
+            <!-- Editor (hiện khi chọn genre) -->
+            <article class="card" id="genre-editor" style="display:none">
+                <header>
+                    <h3 id="genre-editor-title">Chỉnh sửa Prompt</h3>
+                    <p id="genre-editor-desc"></p>
+                </header>
+
+                <ot-tabs>
+                    <div role="tablist">
+                        <button role="tab">Main</button>
+                        <button role="tab">Retranslate</button>
+                        <button role="tab">Correction</button>
+                    </div>
+                    <div role="tabpanel">
+                        <label data-field>
+                            <textarea id="genre-main-text" rows="14" placeholder="Main prompt..."></textarea>
+                        </label>
+                    </div>
+                    <div role="tabpanel">
+                        <label data-field>
+                            <textarea id="genre-retranslate-text" rows="14"
+                                placeholder="Retranslate prompt..."></textarea>
+                        </label>
+                    </div>
+                    <div role="tabpanel">
+                        <label data-field>
+                            <textarea id="genre-correction-text" rows="14"
+                                placeholder="Correction prompt..."></textarea>
+                        </label>
+                    </div>
+                </ot-tabs>
+
+                <footer class="hstack" style="gap: var(--space-2)">
+                    <button id="btn-save-genre">💾 Lưu Prompt</button>
+                    <button data-variant="secondary" id="btn-activate-genre">⚡ Nạp vào hệ thống</button>
+                </footer>
+            </article>
+
+            <div role="alert" data-variant="success" id="genre-alert" style="display:none"></div>
+
+            <!-- Dialog tạo thể loại -->
+            <dialog id="new-genre-dialog" closedby="any">
+                <form method="dialog">
                     <header>
-                        <h3>📂 File đã dịch xong</h3>
-                        <p>Chọn file để xem nội dung và sử dụng Retranslate / Correction.</p>
+                        <h3>Tạo bộ Prompt mới</h3>
                     </header>
-                    <div class="file-list" id="done-list">
-                        <p class="muted">Chưa có file đã dịch</p>
-                    </div>
-                </article>
-
-                <div class="row">
-                    <div class="col-6">
-                        <article class="card">
-                            <header>
-                                <h3>📝 Nội dung đã dịch</h3>
-                            </header>
-                            <textarea id="done-text" rows="14" placeholder="Chọn file từ danh sách trên..."></textarea>
-                            <footer class="flex gap-2">
-                                <button id="btn-run-retranslate" data-variant="warning">🔄 Retranslate</button>
-                                <button id="btn-run-correction" class="outline">✏️ Correction</button>
-                                <button id="btn-run-both" data-variant="success">⚡ Cả hai</button>
-                            </footer>
-                        </article>
-                        <div class="progress-container" id="done-progress-container">
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="done-progress-fill">0%</div>
-                            </div>
-                            <div class="progress-text" id="done-progress-text">Đang xử lý...</div>
-                        </div>
-                        <div class="log-container" id="done-log-container"></div>
-                    </div>
-                    <div class="col-6">
-                        <article class="card result-container" id="done-result-container">
-                            <header>
-                                <h3>✅ Kết quả sau biên tập</h3>
-                            </header>
-                            <div class="result-stats" id="done-result-stats"></div>
-                            <textarea id="done-result-text" rows="14" readonly></textarea>
-                            <footer class="flex gap-2">
-                                <button id="btn-copy-done-result" class="outline">📋 Copy</button>
-                                <button id="btn-download-done-result" data-variant="primary">💾 Tải file</button>
-                            </footer>
-                        </article>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 3: CẤU HÌNH -->
-            <div role="tabpanel">
-                <div class="row">
-                    <div class="col-6">
-                        <article class="card">
-                            <header>
-                                <h3>🤖 Model & Ngôn ngữ</h3>
-                            </header>
-                            <form>
-                                <label data-field>
-                                    Model AI
-                                    <select id="model"></select>
-                                </label>
-                                <label data-field>
-                                    Ngôn ngữ nguồn
-                                    <select id="input-lang">
-                                        <option value="CN" selected>Chinese (中文)</option>
-                                        <option value="JP">Japanese (日本語)</option>
-                                        <option value="KR">Korean (한국어)</option>
-                                    </select>
-                                </label>
-                                <label data-field>
-                                    Temperature: <strong id="temp-value">1.0</strong>
-                                    <input type="range" id="temperature" min="0" max="2" step="0.1" value="1.0">
-                                </label>
-                                <label data-field>
-                                    Kích thước chunk (chars)
-                                    <input type="number" id="chunk-size" min="5000" max="200000" step="1000"
-                                        value="{{ default_chunk }}">
-                                    <small data-hint>Mặc định: {{ default_chunk }} (từ config)</small>
-                                </label>
-                                <label data-field>
-                                    <input type="checkbox" id="use-cache" checked>
-                                    Sử dụng cache
-                                </label>
-                            </form>
-                        </article>
-                    </div>
-                    <div class="col-6">
-                        <article class="card">
-                            <header>
-                                <h3>🗑️ Quản lý Cache</h3>
-                            </header>
-                            <p>Xóa bộ nhớ đệm để giải phóng dung lượng.</p>
-                            <button id="btn-clear-cache" data-variant="danger">🗑️ Xóa toàn bộ Cache</button>
-                        </article>
-                        <article class="card">
-                            <header>
-                                <h3>📊 Output Files</h3>
-                            </header>
-                            <div class="output-list" id="output-list">
-                                <p class="muted">Chưa có file</p>
-                            </div>
-                        </article>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 4: PROMPT MANAGER -->
-            <div role="tabpanel">
-                <div class="row">
-                    <div class="col-4">
-                        <article class="card">
-                            <header>
-                                <h3>📚 Thể loại sách</h3>
-                                <p>Chọn hoặc tạo mới bộ prompt theo thể loại.</p>
-                            </header>
-                            <div id="genre-list" class="file-list">
-                                <p class="muted">Đang tải...</p>
-                            </div>
-                            <footer class="flex gap-2 mt-4">
-                                <button id="btn-new-genre" data-variant="primary">+ Tạo mới</button>
-                                <button id="btn-delete-genre" data-variant="danger" class="outline" disabled>🗑️
-                                    Xóa</button>
-                            </footer>
-                        </article>
-                    </div>
-                    <div class="col-8">
-                        <article class="card" id="genre-editor" style="display:none;">
-                            <header>
-                                <h3 id="genre-editor-title">Chỉnh sửa Prompt</h3>
-                                <p id="genre-editor-desc"></p>
-                            </header>
-                            <ot-tabs>
-                                <div role="tablist">
-                                    <button role="tab">Main (Dịch chính)</button>
-                                    <button role="tab">Retranslate</button>
-                                    <button role="tab">Correction</button>
-                                </div>
-                                <div role="tabpanel">
-                                    <textarea id="genre-main-text" rows="16" placeholder="Main prompt..."></textarea>
-                                </div>
-                                <div role="tabpanel">
-                                    <textarea id="genre-retranslate-text" rows="16"
-                                        placeholder="Retranslate prompt..."></textarea>
-                                </div>
-                                <div role="tabpanel">
-                                    <textarea id="genre-correction-text" rows="16"
-                                        placeholder="Correction prompt..."></textarea>
-                                </div>
-                            </ot-tabs>
-                            <footer class="flex gap-2 mt-4">
-                                <button id="btn-save-genre" data-variant="primary">💾 Lưu Prompt</button>
-                                <button id="btn-activate-genre" data-variant="success">⚡ Nạp vào hệ thống</button>
-                            </footer>
-                        </article>
-                        <div role="alert" data-variant="success" id="genre-alert" style="display:none;"></div>
-                    </div>
-                </div>
-
-                <!-- Dialog tạo mới thể loại -->
-                <dialog id="new-genre-dialog" closedby="any">
-                    <form method="dialog">
-                        <header>
-                            <h3>Tạo bộ Prompt mới</h3>
-                            <p>Nhập thông tin thể loại sách.</p>
-                        </header>
-                        <div>
-                            <label data-field>
-                                Tên thể loại
-                                <input type="text" id="new-genre-name" placeholder="VD: Huyền Huyễn" required>
-                            </label>
-                            <label data-field>
-                                Slug (URL-safe)
-                                <input type="text" id="new-genre-slug" placeholder="VD: huyen-huyen">
-                                <small data-hint>Tự động tạo từ tên nếu để trống</small>
-                            </label>
-                            <label data-field>
-                                Mô tả
-                                <input type="text" id="new-genre-desc" placeholder="Mô tả ngắn gọn">
-                            </label>
-                        </div>
-                        <footer>
-                            <button type="button" commandfor="new-genre-dialog" command="close"
-                                class="outline">Hủy</button>
-                            <button value="confirm" id="btn-confirm-new-genre">Tạo</button>
-                        </footer>
-                    </form>
-                </dialog>
-            </div>
-        </ot-tabs>
-    </main>
+                    <label data-field>
+                        Tên thể loại
+                        <input type="text" id="new-genre-name" placeholder="VD: Huyền Huyễn" required>
+                    </label>
+                    <label data-field>
+                        Slug
+                        <input type="text" id="new-genre-slug" placeholder="VD: huyen-huyen">
+                        <small data-hint>Tự động tạo từ tên</small>
+                    </label>
+                    <label data-field>
+                        Mô tả
+                        <input type="text" id="new-genre-desc" placeholder="Mô tả ngắn">
+                    </label>
+                    <footer class="hstack" style="gap: var(--space-2)">
+                        <button type="button" class="outline" commandfor="new-genre-dialog" command="close">Hủy</button>
+                        <button value="confirm" id="btn-confirm-new-genre">Tạo</button>
+                    </footer>
+                </form>
+            </dialog>
+        </div>
+    </ot-tabs>
 
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>
 </body>
