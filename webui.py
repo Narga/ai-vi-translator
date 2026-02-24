@@ -541,7 +541,7 @@ def index():
         default_model=default_model,
         available_models=json.dumps(available_models),
         prompts_json=json.dumps(prompts),
-        app_version="4.0.6",
+        app_version="4.1.0",
     )
 
 
@@ -958,6 +958,157 @@ def move_back_to_input():
     source.rename(dest)
 
     return jsonify({"success": True})
+
+
+# ============================================================
+# Prompt Sets (Genre-based Prompt Management) API
+# ============================================================
+
+GENRES_DIR = Path("prompts/genres")
+
+
+@app.route("/api/prompt-sets")
+def list_prompt_sets():
+    """Liệt kê tất cả bộ prompt theo thể loại."""
+    GENRES_DIR.mkdir(parents=True, exist_ok=True)
+    sets = []
+    for genre_dir in sorted(GENRES_DIR.iterdir()):
+        if not genre_dir.is_dir():
+            continue
+        meta_file = genre_dir / "meta.json"
+        if meta_file.exists():
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+        else:
+            meta = {"name": genre_dir.name, "slug": genre_dir.name, "order": 99}
+        meta["slug"] = genre_dir.name
+        # Check which prompt files exist
+        meta["has_main"] = (genre_dir / "main.txt").exists()
+        meta["has_retranslate"] = (genre_dir / "retranslate.txt").exists()
+        meta["has_correction"] = (genre_dir / "correction.txt").exists()
+        sets.append(meta)
+    sets.sort(key=lambda x: x.get("order", 99))
+    return jsonify(sets)
+
+
+@app.route("/api/prompt-sets/<genre>")
+def get_prompt_set(genre):
+    """Lấy nội dung 1 bộ prompt theo thể loại."""
+    genre_dir = GENRES_DIR / genre
+    if not genre_dir.exists():
+        return jsonify({"error": "Thể loại không tồn tại"}), 404
+
+    meta_file = genre_dir / "meta.json"
+    meta = {}
+    if meta_file.exists():
+        with open(meta_file, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+    prompts = {}
+    for key, fname in [("main", "main.txt"), ("retranslate", "retranslate.txt"), ("correction", "correction.txt")]:
+        fpath = genre_dir / fname
+        if fpath.exists():
+            with open(fpath, "r", encoding="utf-8") as f:
+                prompts[key] = f.read()
+        else:
+            prompts[key] = ""
+
+    return jsonify({"meta": meta, "prompts": prompts})
+
+
+@app.route("/api/prompt-sets", methods=["POST"])
+def create_prompt_set():
+    """Tạo bộ prompt mới."""
+    data = request.json
+    name = data.get("name", "").strip()
+    slug = data.get("slug", "").strip().lower().replace(" ", "-")
+
+    if not name or not slug:
+        return jsonify({"error": "Thiếu name hoặc slug"}), 400
+
+    genre_dir = GENRES_DIR / slug
+    if genre_dir.exists():
+        return jsonify({"error": "Thể loại đã tồn tại"}), 409
+
+    genre_dir.mkdir(parents=True, exist_ok=True)
+    meta = {
+        "name": name,
+        "slug": slug,
+        "order": data.get("order", 99),
+        "description": data.get("description", ""),
+    }
+    with open(genre_dir / "meta.json", "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    # Save prompt content if provided
+    prompts = data.get("prompts", {})
+    for key, fname in [("main", "main.txt"), ("retranslate", "retranslate.txt"), ("correction", "correction.txt")]:
+        content = prompts.get(key, "")
+        with open(genre_dir / fname, "w", encoding="utf-8") as f:
+            f.write(content)
+
+    return jsonify({"success": True, "slug": slug})
+
+
+@app.route("/api/prompt-sets/<genre>", methods=["PUT"])
+def update_prompt_set(genre):
+    """Cập nhật bộ prompt."""
+    genre_dir = GENRES_DIR / genre
+    if not genre_dir.exists():
+        return jsonify({"error": "Thể loại không tồn tại"}), 404
+
+    data = request.json
+
+    # Update meta if provided
+    if "name" in data or "description" in data or "order" in data:
+        meta_file = genre_dir / "meta.json"
+        meta = {}
+        if meta_file.exists():
+            with open(meta_file, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+        meta.update({k: v for k, v in data.items() if k in ("name", "description", "order")})
+        meta["slug"] = genre
+        with open(meta_file, "w", encoding="utf-8") as f:
+            json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    # Update prompts if provided
+    prompts = data.get("prompts", {})
+    for key, fname in [("main", "main.txt"), ("retranslate", "retranslate.txt"), ("correction", "correction.txt")]:
+        if key in prompts:
+            with open(genre_dir / fname, "w", encoding="utf-8") as f:
+                f.write(prompts[key])
+
+    return jsonify({"success": True})
+
+
+@app.route("/api/prompt-sets/<genre>", methods=["DELETE"])
+def delete_prompt_set(genre):
+    """Xóa bộ prompt."""
+    genre_dir = GENRES_DIR / genre
+    if not genre_dir.exists():
+        return jsonify({"error": "Thể loại không tồn tại"}), 404
+
+    import shutil
+    shutil.rmtree(genre_dir)
+    return jsonify({"success": True})
+
+
+@app.route("/api/prompt-sets/<genre>/activate", methods=["POST"])
+def activate_prompt_set(genre):
+    """Nạp bộ prompt vào hệ thống đang chạy (copy vào prompts/ gốc)."""
+    genre_dir = GENRES_DIR / genre
+    if not genre_dir.exists():
+        return jsonify({"error": "Thể loại không tồn tại"}), 404
+
+    prompts_root = Path("prompts")
+    mapping = [("main.txt", "01-main.txt"), ("retranslate.txt", "02-retranslate.txt"), ("correction.txt", "03-correction.txt")]
+    for src_name, dest_name in mapping:
+        src = genre_dir / src_name
+        if src.exists():
+            import shutil
+            shutil.copy2(src, prompts_root / dest_name)
+
+    return jsonify({"success": True, "message": f"Đã nạp bộ prompt '{genre}' vào hệ thống"})
 
 
 @app.route("/api/remove-done", methods=["POST"])

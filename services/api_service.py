@@ -1,7 +1,7 @@
-# services/api_service.py - v4.0.0
+# services/api_service.py - v4.1.0
 # Tác giả: Narga
-# Chức năng: Quản lý API keys với AdaptiveRateLimiter, tối ưu cho 20 RPD/key.
-# v4.0.0: Nâng cấp cho google-genai SDK mới, hỗ trợ 30 keys (600 RPD capacity).
+# Chức năng: Quản lý API keys với AdaptiveRateLimiter, đọc RPD từ config.
+# v4.1.0: Cấu hình hóa RPD/key, chiến lược least_used, TPD tracking.
 
 import time
 import logging
@@ -172,30 +172,39 @@ class TokenBudgetLimiter:
 
 class AdaptiveRateLimiter:
     """
-    Rate limiter thông minh tối ưu cho giới hạn 20 RPD/key.
+    Rate limiter thông minh, đọc RPD từ config.
 
     Chiến lược:
-    - Phân bổ đều: 20 requests / 24h = 1 request mỗi 72 phút/key
+    - daily_limit đọc từ config (mặc định 500 RPD/key)
     - Burst mode: Cho phép burst tối đa, sau đó cooldown
     - Progressive backoff: 30s → 60s → 120s → 240s → 300s (max)
-    - Daily quota tracking: Reset vào 0:00 UTC
+    - Daily quota tracking: Reset vào 0:00 Pacific Time
 
     Attributes:
         daily_limit (int): Giới hạn requests mỗi ngày cho mỗi key
         failure_count (Dict): Đếm số lần lỗi liên tiếp
         cool_down_until (Dict): Thời điểm kết thúc cooldown
         daily_usage (Dict): Số requests đã dùng trong ngày
+        daily_tokens (Dict): Số tokens đã dùng trong ngày cho mỗi key
         last_reset_date (str): Ngày cuối cùng reset quota
     """
 
-    DAILY_LIMIT = 20  # RPD per key
     MAX_RETRIES = 8  # Tối đa 8 lần thử lại trước khi cooldown dài
 
-    def __init__(self):
-        """Khởi tạo AdaptiveRateLimiter."""
+    def __init__(self, daily_limit: int = 500, daily_token_limit: int = 0):
+        """
+        Khởi tạo AdaptiveRateLimiter.
+
+        Args:
+            daily_limit: RPD per key (đọc từ config, mặc định 500)
+            daily_token_limit: TPD per key (0 = không giới hạn)
+        """
+        self.daily_limit = daily_limit
+        self.daily_token_limit = daily_token_limit
         self.failure_count: Dict[str, int] = {}
         self.cool_down_until: Dict[str, float] = {}
         self.daily_usage: Dict[str, int] = {}
+        self.daily_tokens: Dict[str, int] = {}
         self.last_reset_date: str = datetime.utcnow().strftime("%Y-%m-%d")
         self._lock = Lock()
         self._logger = logging.getLogger(__name__)
@@ -208,6 +217,7 @@ class AdaptiveRateLimiter:
                 f"🔄 Daily quota reset: {self.last_reset_date} → {current_date}"
             )
             self.daily_usage.clear()
+            self.daily_tokens.clear()
             self.failure_count.clear()
             # Giữ cooldown - chỉ clear những key đã hết cooldown
             expired_keys = [
@@ -288,12 +298,13 @@ class AdaptiveRateLimiter:
                     return False, 0
                 return True, 5.0
 
-    def mark_success(self, api_key: str) -> None:
+    def mark_success(self, api_key: str, tokens_used: int = 0) -> None:
         """
         Đánh dấu request thành công, reset failure count và tăng daily usage.
 
         Args:
             api_key (str): API key đã thành công
+            tokens_used (int): Số tokens đã sử dụng
         """
         with self._lock:
             self._check_daily_reset()
@@ -304,6 +315,10 @@ class AdaptiveRateLimiter:
 
             # Tăng daily usage
             self.daily_usage[api_key] = self.daily_usage.get(api_key, 0) + 1
+
+            # Tăng daily tokens
+            if tokens_used > 0:
+                self.daily_tokens[api_key] = self.daily_tokens.get(api_key, 0) + tokens_used
 
             # Clear cooldown nếu có
             if api_key in self.cool_down_until:
@@ -333,12 +348,31 @@ class AdaptiveRateLimiter:
                     continue
 
                 # Bỏ qua keys đã hết quota daily
-                if self.daily_usage.get(key, 0) >= self.DAILY_LIMIT:
+                if self.daily_usage.get(key, 0) >= self.daily_limit:
                     continue
 
                 available.append(key)
 
             return available
+
+    def get_least_used_key(self, all_keys: List[str]) -> Optional[str]:
+        """
+        Chọn key có daily_usage thấp nhất (chiến lược least_used).
+        Giúp phân bổ đều tải qua ngày, tối đa hóa throughput.
+
+        Args:
+            all_keys: Danh sách tất cả API keys
+
+        Returns:
+            Key có usage thấp nhất hoặc None
+        """
+        available = self.get_available_keys(all_keys)
+        if not available:
+            return None
+
+        with self._lock:
+            # Sắp xếp theo usage tăng dần, chọn key ít dùng nhất
+            return min(available, key=lambda k: self.daily_usage.get(k, 0))
 
     def get_stats(self) -> Dict[str, Any]:
         """Trả về thống kê rate limiter."""
@@ -351,13 +385,16 @@ class AdaptiveRateLimiter:
             )
 
             total_usage = sum(self.daily_usage.values())
+            total_tokens = sum(self.daily_tokens.values())
 
             return {
-                "daily_limit_per_key": self.DAILY_LIMIT,
+                "daily_limit_per_key": self.daily_limit,
                 "total_daily_usage": total_usage,
+                "total_daily_tokens": total_tokens,
                 "keys_in_cooldown": in_cooldown,
                 "last_reset_date": self.last_reset_date,
                 "failure_counts": dict(self.failure_count),
+                "usage_per_key": dict(self.daily_usage),
             }
 
 
@@ -379,13 +416,23 @@ class ApiManager:
         _rpm_limiter (GlobalRPMRateLimiter): Đối tượng giới hạn RPM toàn cục
     """
 
-    def __init__(self, api_keys: List[str], max_rpm: int = 15):
+    def __init__(
+        self,
+        api_keys: List[str],
+        max_rpm: int = 15,
+        rpd_per_key: int = 500,
+        tpd_per_key: int = 0,
+        key_strategy: str = "least_used",
+    ):
         """
         Khởi tạo ApiManager với danh sách API keys.
 
         Args:
             api_keys (List[str]): Danh sách các Gemini API keys
             max_rpm (int): Giới hạn RPM toàn cục (mặc định 15 cho Free Tier)
+            rpd_per_key (int): Giới hạn RPD cho mỗi key (mặc định 500)
+            tpd_per_key (int): Giới hạn TPD cho mỗi key (0 = không giới hạn)
+            key_strategy (str): Chiến lược chọn key: 'round_robin' hoặc 'least_used'
 
         Raises:
             ValueError: Nếu danh sách API keys trống
@@ -396,20 +443,31 @@ class ApiManager:
         self._key_list = list(api_keys)
         self._current_key_index = 0
         self._lock = Lock()
-        self._rate_limiter = SmartRateLimiter()
+        self._key_strategy = key_strategy
+        self._rate_limiter = SmartRateLimiter(
+            daily_limit=rpd_per_key, daily_token_limit=tpd_per_key
+        )
         self._rpm_limiter = GlobalRPMRateLimiter(max_rpm=max_rpm)
         self._token_limiter = TokenBudgetLimiter(max_tpm=1_000_000)
         logging.info(
-            f"🔑 Đã nạp {len(self._keys)} API key. RPM limit: {max_rpm}, TPM limit: 1M"
+            f"🔑 Đã nạp {len(self._keys)} API key. "
+            f"RPM={max_rpm}, RPD/key={rpd_per_key}, strategy={key_strategy}"
         )
 
     def get_next_available_key(self) -> Optional[str]:
         """
-        Lấy key hợp lệ tiếp theo trong danh sách (không trong cooldown).
+        Lấy key hợp lệ tiếp theo dựa trên chiến lược đã cấu hình.
+        - least_used: Chọn key có daily_usage thấp nhất
+        - round_robin: Xoay vòng tuần tự
 
         Returns:
             Optional[str]: API key hợp lệ hoặc None nếu không có key khả dụng
         """
+        # Sử dụng chiến lược least_used nếu được cấu hình
+        if self._key_strategy == "least_used":
+            return self._rate_limiter.get_least_used_key(self._key_list)
+
+        # Fallback: round_robin
         with self._lock:
             current_time = time.time()
 
@@ -425,7 +483,7 @@ class ApiManager:
                         continue
                 if (
                     self._rate_limiter.daily_usage.get(key, 0)
-                    >= self._rate_limiter.DAILY_LIMIT
+                    >= self._rate_limiter.daily_limit
                 ):
                     continue
                 available_keys.append(key)
