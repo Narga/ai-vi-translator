@@ -541,7 +541,7 @@ def index():
         default_model=default_model,
         available_models=json.dumps(available_models),
         prompts_json=json.dumps(prompts),
-        app_version="4.1.0",
+        app_version="5.0.0",
     )
 
 
