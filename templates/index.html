@@ -306,6 +306,7 @@
                             </div>
                             <div class="flex gap-2">
                                 <button id="btn-delete-genre" class="nt-btn nt-btn-danger f7">🗑️ Xóa</button>
+                                <button id="btn-clone-genre" class="nt-btn nt-btn-outline f7">📄 Nhân bản</button>
                                 <button id="btn-save-genre" class="nt-btn nt-btn-primary f7">💾 Lưu Prompt</button>
                                 <button id="btn-activate-genre"
                                     class="nt-btn nt-btn-secondary f7 shadow-hover transition-transform">⚡ Nạp vào Dịch
@@ -358,7 +359,8 @@
     </main>
 
     <!-- Dialog / Modal for New Genre -->
-    <div id="new-genre-modal" class="fixed absolute--fill bg-black-50 z-max flex items-center justify-center dn">
+    <div id="new-genre-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center"
+        style="display: none;">
         <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
             <h3 class="f3 mt0 mb4 fw6 dark-gray pb2 bb b--black-10">Tạo bộ Prompt Mới</h3>
 

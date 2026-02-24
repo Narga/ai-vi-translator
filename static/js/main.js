@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Prompt Manager buttons
     document.getElementById('btn-delete-genre').addEventListener('click', deleteGenre);
+    document.getElementById('btn-clone-genre').addEventListener('click', cloneGenre);
     document.getElementById('btn-save-genre').addEventListener('click', saveGenre);
     document.getElementById('btn-activate-genre').addEventListener('click', activateGenre);
 
@@ -119,16 +120,16 @@ function initDialogs() {
     const modal = document.getElementById('new-genre-modal');
 
     document.getElementById('btn-new-genre').addEventListener('click', () => {
-        modal.classList.remove('dn');
+        modal.style.display = 'flex';
     });
 
     document.getElementById('btn-cancel-genre').addEventListener('click', () => {
-        modal.classList.add('dn');
+        modal.style.display = 'none';
     });
 
     document.getElementById('btn-confirm-new-genre').addEventListener('click', (e) => {
         createGenre(e);
-        modal.classList.add('dn');
+        modal.style.display = 'none';
     });
 
     // Auto-generate slug from name
@@ -591,7 +592,20 @@ function loadGenres() {
 
 function selectGenre(slug) {
     currentGenre = slug;
-    document.getElementById('btn-delete-genre').disabled = false;
+
+    // Không cho xóa hoặc nạp với bộ Mặc định gốc
+    const isDefault = (slug === 'default');
+    document.getElementById('btn-delete-genre').disabled = isDefault || !slug;
+    document.getElementById('btn-activate-genre').disabled = isDefault || !slug;
+
+    if (isDefault) {
+        document.getElementById('btn-delete-genre').title = 'Không thể xóa bộ mặc định';
+        document.getElementById('btn-activate-genre').title = 'Đã là hệ thống mặc định';
+    } else {
+        document.getElementById('btn-delete-genre').title = '';
+        document.getElementById('btn-activate-genre').title = '';
+    }
+
     document.getElementById('genre-empty-state').classList.add('dn');
     document.getElementById('genre-editor').classList.remove('dn');
     document.getElementById('genre-editor').classList.add('flex');
@@ -608,6 +622,17 @@ function selectGenre(slug) {
         });
 }
 
+function cloneGenre() {
+    if (!currentGenre) return;
+    const modal = document.getElementById('new-genre-modal');
+    document.getElementById('new-genre-name').value = 'Bản sao ' + currentGenre;
+    document.getElementById('new-genre-slug').value = 'ban-sao-' + currentGenre;
+    document.getElementById('new-genre-desc').value = 'Nhân bản từ ' + currentGenre;
+
+    window.isCloning = true;
+    modal.style.display = 'flex';
+}
+
 function createGenre(e) {
     if (e) e.preventDefault();
     const name = document.getElementById('new-genre-name').value.trim();
@@ -617,9 +642,16 @@ function createGenre(e) {
 
     if (!name) { alert('Tên thể loại không được rỗng!'); return; }
 
+    const promptsData = window.isCloning ? {
+        main: document.getElementById('genre-main-text').value,
+        retranslate: document.getElementById('genre-retranslate-text').value,
+        correction: document.getElementById('genre-correction-text').value
+    } : { main: '', retranslate: '', correction: '' };
+    window.isCloning = false;
+
     fetch('/api/prompt-sets', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, slug, description: desc, prompts: { main: '', retranslate: '', correction: '' } })
+        body: JSON.stringify({ name, slug, description: desc, prompts: promptsData })
     }).then(r => r.json()).then(data => {
         if (data.success) {
             document.getElementById('new-genre-name').value = '';
@@ -688,6 +720,7 @@ function deleteGenre() {
                 document.getElementById('genre-editor').classList.add('dn');
                 document.getElementById('genre-editor').classList.remove('flex');
                 document.getElementById('btn-delete-genre').disabled = true;
+                document.getElementById('btn-activate-genre').disabled = true;
                 loadGenres();
             }
         });
