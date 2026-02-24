@@ -523,9 +523,9 @@ def translate_worker(text, config, output_filename="translated", input_file_path
 @app.route("/")
 def index():
     """Render main page."""
-    os.makedirs(app.config["INPUT_DIR"], exist_ok=True)
-    os.makedirs(app.config["OUTPUT_DIR"], exist_ok=True)
-    os.makedirs(app.config["DONE_DIR"], exist_ok=True)
+    # Ensure workspace sub-directories exist
+    for dir_name in ["input", "output", "done"]:
+        Path(f"workspace/{dir_name}").mkdir(parents=True, exist_ok=True)
 
     default_model = get_default_model()
     available_models = get_available_models()

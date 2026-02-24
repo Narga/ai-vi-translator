@@ -1,34 +1,41 @@
-/* Custom CSS variables extending PicoCSS for specialized component styles */
+/* Custom CSS for Oat.ink web UI implementation */
+
 :root {
-  --nt-primary: #667eea;
-  --nt-secondary: #764ba2;
-  --gradient-bg: linear-gradient(135deg, var(--nt-primary) 0%, var(--nt-secondary) 100%);
-  --nt-success: #28a745;
-  --nt-warning: #ffc107;
-  --nt-danger: #dc3545;
-  --info-box-bg: #e3f2fd;
-  --info-box-border: #2196f3;
+  --color-primary: #667eea;
+  --color-secondary: #764ba2;
+  --color-success: #28a745;
+  --color-warning: #ffc107;
+  --color-danger: #dc3545;
+  --color-error: #dc3545;
+  --gradient-bg: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
 }
 
 /* Header & Typography */
-body > header {
+body {
+  margin: 0 auto;
+  padding: 20px;
+  max-width: 1200px;
+}
+
+header {
   background: var(--gradient-bg);
   color: white;
-  padding: 30px;
-  border-radius: var(--pico-border-radius);
+  padding: 20px;
+  border-radius: 8px;
   margin-bottom: 30px;
-  box-shadow: var(--pico-box-shadow);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-body > header h1 { 
+header h1 {
   font-size: 2em;
-  margin-bottom: 10px;
+  margin: 0 0 10px 0;
   color: white;
 }
 
-.subtitle {
+header p {
   opacity: 0.9;
   font-size: 1.1em;
+  margin: 0;
 }
 
 .stats-bar {
@@ -38,77 +45,64 @@ body > header h1 {
   flex-wrap: wrap;
 }
 
-.stat-item {
+.stats-bar span {
   background: rgba(255, 255, 255, 0.2);
-  padding: 8px 15px;
+  padding: 6px 12px;
   border-radius: 20px;
   font-size: 0.85em;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
-/* Layout Utilities (Pico handles Grid mostly, these are bespoke UI components) */
-.main-grid {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 30px;
+/* Layout Groupings */
+.panel-group {
+  margin-bottom: 40px;
+  padding: 20px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background-color: #fcfcfc;
 }
 
-@media (max-width: 1100px) {
-  .main-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.panel h2 {
-  margin-bottom: 20px;
-  color: var(--nt-primary);
-  font-size: 1.3em;
+.split-layout {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 30px;
+  flex-wrap: wrap;
 }
 
-/* Inputs & Textareas */
+.config-col {
+  flex: 1;
+  min-width: 300px;
+}
+
+.prompts-col {
+  flex: 2;
+  min-width: 400px;
+}
+
+.workspace-area {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+/* Base Form Elements */
 textarea {
+  width: 100%;
   min-height: 250px;
   resize: vertical;
+  font-family: monospace;
 }
 
-/* Custom Buttons (Overriding Pico Defaults for some buttons) */
-button.btn-gradient {
-  background: var(--gradient-bg);
-  color: white;
-  border: none;
-  border-radius: var(--pico-border-radius);
-  transition: transform 0.2s, box-shadow 0.2s;
+select {
+  width: 100%;
 }
 
-button.btn-gradient:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.btn-sm {
-  padding: calc(var(--pico-padding) * 0.5) calc(var(--pico-padding));
-  font-size: 0.85em;
-  width: auto;
-}
-
-.btn-warning {
-  --pico-background: var(--nt-warning);
-  --pico-border-color: var(--nt-warning);
-  --pico-colar: #333;
-}
-
-.btn-success {
-  --pico-background: var(--nt-success);
-  --pico-border-color: var(--nt-success);
-}
-.btn-danger {
-  --pico-background: var(--nt-danger);
-  --pico-border-color: var(--nt-danger);
+label {
+  display: block;
+  margin-bottom: 15px;
 }
 
 /* Progress Bar */
@@ -116,13 +110,16 @@ button.btn-gradient:hover:not(:disabled) {
   margin-top: 20px;
   display: none;
 }
-.progress-container.active { display: block; }
+
+.progress-container.active {
+  display: block;
+}
 
 .progress-bar {
   width: 100%;
-  height: 30px;
-  background: var(--pico-muted-border-color);
-  border-radius: 15px;
+  height: 25px;
+  background: #eee;
+  border-radius: 12.5px;
   overflow: hidden;
   position: relative;
 }
@@ -137,12 +134,14 @@ button.btn-gradient:hover:not(:disabled) {
   justify-content: center;
   color: white;
   font-weight: bold;
+  font-size: 0.8em;
 }
 
 .progress-text {
   margin-top: 10px;
   text-align: center;
-  color: var(--pico-muted-color);
+  color: #666;
+  font-size: 0.9em;
 }
 
 /* Logging Component */
@@ -150,28 +149,45 @@ button.btn-gradient:hover:not(:disabled) {
   margin-top: 20px;
   max-height: 200px;
   overflow-y: auto;
-  background: var(--pico-card-background-color);
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: var(--pico-border-radius);
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   padding: 10px;
   font-family: 'Courier New', monospace;
   font-size: 13px;
   display: none;
 }
 
-.log-container.active { display: block; }
-.log-entry { margin-bottom: 5px; padding: 3px 0; }
-.log-entry.info { color: #0066cc; }
-.log-entry.success { color: var(--nt-success); }
-.log-entry.error { color: var(--nt-danger); }
+.log-container.active {
+  display: block;
+}
+
+.log-entry {
+  margin-bottom: 5px;
+  padding: 3px 0;
+}
+
+.log-entry.info {
+  color: #0066cc;
+}
+
+.log-entry.success {
+  color: var(--color-success);
+}
+
+.log-entry.error {
+  color: var(--color-error);
+}
 
 /* Results Component */
 .result-container {
-  margin-top: 20px;
   display: none;
 }
 
-.result-container.active { display: block; }
+.result-container.active {
+  display: block;
+}
+
 .result-stats {
   display: flex;
   gap: 15px;
@@ -180,65 +196,86 @@ button.btn-gradient:hover:not(:disabled) {
 }
 
 .result-stat {
-  background: var(--pico-card-background-color);
-  border: 1px solid var(--pico-muted-border-color);
-  padding: 8px 15px;
-  border-radius: var(--pico-border-radius);
+  background: #f1f3f5;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 4px;
   font-size: 0.9em;
 }
 
 /* Info Box */
 .info-box {
-  background: var(--info-box-bg);
-  border-left: 4px solid var(--info-box-border);
-  padding: 15px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  padding: 10px 15px;
   margin-bottom: 20px;
-  border-radius: 0 var(--pico-border-radius) var(--pico-border-radius) 0;
+  border-radius: 0 4px 4px 0;
   color: #333;
 }
 
 /* Loading Spinner */
 .loading {
   display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid var(--nt-primary);
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
-  margin-left: 10px;
+  margin-left: 8px;
   vertical-align: middle;
 }
+
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* File Listing Component */
 .file-list {
   max-height: 300px;
   overflow-y: auto;
-  border: 1px solid var(--pico-muted-border-color);
-  border-radius: var(--pico-border-radius);
+  border: 1px solid #ddd;
+  border-radius: 4px;
   margin-bottom: 10px;
+  background: #fff;
 }
 
 .file-item {
   display: flex;
   align-items: center;
-  padding: 10px 15px;
-  border-bottom: 1px solid var(--pico-muted-border-color);
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
   cursor: pointer;
   transition: background 0.2s;
   gap: 10px;
 }
 
-.file-item:hover { background: var(--pico-form-element-background-color); }
-.file-item:last-child { border-bottom: none; }
-.file-item input[type="checkbox"] { margin: 0; width: 1.25em; height: 1.25em; cursor: pointer; }
+.file-item:hover {
+  background: #f5f5f5;
+}
 
-.file-item.done-item { background: rgba(76, 175, 80, 0.1); }
-.file-item.done-item:hover { background: rgba(76, 175, 80, 0.2); }
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-item input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.file-item.done-item {
+  background: rgba(40, 167, 69, 0.05);
+}
+
+.file-item.done-item:hover {
+  background: rgba(40, 167, 69, 0.1);
+}
 
 .file-info {
   flex: 1;
@@ -247,39 +284,70 @@ button.btn-gradient:hover:not(:disabled) {
   align-items: center;
 }
 
-.file-name { font-weight: 500; }
-.file-size { color: var(--pico-muted-color); font-size: 0.85em; }
-.file-badge { font-size: 0.75em; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+.file-name {
+  font-weight: 500;
+  font-size: 0.95em;
+}
 
-.badge-done { background: var(--nt-success); color: white; }
-.badge-pending { background: var(--nt-warning); color: white; }
+.file-size {
+  color: #888;
+  font-size: 0.85em;
+}
+
+.file-badge {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.badge-done {
+  background: var(--color-success);
+  color: white;
+}
+
+.badge-pending {
+  background: var(--color-warning);
+  color: black;
+}
 
 /* Tabs Component */
-.tabs, .prompt-tabs {
+.tabs,
+.prompt-tabs {
   display: flex;
   gap: 5px;
   margin-bottom: 15px;
-  border-bottom: 2px solid var(--pico-muted-border-color);
+  border-bottom: 1px solid #ddd;
 }
 
-.tab, .prompt-tab {
-  padding: 10px 20px;
+.tab,
+.prompt-tab {
+  padding: 8px 16px;
   cursor: pointer;
   border: none;
-  background: none;
+  background: transparent;
   font-size: 14px;
-  color: var(--pico-muted-color);
+  color: #666;
   border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 
-.tab.active, .prompt-tab.active {
-  color: var(--nt-primary);
-  border-bottom-color: var(--nt-primary);
+.tab.active,
+.prompt-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: bold;
 }
 
-.tab-content, .prompt-editor { display: none; }
-.tab-content.active, .prompt-editor.active { display: block; }
+.tab-content,
+.prompt-editor {
+  display: none;
+}
+
+.tab-content.active,
+.prompt-editor.active {
+  display: block;
+}
 
 /* Action Rows */
 .action-row {
@@ -289,25 +357,30 @@ button.btn-gradient:hover:not(:disabled) {
   flex-wrap: wrap;
 }
 
-.action-row button { flex: 1; min-width: 120px; }
+.action-row button {
+  flex: 1;
+  min-width: 120px;
+}
 
 .batch-actions {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+  margin-bottom: 15px;
   flex-wrap: wrap;
 }
 
-.batch-actions button { flex: 1; margin-bottom: 0; }
-.file-actions { display: flex; gap: 5px; }
+.batch-actions button {
+  margin-bottom: 0;
+}
+
+.file-actions {
+  display: flex;
+  gap: 5px;
+}
 
 .selected-count {
   font-size: 0.9em;
-  color: var(--pico-muted-color);
+  color: #666;
   margin-bottom: 10px;
 }
-
-.output-list { max-height: 200px; overflow-y: auto; }
-.output-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--pico-muted-border-color); }
-.output-item a { color: var(--nt-primary); text-decoration: none; }
-.output-item a:hover { text-decoration: underline; }
