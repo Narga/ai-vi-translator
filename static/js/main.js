@@ -751,3 +751,186 @@ function showGenreAlert(msg, type) {
 function loadPromptsForLang(lang) {
     fetch('/api/prompts?lang=' + lang).then(r => r.json()).then(data => { prompts = data; });
 }
+
+// ============================================================
+// Plugin Execution
+// ============================================================
+
+function toggleEpubForm() {
+    const dir = document.getElementById('epub-direction').value;
+    if (dir === 'epub_to_text') {
+        document.getElementById('epub-to-text-form').classList.remove('dn');
+        document.getElementById('text-to-epub-form').classList.add('dn');
+    } else {
+        document.getElementById('epub-to-text-form').classList.add('dn');
+        document.getElementById('text-to-epub-form').classList.remove('dn');
+    }
+}
+
+function pluginLog(logId, msg, type) {
+    const el = document.getElementById(logId);
+    el.classList.remove('dn');
+    const entry = document.createElement('div');
+    const cls = type === 'error' ? 'red fw6' : (type === 'success' ? 'green' : 'dark-gray');
+    entry.className = 'mb1 ' + cls;
+    entry.textContent = msg;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+}
+
+function runEpubConverter() {
+    const direction = document.getElementById('epub-direction').value;
+    const logEl = document.getElementById('epub-log');
+    logEl.innerHTML = '';
+    logEl.classList.remove('dn');
+
+    const btn = document.getElementById('btn-run-epub');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang chạy...';
+
+    let payload = { direction };
+
+    if (direction === 'epub_to_text') {
+        payload.epub_path = document.getElementById('epub-path').value.trim();
+        payload.out_dir = document.getElementById('epub-out-dir').value.trim() || 'workspace/input';
+        payload.mode = document.getElementById('epub-mode').value;
+        payload.ext = document.getElementById('epub-ext').value;
+        payload.underline = document.getElementById('epub-underline').checked;
+        payload.include_nonspine = document.getElementById('epub-nonspine').checked;
+
+        if (!payload.epub_path) {
+            pluginLog('epub-log', '❌ Vui lòng nhập đường dẫn file EPUB!', 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Chạy EPUB Converter';
+            return;
+        }
+    } else {
+        payload.directory = document.getElementById('epub-book-dir').value.trim();
+        payload.use_markdown = document.getElementById('epub-use-md').checked;
+        payload.split_chapters = document.getElementById('epub-split-chapters').checked;
+
+        if (!payload.directory) {
+            pluginLog('epub-log', '❌ Vui lòng nhập đường dẫn thư mục sách!', 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Chạy EPUB Converter';
+            return;
+        }
+    }
+
+    pluginLog('epub-log', '🔄 Đang gửi yêu cầu...', 'info');
+
+    fetch('/api/plugins/epub-converter', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(data => {
+        if (data.plugin_id) {
+            pollPluginProgress(data.plugin_id, 'epub-log', btn, '🚀 Chạy EPUB Converter');
+        } else {
+            pluginLog('epub-log', '❌ ' + (data.error || 'Lỗi không xác định'), 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Chạy EPUB Converter';
+        }
+    }).catch(e => {
+        pluginLog('epub-log', '❌ Lỗi kết nối: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '🚀 Chạy EPUB Converter';
+    });
+}
+
+function runOcr() {
+    const logEl = document.getElementById('ocr-log');
+    logEl.innerHTML = '';
+    logEl.classList.remove('dn');
+
+    const btn = document.getElementById('btn-run-ocr');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang chạy...';
+
+    const input_path = document.getElementById('ocr-input').value.trim();
+    if (!input_path) {
+        pluginLog('ocr-log', '❌ Vui lòng nhập đường dẫn file PDF/Ảnh!', 'error');
+        btn.disabled = false;
+        btn.textContent = '🚀 Chạy OCR Reader';
+        return;
+    }
+
+    const skip_steps = {};
+    if (document.getElementById('ocr-skip-cleanup').checked) skip_steps.cleanup = true;
+    if (document.getElementById('ocr-skip-spell').checked) skip_steps.spell_check = true;
+
+    const pagesRaw = document.getElementById('ocr-pages').value.trim();
+
+    const payload = {
+        input_path,
+        output_path: document.getElementById('ocr-output').value.trim(),
+        process_mode: document.getElementById('ocr-mode').value,
+        skip_steps: Object.keys(skip_steps).length ? skip_steps : null,
+        pages: pagesRaw || null
+    };
+
+    pluginLog('ocr-log', '🔄 Đang gửi yêu cầu OCR...', 'info');
+
+    fetch('/api/plugins/ocr', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(data => {
+        if (data.plugin_id) {
+            pollPluginProgress(data.plugin_id, 'ocr-log', btn, '🚀 Chạy OCR Reader');
+        } else {
+            pluginLog('ocr-log', '❌ ' + (data.error || 'Lỗi không xác định'), 'error');
+            btn.disabled = false;
+            btn.textContent = '🚀 Chạy OCR Reader';
+        }
+    }).catch(e => {
+        pluginLog('ocr-log', '❌ Lỗi kết nối: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '🚀 Chạy OCR Reader';
+    });
+}
+
+function pollPluginProgress(pluginId, logId, btn, btnLabel) {
+    let lastCount = 0;
+
+    const interval = setInterval(() => {
+        fetch('/api/plugins/progress/' + pluginId)
+            .then(r => r.json())
+            .then(data => {
+                // Render new messages
+                const msgs = data.messages || [];
+                for (let i = lastCount; i < msgs.length; i++) {
+                    const isError = msgs[i].includes('❌') || msgs[i].includes('Lỗi');
+                    const isSuccess = msgs[i].includes('✅') || msgs[i].includes('thành công');
+                    pluginLog(logId, msgs[i], isError ? 'error' : (isSuccess ? 'success' : 'info'));
+                }
+                lastCount = msgs.length;
+
+                if (data.status === 'done' || data.status === 'error') {
+                    clearInterval(interval);
+                    btn.disabled = false;
+                    btn.textContent = btnLabel;
+
+                    if (data.status === 'done' && data.result) {
+                        if (data.result.output_dir) {
+                            pluginLog(logId, `📂 Output: ${data.result.output_dir}`, 'success');
+                        }
+                        if (data.result.output_path) {
+                            pluginLog(logId, `📄 File: ${data.result.output_path}`, 'success');
+                        }
+                        if (data.result.char_count) {
+                            pluginLog(logId, `🔤 ${data.result.char_count.toLocaleString()} ký tự`, 'success');
+                        }
+                    }
+
+                    // Refresh file lists in case output went to workspace
+                    loadFiles();
+                    loadOutputFiles();
+                    loadStats();
+                }
+            })
+            .catch(() => {
+                clearInterval(interval);
+                btn.disabled = false;
+                btn.textContent = btnLabel;
+            });
+    }, 1000);
+}

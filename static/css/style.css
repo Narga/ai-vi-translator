@@ -223,9 +223,11 @@
 }
 
 .nt-log {
-  max-height: 200px;
+  max-height: 350px;
   overflow-y: auto;
   font-family: 'SFMono-Regular', Consolas, monospace;
+  background: #fdfdfd;
+  line-height: 1.5;
 }
 
 .log-info {
