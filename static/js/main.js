@@ -8,6 +8,7 @@ let availableModels = window.initialAvailableModels || [];
 let defaultModel = window.initialDefaultModel || '';
 let currentDoneFile = '';
 let currentGenre = '';
+let currentLoadedFile = null; // track file loaded for editing
 
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
@@ -179,13 +180,17 @@ function loadFiles() {
                 const activeClass = selectedFiles.has(f.path) ? 'active' : '';
                 return `<div class="nt-file-item ${activeClass}">
                     <div class="flex items-center flex-auto">
-                        <input type="checkbox" class="nt-checkbox mr3 pointer" ${selectedFiles.has(f.path) ? 'checked' : ''} onchange="toggleFile('${esc}',this.checked)">
+                        <input type="checkbox" class="nt-checkbox mr2 pointer" ${selectedFiles.has(f.path) ? 'checked' : ''} onchange="toggleFile('${esc}',this.checked)">
                         <div class="flex-auto pointer" onclick="loadFile('${nameEsc}')">
-                            <span class="fw6 dark-gray db">${f.name}${f.is_done ? '<span class="f7 bg-green white br2 ph2 pv1 ml2 fw5">Done</span>' : ''}</span>
+                            <span class="fw6 dark-gray db f6">${f.name}${f.is_done ? '<span class="f7 bg-green white br2 ph1 pv1 ml2 fw5">Done</span>' : ''}</span>
                             <span class="f7 silver">${f.size_display}</span>
                         </div>
                     </div>
-                    <button class="nt-btn nt-btn-outline f7" onclick="event.stopPropagation();translateSingleFile('${esc}')">Dịch Ngay</button>
+                    <div class="nt-file-actions">
+                        <button class="nt-file-action-btn" onclick="event.stopPropagation();markFileDone('${esc}')" title="Đánh dấu hoàn thành">✅</button>
+                        <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteInputFile('${esc}')" title="Xóa file">🗑️</button>
+                        <button class="nt-file-action-btn nt-btn-outline" onclick="event.stopPropagation();translateSingleFile('${esc}')" title="Dịch ngay">⚡</button>
+                    </div>
                 </div>`;
             }).join('');
             updateSelectedCount();
@@ -201,14 +206,17 @@ function loadDoneFiles() {
             el.innerHTML = files.map(f => {
                 const nameEsc = f.name.replace(/'/g, "\\'");
                 const badge = f.location === 'output'
-                    ? '<span class="f7 bg-light-silver white br2 ph2 pv1 ml2 fw5">output</span>'
-                    : '<span class="f7 bg-green white br2 ph2 pv1 ml2 fw5">done</span>';
+                    ? '<span class="f7 bg-light-silver white br2 ph1 pv1 ml2 fw5">output</span>'
+                    : '<span class="f7 bg-green white br2 ph1 pv1 ml2 fw5">done</span>';
                 return `<div class="nt-file-item">
                     <div class="flex-auto pointer" onclick="viewDoneFile('${nameEsc}','${f.location}')">
-                        <span class="fw6 dark-gray db">${f.name} ${badge}</span>
+                        <span class="fw6 dark-gray db f6">${f.name} ${badge}</span>
                         <span class="f7 silver">${(f.word_count || 0).toLocaleString()} từ &bull; ${f.size_display}</span>
                     </div>
-                    ${f.location === 'done' ? `<button class="f7 nt-btn nt-btn-outline ph2" onclick="event.stopPropagation();moveBackToInput('${nameEsc}')" title="Chuyển về input">↩ Làm lại</button>` : ''}
+                    <div class="nt-file-actions">
+                        ${f.location === 'done' ? `<button class="nt-file-action-btn" onclick="event.stopPropagation();moveBackToInput('${nameEsc}')" title="Trả về input">↩</button>` : ''}
+                        <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteDoneFile('${nameEsc}','${f.location}')" title="Xóa file">🗑️</button>
+                    </div>
                 </div>`;
             }).join('');
         });
@@ -236,13 +244,11 @@ function deselectAll() {
 }
 
 function loadFile(filename) {
-    fetch('/api/file/' + encodeURIComponent(filename))
-        .then(r => r.json())
-        .then(data => {
-            const ta = document.getElementById('source-text');
-            ta.value += (ta.value ? '\n\n' : '') + data.content;
-            addLog('Đã tải: ' + data.name, 'success');
-        }).catch(e => addLog('Lỗi: ' + e.message, 'error'));
+    fetch('/api/file/' + encodeURIComponent(filename)).then(r => r.json()).then(data => {
+        document.getElementById('source-text').value = data.content || '';
+        currentLoadedFile = { name: filename, path: data.path || '' };
+        document.getElementById('btn-save-file').classList.remove('dn');
+    });
 }
 
 function viewDoneFile(filename, location) {
@@ -261,7 +267,70 @@ function viewDoneFile(filename, location) {
 function moveBackToInput(filename) {
     if (!confirm('Di chuyển file "' + filename + '" về input?')) return;
     fetch('/api/move-back-to-input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) })
-        .then(r => r.json()).then(data => { if (data.success) { loadFiles(); loadDoneFiles(); } });
+        .then(r => r.json()).then(data => { if (data.success) { loadFiles(); loadDoneFiles(); loadStats(); } });
+}
+
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    sidebar.classList.toggle('collapsed');
+    const btn = document.getElementById('btn-toggle-sidebar');
+    btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '☰';
+}
+
+function saveCurrentFile() {
+    if (!currentLoadedFile || !currentLoadedFile.path) {
+        alert('Chưa tải file nào để lưu!');
+        return;
+    }
+    const content = document.getElementById('source-text').value;
+    fetch('/api/files', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filepath: currentLoadedFile.path, content })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            addLog('💾 Đã lưu: ' + currentLoadedFile.name, 'success');
+            loadFiles();
+            loadStats();
+        } else {
+            addLog('❌ Lỗi lưu: ' + (data.error || ''), 'error');
+        }
+    });
+}
+
+function deleteInputFile(filepath) {
+    if (!confirm('Xóa vĩnh viễn file này?')) return;
+    fetch('/api/files', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filepath })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { loadFiles(); loadStats(); }
+        else { alert('Lỗi xóa: ' + (data.error || '')); }
+    });
+}
+
+function markFileDone(filepath) {
+    fetch('/api/move-to-done', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filepath })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { loadFiles(); loadDoneFiles(); loadStats(); }
+        else { alert('Lỗi: ' + (data.error || '')); }
+    });
+}
+
+function deleteDoneFile(filename, location) {
+    if (!confirm('Xóa vĩnh viễn file "' + filename + '"?')) return;
+    fetch('/api/done-files', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, location })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { loadDoneFiles(); loadStats(); }
+        else { alert('Lỗi xóa: ' + (data.error || '')); }
+    });
 }
 
 function loadOutputFiles() {

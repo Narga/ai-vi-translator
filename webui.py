@@ -569,7 +569,7 @@ def get_file(filepath):
             content = f.read()
 
         return jsonify(
-            {"content": content, "name": file_path.name, "size": file_path.stat().st_size}
+            {"content": content, "name": file_path.name, "path": str(file_path), "size": file_path.stat().st_size}
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -709,6 +709,111 @@ def clear_cache():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/files", methods=["PUT"])
+def save_file():
+    """Lưu nội dung file đã chỉnh sửa."""
+    data = request.json
+    filepath = data.get("filepath", "")
+    content = data.get("content", "")
+
+    if not filepath:
+        return jsonify({"error": "Thiếu filepath"}), 400
+
+    fp = Path(filepath)
+    if not fp.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+
+    try:
+        with open(fp, "w", encoding="utf-8") as f:
+            f.write(content)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/files", methods=["DELETE"])
+def delete_file():
+    """Xóa file khỏi workspace/input."""
+    data = request.json
+    filepath = data.get("filepath", "")
+
+    if not filepath:
+        return jsonify({"error": "Thiếu filepath"}), 400
+
+    fp = Path(filepath)
+    if not fp.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+
+    try:
+        fp.unlink()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/done-files", methods=["DELETE"])
+def delete_done_file():
+    """Xóa file khỏi done hoặc output."""
+    data = request.json
+    filename = data.get("filename", "")
+    location = data.get("location", "done")
+
+    if not filename:
+        return jsonify({"error": "Thiếu filename"}), 400
+
+    if location == "done":
+        fp = Path("workspace/done") / filename
+    else:
+        fp = Path("workspace/output") / filename
+
+    if not fp.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+
+    try:
+        fp.unlink()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/cache-files")
+def list_cache_files():
+    """Liệt kê các file cache."""
+    cache_dir = Path("workspace/cache")
+    files = []
+    if cache_dir.exists():
+        for f in sorted(cache_dir.glob("*.pkl*")):
+            try:
+                size = f.stat().st_size
+                files.append({
+                    "name": f.name,
+                    "size": size,
+                    "size_display": f"{size / 1024:.1f} KB" if size < 1024 * 1024 else f"{size / 1024 / 1024:.1f} MB",
+                })
+            except Exception:
+                continue
+    return jsonify(files)
+
+
+@app.route("/api/cache-files", methods=["DELETE"])
+def delete_cache_file():
+    """Xóa file cache cụ thể."""
+    data = request.json
+    filename = data.get("filename", "")
+
+    if not filename:
+        return jsonify({"error": "Thiếu filename"}), 400
+
+    fp = Path("workspace/cache") / filename
+    if not fp.exists():
+        return jsonify({"error": "Cache file không tồn tại"}), 404
+
+    try:
+        fp.unlink()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/download/<filename>")
 def download_file(filename):

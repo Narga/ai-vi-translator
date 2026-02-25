@@ -169,6 +169,63 @@
 }
 
 /* Navigation and Tabs */
+.nt-sidebar {
+  transition: width 0.25s ease, min-width 0.25s ease;
+  min-width: 220px;
+  overflow: hidden;
+}
+
+.nt-sidebar.collapsed {
+  min-width: 60px;
+  width: 60px !important;
+}
+
+.nt-sidebar.collapsed .nt-nav-text,
+.nt-sidebar.collapsed .nt-stats-area,
+.nt-sidebar.collapsed h1,
+.nt-sidebar.collapsed p {
+  display: none;
+}
+
+.nt-sidebar.collapsed .pa4 {
+  padding: 0.75rem;
+}
+
+.nt-sidebar.collapsed .pa3 {
+  padding: 0.5rem;
+}
+
+.nt-sidebar.collapsed .nt-nav-link {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+/* File action buttons */
+.nt-file-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.nt-file-item:hover .nt-file-actions {
+  opacity: 1;
+}
+
+.nt-file-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  transition: background 0.15s;
+}
+
+.nt-file-action-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .nt-nav-link:hover {
   background: rgba(0, 0, 0, 0.03);
 }

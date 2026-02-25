@@ -18,7 +18,8 @@
 <body class="bg-near-white sans-serif dark-gray flex vh-100 overflow-hidden">
 
     <!-- SIDEBAR -->
-    <aside class="w-20-l w-25-m w-100 h-100 bg-white shadow-1 flex flex-column justify-between relative z-1">
+    <aside id="sidebar"
+        class="nt-sidebar w-20-l w-25-m w-100 h-100 bg-white shadow-1 flex flex-column justify-between relative z-1">
         <div>
             <!-- Header Brand -->
             <div class="pa4 nt-header-gradient white">
@@ -32,23 +33,23 @@
                 <a href="#workspace"
                     class="nt-nav-link active f5 fw5 link db pa3 mb2 br2 color-inherit flex items-center"
                     data-tab="workspace">
-                    <span class="mr2">📥</span> Workspace
+                    <span class="mr2">📥</span> <span class="nt-nav-text">Workspace</span>
                 </a>
                 <a href="#done" class="nt-nav-link f5 fw5 link db pa3 mb2 br2 color-inherit flex items-center"
                     data-tab="done">
-                    <span class="mr2">✅</span> Đã dịch
+                    <span class="mr2">✅</span> <span class="nt-nav-text">Đã dịch</span>
                 </a>
                 <a href="#config" class="nt-nav-link f5 fw5 link db pa3 mb2 br2 color-inherit flex items-center"
                     data-tab="config">
-                    <span class="mr2">⚙️</span> Cấu hình
+                    <span class="mr2">⚙️</span> <span class="nt-nav-text">Cấu hình</span>
                 </a>
                 <a href="#prompts" class="nt-nav-link f5 fw5 link db pa3 mb2 br2 color-inherit flex items-center"
                     data-tab="prompts">
-                    <span class="mr2">📝</span> Prompts
+                    <span class="mr2">📝</span> <span class="nt-nav-text">Prompts</span>
                 </a>
                 <a href="#plugins" class="nt-nav-link f5 fw5 link db pa3 mb2 br2 color-inherit flex items-center"
                     data-tab="plugins">
-                    <span class="mr2">🔌</span> Plugins
+                    <span class="mr2">🔌</span> <span class="nt-nav-text">Plugins</span>
                 </a>
             </nav>
         </div>
@@ -78,13 +79,16 @@
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-auto h-100 overflow-y-auto pa4-l pa3 relative nt-main-bg">
+        <!-- Sidebar Toggle -->
+        <button id="btn-toggle-sidebar" class="nt-btn nt-btn-outline f6 mb3 pa2 br2 pointer" onclick="toggleSidebar()"
+            title="Ẩn/hiện sidebar">☰</button>
 
         <!-- ==================== TAB 1: WORKSPACE ==================== -->
         <section id="tab-workspace" class="nt-tab-content block">
             <div class="flex-l mhn2-l">
 
                 <!-- Left Col: Input List -->
-                <div class="w-40-l ph2-l mb4">
+                <div class="w-30-l ph2-l mb4">
                     <div class="bg-white br3 shadow-4 pa4 h-100 flex flex-column">
                         <div class="flex justify-between items-center mb3">
                             <div>
@@ -110,11 +114,15 @@
                 </div>
 
                 <!-- Right Col: Manual Translate -->
-                <div class="w-60-l ph2-l mb4 flex flex-column">
+                <div class="w-70-l ph2-l mb4 flex flex-column">
 
                     <div class="bg-white br3 shadow-4 pa4 mb4">
-                        <h2 class="f4 mt0 mb3 fw6 dark-gray">📝 Nhập văn bản trực tiếp</h2>
-                        <textarea id="source-text" class="nt-input w-100 h4 mb3"
+                        <div class="flex justify-between items-center mb3">
+                            <h2 class="f4 mt0 mb0 fw6 dark-gray">📝 Nhập văn bản trực tiếp</h2>
+                            <button id="btn-save-file" class="nt-btn nt-btn-outline f7 dn"
+                                onclick="saveCurrentFile()">💾 Lưu file</button>
+                        </div>
+                        <textarea id="source-text" class="nt-input w-100 h5 mb3"
                             placeholder="Gõ hoặc paste nội dung cần dịch vào đây, hoặc click chọn file từ danh sách bên trái..."></textarea>
                         <button id="translate-btn"
                             class="nt-btn nt-btn-primary w-100 pv3 f5 fw6 shadow-hover transition-transform">
@@ -159,10 +167,10 @@
             <div class="flex-l mhn2-l h-100">
 
                 <!-- Left: Done List -->
-                <div class="w-40-l ph2-l flex flex-column">
+                <div class="w-30-l ph2-l flex flex-column">
                     <div class="bg-white br3 shadow-4 pa4 flex-auto flex flex-column max-h-100">
                         <h2 class="f4 mt0 mb2 fw6 dark-gray">📂 Lịch sử dịch</h2>
-                        <p class="f6 mt0 mb3 silver">Chọn file để nâng cấp chất lượng (Retranslate/Correction).</p>
+                        <p class="f6 mt0 mb3 silver">Chọn file để nâng cấp chất lượng.</p>
 
                         <div class="nt-file-list flex-auto overflow-y-auto ba b--black-10 br2" id="done-list">
                             <div class="pa4 tc silver i">Đang tải data...</div>
@@ -171,7 +179,7 @@
                 </div>
 
                 <!-- Right: Content & Tools -->
-                <div class="w-60-l ph2-l flex flex-column">
+                <div class="w-70-l ph2-l flex flex-column">
                     <div class="bg-white br3 shadow-4 pa4 mb4 flex flex-column">
                         <h2 class="f4 mt0 mb3 fw6 dark-gray items-center flex justify-between">
                             <span>📝 Văn bản thô</span>
