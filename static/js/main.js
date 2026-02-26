@@ -175,10 +175,14 @@ function fetchModelInfo(modelName) {
     panel.classList.remove('dn');
     document.getElementById('model-input-limit').textContent = '⏳...';
     document.getElementById('model-output-limit').textContent = '⏳...';
+    const loadHint = document.getElementById('model-loading-hint');
+    if (loadHint) loadHint.classList.remove('dn');
 
     fetch('/api/model-info/' + encodeURIComponent(modelName))
         .then(r => r.json())
         .then(info => {
+            if (loadHint) loadHint.classList.add('dn');
+
             if (info.error) {
                 document.getElementById('model-input-limit').textContent = '❌ N/A';
                 document.getElementById('model-output-limit').textContent = '❌ N/A';
@@ -193,6 +197,27 @@ function fetchModelInfo(modelName) {
             document.getElementById('model-output-limit').textContent =
                 info.output_token_display ? info.output_token_display + ' tokens' : 'N/A';
 
+            // Rate limits
+            const rlEl = document.getElementById('model-rate-limits');
+            if (info.rate_limits && Object.keys(info.rate_limits).length > 0) {
+                const labels = { RPM: '🔄 RPM', RPD: '📅 RPD', TPM: '⚡ TPM', TPD: '📊 TPD' };
+                const descs = { RPM: 'Requests/phút', RPD: 'Requests/ngày', TPM: 'Tokens/phút', TPD: 'Tokens/ngày' };
+                let html = '';
+                for (const [key, val] of Object.entries(info.rate_limits)) {
+                    const label = labels[key] || key;
+                    const desc = descs[key] || key;
+                    const formatted = typeof val === 'number' ? val.toLocaleString() : val;
+                    html += `<div class="flex justify-between mb1">
+                        <span class="silver" title="${desc}">${label}:</span>
+                        <strong class="dark-gray">${formatted}</strong>
+                    </div>`;
+                }
+                rlEl.innerHTML = html;
+                rlEl.classList.remove('dn');
+            } else {
+                rlEl.classList.add('dn');
+            }
+
             // Description
             const descRow = document.getElementById('model-desc-row');
             if (info.description) {
@@ -202,14 +227,11 @@ function fetchModelInfo(modelName) {
                 descRow.classList.add('dn');
             }
 
-            // Remove loading text
-            const loadingEl = panel.querySelector('.silver:last-child');
-            if (loadingEl && loadingEl.textContent.includes('Đang tải')) loadingEl.remove();
-
             // Update token fit check if text exists
             updateTokenEstimate();
         })
         .catch(() => {
+            if (loadHint) loadHint.classList.add('dn');
             document.getElementById('model-input-limit').textContent = '❌ Lỗi';
             document.getElementById('model-output-limit').textContent = '❌ Lỗi';
             currentModelInfo = null;

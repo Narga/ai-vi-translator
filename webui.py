@@ -685,6 +685,51 @@ def get_model_info(model_name):
         if info["output_token_limit"]:
             info["output_token_display"] = f"{info['output_token_limit']:,}"
 
+        # Extract rate limits from model attributes
+        rate_limits = {}
+        # Try common attribute names from google.genai SDK
+        for attr_name, label in [
+            ("rpm_limit", "RPM"),
+            ("rpd_limit", "RPD"),
+            ("tpm_limit", "TPM"),
+            ("tpd_limit", "TPD"),
+            ("requests_per_minute", "RPM"),
+            ("requests_per_day", "RPD"),
+            ("tokens_per_minute", "TPM"),
+            ("tokens_per_day", "TPD"),
+        ]:
+            val = getattr(model, attr_name, None)
+            if val is not None and label not in rate_limits:
+                rate_limits[label] = val
+
+        # Also check if model has a rate_limits or limits dict/list
+        raw_limits = getattr(model, "rate_limits", None) or getattr(model, "limits", None)
+        if raw_limits:
+            if isinstance(raw_limits, dict):
+                for k, v in raw_limits.items():
+                    rate_limits[k.upper()] = v
+            elif isinstance(raw_limits, list):
+                for item in raw_limits:
+                    if hasattr(item, "key") and hasattr(item, "value"):
+                        rate_limits[item.key.upper()] = item.value
+                    elif isinstance(item, dict):
+                        for k, v in item.items():
+                            rate_limits[k.upper()] = v
+
+        info["rate_limits"] = rate_limits
+
+        # Dump all model attributes for debugging (helps discover new fields)
+        all_attrs = {}
+        for attr in dir(model):
+            if not attr.startswith("_"):
+                try:
+                    val = getattr(model, attr)
+                    if not callable(val) and val is not None:
+                        all_attrs[attr] = str(val)[:200]
+                except Exception:
+                    pass
+        info["_raw_attrs"] = all_attrs
+
         return jsonify(info)
 
     except Exception as e:
