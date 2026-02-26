@@ -226,6 +226,56 @@
   background: rgba(0, 0, 0, 0.05);
 }
 
+/* Project sub-tabs */
+.nt-tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #999;
+  transition: all 0.2s;
+}
+
+.nt-tab-btn:hover {
+  color: #333;
+}
+
+.nt-tab-btn.active {
+  color: #357edd;
+  border-bottom-color: #357edd;
+}
+
+/* Project card in list */
+.nt-project-card {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.nt-project-card:hover {
+  background: rgba(0,0,0,0.02);
+}
+
+.nt-project-card.active {
+  background: rgba(53, 126, 221, 0.08);
+  border-left: 3px solid #357edd;
+}
+
+/* Danger button */
+.nt-btn-danger {
+  background: #ff4136;
+  color: white;
+  border: none;
+}
+
+.nt-btn-danger:hover {
+  background: #e73028;
+}
+
 .nt-nav-link:hover {
   background: rgba(0, 0, 0, 0.03);
 }

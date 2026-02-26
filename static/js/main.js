@@ -8,23 +8,20 @@ let availableModels = window.initialAvailableModels || [];
 let defaultModel = window.initialDefaultModel || '';
 let currentDoneFile = '';
 let currentGenre = '';
-let currentLoadedFile = null; // track file loaded for editing
+let currentProject = null; // { slug, meta, sources, translated }
+let currentProjectFile = null; // { name, section } for save
 
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
     initPromptTabs();
     initDialogs();
 
-    loadFiles();
-    loadDoneFiles();
-    loadOutputFiles();
+    loadProjects();
     loadStats();
     loadModels();
     loadGenres();
 
     setInterval(loadStats, 30000);
-    setInterval(loadOutputFiles, 10000);
-    setInterval(loadDoneFiles, 10000);
 
     // Temperature slider
     const tempEl = document.getElementById('temperature');
@@ -36,9 +33,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Core action buttons
     document.getElementById('translate-btn').addEventListener('click', startTranslation);
-    document.getElementById('btn-translate-selected').addEventListener('click', translateSelected);
-    document.getElementById('btn-select-all').addEventListener('click', selectAll);
-    document.getElementById('btn-deselect-all').addEventListener('click', deselectAll);
     document.getElementById('btn-clear-cache').addEventListener('click', clearCache);
     document.getElementById('btn-copy-result').addEventListener('click', copyResult);
     document.getElementById('download-btn').addEventListener('click', downloadResult);
@@ -165,109 +159,268 @@ function loadModels() {
 }
 
 // ============================================================
-// File Management
+// Project Management
 // ============================================================
-function loadFiles() {
-    fetch('/api/files')
-        .then(r => r.json())
-        .then(files => {
-            allFiles = files;
-            const el = document.getElementById('file-list');
-            if (!files.length) { el.innerHTML = '<div class="pa4 tc silver i">Không có file trong input</div>'; return; }
-            el.innerHTML = files.map(f => {
-                const esc = f.path.replace(/'/g, "\\'");
-                const nameEsc = f.name.replace(/'/g, "\\'");
-                const activeClass = selectedFiles.has(f.path) ? 'active' : '';
-                return `<div class="nt-file-item ${activeClass}">
-                    <div class="flex items-center flex-auto">
-                        <input type="checkbox" class="nt-checkbox mr2 pointer" ${selectedFiles.has(f.path) ? 'checked' : ''} onchange="toggleFile('${esc}',this.checked)">
-                        <div class="flex-auto pointer" onclick="loadFile('${nameEsc}')">
-                            <span class="fw6 dark-gray db f6">${f.name}${f.is_done ? '<span class="f7 bg-green white br2 ph1 pv1 ml2 fw5">Done</span>' : ''}</span>
-                            <span class="f7 silver">${f.size_display}</span>
-                        </div>
-                    </div>
-                    <div class="nt-file-actions">
-                        <button class="nt-file-action-btn" onclick="event.stopPropagation();markFileDone('${esc}')" title="Đánh dấu hoàn thành">✅</button>
-                        <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteInputFile('${esc}')" title="Xóa file">🗑️</button>
-                        <button class="nt-file-action-btn nt-btn-outline" onclick="event.stopPropagation();translateSingleFile('${esc}')" title="Dịch ngay">⚡</button>
-                    </div>
-                </div>`;
-            }).join('');
-            updateSelectedCount();
-        });
-}
-
-function loadDoneFiles() {
-    fetch('/api/done-files')
-        .then(r => r.json())
-        .then(files => {
-            const el = document.getElementById('done-list');
-            if (!files.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có file đã dịch</div>'; return; }
-            el.innerHTML = files.map(f => {
-                const nameEsc = f.name.replace(/'/g, "\\'");
-                const badge = f.location === 'output'
-                    ? '<span class="f7 bg-light-silver white br2 ph1 pv1 ml2 fw5">output</span>'
-                    : '<span class="f7 bg-green white br2 ph1 pv1 ml2 fw5">done</span>';
-                return `<div class="nt-file-item">
-                    <div class="flex-auto pointer" onclick="viewDoneFile('${nameEsc}','${f.location}')">
-                        <span class="fw6 dark-gray db f6">${f.name} ${badge}</span>
-                        <span class="f7 silver">${(f.word_count || 0).toLocaleString()} từ &bull; ${f.size_display}</span>
-                    </div>
-                    <div class="nt-file-actions">
-                        ${f.location === 'done' ? `<button class="nt-file-action-btn" onclick="event.stopPropagation();moveBackToInput('${nameEsc}')" title="Trả về input">↩</button>` : ''}
-                        <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteDoneFile('${nameEsc}','${f.location}')" title="Xóa file">🗑️</button>
-                    </div>
-                </div>`;
-            }).join('');
-        });
-}
-
-function toggleFile(path, checked) {
-    checked ? selectedFiles.add(path) : selectedFiles.delete(path);
-    loadFiles(); // Re-render to show active class
-}
-
-function updateSelectedCount() {
-    document.getElementById('selected-count').textContent = selectedFiles.size;
-    const translateBtn = document.getElementById('btn-translate-count');
-    if (translateBtn) translateBtn.textContent = selectedFiles.size + ' file';
-}
-
-function selectAll() {
-    allFiles.forEach(f => selectedFiles.add(f.path));
-    loadFiles();
-}
-
-function deselectAll() {
-    selectedFiles.clear();
-    loadFiles();
-}
-
-function loadFile(filename) {
-    fetch('/api/file/' + encodeURIComponent(filename)).then(r => r.json()).then(data => {
-        document.getElementById('source-text').value = data.content || '';
-        currentLoadedFile = { name: filename, path: data.path || '' };
-        document.getElementById('btn-save-file').classList.remove('dn');
+function loadProjects() {
+    fetch('/api/projects').then(r => r.json()).then(projects => {
+        const el = document.getElementById('project-list');
+        if (!projects.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có dự án. Tạo mới!</div>'; return; }
+        el.innerHTML = projects.map(p => {
+            const active = currentProject && currentProject.slug === p.slug ? 'active' : '';
+            return `<div class="nt-project-card ${active}" onclick="selectProject('${p.slug}')">
+                <div class="fw6 dark-gray f6">${p.name}</div>
+                <div class="f7 silver mt1">Đang dịch: ${p.source_count} file | Hoàn tất: ${p.translated_count}</div>
+            </div>`;
+        }).join('');
     });
 }
 
-function viewDoneFile(filename, location) {
-    const ep = location === 'output' ? '/api/output-file/' : '/api/done/';
-    fetch(ep + encodeURIComponent(filename))
-        .then(r => r.json())
-        .then(data => {
-            document.getElementById('done-text').value = data.content;
-            currentDoneFile = filename;
-            document.getElementById('done-result-container').classList.add('dn');
-            document.getElementById('done-result-container').classList.remove('flex');
-            addDoneLog('Đã tải: ' + filename, 'success');
-        }).catch(e => addDoneLog('Lỗi tải file: ' + e.message, 'error'));
+function selectProject(slug) {
+    fetch('/api/projects/' + slug).then(r => r.json()).then(data => {
+        if (data.error) { alert(data.error); return; }
+        currentProject = data;
+        selectedFiles.clear();
+
+        // Update header
+        document.getElementById('project-header').classList.remove('dn');
+        document.getElementById('project-tabs').classList.remove('dn');
+        document.getElementById('project-empty-state').classList.add('dn');
+        document.getElementById('project-title').textContent = data.name;
+        document.getElementById('project-desc').textContent = data.description || '';
+        document.getElementById('proj-source-count').textContent = data.source_count;
+        document.getElementById('proj-translated-count').textContent = data.translated_count;
+        document.getElementById('proj-source-words').textContent = (data.source_words || 0).toLocaleString();
+
+        // Render source files
+        renderProjectSources(data.sources || []);
+        renderProjectTranslated(data.translated || []);
+
+        // Show sources sub-tab
+        switchProjectTab('sources');
+
+        // Highlight in list
+        loadProjects();
+    });
 }
 
-function moveBackToInput(filename) {
-    if (!confirm('Di chuyển file "' + filename + '" về input?')) return;
-    fetch('/api/move-back-to-input', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename }) })
-        .then(r => r.json()).then(data => { if (data.success) { loadFiles(); loadDoneFiles(); loadStats(); } });
+function renderProjectSources(sources) {
+    const el = document.getElementById('project-source-list');
+    if (!sources.length) { el.innerHTML = '<div class="pa3 tc silver i">Chưa có file nguồn</div>'; return; }
+    el.innerHTML = sources.map(f => {
+        const esc = f.name.replace(/'/g, "\\'");
+        const checked = selectedFiles.has(f.name) ? 'checked' : '';
+        const badge = f.has_translation ? '<span class="f7 bg-green white br2 ph1 pv1 ml2">✅</span>' : '';
+        return `<div class="nt-file-item">
+            <div class="flex items-center flex-auto">
+                <input type="checkbox" class="nt-checkbox mr2" ${checked} onchange="toggleProjectFile('${esc}',this.checked)">
+                <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','sources')">
+                    <span class="fw6 dark-gray db f6">${f.name} ${badge}</span>
+                    <span class="f7 silver">${f.size_display}</span>
+                </div>
+            </div>
+            <div class="nt-file-actions">
+                <button class="nt-file-action-btn" onclick="event.stopPropagation();translateFileInProject('${esc}')" title="Dịch">⚡</button>
+                <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')" title="Xóa">🗑️</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function renderProjectTranslated(translated) {
+    const el = document.getElementById('project-translated-list');
+    if (!translated.length) { el.innerHTML = '<div class="pa3 tc silver i">Chưa có file dịch</div>'; return; }
+    el.innerHTML = translated.map(f => {
+        const esc = f.name.replace(/'/g, "\\'");
+        return `<div class="nt-file-item">
+            <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','translated')">
+                <span class="fw6 dark-gray db f6">${f.name}</span>
+                <span class="f7 silver">${f.size_display}</span>
+            </div>
+            <div class="nt-file-actions">
+                <button class="nt-file-action-btn" onclick="event.stopPropagation();moveBackInProject('${esc}')" title="Trả về sources">↩</button>
+                <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteProjectFile('${esc}','translated')" title="Xóa">🗑️</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function switchProjectTab(tab) {
+    document.querySelectorAll('.nt-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-ptab') === tab);
+    });
+    document.querySelectorAll('.nt-ptab-content').forEach(el => el.classList.add('dn'));
+    const target = document.getElementById('ptab-' + tab);
+    if (target) target.classList.remove('dn');
+
+    // Load prompt/profile when switching
+    if (tab === 'prompt' && currentProject) loadProjectPrompts();
+    if (tab === 'profile' && currentProject) loadProjectProfile();
+}
+
+function loadProjectFile(filename, section) {
+    if (!currentProject) return;
+    const slug = currentProject.slug;
+    fetch(`/api/projects/${slug}/file/${section}/${filename}`).then(r => r.json()).then(data => {
+        if (section === 'sources') {
+            document.getElementById('source-text').value = data.content || '';
+            currentProjectFile = { name: filename, section };
+            document.getElementById('btn-save-project-file').classList.remove('dn');
+        } else {
+            document.getElementById('done-text').value = data.content || '';
+            currentDoneFile = filename;
+        }
+    });
+}
+
+function saveProjectFile() {
+    if (!currentProject || !currentProjectFile) return;
+    const content = document.getElementById('source-text').value;
+    fetch(`/api/projects/${currentProject.slug}/file/${currentProjectFile.section}/${currentProjectFile.name}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { addLog('💾 Đã lưu: ' + currentProjectFile.name, 'success'); selectProject(currentProject.slug); }
+        else addLog('❌ Lỗi lưu: ' + (data.error || ''), 'error');
+    });
+}
+
+function deleteProjectFile(filename, section) {
+    if (!confirm('Xóa vĩnh viễn "' + filename + '"?')) return;
+    fetch(`/api/projects/${currentProject.slug}/file/${section}/${filename}`, {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }
+    }).then(r => r.json()).then(() => selectProject(currentProject.slug));
+}
+
+function toggleProjectFile(name, checked) {
+    if (checked) selectedFiles.add(name); else selectedFiles.delete(name);
+}
+
+function selectAllProjectFiles() {
+    if (!currentProject) return;
+    (currentProject.sources || []).forEach(f => selectedFiles.add(f.name));
+    renderProjectSources(currentProject.sources || []);
+}
+
+function translateFileInProject(filename) {
+    if (!currentProject) return;
+    fetch(`/api/projects/${currentProject.slug}/translate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: [filename] })
+    }).then(r => r.json()).then(data => {
+        if (data.status === 'started') {
+            switchProjectTab('sources');
+            startSSEProgress();
+        } else alert(data.error || 'Lỗi');
+    });
+}
+
+function translateSelectedInProject() {
+    if (!currentProject || selectedFiles.size === 0) { alert('Chưa chọn file!'); return; }
+    const files = Array.from(selectedFiles);
+    fetch(`/api/projects/${currentProject.slug}/translate`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files })
+    }).then(r => r.json()).then(data => {
+        if (data.status === 'started') startSSEProgress();
+        else alert(data.error || 'Lỗi');
+    });
+}
+
+function moveBackInProject(filename) {
+    if (!confirm('Trả "' + filename + '" về sources?')) return;
+    fetch(`/api/projects/${currentProject.slug}/move-back`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename })
+    }).then(r => r.json()).then(() => selectProject(currentProject.slug));
+}
+
+function loadProjectPrompts() {
+    if (!currentProject) return;
+    fetch(`/api/projects/${currentProject.slug}/prompts`).then(r => r.json()).then(data => {
+        document.getElementById('proj-prompt-main').value = data.main || '';
+        document.getElementById('proj-prompt-retranslate').value = data.retranslate || '';
+        document.getElementById('proj-prompt-correction').value = data.correction || '';
+    });
+}
+
+function saveProjectPrompts() {
+    if (!currentProject) return;
+    fetch(`/api/projects/${currentProject.slug}/prompts`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            main: document.getElementById('proj-prompt-main').value,
+            retranslate: document.getElementById('proj-prompt-retranslate').value,
+            correction: document.getElementById('proj-prompt-correction').value,
+        })
+    }).then(r => r.json()).then(data => {
+        if (data.success) alert('Đã lưu prompt dự án!');
+    });
+}
+
+function loadProjectProfile() {
+    if (!currentProject) return;
+    const slug = currentProject.slug;
+    Promise.all([
+        fetch(`/api/projects/${slug}/file/profile/glossary.txt`).then(r => r.json()).catch(() => ({ content: '' })),
+        fetch(`/api/projects/${slug}/file/profile/characters.txt`).then(r => r.json()).catch(() => ({ content: '' })),
+        fetch(`/api/projects/${slug}/file/profile/style_guide.txt`).then(r => r.json()).catch(() => ({ content: '' })),
+    ]).then(([g, c, s]) => {
+        document.getElementById('proj-glossary').value = g.content || '';
+        document.getElementById('proj-characters').value = c.content || '';
+        document.getElementById('proj-style-guide').value = s.content || '';
+    });
+}
+
+function saveProjectProfile() {
+    if (!currentProject) return;
+    const slug = currentProject.slug;
+    const saves = [
+        fetch(`/api/projects/${slug}/file/profile/glossary.txt`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: document.getElementById('proj-glossary').value })
+        }),
+        fetch(`/api/projects/${slug}/file/profile/characters.txt`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: document.getElementById('proj-characters').value })
+        }),
+        fetch(`/api/projects/${slug}/file/profile/style_guide.txt`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: document.getElementById('proj-style-guide').value })
+        }),
+    ];
+    Promise.all(saves).then(() => alert('Đã lưu profile dự án!'));
+}
+
+function showCreateProjectDialog() {
+    const name = prompt('Tên dự án mới:');
+    if (!name) return;
+    const desc = prompt('Mô tả (tùy chọn):', '');
+    fetch('/api/projects', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: desc || '' })
+    }).then(r => r.json()).then(data => {
+        if (data.success) { loadProjects(); selectProject(data.slug); }
+        else alert(data.error || 'Lỗi tạo dự án');
+    });
+}
+
+function deleteCurrentProject() {
+    if (!currentProject) return;
+    if (!confirm('Xóa VĨNH VIỄN dự án "' + currentProject.name + '"? Tất cả dữ liệu sẽ bị mất!')) return;
+    fetch('/api/projects/' + currentProject.slug, { method: 'DELETE' })
+        .then(r => r.json()).then(() => {
+            currentProject = null;
+            document.getElementById('project-header').classList.add('dn');
+            document.getElementById('project-tabs').classList.add('dn');
+            document.querySelectorAll('.nt-ptab-content').forEach(el => el.classList.add('dn'));
+            document.getElementById('project-empty-state').classList.remove('dn');
+            loadProjects();
+        });
+}
+
+function archiveProject() {
+    if (!currentProject) return;
+    window.location.href = '/api/projects/' + currentProject.slug + '/archive';
 }
 
 function toggleSidebar() {
@@ -277,76 +430,27 @@ function toggleSidebar() {
     btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '☰';
 }
 
-function saveCurrentFile() {
-    if (!currentLoadedFile || !currentLoadedFile.path) {
-        alert('Chưa tải file nào để lưu!');
-        return;
+// Keep old functions for backward compat (they are no-ops now)
+function loadFiles() { loadProjects(); }
+function loadDoneFiles() { }
+function loadOutputFiles() { }
+
+function loadFile(filename) {
+    if (currentProject) {
+        loadProjectFile(filename, 'sources');
     }
-    const content = document.getElementById('source-text').value;
-    fetch('/api/files', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filepath: currentLoadedFile.path, content })
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            addLog('💾 Đã lưu: ' + currentLoadedFile.name, 'success');
-            loadFiles();
-            loadStats();
-        } else {
-            addLog('❌ Lỗi lưu: ' + (data.error || ''), 'error');
-        }
-    });
 }
 
-function deleteInputFile(filepath) {
-    if (!confirm('Xóa vĩnh viễn file này?')) return;
-    fetch('/api/files', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filepath })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { loadFiles(); loadStats(); }
-        else { alert('Lỗi xóa: ' + (data.error || '')); }
-    });
+function viewDoneFile(filename, location) {
+    if (currentProject) {
+        loadProjectFile(filename, 'translated');
+    }
 }
 
-function markFileDone(filepath) {
-    fetch('/api/move-to-done', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filepath })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { loadFiles(); loadDoneFiles(); loadStats(); }
-        else { alert('Lỗi: ' + (data.error || '')); }
-    });
+function moveBackToInput(filename) {
+    if (currentProject) moveBackInProject(filename);
 }
 
-function deleteDoneFile(filename, location) {
-    if (!confirm('Xóa vĩnh viễn file "' + filename + '"?')) return;
-    fetch('/api/done-files', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, location })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { loadDoneFiles(); loadStats(); }
-        else { alert('Lỗi xóa: ' + (data.error || '')); }
-    });
-}
-
-function loadOutputFiles() {
-    fetch('/api/output-files')
-        .then(r => r.json())
-        .then(files => {
-            const el = document.getElementById('output-list');
-            if (!files.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có file</div>'; return; }
-            el.innerHTML = files.map(f =>
-                `<div class="flex items-center justify-between pa2 bb b--black-10 hover-bg-near-white">
-                    <span class="f6 fw5 dark-gray">${f.name}</span>
-                    <a href="/api/download/${f.name}" target="_blank" class="nt-btn nt-btn-outline f7">Tải xuống</a>
-                </div>`
-            ).join('');
-        });
-}
 
 // ============================================================
 // Stats
