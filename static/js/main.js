@@ -50,13 +50,6 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('btn-save-genre').addEventListener('click', saveGenre);
     document.getElementById('btn-activate-genre').addEventListener('click', activateGenre);
 
-    // Language change -> reload prompts
-    const langEl = document.getElementById('input-lang');
-    if (langEl) {
-        langEl.addEventListener('change', function () {
-            loadPromptsForLang(this.value);
-        });
-    }
 });
 
 // ============================================================
@@ -561,27 +554,6 @@ function toggleSidebar() {
     btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '☰';
 }
 
-// Keep old functions for backward compat (they are no-ops now)
-function loadFiles() { loadProjects(); }
-function loadDoneFiles() { }
-function loadOutputFiles() { }
-
-function loadFile(filename) {
-    if (currentProject) {
-        loadProjectFile(filename, 'sources');
-    }
-}
-
-function viewDoneFile(filename, location) {
-    if (currentProject) {
-        loadProjectFile(filename, 'translated');
-    }
-}
-
-function moveBackToInput(filename) {
-    if (currentProject) moveBackInProject(filename);
-}
-
 
 // ============================================================
 // Stats
@@ -591,11 +563,12 @@ function loadStats() {
         document.getElementById('api-keys-count').textContent = data.api_keys_count || data.api_keys || 0;
         document.getElementById('cache-count').textContent = data.cache_files || 0;
         document.getElementById('cache-size').textContent = data.cache_size_mb || 0;
-        document.getElementById('translated-words').textContent = (data.translated_words || 0).toLocaleString();
-        document.getElementById('pending-words').textContent = (data.pending_words || 0).toLocaleString();
-        document.getElementById('output-count').textContent = data.output_files || 0;
-        document.getElementById('input-files-count').textContent = data.input_files_count || 0;
-        document.getElementById('done-files-count').textContent = data.done_files_count || 0;
+        const pc = document.getElementById('project-count');
+        const sc = document.getElementById('source-count');
+        const tc = document.getElementById('translated-count');
+        if (pc) pc.textContent = data.project_count || 0;
+        if (sc) sc.textContent = data.total_sources || 0;
+        if (tc) tc.textContent = data.total_translated || 0;
     });
 }
 
@@ -646,7 +619,6 @@ function startTranslation() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             text, model: document.getElementById('model').value,
-            input_lang: document.getElementById('input-lang').value,
             temperature: parseFloat(document.getElementById('temperature').value),
             chunk_size: parseInt(document.getElementById('chunk-size').value),
             use_cache: document.getElementById('use-cache').checked,
@@ -658,55 +630,9 @@ function startTranslation() {
     }).catch(e => { addLog(e.message, 'error'); resetButton(btn); });
 }
 
-function translateSelected() {
-    if (!selectedFiles.size) { alert('Vui lòng chọn ít nhất 1 file bên danh sách kết quả!'); return; }
-    const btn = document.getElementById('btn-translate-selected');
 
-    btn.disabled = true;
-    btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang xử lý...';
 
-    document.getElementById('log-container').classList.add('dn');
-    document.getElementById('log-container').innerHTML = '';
 
-    addLog(`Đẩy ${selectedFiles.size} file vào tiến trình...`, 'info');
-
-    fetch('/api/translate-batch', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            files: Array.from(selectedFiles),
-            model: document.getElementById('model').value,
-            input_lang: document.getElementById('input-lang').value,
-            temperature: parseFloat(document.getElementById('temperature').value),
-            chunk_size: parseInt(document.getElementById('chunk-size').value),
-            use_cache: document.getElementById('use-cache').checked,
-            prompts: getActivePrompts()
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.error) { addLog(data.error, 'error'); resetButton(btn, true); }
-        else connectToProgress(btn, true);
-    }).catch(e => { addLog(e.message, 'error'); resetButton(btn, true); });
-}
-
-function translateSingleFile(filepath) {
-    document.getElementById('log-container').classList.add('dn');
-    document.getElementById('log-container').innerHTML = '';
-    addLog('Bắt đầu dịch file: ' + filepath, 'info');
-
-    fetch('/api/translate-file', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            filepath, model: document.getElementById('model').value,
-            input_lang: document.getElementById('input-lang').value,
-            temperature: parseFloat(document.getElementById('temperature').value),
-            chunk_size: parseInt(document.getElementById('chunk-size').value),
-            use_cache: document.getElementById('use-cache').checked,
-            prompts: getActivePrompts()
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.error) addLog(data.error, 'error');
-        else connectToProgress();
-    }).catch(e => addLog(e.message, 'error'));
-}
 
 function connectToProgress(btn = null, isBatch = false) {
     const evtSource = new EventSource('/api/progress');
@@ -827,8 +753,7 @@ function runDoneTranslationProcess(text, mode, callback, appendResult) {
             text, mode, prompts: getActivePrompts(),
             model: document.getElementById('model').value,
             temperature: parseFloat(document.getElementById('temperature').value),
-            chunk_size: parseInt(document.getElementById('chunk-size').value),
-            input_lang: document.getElementById('input-lang').value
+            chunk_size: parseInt(document.getElementById('chunk-size').value)
         })
     }).then(r => r.json()).then(data => {
         if (data.error) { addDoneLog('Lỗi xử lý: ' + data.error, 'error'); hideProgress('done-progress-container'); return; }
@@ -1049,12 +974,7 @@ function showGenreAlert(msg, type) {
     setTimeout(() => { el.classList.add('dn'); }, 4000);
 }
 
-// ============================================================
-// Prompts (language-based, legacy fallback)
-// ============================================================
-function loadPromptsForLang(lang) {
-    fetch('/api/prompts?lang=' + lang).then(r => r.json()).then(data => { prompts = data; });
-}
+
 
 // ============================================================
 // Plugin Execution
