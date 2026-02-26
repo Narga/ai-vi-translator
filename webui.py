@@ -415,7 +415,7 @@ def index():
     if default_model not in available_models:
         available_models.insert(0, default_model)
 
-    prompts = load_prompts("CN")
+    prompts = load_prompts()
 
     return render_template(
         "index.html",
