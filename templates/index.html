@@ -155,8 +155,16 @@
                                 <button id="btn-save-project-file" class="nt-btn nt-btn-outline f7 dn"
                                     onclick="saveProjectFile()">💾 Lưu</button>
                             </div>
-                            <textarea id="source-text" class="nt-input w-100 h5 mb3"
-                                placeholder="Click vào file nguồn để xem và chỉnh sửa..."></textarea>
+                            <textarea id="source-text" class="nt-input w-100 h5 mb2"
+                                placeholder="Click vào file nguồn để xem và chỉnh sửa..."
+                                oninput="updateTokenEstimate()"></textarea>
+                            <!-- Token Estimation Bar -->
+                            <div id="token-estimate-bar"
+                                class="flex justify-between items-center pa2 bg-near-white br2 mb3 f7 silver">
+                                <span>📊 <span id="token-char-count">0</span> ký tự → <strong id="token-estimate"
+                                        class="blue">~0</strong> tokens</span>
+                                <span id="token-model-fit" class=""></span>
+                            </div>
                             <button id="translate-btn" class="nt-btn nt-btn-primary w-100 pv3 f5 fw6 shadow-hover">🚀
                                 Dịch Nội Dung</button>
                         </div>
@@ -290,7 +298,24 @@
                     <div class="flex flex-wrap mhn2">
                         <div class="w-50-ns ph2 mb4">
                             <label class="db fw6 lh-copy f5 mb2 dark-gray">Khởi chạy Model AI</label>
-                            <select id="model" class="nt-input w-100"></select>
+                            <select id="model" class="nt-input w-100" onchange="onModelChange(this.value)"></select>
+                            <!-- Model Info Panel -->
+                            <div id="model-info-panel" class="mt2 pa2 bg-near-white br2 f7 dn">
+                                <div class="flex justify-between mb1">
+                                    <span class="silver">📥 Input limit:</span>
+                                    <strong id="model-input-limit" class="dark-gray">—</strong>
+                                </div>
+                                <div class="flex justify-between mb1">
+                                    <span class="silver">📤 Output limit:</span>
+                                    <strong id="model-output-limit" class="dark-gray">—</strong>
+                                </div>
+                                <div id="model-desc-row" class="mt1 silver lh-copy dn" style="font-size:0.7rem">
+                                    <span id="model-description"></span>
+                                </div>
+                                <div class="mt1 silver" style="font-size:0.7rem">
+                                    ⏳ Đang tải thông tin model...
+                                </div>
+                            </div>
                         </div>
 
                         <div class="w-50-ns ph2 mb4">

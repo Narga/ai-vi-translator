@@ -650,6 +650,101 @@ def get_models():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/model-info/<path:model_name>")
+def get_model_info(model_name):
+    """Lấy thông tin chi tiết của model (token limits, rate limits, availability)."""
+    try:
+        api_keys = load_api_keys()
+        if not api_keys:
+            return jsonify({"error": "Không tìm thấy API key"}), 400
+
+        from google import genai
+
+        client = genai.Client(api_key=api_keys[0])
+
+        # Ensure model name has prefix
+        full_name = model_name if model_name.startswith("models/") else f"models/{model_name}"
+
+        try:
+            model = client.models.get(model=full_name)
+        except Exception as e:
+            return jsonify({"error": f"Không tìm thấy model: {model_name}", "detail": str(e)}), 404
+
+        # Extract info from model object
+        info = {
+            "name": getattr(model, "name", model_name),
+            "display_name": getattr(model, "display_name", model_name),
+            "description": getattr(model, "description", ""),
+            "input_token_limit": getattr(model, "input_token_limit", None),
+            "output_token_limit": getattr(model, "output_token_limit", None),
+        }
+
+        # Format limits for display
+        if info["input_token_limit"]:
+            info["input_token_display"] = f"{info['input_token_limit']:,}"
+        if info["output_token_limit"]:
+            info["output_token_display"] = f"{info['output_token_limit']:,}"
+
+        return jsonify(info)
+
+    except Exception as e:
+        logger.error(f"Model info error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/estimate-tokens", methods=["POST"])
+def estimate_tokens():
+    """Ước tính token từ số ký tự văn bản.
+
+    Quy tắc ước tính:
+    - Tiếng Trung/Nhật/Hàn: ~1 token per 1.5 ký tự
+    - Tiếng Anh/Việt: ~1 token per 4 ký tự
+    - Hỗn hợp: trung bình ~1 token per 2.5 ký tự
+    """
+    data = request.json
+    text = data.get("text", "")
+    char_count = data.get("char_count", len(text))
+    lang = data.get("lang", "CN").upper()
+
+    # Detect CJK ratio if text provided
+    if text:
+        import re
+        cjk_chars = len(re.findall(r'[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]', text))
+        total = len(text.strip())
+        cjk_ratio = cjk_chars / total if total > 0 else 0
+    else:
+        cjk_ratio = 1.0 if lang in ("CN", "JP", "KR") else 0.0
+
+    # Token estimation
+    if cjk_ratio > 0.5:
+        tokens_per_char = 1 / 1.5  # CJK-heavy
+        lang_label = "CJK"
+    elif cjk_ratio > 0.2:
+        tokens_per_char = 1 / 2.5  # Mixed
+        lang_label = "Hỗn hợp"
+    else:
+        tokens_per_char = 1 / 4.0  # Latin-heavy
+        lang_label = "Latin"
+
+    estimated_tokens = int(char_count * tokens_per_char)
+
+    # Estimate cost (rough: prompt tokens)
+    # For prompt overhead (~2000 tokens for prompts + context)
+    prompt_overhead = 2000
+    total_input_tokens = estimated_tokens + prompt_overhead
+
+    return jsonify({
+        "char_count": char_count,
+        "estimated_tokens": estimated_tokens,
+        "total_input_tokens": total_input_tokens,
+        "prompt_overhead": prompt_overhead,
+        "tokens_per_char": round(tokens_per_char, 3),
+        "lang_type": lang_label,
+        "cjk_ratio": round(cjk_ratio, 2),
+        "display": f"~{estimated_tokens:,} tokens ({char_count:,} ký tự, {lang_label})",
+    })
+
+
 @app.route("/api/config")
 def get_config():
     """Lấy cấu hình mặc định."""

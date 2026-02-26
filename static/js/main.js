@@ -138,8 +138,10 @@ function initDialogs() {
 }
 
 // ============================================================
-// Models
+// Models & Token Estimation
 // ============================================================
+let currentModelInfo = null; // cache model info
+
 function loadModels() {
     fetch('/api/models')
         .then(r => r.json())
@@ -149,6 +151,9 @@ function loadModels() {
             sel.innerHTML = availableModels.map(m =>
                 `<option value="${m}" ${m === (data.default || defaultModel) ? 'selected' : ''}>${m}</option>`
             ).join('');
+            // Auto-fetch info for selected model
+            const selected = sel.value;
+            if (selected) fetchModelInfo(selected);
         })
         .catch(() => {
             const sel = document.getElementById('model');
@@ -156,6 +161,110 @@ function loadModels() {
                 `<option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>`
             ).join('');
         });
+}
+
+function onModelChange(modelName) {
+    fetchModelInfo(modelName);
+}
+
+function fetchModelInfo(modelName) {
+    const panel = document.getElementById('model-info-panel');
+    if (!panel) return;
+
+    // Show panel with loading state
+    panel.classList.remove('dn');
+    document.getElementById('model-input-limit').textContent = '⏳...';
+    document.getElementById('model-output-limit').textContent = '⏳...';
+
+    fetch('/api/model-info/' + encodeURIComponent(modelName))
+        .then(r => r.json())
+        .then(info => {
+            if (info.error) {
+                document.getElementById('model-input-limit').textContent = '❌ N/A';
+                document.getElementById('model-output-limit').textContent = '❌ N/A';
+                currentModelInfo = null;
+                return;
+            }
+
+            currentModelInfo = info;
+
+            document.getElementById('model-input-limit').textContent =
+                info.input_token_display ? info.input_token_display + ' tokens' : 'N/A';
+            document.getElementById('model-output-limit').textContent =
+                info.output_token_display ? info.output_token_display + ' tokens' : 'N/A';
+
+            // Description
+            const descRow = document.getElementById('model-desc-row');
+            if (info.description) {
+                document.getElementById('model-description').textContent = info.description;
+                descRow.classList.remove('dn');
+            } else {
+                descRow.classList.add('dn');
+            }
+
+            // Remove loading text
+            const loadingEl = panel.querySelector('.silver:last-child');
+            if (loadingEl && loadingEl.textContent.includes('Đang tải')) loadingEl.remove();
+
+            // Update token fit check if text exists
+            updateTokenEstimate();
+        })
+        .catch(() => {
+            document.getElementById('model-input-limit').textContent = '❌ Lỗi';
+            document.getElementById('model-output-limit').textContent = '❌ Lỗi';
+            currentModelInfo = null;
+        });
+}
+
+let _tokenEstimateTimer = null;
+function updateTokenEstimate() {
+    clearTimeout(_tokenEstimateTimer);
+    _tokenEstimateTimer = setTimeout(_doTokenEstimate, 300);
+}
+
+function _doTokenEstimate() {
+    const text = document.getElementById('source-text').value || '';
+    const charCount = text.length;
+
+    document.getElementById('token-char-count').textContent = charCount.toLocaleString();
+
+    if (charCount === 0) {
+        document.getElementById('token-estimate').textContent = '~0';
+        document.getElementById('token-model-fit').textContent = '';
+        return;
+    }
+
+    // Client-side quick estimation (same logic as backend)
+    const cjkMatch = text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g);
+    const cjkCount = cjkMatch ? cjkMatch.length : 0;
+    const cjkRatio = cjkCount / charCount;
+
+    let tokensPerChar;
+    if (cjkRatio > 0.5) tokensPerChar = 1 / 1.5;
+    else if (cjkRatio > 0.2) tokensPerChar = 1 / 2.5;
+    else tokensPerChar = 1 / 4.0;
+
+    const estimatedTokens = Math.round(charCount * tokensPerChar);
+    const promptOverhead = 2000;
+    const totalInput = estimatedTokens + promptOverhead;
+
+    document.getElementById('token-estimate').textContent = '~' + estimatedTokens.toLocaleString();
+
+    // Check against model limits
+    const fitEl = document.getElementById('token-model-fit');
+    if (currentModelInfo && currentModelInfo.input_token_limit) {
+        const limit = currentModelInfo.input_token_limit;
+        const ratio = totalInput / limit;
+        if (ratio > 0.9) {
+            fitEl.innerHTML = '<span class="red fw6">⚠️ Gần/vượt limit!</span>';
+        } else if (ratio > 0.5) {
+            fitEl.innerHTML = '<span class="orange">⚡ ' + Math.round(ratio * 100) + '% input limit</span>';
+        } else {
+            fitEl.innerHTML = '<span class="green">✅ OK (' + Math.round(ratio * 100) + '% limit)</span>';
+        }
+    } else {
+        fitEl.textContent = '';
+    }
 }
 
 // ============================================================
