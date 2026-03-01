@@ -9,13 +9,11 @@ import sys
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from tqdm import tqdm
 
-from core import PluginManager, ServiceBus, EventBus
-from services.api_service import ApiManager
-from services.cache_service import TranslationCache
+from core.executor import TranslationExecutor
 from services.config_service import ConfigService
 from services.emergency_stop import setup_signal_handlers, reset_emergency_stop
 
@@ -161,59 +159,10 @@ def merge_small_files(files: List[Path], min_chunk_size: int = 15000) -> List[Pa
     return files
 
 
-def translate_file(filepath: Path, plugin, prompts: Dict, output_dir: Path) -> bool:
-    try:
-        logging.info(f"\n{'=' * 80}\n{filepath.name}\n{'=' * 80}")
-
-        with open(filepath, "r", encoding="utf-8") as f:
-            source = f.read()
-
-        logging.info(f"Source: {len(source)} chars")
-
-        chunks = plugin.chunk_text(source)
-        logging.info(f"Chunks: {len(chunks)}")
-
-        translated = []
-        prev_context = ""
-
-        for i, chunk in enumerate(tqdm(chunks, desc=f"Translating {filepath.name}", unit="chunk")):
-            # logging.info(f"\nChunk {i + 1}/{len(chunks)}")
-
-            context = {
-                "prompts": prompts,
-                "previous_context": prev_context,
-                "chunk_index": i,
-            }
-
-            result, status = plugin.process(chunk, context)
-
-            if status == "success" and result:
-                translated.append(result)
-                ctx_len = plugin.translation_config.get("context_char_count", 500)
-                prev_context = result[-ctx_len:] if len(result) > ctx_len else result
-                # logging.info(f"✅ Done")
-            else:
-                logging.error(f"❌ Failed at chunk {i + 1}")
-                return False
-
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_file = output_dir / (filepath.stem + "_translated.txt")
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write("\n\n".join(translated))
-
-        logging.info(f"\n✅ Saved: {output_file}")
-        return True
-
-    except Exception as e:
-        logging.error(f"Error: {e}", exc_info=True)
-        return False
-
-
 def main():
     try:
         print("=" * 80)
-        print("📚 Novel Translator v4.0.0 | SDK: google-genai | Model: gemini-3-flash-preview")
+        print("📚 Novel Translator v5.0.0 | Pure Executor Architecture")
         print("=" * 80)
 
         # Cài đặt signal handlers cho graceful shutdown
@@ -231,32 +180,18 @@ def main():
         api_keys = load_api_keys()
         logging.info(f"API keys: {len(api_keys)}")
 
-        api_service = ApiManager(api_keys)
-        cache_dir = Path(config_service.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache"))
-        cache_enabled = config_service.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool)
-        cache_service = TranslationCache(str(cache_dir), enabled=cache_enabled)
+        # Build config for Executor
+        config = {
+            "model_name": config_service.get("MODEL", "MODEL", fallback="gemini-3-flash-preview"),
+            "qa_model": config_service.get("MODEL", "QA_MODEL", fallback="gemini-3-flash-preview"),
+            "temperature": config_service.get("PROCESSING", "TEMPERATURE", fallback=0.75, value_type=float),
+            "chunk_size": config_service.get("PROCESSING", "MAX_CHARS_PER_CHUNK", fallback=22000, value_type=int),
+            "use_cache": config_service.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool),
+            "prompts": load_prompts(),
+            "context_char_count": config_service.get("PROCESSING", "CONTEXT_CHAR_COUNT", fallback=500, value_type=int),
+        }
 
-        service_bus = ServiceBus()
-        service_bus.register_service("config", config_service)
-        service_bus.register_service("api", api_service)
-        service_bus.register_service("cache", cache_service)
-        service_bus.register_service("logger", logging.getLogger())
-
-        event_bus = EventBus(enable_history=True)
-        plugin_manager = PluginManager(service_bus, event_bus, Path("plugins"), Path("config"))
-
-        # v4.0.0: Chỉ nạp plugin dịch thuật cho luồng main
-        # Tránh nạp OCR, EPUB Converter... không cần thiết làm chậm và nhiễu log
-        if not plugin_manager.load_plugin("translation"):
-            logging.critical("Failed to load translation plugin")
-            return 1
-
-        translation_plugin = plugin_manager.get_plugin("translation")
-        if not translation_plugin:
-            logging.critical("Translation plugin not found")
-            return 1
-
-        prompts = load_prompts()
+        executor = TranslationExecutor(api_keys=api_keys, config=config)
 
         input_dir = Path(config_service.get("DIRECTORIES", "INPUT_DIR", fallback="workspace/input"))
         files = find_input_files(input_dir)
@@ -272,20 +207,68 @@ def main():
         output_dir = Path(
             config_service.get("DIRECTORIES", "OUTPUT_DIR", fallback="workspace/output")
         )
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         ok = fail = 0
 
         for filepath in files:
-            if translate_file(filepath, translation_plugin, prompts, output_dir):
+            logging.info(f"\n{'=' * 80}\n{filepath.name}\n{'=' * 80}")
+            
+            try:
+                text_content = filepath.read_text(encoding="utf-8")
+                logging.info(f"Source: {len(text_content):,} chars")
+            except Exception as e:
+                logging.error(f"Cannot read file {filepath.name}: {e}")
+                fail += 1
+                continue
+
+            # Progress bar cho từng file
+            from threading import Lock
+            pbar_lock = Lock()
+            pbar_state = {"bar": None, "last_current": 0}
+
+            def cli_callback(data: dict):
+                with pbar_lock:
+                    evt_type = data.get("type")
+                    if evt_type == "info":
+                        pass  # Optionally log infos
+                    elif evt_type == "error":
+                        logging.error(data.get("message", ""))
+                    elif evt_type == "progress":
+                        bar = pbar_state["bar"]
+                        if bar is None:
+                            bar = tqdm(total=data["total"], desc=f"Translating {filepath.name}", unit="chunk")
+                            pbar_state["bar"] = bar
+                        
+                        current = data.get("current", 0)
+                        if current > pbar_state["last_current"]:
+                            bar.update(current - pbar_state["last_current"])
+                            pbar_state["last_current"] = current
+                    elif evt_type == "complete":
+                        bar = pbar_state["bar"]
+                        if bar:
+                            bar.close()
+                            pbar_state["bar"] = None
+                        logging.info(data.get("message", ""))
+
+            out_path = output_dir / (filepath.stem + "_translated.txt")
+
+            result = executor.translate_text(
+                text=text_content,
+                output_filename=filepath.stem,
+                output_file_path=out_path,
+                progress_callback=cli_callback
+            )
+
+            if result:
                 ok += 1
+                logging.info(f"✅ Saved: {out_path}")
             else:
                 fail += 1
 
         logging.info(f"\n{'=' * 80}\nComplete!\n{'=' * 80}")
         logging.info(f"Success: {ok}, Failed: {fail}")
         logging.info(f"Output: {output_dir}")
-
-        plugin_manager.cleanup_all_plugins()
 
         return 0 if fail == 0 else 1
 

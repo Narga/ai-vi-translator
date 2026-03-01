@@ -433,19 +433,14 @@ def translate_project_file(slug):
         progress_queue.get()
 
     def _project_translate_worker():
-        """Worker dịch trong project context."""
+        """Worker dịch trong project context sử dụng TranslationExecutor."""
         try:
-            from plugins.translation.translator import robust_translate
-            from services.api_service import ApiManager
-            from services.cache_service import TranslationCache
+            from core.executor import TranslationExecutor
 
             api_keys = load_api_keys()
             if not api_keys:
                 progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
                 return
-
-            api_manager = ApiManager(api_keys)
-            cache = TranslationCache("workspace/cache", enabled=config.get("use_cache", True))
 
             from services.translation_memory import TranslationMemory
             project_tm = TranslationMemory(
@@ -453,75 +448,35 @@ def translate_project_file(slug):
                 enabled=True,
             )
 
-            from plugins.translation.chunker import process_text_for_chunking
-            min_chunk = config["chunk_size"] - 2000
-            max_chunk = config["chunk_size"]
-            chunks = process_text_for_chunking(text, min_chars=min_chunk, max_chars=max_chunk)
-
             progress_queue.put({"type": "info", "message": f"📂 Dự án: {meta['name']} | File: {first_file}"})
-            progress_queue.put({"type": "info", "message": f"Đã chia thành {len(chunks)} chunks"})
 
-            translated_chunks = []
-            prev_context = ""
+            executor = TranslationExecutor(api_keys=api_keys, config=config)
+            
+            def cb(data):
+                if data["type"] == "complete":
+                    out_path = pdir / "translated" / first_file
+                    
+                    _state.translation_result = {
+                        "text": data.get("result"), "filename": first_file, "path": str(out_path),
+                    }
+                    meta["updated_at"] = datetime.now().isoformat()
+                    _save_project_meta(slug, meta)
+                    calculate_stats()
+                    
+                    # Override message cho UI
+                    data["message"] = f"✅ Hoàn tất: {first_file} → translated/{first_file}"
+                    data["percent"] = 100
 
-            for i, chunk in enumerate(chunks):
-                progress_queue.put({
-                    "type": "progress",
-                    "current": i + 1, "total": len(chunks),
-                    "percent": int((i + 1) / len(chunks) * 100),
-                    "message": f"Đang dịch chunk {i+1}/{len(chunks)}...",
-                })
+                progress_queue.put(data)
 
-                cache_key = cache.build_key(chunk, prompts, config, prev_context)
-                cached_result = cache.get(cache_key)
-                if cached_result:
-                    translated_chunks.append(cached_result)
-                    ctx_len = config.get("context_char_count", 500)
-                    prev_context = cached_result[-ctx_len:] if len(cached_result) > ctx_len else cached_result
-                    progress_queue.put({"type": "info", "message": f"Chunk {i+1}: Cache ✅"})
-                    continue
+            executor.translate_text(
+                text=text,
+                output_filename=first_file,
+                output_file_path=pdir / "translated" / first_file,
+                progress_callback=cb,
+                translation_memory=project_tm
+            )
 
-                tm_match = project_tm.find_match(chunk)
-                if tm_match and tm_match.get("similarity", 0) >= 0.9:
-                    result = tm_match["translation"]
-                    progress_queue.put({"type": "info", "message": f"Chunk {i+1}: TM {tm_match['similarity']:.0%} 📚"})
-                else:
-                    result, status, api_key = robust_translate(
-                        original_chunk=chunk,
-                        api_manager=api_manager, cache=cache,
-                        prompts=prompts, config_params=config,
-                        previous_chunk_context=prev_context,
-                    )
-                    if status == "success" and result:
-                        project_tm.add_translation(chunk, result, output_filename)
-                    else:
-                        progress_queue.put({"type": "error", "message": f"Dịch thất bại chunk {i+1}: {status}"})
-                        return
-
-                if result:
-                    translated_chunks.append(result)
-                    ctx_len = config.get("context_char_count", 500)
-                    prev_context = result[-ctx_len:] if len(result) > ctx_len else result
-
-            full_translation = "\n\n".join(translated_chunks)
-
-            out_file = pdir / "translated" / first_file
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-            out_file.write_text(full_translation, encoding="utf-8")
-
-            _state.translation_result = {
-                "text": full_translation, "filename": first_file, "path": str(out_file),
-            }
-
-            meta["updated_at"] = datetime.now().isoformat()
-            _save_project_meta(slug, meta)
-
-            calculate_stats()
-            progress_queue.put({
-                "type": "complete",
-                "message": f"✅ Hoàn tất: {first_file} → translated/{first_file}",
-                "percent": 100,
-            })
         except Exception as e:
             progress_queue.put({"type": "error", "message": f"❌ Lỗi: {str(e)}"})
 

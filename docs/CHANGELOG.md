@@ -7,6 +7,7 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 ## [5.0.0-alpha] - 2026-03-01 - Kiến Trúc Lại & Tối Ưu Hóa Tổng Thể
 
 ### 🚀 Tái Cấu Trúc Kiến Trúc (Refactoring)
+- **Core Pipeline Unification**: Xóa bỏ hoàn toàn hệ thống Plugin (PluginManager, EventBus, ServiceBus) dư thừa. Xây dựng lõi `TranslationExecutor` (`core/executor.py`) quản lý logic dịch thuật nhất quán cho cả CLI (`main.py`) và WebUI (`webui/routes/translation.py`, `projects.py`).
 - **Module hóa WebUI**: Chuyển đổi `webui.py` (1820 dòng) thành package `webui/` với các Blueprints:
   - `webui/__init__.py`: Flask App Factory với global state management
   - `webui/helpers.py`: Các hàm tiện ích dùng chung (config, API keys, stats, prompts)

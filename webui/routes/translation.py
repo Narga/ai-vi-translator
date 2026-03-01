@@ -20,14 +20,12 @@ translation_bp = Blueprint("translation", __name__)
 
 
 def translate_worker(text, config, output_filename="translated", input_file_path=None):
-    """Worker thread để dịch và gửi progress updates."""
+    """Worker thread để dịch và gửi progress updates thông qua TranslationExecutor."""
     from webui import progress_queue, translation_memory
     import webui as _state
 
     try:
-        from plugins.translation.translator import robust_translate
-        from services.api_service import ApiManager
-        from services.cache_service import TranslationCache
+        from core.executor import TranslationExecutor
 
         api_keys = load_api_keys()
         if not api_keys:
@@ -37,116 +35,33 @@ def translate_worker(text, config, output_filename="translated", input_file_path
             })
             return
 
-        api_manager = ApiManager(api_keys)
-        cache = TranslationCache("workspace/cache", enabled=config.get("use_cache", True))
-
+        # Cập nhật context cho load prompt
         prompts = config.get("prompts", {})
         if not prompts.get("main"):
-            prompts = load_prompts()
+            config["prompts"] = load_prompts()
 
-        from plugins.translation.chunker import process_text_for_chunking
+        executor = TranslationExecutor(api_keys=api_keys, config=config)
+        
+        # Hàm callback đẩy event thẳng vào queue SSE
+        def cb(data):
+            progress_queue.put(data)
+            # Chụp đường dẫn output sau khi dịch xong
+            if data["type"] == "complete":
+                out_name = data.get("output_file")
+                out_path = Path("workspace/output") / out_name if out_name else None
+                if out_path:
+                    _state.translation_result = {
+                        "text": data.get("result"),
+                        "filename": out_name,
+                        "path": str(out_path),
+                    }
 
-        min_chunk = config.get("chunk_size", 22000) - 2000
-        max_chunk = config.get("chunk_size", 22000)
-        chunks = process_text_for_chunking(text, min_chars=min_chunk, max_chars=max_chunk)
-
-        progress_queue.put({"type": "info", "message": f"Đã chia thành {len(chunks)} chunks"})
-
-        translated = []
-        prev_context = ""
-        cached_count = 0
-        total_tokens = 0
-        tm_hits = 0
-
-        for i, chunk in enumerate(chunks):
-            progress_queue.put({
-                "type": "progress",
-                "current": i + 1,
-                "total": len(chunks),
-                "percent": int((i + 1) / len(chunks) * 100),
-                "message": f"Đang dịch chunk {i + 1}/{len(chunks)}...",
-            })
-
-            cache_key = cache.build_key(chunk, prompts, config, prev_context)
-            cached_result = cache.get(cache_key)
-
-            if cached_result:
-                cached_count += 1
-                translated.append(cached_result)
-                ctx_len = config.get("context_char_count", 500)
-                prev_context = cached_result[-ctx_len:] if len(cached_result) > ctx_len else cached_result
-                progress_queue.put({"type": "info", "message": f"Chunk {i + 1}: Sử dụng cache ✅"})
-                continue
-
-            # Check Translation Memory
-            tm_match = None
-            if translation_memory:
-                tm_match = translation_memory.find_match(chunk)
-
-            if tm_match and tm_match.get("similarity", 0) >= 0.9:
-                tm_hits += 1
-                result = tm_match["translation"]
-                progress_queue.put({
-                    "type": "info",
-                    "message": f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚",
-                })
-            else:
-                result, status, api_key = robust_translate(
-                    original_chunk=chunk,
-                    api_manager=api_manager,
-                    cache=cache,
-                    prompts=prompts,
-                    config_params=config,
-                    previous_chunk_context=prev_context,
-                )
-
-                if status == "success" and result:
-                    if translation_memory:
-                        translation_memory.add_translation(chunk, result, output_filename)
-                    total_tokens += len(chunk) // 2
-                else:
-                    progress_queue.put({"type": "error", "message": f"Dịch thất bại tại chunk {i + 1}: {status}"})
-                    return
-
-            if result:
-                translated.append(result)
-                ctx_len = config.get("context_char_count", 500)
-                prev_context = result[-ctx_len:] if len(result) > ctx_len else result
-
-        full_translation = "\n\n".join(translated)
-
-        output_dir = Path("workspace/output")
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = output_dir / f"{output_filename}_{timestamp}.txt"
-
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(full_translation)
-
-        _state.translation_result = {
-            "text": full_translation,
-            "filename": output_file.name,
-            "path": str(output_file),
-        }
-
-        calculate_stats()
-
-        cache_info = f"{cached_count}/{len(chunks)} cache"
-        tm_info = f", {tm_hits} TM" if tm_hits > 0 else ""
-
-        progress_queue.put({
-            "type": "complete",
-            "message": f"Dịch hoàn tất! ({cache_info}{tm_info})",
-            "result": full_translation,
-            "chunks": len(chunks),
-            "cached": cached_count,
-            "tm_hits": tm_hits,
-            "source_length": len(text),
-            "translated_length": len(full_translation),
-            "output_file": str(output_file.name),
-            "tokens_used": total_tokens,
-        })
+        executor.translate_text(
+            text=text,
+            output_filename=output_filename,
+            progress_callback=cb,
+            translation_memory=translation_memory
+        )
 
     except Exception as e:
         logger.error(f"Translation error: {e}", exc_info=True)

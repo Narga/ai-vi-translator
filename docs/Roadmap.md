@@ -30,7 +30,7 @@ Tài liệu này tổng hợp toàn bộ lịch sử phát triển, các tác v�
 
 ### 📅 GIAI ĐOẠN 1: Tái Cấu Trúc "Xương Sống" (Bắt đầu)
 - [x] **1.1 Module hóa WebUI**: Tách `webui.py` sang cấu trúc gói `webui/`.
-- [ ] **1.2 Refactor Pipeline**: Loại bỏ ServiceBus/EventBus cũ, chuyển sang Functional Pipeline.
+- [x] **1.2 Refactor Pipeline**: Loại bỏ ServiceBus/EventBus cũ, chuyển sang Functional Pipeline.
 - [x] **1.3 Smart Chunker**: Triển khai thuật toán Sentence Aggregation (Cắt theo câu).
 
 ### 📅 GIAI ĐOẠN 2: Quản Lý Dữ Liệu & Từ Điển
