@@ -17,7 +17,13 @@ Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuy
    # Hoặc dùng pip:
    pip install -r requirements.txt
    ```
-3. Cấu hình API: Tạo file `config/API.txt` và dán các API Keys vào (mỗi key một dòng).
+3. Cấu hình API: Tạo file `.env` hoặc `config/API.txt` và dán các API Keys.
+   ```bash
+   # .env (khuyến nghị)
+   GEMINI_API_KEYS=key1,key2,key3
+   
+   # Hoặc config/API.txt (mỗi key một dòng)
+   ```
 
 ---
 
@@ -27,12 +33,15 @@ Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuy
 Đây là cách dễ nhất để sử dụng cho người dùng cuối.
 ```bash
 python webui.py
+# Hoặc chỉ định port:
+python webui.py --port 7860
 ```
-Sau đó truy cập địa chỉ `http://localhost:5000` trên trình duyệt. Tại đây bạn có thể:
-- Quản lý các dự án dịch thuật (Project-based).
+Sau đó truy cập địa chỉ `http://localhost:7860` trên trình duyệt. Tại đây bạn có thể:
+- Quản lý các dự án dịch thuật (Project-based Workspace).
 - Xem tiến độ dịch thời gian thực (SSE Streaming).
-- Chỉnh sửa Prompt cho từng thể loại truyện.
-- Tải file kết quả trực tiếp.
+- Chỉnh sửa Prompt cho từng thể loại truyện (Genre-based Prompt Sets).
+- Sử dụng Translation Memory tự động ghi nhớ bản dịch.
+- Chạy EPUB Converter và OCR trực tiếp từ giao diện.
 
 ### ⌨️ Chế độ Dòng lệnh (CLI)
 Dành cho người dùng nâng cao hoặc muốn tự động hóa (Automation).
@@ -47,15 +56,33 @@ Các tham số quan trọng:
 
 ---
 
-## 3. Các Tính Năng Nâng Cao
+## 3. Quản Lý Dự Án (Project Workspace)
+
+Mỗi dự án dịch thuật được tổ chức riêng biệt trong `workspace/projects/<slug>/` với cấu trúc:
+```
+my-novel/
+├── sources/           # File nguồn cần dịch (.txt)
+├── translated/        # File đã dịch xong
+├── prompt/            # Prompt riêng cho dự án
+├── profile/           # Glossary, Characters, Style guide
+│   └── translation_memory/  # TM riêng dự án
+└── project.json       # Metadata dự án
+```
+
+---
+
+## 4. Các Tính Năng Nâng Cao
 
 ### 📚 Từ điển Thuật ngữ (Glossary)
 Để đảm bảo tên nhân vật và chiêu thức nhất quán:
-- Đặt file `glossary.csv` vào thư mục dự án.
-- Hệ thống sẽ tự động ưu tiên các từ này trong bản dịch.
+- Đặt file `glossary.txt` vào thư mục `profile/` của dự án.
+- Hệ thống sẽ tự động nhúng các thuật ngữ liên quan vào prompt khi dịch.
 
 ### 🧠 Bộ nhớ Dịch thuật (Translation Memory)
-Hệ thống tự động ghi nhớ các câu đã dịch. Nếu gặp lại câu tương tự >85%, hệ thống sẽ gợi ý hoặc tự động áp dụng để tiết kiệm API Key và đảm bảo tính nhất quán.
+Hệ thống tự động ghi nhớ các câu đã dịch. Nếu gặp lại câu tương tự ≥85%, hệ thống sẽ gợi ý hoặc tự động áp dụng để tiết kiệm API và đảm bảo tính nhất quán.
+
+### 🎭 Prompt theo Thể loại (Genre-based Prompt Sets)
+Tạo các bộ prompt riêng cho từng thể loại truyện (Tiên hiệp, Đô thị, Ngôn tình...) và chuyển đổi linh hoạt.
 
 ### ⚙️ Cấu hình Tối ưu (config/app.ini)
 Bạn có thể tinh chỉnh các thông số kỹ thuật:
@@ -65,7 +92,7 @@ Bạn có thể tinh chỉnh các thông số kỹ thuật:
 
 ---
 
-## 4. Các Công Cụ Hỗ Trợ (Utilities)
+## 5. Các Công Cụ Hỗ Trợ (Utilities)
 
 ### 📄 EPUB Converter
 Hệ thống tích hợp sẵn bộ chuyển đổi dành cho sách điện tử:
@@ -79,11 +106,12 @@ Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét:
 
 ---
 
-## 5. Giải Quyết Sự Cố (Troubleshooting)
+## 6. Giải Quyết Sự Cố (Troubleshooting)
 
 - **Lỗi 429 (Rate Limit):** Đừng lo lắng, hệ thống sẽ tự động chờ hoặc chuyển sang API Key khác.
-- **Bản dịch bị cắt dòng:** Kiểm tra lại tham số `chunk_size` hoặc dùng model mạnh hơn như `gemini-1.5-pro`.
+- **Bản dịch bị cắt dòng:** Kiểm tra lại tham số `chunk_size` hoặc dùng model mạnh hơn.
 - **Lỗi Encoding:** Luôn đảm bảo file đầu vào định dạng UTF-8.
+- **Port bị chiếm:** Dùng `python webui.py --port 8080` để đổi port.
 
 ---
-*Phiên bản tài liệu: 1.0.0 - Ngày cập nhật: 01/03/2026*
+*Phiên bản tài liệu: 2.0 - Ngày cập nhật: 01/03/2026*

@@ -25,23 +25,42 @@ Hệ thống sử dụng cơ chế **Tự thích nghi (Adaptive Scaling)**:
 ### C. Bộ giới hạn Tốc độ Toàn cục (Global Rate Limiter)
 Sử dụng cơ chế **Cửa sổ trượt 60 giây (Sliding Window)** để theo dõi RPM tổng. Nếu vượt ngưỡng IP cho phép, hệ thống kích hoạt **Global Pause** để bảo vệ uy tín IP.
 
+### D. Sentence Aggregation (Chunking)
+Thuật toán dồn câu để đảm bảo ranh giới chunk không cắt ngang ý nghĩa.
+
+### E. Jaccard Similarity (Translation Memory)
+So sánh tập hợp N-gram để tìm kiếm câu tương đồng trong bộ nhớ dịch thuật.
+
 ---
 
 ## 3. Cấu Trúc Thư Mục Dự Án
 
 ```
 novel-translator/
-├── main.py                 # Entry point cho script
+├── main.py                 # Entry point cho CLI script
 ├── cli.py                  # Giao diện dòng lệnh (argparse)
-├── webui.py                # Giao diện Web (Flask)
-├── core/                   # Hạ tầng lõi (PluginManager, Bus)
+├── webui.py                # Entry point cho Web UI (35 dòng)
+├── webui/                  # 📦 Flask App Package (v5.0.0)
+│   ├── __init__.py        # App Factory + global state
+│   ├── helpers.py         # Utilities dùng chung
+│   └── routes/            # Flask Blueprints
+│       ├── translation.py # Worker + SSE streaming
+│       ├── settings.py    # Models, Config, Stats, Cache
+│       ├── prompts.py     # Prompt Sets CRUD
+│       ├── projects.py    # Project workspace + TM APIs
+│       └── plugins.py     # EPUB Converter + OCR
+├── core/                   # Hạ tầng lõi (PluginManager)
 ├── services/               # Các dịch vụ (API, Cache, Checkpoint)
 ├── plugins/                # Chứa các plugin thực thi
 │   ├── translation/       # Lõi dịch thuật chính
 │   ├── epub_converter/    # Chuyển đổi EPUB
 │   └── ocr/              # Nhận diện ảnh/PDF
 ├── config/                 # Cấu hình app.ini và API keys
-└── docs/                   # Tài liệu báo cáo và hướng dẫn
+└── docs/                   # Tài liệu
+    ├── Roadmap.md         # Lộ trình phát triển
+    ├── CHANGELOG.md       # Lịch sử thay đổi
+    ├── documents/         # Manual, DEVELOPMENT guide
+    └── reports/           # Các báo cáo đánh giá
 ```
 
 ---
@@ -55,7 +74,7 @@ Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
 2.  **Tạo file `plugin.py`**:
     ```python
     from core.interfaces import ProcessorPlugin
-    from typing import Dict, Any, Tuple
+    from typing import Any, Tuple
 
     class Plugin(ProcessorPlugin):
         @property
@@ -70,7 +89,29 @@ Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
 
 ---
 
-## 5. Quy Định Coding Convention
+## 5. Hướng Dẫn Thêm Blueprint Mới cho WebUI
+
+Kể từ v5.0.0, WebUI sử dụng Flask Blueprints. Để thêm API mới:
+
+1.  **Tạo file route**: `webui/routes/ten_module.py`
+    ```python
+    from flask import Blueprint, request, jsonify
+    
+    my_bp = Blueprint("my_module", __name__)
+    
+    @my_bp.route("/api/my-endpoint")
+    def my_endpoint():
+        return jsonify({"status": "ok"})
+    ```
+2.  **Đăng ký Blueprint** trong `webui/__init__.py`:
+    ```python
+    from webui.routes.ten_module import my_bp
+    app.register_blueprint(my_bp)
+    ```
+
+---
+
+## 6. Quy Định Coding Convention
 
 ### Đặt tên (Naming)
 - **Biến & Hàm**: Sử dụng `snake_case` (ví dụ: `translate_chunk`, `api_key`).
@@ -89,32 +130,11 @@ Tuyệt đối không sử dụng `print()`. Sử dụng module `logging` của 
 
 ---
 
-## 3. Phát Triển Plugin Mới
-
-Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
-
-```python
-class MyNewPlugin(ProcessorPlugin):
-    def process(self, input_data: str, context: dict) -> Tuple[str, str]:
-        # Logic xử lý tại đây
-        return result, "success"
-```
-
----
-
-## 4. Quản Lý Dependencies
+## 7. Quản Lý Dependencies
 
 Dự án sử dụng `uv` để quản lý package. 
 - Thêm package mới: `uv add <package>`
 - Cập nhật lock file: `uv lock`
 
 ---
-
-## 5. Danh Sách Thuật Toán Cốt Lõi
-
-1. **Sentence Aggregation (Chunking)**: Thuật toán dồn câu để đảm bảo ranh giới chunk không cắt ngang ý nghĩa.
-2. **Adaptive Rate Limiting**: Thuật toán Sliding Window để điều tiết request dựa trên phản hồi từ server Google.
-3. **Jaccard Similarity (TM)**: So sánh tập hợp N-gram để tìm kiếm câu tương đồng trong bộ nhớ dịch thuật.
-
----
-*Tình trạng: Draft v1.0 - Ngày 01/03/2026*
+*Phiên bản: 2.0 - Ngày cập nhật: 01/03/2026*
