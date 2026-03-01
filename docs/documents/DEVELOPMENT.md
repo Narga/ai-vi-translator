@@ -1,0 +1,120 @@
+# 🛠️ Hướng Dẫn Phát Triển & Coding Convention
+
+Tài liệu này dành cho các lập trình viên muốn đóng góp hoặc mở rộng hệ thống Novel Translator.
+
+## 1. Kiến Trúc Phân Tầng (Architectural Layers)
+
+Hệ thống được cấu trúc thành ba lớp chức năng chính:
+
+1.  **Lớp Chiến lược (`ExecutionManager`)**: Quản lý toàn bộ nhiệm vụ dịch thuật, quyết định số lượng worker tối ưu dựa trên sức khỏe hệ thống và giám sát tiến độ toàn cục.
+2.  **Lớp Điều phối (`SmartKeyDistributor` / `ApiManager`)**: Quản lý vòng đời của API key, phân loại lỗi và thực hiện logic phân phối key cho từng worker.
+3.  **Lớp Thực thi (`Worker`)**: Các tác vụ asyncio/threading độc lập thực hiện dịch các chunk và phản hồi trạng thái.
+
+---
+
+## 2. Các Giải Thuật Cốt Lõi (Core Algorithms)
+
+### A. Gắn kết Worker-Key (Worker-Key Affinity)
+Mỗi Worker được gán một **Preferred Key** duy nhất để tối đa hóa khả năng caching phía server Gemini. Nếu key bị lỗi, hệ thống sẽ tự động "mượn" key từ **Reserve Pool** trong vòng `< 1ms` để duy trì tiến độ.
+
+### B. Kiểm soát Lưu lượng Động (Dynamic Throughput)
+Hệ thống sử dụng cơ chế **Tự thích nghi (Adaptive Scaling)**:
+- Theo dõi tỷ lệ thành công (success_rate) và lỗi 429 (quota_error).
+- Tự động giảm số lượng worker nếu phát hiện lỗi Quota hàng loạt và vào chế độ **Khởi động chậm (Slow-Start)**.
+
+### C. Bộ giới hạn Tốc độ Toàn cục (Global Rate Limiter)
+Sử dụng cơ chế **Cửa sổ trượt 60 giây (Sliding Window)** để theo dõi RPM tổng. Nếu vượt ngưỡng IP cho phép, hệ thống kích hoạt **Global Pause** để bảo vệ uy tín IP.
+
+---
+
+## 3. Cấu Trúc Thư Mục Dự Án
+
+```
+novel-translator/
+├── main.py                 # Entry point cho script
+├── cli.py                  # Giao diện dòng lệnh (argparse)
+├── webui.py                # Giao diện Web (Flask)
+├── core/                   # Hạ tầng lõi (PluginManager, Bus)
+├── services/               # Các dịch vụ (API, Cache, Checkpoint)
+├── plugins/                # Chứa các plugin thực thi
+│   ├── translation/       # Lõi dịch thuật chính
+│   ├── epub_converter/    # Chuyển đổi EPUB
+│   └── ocr/              # Nhận diện ảnh/PDF
+├── config/                 # Cấu hình app.ini và API keys
+└── docs/                   # Tài liệu báo cáo và hướng dẫn
+```
+
+---
+
+## 4. Hướng Dẫn Phát Triển Plugin Mới
+
+Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
+
+### Quy trình tạo Plugin:
+1.  **Tạo thư mục**: `plugins/ten_plugin/`.
+2.  **Tạo file `plugin.py`**:
+    ```python
+    from core.interfaces import ProcessorPlugin
+    from typing import Dict, Any, Tuple
+
+    class Plugin(ProcessorPlugin):
+        @property
+        def name(self) -> str:
+            return "my_plugin"
+        
+        def process(self, input_data: Any, context: dict = None) -> Tuple[Any, str]:
+            # Logic xử lý chính
+            return result, "success"
+    ```
+3.  **Tự động nhận diện**: Plugin Manager sẽ tự động phát hiện và nạp plugin khi khởi chạy `main.py` hoặc `webui.py`.
+
+---
+
+## 5. Quy Định Coding Convention
+
+### Đặt tên (Naming)
+- **Biến & Hàm**: Sử dụng `snake_case` (ví dụ: `translate_chunk`, `api_key`).
+- **Lớp (Class)**: Sử dụng `PascalCase` (ví dụ: `ApiManager`, `PluginLoader`).
+- **Hằng số**: Sử dụng `UPPER_SNAKE_CASE` (ví dụ: `MAX_RETRIES`, `DEFAULT_MODEL`).
+
+### Logging
+Tuyệt đối không sử dụng `print()`. Sử dụng module `logging` của Python:
+- `logging.info()`: Thông tin tiến trình bình thường.
+- `logging.warning()`: Các lỗi có thể tự phục hồi (ví dụ: Retry API).
+- `logging.error()`: Lỗi nghiêm trọng ảnh hưởng đến kết quả chunk.
+
+### Xử lý Lỗi (Error Handling)
+- Luôn sử dụng `try...except` tại các điểm tiếp xúc với ngoại cảnh (IO, API).
+- Đối với các lỗi logic dịch thuật, ưu tiên trả về text gốc kèm đánh dấu lỗi thay vì crash chương trình.
+
+---
+
+## 3. Phát Triển Plugin Mới
+
+Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
+
+```python
+class MyNewPlugin(ProcessorPlugin):
+    def process(self, input_data: str, context: dict) -> Tuple[str, str]:
+        # Logic xử lý tại đây
+        return result, "success"
+```
+
+---
+
+## 4. Quản Lý Dependencies
+
+Dự án sử dụng `uv` để quản lý package. 
+- Thêm package mới: `uv add <package>`
+- Cập nhật lock file: `uv lock`
+
+---
+
+## 5. Danh Sách Thuật Toán Cốt Lõi
+
+1. **Sentence Aggregation (Chunking)**: Thuật toán dồn câu để đảm bảo ranh giới chunk không cắt ngang ý nghĩa.
+2. **Adaptive Rate Limiting**: Thuật toán Sliding Window để điều tiết request dựa trên phản hồi từ server Google.
+3. **Jaccard Similarity (TM)**: So sánh tập hợp N-gram để tìm kiếm câu tương đồng trong bộ nhớ dịch thuật.
+
+---
+*Tình trạng: Draft v1.0 - Ngày 01/03/2026*

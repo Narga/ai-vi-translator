@@ -4,6 +4,31 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 
 ---
 
+## [5.0.0-alpha] - 2026-03-01 - Kiến Trúc Lại & Tối Ưu Hóa Tổng Thể
+
+### 🚀 Tái Cấu Trúc Kiến Trúc (Refactoring)
+- **Module hóa WebUI**: Chuyển đổi `webui.py` (1820 dòng) thành package `webui/` với các Blueprints:
+  - `webui/__init__.py`: Flask App Factory với global state management
+  - `webui/helpers.py`: Các hàm tiện ích dùng chung (config, API keys, stats, prompts)
+  - `webui/routes/translation.py`: Translation worker, SSE streaming, direct translate
+  - `webui/routes/settings.py`: Models, Config, Stats, Cache, Token estimation
+  - `webui/routes/prompts.py`: Genre-based prompt management CRUD
+  - `webui/routes/projects.py`: Project CRUD, File management, Translation, TM APIs
+  - `webui/routes/plugins.py`: EPUB Converter và OCR execution
+- **Entry point**: `webui.py` giảm từ 1820 dòng xuống 35 dòng.
+
+### ✨ Tính Năng Mới & Thuật Toán
+- **Smart Sentence Chunker**: Thuật toán cắt văn bản mới dựa trên ngữ pháp câu (Sentence Aggregation), tuyệt đối không cắt ngang giữa từ.
+- **SQLite Checkpoint**: Thay thế JSON bằng SQLite cho việc quản lý trạng thái dự án, đảm bảo khả năng khôi phục (Resume) tin cậy 100%.
+- **Dynamic Glossary Injection**: Hệ thống tự động phân tích và nhúng từ điển thuật ngữ vào Prompt theo ngữ cảnh từng Chunk.
+- **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình, giúp giữ mạch văn bản đầu ra.
+
+### 📚 Tài Liệu (Documentation)
+- **Roadmap 2026**: Xây dựng lộ trình phát triển chi tiết 3 giai đoạn.
+- **Development & Manual**: Tách biệt tài liệu hướng dẫn cho người dùng cuối (`Manual.md`) và lập trình viên (`DEVELOPMENT.md`).
+
+---
+
 ## [4.1.0] - Báo cáo cải tiến UI và Fixes
 
 ### 🚀 Bug Fixes & Refactoring
