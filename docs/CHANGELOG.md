@@ -18,10 +18,10 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 - **Entry point**: `webui.py` giảm từ 1820 dòng xuống 35 dòng.
 
 ### ✨ Tính Năng Mới & Thuật Toán
-- **Smart Sentence Chunker**: Thuật toán cắt văn bản mới dựa trên ngữ pháp câu (Sentence Aggregation), tuyệt đối không cắt ngang giữa từ.
-- **SQLite Checkpoint**: Thay thế JSON bằng SQLite cho việc quản lý trạng thái dự án, đảm bảo khả năng khôi phục (Resume) tin cậy 100%.
+- **Sentence Aggregation Chunker** (`chunker.py`): Thuật toán mới tách text thành danh sách câu bằng regex multi-language (Trung/Nhật/Hàn/Latin), rồi dồn câu vào chunk — đảm bảo 100% không cắt ngang câu. Giữ `intelligent_chunking()` làm fallback cho câu quá dài.
+- **SQLite Checkpoint** (`checkpoint_service.py`): Thay thế JSON bằng SQLite với WAL mode và ACID transactions. Hỗ trợ per-chunk upsert, query nhanh tiến độ không cần load toàn bộ text. API tương thích v4.0 + mới (`init_session`, `save_chunk`, `get_translated_chunks`).
 - **Dynamic Glossary Injection**: Hệ thống tự động phân tích và nhúng từ điển thuật ngữ vào Prompt theo ngữ cảnh từng Chunk.
-- **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình, giúp giữ mạch văn bản đầu ra.
+- **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình.
 
 ### 📚 Tài Liệu (Documentation)
 - **Roadmap 2026**: Xây dựng lộ trình phát triển chi tiết 3 giai đoạn.

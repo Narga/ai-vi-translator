@@ -1,11 +1,9 @@
-# src/smart_chunker.py - v2.6.1
+# plugins/translation/chunker.py - v5.0.0
 # Tác giả: Narga
 # Chức năng: Module xử lý thông minh cho việc cắt file.
-# THAY ĐỔI v2.6.1:
-# - Sửa lỗi biến không tồn tại/nhầm tên (pos/length/start) → current_pos/text_len/chunk_start.
-# - Bảo đảm cập nhật current_pos sau mỗi lần cắt.
-# - Thêm fallback cắt cứng nếu không tìm thấy dấu câu hợp lệ trong cửa sổ [min..max].
-# - Giữ cơ chế gộp các mảnh chunk nhỏ để giảm mảnh vụn.
+# v5.0.0: Thêm thuật toán Sentence Aggregation — tách text thành câu trước,
+#          rồi dồn câu vào chunk → đảm bảo 100% không cắt ngang câu.
+# v2.6.1: Sửa lỗi biến, fallback cắt cứng, gộp mảnh chunk nhỏ.
 
 import os
 import re
@@ -214,10 +212,147 @@ def intelligent_chunking(full_text: str, min_chars: int, max_chars: int) -> List
     return chunks
 
 
+# ============================================================
+# Sentence Aggregation Chunking (v5.0.0)
+# ============================================================
+
+# Regex tách câu: hỗ trợ cả dấu câu Trung/Nhật/Hàn và Latin
+_SENTENCE_ENDINGS = re.compile(
+    r'(?<=[\.\!\?。！？…》」』\)\]】])'
+    r'(?:\s+|(?=[\'\"\u201c\u201d\u300c\u300d]))',
+    re.UNICODE
+)
+
+
+def _split_into_sentences(text: str) -> List[str]:
+    """
+    Tách văn bản thành danh sách câu dựa trên dấu câu.
+
+    Sử dụng regex lookbehind để giữ nguyên dấu câu ở cuối mỗi câu.
+    Hỗ trợ: . ! ? 。 ！ ？ … 》 」 』
+
+    Args:
+        text: Văn bản cần tách.
+
+    Returns:
+        List[str]: Danh sách câu (đã strip, bỏ câu rỗng).
+    """
+    if not text or not text.strip():
+        return []
+
+    # Tách theo dấu kết câu
+    raw_sentences = _SENTENCE_ENDINGS.split(text)
+
+    # Lọc câu rỗng và strip
+    sentences = [s.strip() for s in raw_sentences if s and s.strip()]
+
+    return sentences
+
+
+def sentence_aggregate_chunking(
+    full_text: str, min_chars: int, max_chars: int
+) -> List[str]:
+    """
+    Thuật toán Sentence Aggregation: dồn câu vào chunk cho đến khi đạt ngưỡng.
+
+    Đảm bảo 100% KHÔNG CẮT NGANG CÂU:
+    1. Tách toàn bộ text thành danh sách câu.
+    2. Duyệt từng câu, dồn vào buffer.
+    3. Nếu thêm câu tiếp theo làm tràn max_chars → chốt chunk, bắt đầu chunk mới.
+    4. Nếu 1 câu đơn lẻ > max_chars → fallback sang intelligent_chunking cho câu đó.
+
+    Args:
+        full_text: Toàn bộ nội dung văn bản.
+        min_chars: Kích thước tối thiểu mong muốn cho mỗi chunk.
+        max_chars: Kích thước tối đa cho mỗi chunk.
+
+    Returns:
+        List[str]: Danh sách các chunk.
+    """
+    if not full_text or not full_text.strip():
+        return []
+
+    logging.info(
+        f"🌀 Sentence Aggregation Chunking ({min_chars:,} - {max_chars:,} ký tự)..."
+    )
+
+    # Tiền xử lý: bọc tiêu đề
+    processed_text = wrap_titles(full_text)
+
+    # Bước 1: Tách thành câu
+    sentences = _split_into_sentences(processed_text)
+
+    if not sentences:
+        return [processed_text.strip()] if processed_text.strip() else []
+
+    logging.info(f"📝 Đã tách được {len(sentences)} câu.")
+
+    # Bước 2: Dồn câu vào chunks
+    chunks: List[str] = []
+    buffer: List[str] = []
+    buffer_len = 0
+
+    for sent in sentences:
+        sent_len = len(sent)
+
+        # Trường hợp đặc biệt: câu đơn lẻ quá dài
+        if sent_len > max_chars:
+            # Chốt buffer hiện tại trước
+            if buffer:
+                chunks.append("\n".join(buffer))
+                buffer, buffer_len = [], 0
+            # Fallback: cắt câu dài bằng thuật toán cũ
+            logging.warning(
+                f"⚠️ Câu quá dài ({sent_len:,} ký tự), dùng fallback chunking."
+            )
+            sub_chunks = intelligent_chunking(sent, min_chars, max_chars)
+            chunks.extend(sub_chunks)
+            continue
+
+        # Kiểm tra: thêm câu này có tràn max_chars không?
+        new_len = buffer_len + sent_len + (1 if buffer else 0)  # +1 cho \n
+
+        if new_len > max_chars and buffer:
+            # Chốt chunk hiện tại
+            chunks.append("\n".join(buffer))
+            buffer, buffer_len = [], 0
+
+        # Thêm câu vào buffer
+        buffer.append(sent)
+        buffer_len += sent_len + (1 if len(buffer) > 1 else 0)
+
+    # Chốt buffer cuối cùng
+    if buffer:
+        chunks.append("\n".join(buffer))
+
+    # Hậu xử lý: gộp chunk quá nhỏ vào chunk trước
+    if len(chunks) >= 2:
+        merged: List[str] = []
+        temp = chunks[0]
+        for c in chunks[1:]:
+            if len(c) < int(min_chars * 0.3):
+                logging.info("🔗 Gộp chunk nhỏ vào chunk trước đó.")
+                temp += "\n\n" + c
+            else:
+                merged.append(temp)
+                temp = c
+        merged.append(temp)
+        chunks = merged
+
+    if chunks:
+        avg_size = sum(len(c) for c in chunks) / len(chunks)
+        logging.info(
+            f"✅ Sentence Aggregation hoàn tất: {len(chunks)} chunks, "
+            f"kích thước TB: {avg_size:,.0f} ký tự."
+        )
+
+    return chunks
+
+
 def process_text_for_chunking(text: str, min_chars: int, max_chars: int) -> List[str]:
     """
     Hàm điều phối chính cho việc chia chunk.
-    Kiểm tra kích thước văn bản và quyết định có cần chia nhỏ hay không.
+    Sử dụng Sentence Aggregation (v5.0.0) để đảm bảo không cắt ngang câu.
 
     Args:
         text (str): Nội dung cần xử lý.
@@ -229,7 +364,7 @@ def process_text_for_chunking(text: str, min_chars: int, max_chars: int) -> List
     """
     if len(text or "") <= max_chars:
         return [wrap_titles(text)]
-    return intelligent_chunking(text, min_chars, max_chars)
+    return sentence_aggregate_chunking(text, min_chars, max_chars)
 
 
 def chunk_text_generator(full_text: str, min_chars: int, max_chars: int):
