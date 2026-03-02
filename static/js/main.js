@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadStats();
     loadModels();
     loadGenres();
+    loadApiKeys();
 
     setInterval(loadStats, 30000);
 
@@ -128,6 +129,58 @@ function initDialogs() {
             .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         document.getElementById('new-genre-slug').value = slug;
     });
+}
+
+// ============================================================
+// Toast & API Keys
+// ============================================================
+function showToast(message, type = 'success') {
+    const container = document.getElementById('nt-toast-container');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = `nt-toast ${type}`;
+
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+
+    toast.innerHTML = `<span>${icon}</span><span class="flex-auto">${message}</span>`;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('fading-out');
+        toast.addEventListener('animationend', () => toast.remove());
+    }, 3000);
+}
+
+function loadApiKeys() {
+    fetch('/api/keys')
+        .then(r => r.json())
+        .then(data => {
+            const el = document.getElementById('config-api-keys');
+            if (el) el.value = data.content || '';
+        })
+        .catch(e => console.error('Failed to load API keys:', e));
+}
+
+function saveApiKeys() {
+    const keysText = document.getElementById('config-api-keys').value;
+    fetch('/api/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: keysText })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Đã lưu API Keys thành công', 'success');
+            } else {
+                showToast(data.error || 'Lỗi lưu API Keys', 'error');
+            }
+        })
+        .catch(e => showToast(e.message, 'error'));
 }
 
 // ============================================================
@@ -301,7 +354,7 @@ function loadProjects() {
 
 function selectProject(slug) {
     fetch('/api/projects/' + slug).then(r => r.json()).then(data => {
-        if (data.error) { alert(data.error); return; }
+        if (data.error) { showToast(data.error, 'error'); return; }
         currentProject = data;
         selectedFiles.clear();
 
@@ -530,19 +583,19 @@ function translateFileInProject(filename) {
         if (data.status === 'started') {
             switchProjectTab('sources');
             startSSEProgress();
-        } else alert(data.error || 'Lỗi');
+        } else showToast(data.error || 'Lỗi', 'error');
     });
 }
 
 function translateSelectedInProject() {
-    if (!currentProject || selectedFiles.size === 0) { alert('Chưa chọn file!'); return; }
+    if (!currentProject || selectedFiles.size === 0) { showToast('Chưa chọn file!', 'error'); return; }
     const files = Array.from(selectedFiles);
     fetch(`/api/projects/${currentProject.slug}/translate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ files })
     }).then(r => r.json()).then(data => {
         if (data.status === 'started') startSSEProgress();
-        else alert(data.error || 'Lỗi');
+        else showToast(data.error || 'Lỗi', 'error');
     });
 }
 
@@ -573,7 +626,7 @@ function saveProjectPrompts() {
             correction: document.getElementById('proj-prompt-correction').value,
         })
     }).then(r => r.json()).then(data => {
-        if (data.success) alert('Đã lưu prompt dự án!');
+        if (data.success) showToast('Đã lưu prompt dự án!', 'success');
     });
 }
 
@@ -608,7 +661,7 @@ function saveProjectProfile() {
             body: JSON.stringify({ content: document.getElementById('proj-style-guide').value })
         }),
     ];
-    Promise.all(saves).then(() => alert('Đã lưu profile dự án!'));
+    Promise.all(saves).then(() => showToast('Đã lưu profile dự án!', 'success'));
 }
 
 function showCreateProjectDialog() {
@@ -620,7 +673,7 @@ function showCreateProjectDialog() {
         body: JSON.stringify({ name, description: desc || '' })
     }).then(r => r.json()).then(data => {
         if (data.success) { loadProjects(); selectProject(data.slug); }
-        else alert(data.error || 'Lỗi tạo dự án');
+        else showToast(data.error || 'Lỗi tạo dự án', 'error');
     });
 }
 
@@ -671,7 +724,7 @@ function loadStats() {
 function clearCache() {
     if (!confirm('Xóa sạch bộ nhớ Cache dịch thuật?')) return;
     fetch('/api/cache/clear', { method: 'POST' }).then(r => r.json()).then(data => {
-        alert('Đã dọn dẹp ' + data.deleted + ' files nháp.');
+        showToast('Đã dọn dẹp ' + data.deleted + ' files nháp.', 'success');
         loadStats();
     });
 }
@@ -698,7 +751,7 @@ function hideProgress(containerId) {
 function startTranslation() {
     const btn = document.getElementById('translate-btn');
     const text = document.getElementById('source-text').value;
-    if (!text.trim()) { alert('Vui lòng nhập văn bản hoặc chọn file!'); return; }
+    if (!text.trim()) { showToast('Vui lòng nhập văn bản hoặc chọn file!', 'error'); return; }
 
     btn.disabled = true;
     btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang dịch...';
@@ -806,12 +859,12 @@ function resetButton(btn, isBatch = false) {
 
 function copyResult() {
     navigator.clipboard.writeText(document.getElementById('result-text').value)
-        .then(() => alert('Đã sao chép vào Clipboard!'))
-        .catch(() => alert('Copy thất bại'));
+        .then(() => showToast('Đã sao chép vào Clipboard!', 'success'))
+        .catch(() => showToast('Copy thất bại', 'error'));
 }
 function downloadResult() {
     if (currentOutputFile) window.open('/api/download/' + currentOutputFile, '_blank');
-    else alert('Chưa xác định file output!');
+    else showToast('Chưa xác định file output!', 'error');
 }
 
 // ============================================================
@@ -819,17 +872,17 @@ function downloadResult() {
 // ============================================================
 function runRetranslate() {
     const text = document.getElementById('editor-translated').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
+    if (!text.trim()) { showToast('Chưa tải nội dung file dịch!', 'error'); return; }
     runDoneTranslationProcess(text, 'retranslate');
 }
 function runCorrection() {
     const text = document.getElementById('editor-translated').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
+    if (!text.trim()) { showToast('Chưa tải nội dung file dịch!', 'error'); return; }
     runDoneTranslationProcess(text, 'correction');
 }
 function runBoth() {
     const text = document.getElementById('editor-translated').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
+    if (!text.trim()) { showToast('Chưa tải nội dung file dịch!', 'error'); return; }
     addDoneLog('Đang tiến hành Retranslate...', 'info');
     runDoneTranslationProcess(text, 'retranslate', () => {
         addDoneLog('Bắt đầu rà soát Correction...', 'info');
@@ -882,8 +935,8 @@ function addDoneLog(message, type) {
 
 function copyDoneResult() {
     navigator.clipboard.writeText(document.getElementById('done-result-text').value)
-        .then(() => alert('Đã chép nội dung đã sửa!'))
-        .catch(() => alert('Copy thất bại'));
+        .then(() => showToast('Đã chép nội dung đã sửa!', 'success'))
+        .catch(() => showToast('Copy thất bại', 'error'));
 }
 function downloadDoneResult() {
     const text = document.getElementById('done-result-text').value;
@@ -965,7 +1018,7 @@ function createGenre(e) {
         name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const desc = document.getElementById('new-genre-desc').value.trim();
 
-    if (!name) { alert('Tên thể loại không được rỗng!'); return; }
+    if (!name) { showToast('Tên thể loại không được rỗng!', 'error'); return; }
 
     const promptsData = window.isCloning ? {
         main: document.getElementById('genre-main-text').value,
@@ -986,7 +1039,7 @@ function createGenre(e) {
             selectGenre(data.slug);
             showGenreAlert(`Đã tạo Profile: ${name}`, 'success');
         } else {
-            alert('Lỗi khởi tạo: ' + (data.error || 'Unknown Error'));
+            showToast('Lỗi khởi tạo: ' + (data.error || 'Unknown Error'), 'error');
         }
     });
 }

@@ -98,6 +98,15 @@ def load_api_keys():
     return []
 
 
+def save_api_keys(keys_text):
+    """Lưu API keys vào file config/API.txt."""
+    api_dir = Path("config")
+    api_dir.mkdir(parents=True, exist_ok=True)
+    api_file = api_dir / "API.txt"
+    with open(api_file, "w", encoding="utf-8") as f:
+        f.write(keys_text)
+    return True
+
 def calculate_stats():
     """Tính toán thống kê hệ thống (project-based)."""
     from webui import translation_memory

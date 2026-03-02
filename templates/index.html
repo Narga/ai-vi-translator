@@ -208,8 +208,10 @@
                                     <span id="sbs-save-status" class="f7 silver ml2"></span>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button class="nt-btn nt-btn-success f7" onclick="saveSideBySideEditor()">💾 Lưu bản dịch</button>
-                                    <button class="nt-btn nt-btn-outline f7" onclick="closeSideBySideEditor()">✕ Đóng</button>
+                                    <button class="nt-btn nt-btn-success f7" onclick="saveSideBySideEditor()">💾 Lưu bản
+                                        dịch</button>
+                                    <button class="nt-btn nt-btn-outline f7" onclick="closeSideBySideEditor()">✕
+                                        Đóng</button>
                                 </div>
                             </div>
 
@@ -221,7 +223,8 @@
                                         placeholder="Chọn file đã dịch để xem bản gốc..."></textarea>
                                 </div>
                                 <div class="nt-editor-pane">
-                                    <label class="db f7 fw6 mb2 silver">✏️ Bản dịch (Translated) — Có thể chỉnh sửa</label>
+                                    <label class="db f7 fw6 mb2 silver">✏️ Bản dịch (Translated) — Có thể chỉnh
+                                        sửa</label>
                                     <textarea id="editor-translated" class="nt-input w-100 code f7"
                                         placeholder="Bản dịch sẽ hiển thị ở đây..."></textarea>
                                 </div>
@@ -325,7 +328,18 @@
 
         <!-- ==================== TAB 3: CẤU HÌNH ==================== -->
         <section id="tab-config" class="nt-tab-content dn">
-            <div class="mw7 center">
+            <div class="mw8 center">
+                <div class="bg-white br3 shadow-4 pa4 mb4">
+                    <h2 class="f3 mt0 mb4 fw6 dark-gray pb2 bb b--black-10">🔑 API Keys</h2>
+                    <p class="f7 silver mt0 mb3">Mỗi dòng một API Key (Gemini). Key đầu tiên sẽ được dùng làm mặc định
+                        để fetch Models.</p>
+                    <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:120px"
+                        placeholder="AIzaSy..."></textarea>
+                    <div class="mt3 flex justify-end">
+                        <button class="nt-btn nt-btn-primary" onclick="saveApiKeys()">💾 Lưu API Keys</button>
+                    </div>
+                </div>
+
                 <div class="bg-white br3 shadow-4 pa4 mb4">
                     <h2 class="f3 mt0 mb4 fw6 dark-gray pb2 bb b--black-10">🤖 Cài đặt dịch thuật</h2>
 
@@ -458,12 +472,6 @@
                                 placeholder="Correction prompt..."></textarea>
                         </div>
 
-                        <!-- Alert Toast -->
-                        <div id="genre-alert"
-                            class="absolute bottom-1 right-2 bg-near-black white pa3 br2 shadow-3 dn items-center flex gap-2 z-max">
-                            <span id="genre-alert-icon">✅</span>
-                            <span id="genre-alert-text" class="fw5">Thông báo</span>
-                        </div>
                     </div>
 
                     <!-- Empty State -->
@@ -650,6 +658,10 @@
             </div>
         </div>
     </div>
+
+    <!-- Toast Container -->
+    <div id="nt-toast-container" class="fixed bottom-1 right-2 z-max flex flex-column gap-2"
+        style="pointer-events:none;"></div>
 
     <!-- Script references -->
     <script src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>

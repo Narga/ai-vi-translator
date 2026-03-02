@@ -122,19 +122,78 @@
 /* Form inputs & Range */
 .nt-input {
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.75rem;
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
   font-family: inherit;
-  font-size: 0.875rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
   transition: border-color 0.2s, box-shadow 0.2s;
-  background: white;
+  background: #fdfdfd;
   resize: vertical;
 }
 
 .nt-input:focus {
   outline: none;
   border-color: var(--primary);
+  background: white;
   box-shadow: 0 0 0 3px rgba(53, 126, 221, 0.2);
+}
+
+/* Toast Notifications */
+.nt-toast {
+  background: #333;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: auto;
+  animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  max-width: 350px;
+  word-wrap: break-word;
+}
+
+.nt-toast.success {
+  background: var(--success);
+}
+
+.nt-toast.error {
+  background: var(--danger);
+}
+
+.nt-toast.info {
+  background: var(--primary);
+}
+
+.nt-toast.fading-out {
+  animation: toastFadeOut 0.3s ease forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(10%);
+  }
 }
 
 .nt-range {
@@ -251,13 +310,13 @@
 /* Project card in list */
 .nt-project-card {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: background 0.15s;
 }
 
 .nt-project-card:hover {
-  background: rgba(0,0,0,0.02);
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .nt-project-card.active {

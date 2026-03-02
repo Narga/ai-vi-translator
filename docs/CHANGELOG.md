@@ -26,6 +26,10 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
   - Cơ chế deduplication O(1) và sắp xếp theo độ dài giảm dần để ưu tiên match thuật ngữ dài trước.
   - Tự động nhúng vào Prompt giúp tiết kiệm Token và tăng độ chính xác của LLM. Khả dụng cho CLI, WebUI và Project-based.
 - **Side-by-Side Editor** (`index.html`, `main.js`): Giao diện soát lỗi song ngữ — hiển thị bản gốc (readonly) bên trái và bản dịch (editable) bên phải. Hỗ trợ chỉnh sửa trực tiếp, lưu nhanh, sync scroll, và thống kê ký tự/tỷ lệ dịch real-time.
+- **Cải thiện Trải nghiệm Người Dùng (UI/UX)**:
+  - Mở rộng kích thước các Form nhập liệu, làm mới Textarea với font chữ to, border bo góc mềm mại hơn.
+  - Thay thế toàn bộ hộp thoại cảnh báo `alert()` truyền thống bằng hệ thống **Toast Notifications** mượt mà.
+  - Tích hợp tính năng quản lý **API Keys** trực tiếp từ tab Cấu hình (Config) trên WebUI.
 - **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình.
 
 ### 📚 Tài Liệu (Documentation)

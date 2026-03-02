@@ -9,7 +9,7 @@ from flask import Blueprint, request, jsonify
 
 from webui.helpers import (
     load_api_keys, get_default_chunk_size, get_default_model,
-    get_available_models, calculate_stats,
+    get_available_models, calculate_stats, save_api_keys
 )
 
 logger = logging.getLogger(__name__)
@@ -203,3 +203,27 @@ def remove_done_file():
     file_path.unlink()
 
     return jsonify({"success": True})
+
+
+@settings_bp.route("/api/keys", methods=["GET", "POST"])
+def manage_api_keys():
+    """Lấy hoặc lưu danh sách API keys."""
+    if request.method == "GET":
+        try:
+            api_file = Path("config/API.txt")
+            if api_file.exists():
+                with open(api_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+                return jsonify({"content": content})
+            return jsonify({"content": ""})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    
+    # POST
+    try:
+        data = request.json
+        keys_text = data.get("content", "")
+        save_api_keys(keys_text)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
