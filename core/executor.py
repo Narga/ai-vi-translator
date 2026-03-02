@@ -1,11 +1,12 @@
-# core/executor.py - v5.0.0
+# core/executor.py - v5.0.1
 # Tác giả: Narga
 # Executor hợp nhất cho cả WebUI và CLI.
 
+import copy
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable, List, Optional
 
 from services.api_service import ApiManager
 from services.cache_service import TranslationCache
@@ -13,9 +14,18 @@ from services.checkpoint_service import CheckpointService
 from services.glossary_service import GlossaryService
 from plugins.translation.chunker import process_text_for_chunking
 from plugins.translation.translator import robust_translate
-from webui.helpers import calculate_stats
 
 logger = logging.getLogger(__name__)
+
+
+def _try_calculate_stats() -> None:
+    """Cố gắng gọi calculate_stats của webui (nếu có). Im lặng nếu không chạyWebUI."""
+    try:
+        from webui.helpers import calculate_stats
+        calculate_stats()
+    except Exception:
+        pass
+
 
 class TranslationExecutor:
     """
@@ -23,221 +33,262 @@ class TranslationExecutor:
     Nhận input, cấu hình và callback để báo cáo tiến độ.
     """
 
-    def __init__(self, api_keys: list[str], config: Dict[str, Any], glossary_paths: Optional[List[Path]] = None):
+    def __init__(
+        self,
+        api_keys: List[str],
+        config: Dict[str, Any],
+        glossary_paths: Optional[List[Path]] = None,
+    ):
         """
         Khởi tạo Executor.
-        
+
         Args:
-            api_keys: Danh sách API keys để dùng
-            config: C Dict chứa cấu hình (model, prompts, chunk_size, v.v.)
-            glossary_paths: Danh sách các file từ điển (tùy chọn)
+            api_keys: Danh sách API keys để dùng.
+            config: Dict chứa cấu hình (model, prompts, chunk_size, v.v.).
+            glossary_paths: Danh sách các file từ điển (tùy chọn).
         """
         self.api_manager = ApiManager(api_keys)
         self.config = config
-        
+
         # Init caching
         use_cache = config.get("use_cache", True)
         self.cache = TranslationCache("workspace/cache", enabled=use_cache)
-        
+
         # Init checkpoint
         self.checkpoint_service = CheckpointService("workspace/checkpoints")
-        
+
         # Init Dynamic Glossary
-        self.glossary_service = None
-        if glossary_paths:
-            self.glossary_service = GlossaryService(glossary_paths)
-            
-        # Prompts
-        self.prompts = config.get("prompts", {})
+        self.glossary = GlossaryService(glossary_paths) if glossary_paths else None
+
+        # Deep copy prompts để tránh mutate config gốc
+        self.prompts: Dict[str, str] = copy.deepcopy(config.get("prompts", {}))
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def translate_text(
-        self, 
-        text: str, 
-        output_filename: str = "translated", 
+        self,
+        text: str,
+        output_filename: str = "translated",
         output_file_path: Optional[Path] = None,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-        translation_memory: Optional[Any] = None
+        translation_memory: Optional[Any] = None,
     ) -> Optional[str]:
         """
         Thực hiện dịch thuật một đoạn văn bản lớn.
-        
+
         Args:
             text: Nội dung cần dịch.
-            output_filename: Tên file dùng để lưu checkpoint (ví dụ: 'chapter1.txt').
+            output_filename: Tên file dùng để lưu checkpoint.
             output_file_path: Đường dẫn lưu file kết quả. Nếu None, lưu vào workspace/output.
             progress_callback: Hàm callback nhận thông tin tiến độ.
-            translation_memory: Object TranslationMemory (tuỳ chọn)
-            
+            translation_memory: Object TranslationMemory (tuỳ chọn).
+
         Returns:
-            str: Nội dung đã dịch hoàn chỉnh, hoặc None nếu thất bại.
+            Nội dung đã dịch hoàn chỉnh, hoặc None nếu thất bại.
         """
-        def emit(event_type: str, **kwargs):
+
+        def emit(event_type: str, **kwargs: Any) -> None:
             if progress_callback:
-                data = {"type": event_type}
-                data.update(kwargs)
-                progress_callback(data)
+                progress_callback({"type": event_type, **kwargs})
 
         try:
             # 1. Chunking
             chunk_size = self.config.get("chunk_size", 22000)
-            min_chunk = chunk_size - 2000
-            max_chunk = chunk_size
-            
-            chunks = process_text_for_chunking(text, min_chars=min_chunk, max_chars=max_chunk)
+            chunks = process_text_for_chunking(
+                text, min_chars=chunk_size - 2000, max_chars=chunk_size
+            )
             emit("info", message=f"Đã chia thành {len(chunks)} chunks")
-            
+
             # 2. Checkpoint Resume
-            translated_chunks = {}
+            translated_chunks: Dict[int, str] = {}
             prev_context = ""
             start_index = 0
-            
+
             resume_info = self.checkpoint_service.get_resume_info(output_filename)
             if resume_info and resume_info.get("total_chunks") == len(chunks):
                 translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
                 start_index = resume_info.get("next_chunk_index", 0)
                 emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
-                
-                # Retrieve context from last translated chunk
+
+                # Lấy context từ chunk dịch trước đó
                 if start_index > 0 and (start_index - 1) in translated_chunks:
-                    last_text = translated_chunks[start_index - 1]
-                    ctx_len = self.config.get("context_char_count", 500)
-                    prev_context = last_text[-ctx_len:] if len(last_text) > ctx_len else last_text
+                    prev_context = self._tail_context(translated_chunks[start_index - 1])
             else:
                 self.checkpoint_service.init_session(
-                    filename=output_filename, 
+                    filename=output_filename,
                     total_chunks=len(chunks),
-                    chunks_text=chunks
+                    chunks_text=chunks,
                 )
 
-            # 3. Processing
-            cached_count = 0
-            total_tokens = 0
-            tm_hits = 0
+            # 3. Dịch từng chunk
+            stats = {"cached": 0, "tokens": 0, "tm_hits": 0}
 
             for i in range(start_index, len(chunks)):
                 chunk = chunks[i]
-                
-                emit("progress", 
-                     current=i + 1, 
-                     total=len(chunks), 
-                     percent=int((i + 1) / len(chunks) * 100),
-                     message=f"Đang dịch chunk {i + 1}/{len(chunks)}..."
+
+                emit(
+                    "progress",
+                    current=i + 1,
+                    total=len(chunks),
+                    percent=int((i + 1) / len(chunks) * 100),
+                    message=f"Đang dịch chunk {i + 1}/{len(chunks)}...",
                 )
 
-                # Check Cache
-                cache_key = self.cache.build_key(chunk, self.prompts, self.config, prev_context)
-                cached_result = self.cache.get(cache_key)
+                result = self._translate_single_chunk(
+                    chunk=chunk,
+                    chunk_index=i,
+                    prev_context=prev_context,
+                    output_filename=output_filename,
+                    translation_memory=translation_memory,
+                    stats=stats,
+                    emit=emit,
+                )
 
-                if cached_result:
-                    cached_count += 1
-                    result = cached_result
-                    emit("info", message=f"Chunk {i + 1}: Sử dụng cache ✅")
-                else:
-                    # Check TM
-                    tm_match = None
-                    if translation_memory:
-                        tm_match = translation_memory.find_match(chunk)
-
-                    if tm_match and tm_match.get("similarity", 0) >= 0.9:
-                        tm_hits += 1
-                        result = tm_match["translation"]
-                        emit("info", message=f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚")
-                    else:
-                        # Chuẩn bị Prompt (có nhúng Dynamic Glossary nếu có)
-                        chunk_prompts = self.prompts.copy()
-                        if self.glossary_service:
-                            relevant = self.glossary_service.get_relevant_entries(chunk)
-                            if relevant:
-                                glossary_block = self.glossary_service.format_for_prompt(relevant)
-                                # Nhúng vào main prompt
-                                original_main = chunk_prompts.get("main", "")
-                                chunk_prompts["main"] = original_main + glossary_block
-                                emit("info", message=f"Chunk {i + 1}: Đã nhúng dynamic glossary ✅")
-
-                        # Thực sự gọi API dịch
-                        result, status, api_key = robust_translate(
-                            original_chunk=chunk,
-                            api_manager=self.api_manager,
-                            cache=self.cache,
-                            prompts=chunk_prompts,
-                            config_params=self.config,
-                            previous_chunk_context=prev_context,
-                        )
-
-                        if status == "success" and result:
-                            if translation_memory:
-                                translation_memory.add_translation(chunk, result, output_filename)
-                            total_tokens += len(chunk) // 2
-                            # Save checkpoint
-                            self.checkpoint_service.save_chunk(
-                                filename=output_filename,
-                                chunk_index=i,
-                                original_text=chunk,
-                                translated_text=result,
-                                api_key_used=api_key
-                            )
-                        else:
-                            emit("error", message=f"Dịch thất bại tại chunk {i + 1}: {status}")
-                            return None
-
+                if result is None:
+                    return None  # Đã emit error bên trong _translate_single_chunk
 
                 translated_chunks[i] = result
-                ctx_len = self.config.get("context_char_count", 500)
-                prev_context = result[-ctx_len:] if len(result) > ctx_len else result
+                prev_context = self._tail_context(result)
 
-            # 4. Finalizing
-            final_chunks_list = [translated_chunks[i] for i in range(len(chunks)) if i in translated_chunks]
-            full_translation = "\n\n".join(final_chunks_list)
-
-            if output_file_path is None:
-                output_dir = Path("workspace/output")
-                output_dir.mkdir(parents=True, exist_ok=True)
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_file_path = output_dir / f"{output_filename}_{timestamp}.txt"
-            else:
-                output_file_path = Path(output_file_path)
-                output_file_path.parent.mkdir(parents=True, exist_ok=True)
-
-            with open(output_file_path, "w", encoding="utf-8") as f:
-                f.write(full_translation)
-            
-            # Clean checkpoint on success mode
-            self.checkpoint_service.delete(self.checkpoint_service._get_db_path(output_filename))
-
-            try:
-                calculate_stats()
-            except Exception:
-                pass
-
-            cache_info = f"{cached_count}/{len(chunks)} cache"
-            tm_info = f", {tm_hits} TM" if tm_hits > 0 else ""
-
-            emit("complete", 
-                 message=f"Dịch hoàn tất! ({cache_info}{tm_info})",
-                 result=full_translation,
-                 chunks=len(chunks),
-                 cached=cached_count,
-                 tm_hits=tm_hits,
-                 source_length=len(text),
-                 translated_length=len(full_translation),
-                 output_file=str(output_file_path.name),
-                 tokens_used=total_tokens
+            # 4. Lưu kết quả
+            full_translation = "\n\n".join(
+                translated_chunks[i] for i in range(len(chunks)) if i in translated_chunks
             )
-            
+
+            final_path = self._resolve_output_path(output_file_path, output_filename)
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            final_path.write_text(full_translation, encoding="utf-8")
+
+            # Dọn checkpoint sau khi thành công
+            self.checkpoint_service.cleanup(output_filename)
+
+            _try_calculate_stats()
+
+            cache_info = f"{stats['cached']}/{len(chunks)} cache"
+            tm_info = f", {stats['tm_hits']} TM" if stats["tm_hits"] > 0 else ""
+
+            emit(
+                "complete",
+                message=f"Dịch hoàn tất! ({cache_info}{tm_info})",
+                result=full_translation,
+                chunks=len(chunks),
+                cached=stats["cached"],
+                tm_hits=stats["tm_hits"],
+                source_length=len(text),
+                translated_length=len(full_translation),
+                output_file=final_path.name,
+                tokens_used=stats["tokens"],
+            )
+
             return full_translation
 
         except Exception as e:
             logger.error(f"Translation execution error: {e}", exc_info=True)
-            emit("error", message=f"Lỗi: {str(e)}")
+            emit("error", message=f"Lỗi: {e}")
             return None
 
-    def translate_file(self, filepath: Path, progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None) -> Optional[str]:
-        """Tiện ích đọc file và dịch"""
+    def translate_file(
+        self,
+        filepath: Path,
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> Optional[str]:
+        """Tiện ích đọc file và dịch."""
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                text = f.read()
-            return self.translate_text(text, output_filename=filepath.stem, progress_callback=progress_callback)
+            text = filepath.read_text(encoding="utf-8")
+            return self.translate_text(
+                text, output_filename=filepath.stem, progress_callback=progress_callback
+            )
         except Exception as e:
             if progress_callback:
                 progress_callback({"type": "error", "message": f"Không thể đọc file {filepath.name}: {e}"})
             return None
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _tail_context(self, text: str) -> str:
+        """Lấy đoạn cuối của text làm context cho chunk kế tiếp."""
+        ctx_len = self.config.get("context_char_count", 500)
+        return text[-ctx_len:] if len(text) > ctx_len else text
+
+    @staticmethod
+    def _resolve_output_path(explicit_path: Optional[Path], fallback_name: str) -> Path:
+        """Xác định đường dẫn output file."""
+        if explicit_path is not None:
+            return Path(explicit_path)
+        output_dir = Path("workspace/output")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return output_dir / f"{fallback_name}_{timestamp}.txt"
+
+    def _translate_single_chunk(
+        self,
+        chunk: str,
+        chunk_index: int,
+        prev_context: str,
+        output_filename: str,
+        translation_memory: Optional[Any],
+        stats: Dict[str, int],
+        emit: Callable,
+    ) -> Optional[str]:
+        """
+        Dịch một chunk đơn lẻ, xử lý cache/TM/glossary/API.
+
+        Returns:
+            Kết quả dịch, hoặc None nếu thất bại.
+        """
+        i = chunk_index
+
+        # 1. Cache hit?
+        cache_key = self.cache.build_key(chunk, self.prompts, self.config, prev_context)
+        cached_result = self.cache.get(cache_key)
+        if cached_result:
+            stats["cached"] += 1
+            emit("info", message=f"Chunk {i + 1}: Sử dụng cache ✅")
+            return cached_result
+
+        # 2. Translation Memory hit?
+        if translation_memory:
+            tm_match = translation_memory.find_match(chunk)
+            if tm_match and tm_match.get("similarity", 0) >= 0.9:
+                stats["tm_hits"] += 1
+                emit("info", message=f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚")
+                return tm_match["translation"]
+
+        # 3. Chuẩn bị prompt (nhúng Dynamic Glossary nếu có)
+        chunk_prompts = copy.deepcopy(self.prompts)
+        if self.glossary and self.glossary.is_active:
+            main_prompt = chunk_prompts.get("main", "")
+            enriched_prompt, term_count = self.glossary.inject_into_prompt(chunk, main_prompt)
+            if term_count > 0:
+                chunk_prompts["main"] = enriched_prompt
+                emit("info", message=f"Chunk {i + 1}: Nhúng {term_count} thuật ngữ glossary")
+
+        # 4. Gọi API dịch
+        result, status, api_key = robust_translate(
+            original_chunk=chunk,
+            api_manager=self.api_manager,
+            cache=self.cache,
+            prompts=chunk_prompts,
+            config_params=self.config,
+            previous_chunk_context=prev_context,
+        )
+
+        if status == "success" and result:
+            if translation_memory:
+                translation_memory.add_translation(chunk, result, output_filename)
+            stats["tokens"] += len(chunk) // 2
+            self.checkpoint_service.save_chunk(
+                filename=output_filename,
+                chunk_index=i,
+                original_text=chunk,
+                translated_text=result,
+                api_key_used=api_key,
+            )
+            return result
+
+        emit("error", message=f"Dịch thất bại tại chunk {i + 1}: {status}")
+        return None

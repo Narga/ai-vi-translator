@@ -417,6 +417,19 @@ class CheckpointService:
 
         return False
 
+    def cleanup(self, filename: str) -> bool:
+        """
+        Dọn dẹp checkpoint cho một file sau khi dịch thành công.
+
+        Args:
+            filename: Tên file gốc.
+
+        Returns:
+            True nếu xóa thành công, False nếu không tìm thấy.
+        """
+        db_path = self._get_db_path(filename)
+        return self.delete(str(db_path))
+
     def get_resume_info(self, filename: str) -> Optional[Dict[str, Any]]:
         """
         Lấy thông tin resume nhanh (không load toàn bộ text).

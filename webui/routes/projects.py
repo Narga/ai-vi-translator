@@ -405,11 +405,8 @@ def translate_project_file(slug):
         prompts["main"] += profile_context
 
     # Glossary paths (Dynamic terms)
-    glossary_paths = []
-    for g_filename in ["glossary.txt", "characters.txt"]:
-        gp = pdir / "profile" / g_filename
-        if gp.exists():
-            glossary_paths.append(gp)
+    glossary_filenames = ["glossary.txt", "characters.txt"]
+    glossary_paths = [pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()]
 
     config = {
         "model_name": data.get("model", get_default_model()),
