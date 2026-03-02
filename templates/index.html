@@ -143,6 +143,15 @@
                                 style="max-height:300px">
                                 <div class="pa3 tc silver i">Chọn dự án</div>
                             </div>
+                            <div class="mt3 flex gap-2">
+                                <label class="nt-btn nt-btn-outline f7 pointer">
+                                    📤 Tải file lên
+                                    <input type="file" id="upload-source-file" accept=".txt" class="dn"
+                                        onchange="uploadProjectFile()">
+                                </label>
+                                <button id="btn-chunk-file" class="nt-btn nt-btn-secondary f7 dn"
+                                    onclick="chunkProjectFile()">✂️ Chia Chunk</button>
+                            </div>
                         </div>
                         <div class="bg-white br3 shadow-4 pa4 mb3">
                             <div class="flex justify-between items-center mb3">
@@ -329,16 +338,7 @@
         <!-- ==================== TAB 3: CẤU HÌNH ==================== -->
         <section id="tab-config" class="nt-tab-content dn">
             <div class="mw8 center">
-                <div class="bg-white br3 shadow-4 pa4 mb4">
-                    <h2 class="f3 mt0 mb4 fw6 dark-gray pb2 bb b--black-10">🔑 API Keys</h2>
-                    <p class="f7 silver mt0 mb3">Mỗi dòng một API Key (Gemini). Key đầu tiên sẽ được dùng làm mặc định
-                        để fetch Models.</p>
-                    <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:120px"
-                        placeholder="AIzaSy..."></textarea>
-                    <div class="mt3 flex justify-end">
-                        <button class="nt-btn nt-btn-primary" onclick="saveApiKeys()">💾 Lưu API Keys</button>
-                    </div>
-                </div>
+
 
                 <div class="bg-white br3 shadow-4 pa4 mb4">
                     <h2 class="f3 mt0 mb4 fw6 dark-gray pb2 bb b--black-10">🤖 Cài đặt dịch thuật</h2>
@@ -404,10 +404,21 @@
                     </div>
                 </div>
 
-                <div class="bg-white br3 shadow-4 pa4">
+                <div class="bg-white br3 shadow-4 pa4 mb4">
                     <h2 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">📄 File Output đã tải</h2>
                     <div class="nt-file-list max-h5 overflow-y-auto ba b--black-10 br2" id="output-list">
                         <div class="pa4 tc silver i">Đang tải data...</div>
+                    </div>
+                </div>
+
+                <div class="bg-white br3 shadow-4 pa4">
+                    <h2 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">🔑 API Keys</h2>
+                    <p class="f7 silver mt0 mb3">Mỗi dòng một API Key (Gemini). Key đầu tiên sẽ được dùng làm mặc định
+                        để fetch Models.</p>
+                    <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:120px"
+                        placeholder="AIzaSy..."></textarea>
+                    <div class="mt3 flex justify-end">
+                        <button class="nt-btn nt-btn-primary" onclick="saveApiKeys()">💾 Lưu API Keys</button>
                     </div>
                 </div>
             </div>

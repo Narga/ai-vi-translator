@@ -30,6 +30,7 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
   - Mở rộng kích thước các Form nhập liệu, làm mới Textarea với font chữ to, border bo góc mềm mại hơn.
   - Thay thế toàn bộ hộp thoại cảnh báo `alert()` truyền thống bằng hệ thống **Toast Notifications** mượt mà.
   - Tích hợp tính năng quản lý **API Keys** trực tiếp từ tab Cấu hình (Config) trên WebUI.
+- **Upload & Chunk** (`projects.py`, `main.js`): Tải file `.txt` lên dự án và chia chunk trực tiếp từ WebUI. Chunk files được liệt kê trong danh sách nguồn, cho phép sửa và lưu từng chunk riêng lẻ.
 - **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình.
 
 ### 📚 Tài Liệu (Documentation)

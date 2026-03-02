@@ -280,6 +280,82 @@ def delete_project_file(slug, filepath):
     return jsonify({"success": True})
 
 
+@projects_bp.route("/api/projects/<slug>/upload", methods=["POST"])
+def upload_project_file(slug):
+    """Upload file text vào thư mục sources/ của dự án."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    if "file" not in request.files:
+        return jsonify({"error": "Không tìm thấy file"}), 400
+
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "Tên file rỗng"}), 400
+
+    # Chỉ cho phép .txt
+    if not f.filename.lower().endswith(".txt"):
+        return jsonify({"error": "Chỉ hỗ trợ file .txt"}), 400
+
+    safe_name = Path(f.filename).name  # sanitize
+    src_dir = pdir / "sources"
+    src_dir.mkdir(parents=True, exist_ok=True)
+    dest = src_dir / safe_name
+    f.save(str(dest))
+
+    size = dest.stat().st_size
+    return jsonify({
+        "success": True,
+        "filename": safe_name,
+        "size": size,
+        "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
+    })
+
+
+@projects_bp.route("/api/projects/<slug>/chunk/<filename>", methods=["POST"])
+def chunk_project_file(slug, filename):
+    """Chia file nguồn thành nhiều chunk nhỏ."""
+    pdir = _get_project_dir(slug)
+    src_file = pdir / "sources" / filename
+
+    if not src_file.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+
+    # Đọc cấu hình chunk size
+    data = request.json or {}
+    max_chars = data.get("max_chars", 100000)
+    min_chars = max(5000, max_chars // 2)
+
+    try:
+        from plugins.translation.chunker import process_text_for_chunking
+
+        text = src_file.read_text(encoding="utf-8")
+        chunks = process_text_for_chunking(text, min_chars, max_chars)
+
+        if len(chunks) <= 1:
+            return jsonify({"success": True, "chunks": 1, "message": "File quá nhỏ, không cần chia chunk.", "files": [filename]})
+
+        # Tạo tên chunk: filename_chunk_001.txt, _chunk_002.txt...
+        stem = src_file.stem
+        created_files = []
+        for i, chunk in enumerate(chunks, 1):
+            chunk_name = f"{stem}_chunk_{i:03d}.txt"
+            chunk_path = pdir / "sources" / chunk_name
+            chunk_path.write_text(chunk, encoding="utf-8")
+            created_files.append(chunk_name)
+
+        return jsonify({
+            "success": True,
+            "chunks": len(chunks),
+            "files": created_files,
+            "message": f"Đã chia thành {len(chunks)} chunk.",
+        })
+    except Exception as e:
+        logger.error(f"Chunk error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @projects_bp.route("/api/projects/<slug>/move-done", methods=["POST"])
 def project_move_done(slug):
     """Chuyển file source sang translated."""

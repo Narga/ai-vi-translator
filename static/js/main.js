@@ -444,6 +444,10 @@ function loadProjectFile(filename, section) {
             document.getElementById('source-text').value = data.content || '';
             currentProjectFile = { name: filename, section };
             document.getElementById('btn-save-project-file').classList.remove('dn');
+            // Hiện nút Chia Chunk
+            const chunkBtn = document.getElementById('btn-chunk-file');
+            chunkBtn.classList.remove('dn');
+            chunkBtn.setAttribute('data-filename', filename);
         } else {
             // Open Side-by-Side Editor
             currentDoneFile = filename;
@@ -557,6 +561,60 @@ function saveProjectFile() {
         if (data.success) { addLog('💾 Đã lưu: ' + currentProjectFile.name, 'success'); selectProject(currentProject.slug); }
         else addLog('❌ Lỗi lưu: ' + (data.error || ''), 'error');
     });
+}
+
+function uploadProjectFile() {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+    const fileInput = document.getElementById('upload-source-file');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showToast('📤 Đang tải file lên...', 'info');
+
+    fetch(`/api/projects/${currentProject.slug}/upload`, {
+        method: 'POST',
+        body: formData
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showToast(`Đã tải lên: ${data.filename} (${data.size_display})`, 'success');
+            selectProject(currentProject.slug); // Reload danh sách file
+        } else {
+            showToast(data.error || 'Lỗi upload', 'error');
+        }
+        fileInput.value = ''; // Reset input
+    }).catch(e => {
+        showToast(e.message, 'error');
+        fileInput.value = '';
+    });
+}
+
+function chunkProjectFile() {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+    const btn = document.getElementById('btn-chunk-file');
+    const filename = btn.getAttribute('data-filename');
+    if (!filename) { showToast('Chưa chọn file để chia chunk!', 'error'); return; }
+
+    const maxChars = parseInt(document.getElementById('chunk-size').value) || 100000;
+
+    if (!confirm(`Chia "${filename}" thành các chunk (max ${maxChars.toLocaleString()} ký tự/chunk)?`)) return;
+
+    showToast('✂️ Đang chia chunk...', 'info');
+
+    fetch(`/api/projects/${currentProject.slug}/chunk/${filename}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ max_chars: maxChars })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            selectProject(currentProject.slug); // Reload danh sách file
+        } else {
+            showToast(data.error || 'Lỗi chia chunk', 'error');
+        }
+    }).catch(e => showToast(e.message, 'error'));
 }
 
 function deleteProjectFile(filename, section) {
