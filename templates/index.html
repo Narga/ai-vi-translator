@@ -431,8 +431,8 @@
                 </div>
 
                 <!-- Editor -->
-                <div class="w-70-l ph2-l flex flex-column">
-                    <div id="genre-editor" class="bg-white br3 shadow-4 pa4 flex-auto flex flex-column dn relative">
+                <div class="w-70-l ph2-l flex flex-column h-100">
+                    <div id="genre-editor" class="bg-white br3 shadow-4 pa4 flex-auto flex flex-column relative dn">
                         <!-- Top header -->
                         <div class="flex justify-between items-start mb3 pb3 bb b--black-10">
                             <div>
@@ -453,36 +453,25 @@
 
                         <!-- Prompt sub-tabs -->
                         <div class="flex gap-2 mb3" id="prompt-tabs">
-                            <button class="nt-tab-btn active" data-ptab="main">Main (Dịch thô)</button>
-                            <button class="nt-tab-btn" data-ptab="retranslate">Retranslate</button>
-                            <button class="nt-tab-btn" data-ptab="correction">Correction</button>
+                            <button class="nt-tab-btn genre-tab-btn active" data-ptab="main">Main (Dịch thô)</button>
+                            <button class="nt-tab-btn genre-tab-btn" data-ptab="retranslate">Retranslate</button>
+                            <button class="nt-tab-btn genre-tab-btn" data-ptab="correction">Correction</button>
                         </div>
 
                         <!-- Textareas -->
-                        <div id="ptab-main" class="nt-ptab-content flex-auto flex flex-column active">
-                            <textarea id="genre-main-text" class="nt-input w-100 flex-auto code f6"
+                        <div id="ptab-main" class="genre-ptab-content flex-auto flex flex-column active">
+                            <textarea id="genre-main-text" class="nt-input w-100 flex-auto code f6" style="resize:none;"
                                 placeholder="Main prompt..."></textarea>
                         </div>
-                        <div id="ptab-retranslate" class="nt-ptab-content flex-auto flex flex-column dn">
+                        <div id="ptab-retranslate" class="genre-ptab-content flex-auto flex flex-column dn">
                             <textarea id="genre-retranslate-text" class="nt-input w-100 flex-auto code f6"
-                                placeholder="Retranslate prompt..."></textarea>
+                                style="resize:none;" placeholder="Retranslate prompt..."></textarea>
                         </div>
-                        <div id="ptab-correction" class="nt-ptab-content flex-auto flex flex-column dn">
+                        <div id="ptab-correction" class="genre-ptab-content flex-auto flex flex-column dn">
                             <textarea id="genre-correction-text" class="nt-input w-100 flex-auto code f6"
-                                placeholder="Correction prompt..."></textarea>
+                                style="resize:none;" placeholder="Correction prompt..."></textarea>
                         </div>
-
                     </div>
-
-                    <!-- Empty State -->
-                    <div id="genre-empty-state"
-                        class="bg-white br3 shadow-4 pa6 flex-auto flex flex-column justify-center items-center tc">
-                        <div class="f1 o-20 mb3">👈</div>
-                        <h3 class="f4 mt0 mb2 dark-gray">Chọn một thể loại sách</h3>
-                        <p class="silver">Chọn tên thể loại ở thanh công cụ bên trái để chỉnh sửa cấu trúc Prompt tương
-                            ứng, hoặc tạo cái mới.</p>
-                    </div>
-
                 </div>
             </div>
         </section>

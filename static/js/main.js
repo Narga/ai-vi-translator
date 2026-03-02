@@ -85,8 +85,8 @@ function initTabs() {
 }
 
 function initPromptTabs() {
-    const pTabs = document.querySelectorAll('.nt-tab-btn');
-    const pContents = document.querySelectorAll('.nt-ptab-content');
+    const pTabs = document.querySelectorAll('.genre-tab-btn');
+    const pContents = document.querySelectorAll('.genre-ptab-content');
 
     pTabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -99,8 +99,10 @@ function initPromptTabs() {
                 c.classList.add('dn');
             });
             const content = document.getElementById('ptab-' + target);
-            content.classList.remove('dn');
-            content.classList.add('flex');
+            if (content) {
+                content.classList.remove('dn');
+                content.classList.add('flex');
+            }
         });
     });
 }
@@ -965,6 +967,11 @@ function loadGenres() {
                     <span class="f7 fw6 br2 ph2 pv1 ${s.has_main ? 'bg-green white' : 'bg-light-gray silver'}">${s.has_main ? 'Đã có' : 'Trống'}</span>
                 </div>`
             ).join('');
+
+            // Auto select first genre if none selected
+            if (!currentGenre && sets.length > 0) {
+                selectGenre(sets[0].slug);
+            }
         });
 }
 
@@ -984,7 +991,6 @@ function selectGenre(slug) {
         document.getElementById('btn-activate-genre').title = '';
     }
 
-    document.getElementById('genre-empty-state').classList.add('dn');
     document.getElementById('genre-editor').classList.remove('dn');
     document.getElementById('genre-editor').classList.add('flex');
 
