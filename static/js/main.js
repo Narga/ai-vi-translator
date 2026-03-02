@@ -881,6 +881,9 @@ function connectToProgress(btn = null, isBatch = false) {
                  <span class="bg-near-white br2 pa1 ph2 ba b--black-10">🔤 ${(data.char_count || 0).toLocaleString()} ký tự</span>`;
 
             resetButton(btn, isBatch);
+            if (currentProject && document.getElementById('ptab-sources') && !document.getElementById('ptab-sources').classList.contains('dn')) {
+                selectProject(currentProject.slug);
+            }
             loadOutputFiles(); loadStats(); loadFiles(); loadDoneFiles();
         }
         else if (data.type === 'error') {
@@ -1371,4 +1374,16 @@ function pollPluginProgress(pluginId, logId, btn, btnLabel) {
                 btn.textContent = btnLabel;
             });
     }, 1000);
+}
+
+function toggleProjectList() {
+    const col = document.getElementById('project-list-col');
+    const btn = event.currentTarget;
+    if (col.classList.contains('dn')) {
+        col.classList.remove('dn');
+        btn.textContent = '◗';
+    } else {
+        col.classList.add('dn');
+        btn.textContent = '◖';
+    }
 }

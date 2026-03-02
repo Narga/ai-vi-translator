@@ -215,6 +215,23 @@ class TranslationExecutor:
         return text[-ctx_len:] if len(text) > ctx_len else text
 
     @staticmethod
+    def _clean_chunk_result(text: str) -> str:
+        """Làm sạch các thông báo kiểm tra thừa từ LLM ở cuối chunk."""
+        import re
+        # Pattern 1: Xóa block "[KIỂM TRA CUỐI CÙNG]" và nội dung phía sau
+        pattern_check = r"\n[\-\*\_]{3,}\s*\n*(?:\*\*)?\[KIỂM TRA CUỐI CÙNG\](?:\*\*)?.*"
+        text = re.sub(pattern_check, "", text, flags=re.IGNORECASE | re.DOTALL)
+        
+        # Pattern 2: Xóa "(Bản dịch tiếp tục...)"
+        pattern_continue = r"\n[\-\*\_]{3,}\s*\n*(?:\*\s*)?\([B|b]ản dịch tiếp tục[^\)]*\)\*?.*"
+        text = re.sub(pattern_continue, "", text, flags=re.IGNORECASE | re.DOTALL)
+        
+        # Pattern 3: Dọn dẹp line --- thừa ở cuối
+        text = re.sub(r"\n+[\-\*\_]{3,}\s*$", "", text)
+        
+        return text.strip()
+
+    @staticmethod
     def _resolve_output_path(explicit_path: Optional[Path], fallback_name: str) -> Path:
         """Xác định đường dẫn output file."""
         if explicit_path is not None:
@@ -278,6 +295,7 @@ class TranslationExecutor:
         )
 
         if status == "success" and result:
+            result = self._clean_chunk_result(result)
             if translation_memory:
                 translation_memory.add_translation(chunk, result, output_filename)
             stats["tokens"] += len(chunk) // 2
