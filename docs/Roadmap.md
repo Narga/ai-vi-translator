@@ -38,7 +38,7 @@ Tài liệu này tổng hợp toàn bộ lịch sử phát triển, các tác v�
 - [x] **2.2 Dynamic Glossary**: Tự động nhúng Glossary dựa trên nội dung chunk.
 
 ### 📅 GIAI ĐOẠN 3: Biên Tập & Xuất Bản
-- [ ] **3.1 Side-by-Side Editor**: Giao diện soát lỗi song ngữ.
+- [x] **3.1 Side-by-Side Editor**: Giao diện soát lỗi song ngữ.
 - [ ] **3.2 Professional Docs**: Hoàn thiện Manual.md và Development.md (Đang thực hiện).
 
 ---

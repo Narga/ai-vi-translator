@@ -390,10 +390,106 @@ function loadProjectFile(filename, section) {
             currentProjectFile = { name: filename, section };
             document.getElementById('btn-save-project-file').classList.remove('dn');
         } else {
-            document.getElementById('done-text').value = data.content || '';
+            // Open Side-by-Side Editor
             currentDoneFile = filename;
+            openSideBySideEditor(filename, data.content || '');
         }
     });
+}
+
+// ============================================================
+// Side-by-Side Editor
+// ============================================================
+function openSideBySideEditor(filename, translatedContent) {
+    if (!currentProject) return;
+    const slug = currentProject.slug;
+
+    // Hiển thị editor container + actions
+    document.getElementById('sbs-editor-container').classList.remove('dn');
+    document.getElementById('sbs-actions').classList.remove('dn');
+    document.getElementById('sbs-filename').textContent = filename;
+    document.getElementById('sbs-save-status').textContent = '';
+
+    // Đổ nội dung bản dịch
+    const transEl = document.getElementById('editor-translated');
+    transEl.value = translatedContent;
+
+    // Load bản gốc song song (tên file giống nhau, nằm trong sources/)
+    const sourceEl = document.getElementById('editor-source');
+    sourceEl.value = 'Đang tải bản gốc...';
+
+    fetch(`/api/projects/${slug}/file/sources/${filename}`)
+        .then(r => r.json())
+        .then(data => {
+            sourceEl.value = data.content || '(Không tìm thấy bản gốc)';
+            updateEditorStats();
+        })
+        .catch(() => {
+            sourceEl.value = '(Lỗi tải bản gốc)';
+        });
+
+    // Lắng nghe thay đổi để cập nhật stats
+    transEl.oninput = updateEditorStats;
+
+    // Sync scroll
+    setupSyncScroll(sourceEl, transEl);
+    updateEditorStats();
+}
+
+function saveSideBySideEditor() {
+    if (!currentProject || !currentDoneFile) return;
+    const slug = currentProject.slug;
+    const content = document.getElementById('editor-translated').value;
+    const statusEl = document.getElementById('sbs-save-status');
+    statusEl.textContent = '💾 Đang lưu...';
+    statusEl.className = 'f7 blue ml2';
+
+    fetch(`/api/projects/${slug}/file/translated/${currentDoneFile}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    }).then(r => r.json()).then(data => {
+        if (data.success) {
+            statusEl.textContent = '✅ Đã lưu lúc ' + new Date().toLocaleTimeString();
+            statusEl.className = 'f7 green ml2';
+        } else {
+            statusEl.textContent = '❌ Lỗi: ' + (data.error || '');
+            statusEl.className = 'f7 red ml2';
+        }
+    }).catch(e => {
+        statusEl.textContent = '❌ ' + e.message;
+        statusEl.className = 'f7 red ml2';
+    });
+}
+
+function closeSideBySideEditor() {
+    document.getElementById('sbs-editor-container').classList.add('dn');
+    document.getElementById('sbs-actions').classList.add('dn');
+    document.getElementById('editor-source').value = '';
+    document.getElementById('editor-translated').value = '';
+    document.getElementById('sbs-save-status').textContent = '';
+}
+
+function updateEditorStats() {
+    const srcLen = (document.getElementById('editor-source').value || '').length;
+    const transLen = (document.getElementById('editor-translated').value || '').length;
+    document.getElementById('sbs-source-chars').textContent = srcLen.toLocaleString();
+    document.getElementById('sbs-trans-chars').textContent = transLen.toLocaleString();
+    document.getElementById('sbs-ratio').textContent = srcLen > 0
+        ? (transLen / srcLen).toFixed(2) + 'x'
+        : '—';
+}
+
+function setupSyncScroll(el1, el2) {
+    let isSyncing = false;
+    function sync(source, target) {
+        if (isSyncing) return;
+        isSyncing = true;
+        const ratio = source.scrollTop / (source.scrollHeight - source.clientHeight || 1);
+        target.scrollTop = ratio * (target.scrollHeight - target.clientHeight);
+        isSyncing = false;
+    }
+    el1.onscroll = () => sync(el1, el2);
+    el2.onscroll = () => sync(el2, el1);
 }
 
 function saveProjectFile() {
@@ -722,18 +818,18 @@ function downloadResult() {
 // Done Tab (Retranslate/Correction)
 // ============================================================
 function runRetranslate() {
-    const text = document.getElementById('done-text').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file gốc!'); return; }
+    const text = document.getElementById('editor-translated').value;
+    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
     runDoneTranslationProcess(text, 'retranslate');
 }
 function runCorrection() {
-    const text = document.getElementById('done-text').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file gốc!'); return; }
+    const text = document.getElementById('editor-translated').value;
+    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
     runDoneTranslationProcess(text, 'correction');
 }
 function runBoth() {
-    const text = document.getElementById('done-text').value;
-    if (!text.trim()) { alert('Chưa tải nội dung file gốc!'); return; }
+    const text = document.getElementById('editor-translated').value;
+    if (!text.trim()) { alert('Chưa tải nội dung file dịch!'); return; }
     addDoneLog('Đang tiến hành Retranslate...', 'info');
     runDoneTranslationProcess(text, 'retranslate', () => {
         addDoneLog('Bắt đầu rà soát Correction...', 'info');
@@ -762,7 +858,7 @@ function runDoneTranslationProcess(text, mode, callback, appendResult) {
         hideProgress('done-progress-container');
         const result = data.translated || text;
 
-        if (appendResult) document.getElementById('done-text').value = result;
+        if (appendResult) document.getElementById('editor-translated').value = result;
         else document.getElementById('done-result-text').value = result;
 
         const resContainer = document.getElementById('done-result-container');

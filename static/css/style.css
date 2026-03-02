@@ -378,3 +378,51 @@
 .min-h5 {
   min-height: 16rem;
 }
+
+/* Side-by-Side Editor */
+.nt-editor-split {
+  display: flex;
+  gap: 1rem;
+}
+
+.nt-editor-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nt-editor-pane textarea {
+  min-height: 450px;
+  flex: 1;
+  resize: vertical;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.nt-editor-pane textarea:read-only {
+  background: #fafafa;
+  color: #555;
+}
+
+.nt-editor-header {
+  border-radius: 0.75rem 0.75rem 0 0;
+  background: #fafcff;
+}
+
+.nt-editor-status {
+  border-radius: 0 0 0.75rem 0.75rem;
+  background: #fafcff;
+}
+
+@media screen and (max-width: 60em) {
+  .nt-editor-split {
+    flex-direction: column;
+  }
+
+  .nt-editor-pane textarea {
+    min-height: 250px;
+  }
+}

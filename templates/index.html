@@ -188,18 +188,57 @@
                         </div>
                     </div>
 
-                    <!-- Sub-tab: Translated -->
+                    <!-- Sub-tab: Translated (Side-by-Side Editor) -->
                     <div id="ptab-translated" class="nt-ptab-content dn">
                         <div class="bg-white br3 shadow-4 pa4 mb3">
                             <h3 class="f5 mt0 mb3 dark-gray">File đã dịch</h3>
                             <div class="nt-file-list overflow-y-auto ba b--black-10 br2" id="project-translated-list"
-                                style="max-height:300px">
+                                style="max-height:200px">
                                 <div class="pa3 tc silver i">Chưa có file dịch</div>
                             </div>
                         </div>
-                        <div class="bg-white br3 shadow-4 pa4 mb3 flex flex-column">
-                            <div class="flex justify-between items-center mb3">
-                                <span class="f5 fw6 dark-gray">📝 Văn bản dịch</span>
+
+                        <!-- Side-by-Side Editor -->
+                        <div id="sbs-editor-container" class="bg-white br3 shadow-4 mb3 dn">
+                            <!-- Editor Header -->
+                            <div class="nt-editor-header pa3 flex justify-between items-center bb b--black-10">
+                                <div class="flex items-center gap-2">
+                                    <span class="f5 fw6 dark-gray">📝</span>
+                                    <span id="sbs-filename" class="f6 fw6 dark-gray">—</span>
+                                    <span id="sbs-save-status" class="f7 silver ml2"></span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button class="nt-btn nt-btn-success f7" onclick="saveSideBySideEditor()">💾 Lưu bản dịch</button>
+                                    <button class="nt-btn nt-btn-outline f7" onclick="closeSideBySideEditor()">✕ Đóng</button>
+                                </div>
+                            </div>
+
+                            <!-- Split Panes -->
+                            <div class="nt-editor-split pa3">
+                                <div class="nt-editor-pane">
+                                    <label class="db f7 fw6 mb2 silver">📄 Bản gốc (Source) — Chỉ đọc</label>
+                                    <textarea id="editor-source" class="nt-input w-100 code f7" readonly
+                                        placeholder="Chọn file đã dịch để xem bản gốc..."></textarea>
+                                </div>
+                                <div class="nt-editor-pane">
+                                    <label class="db f7 fw6 mb2 silver">✏️ Bản dịch (Translated) — Có thể chỉnh sửa</label>
+                                    <textarea id="editor-translated" class="nt-input w-100 code f7"
+                                        placeholder="Bản dịch sẽ hiển thị ở đây..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Status Bar -->
+                            <div class="nt-editor-status pa3 bt b--black-10 flex justify-between f7 silver">
+                                <span>Gốc: <strong id="sbs-source-chars" class="dark-gray">0</strong> ký tự</span>
+                                <span>Dịch: <strong id="sbs-trans-chars" class="dark-gray">0</strong> ký tự</span>
+                                <span>Tỷ lệ: <strong id="sbs-ratio" class="blue">—</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Retranslate / Correction actions -->
+                        <div id="sbs-actions" class="bg-white br3 shadow-4 pa4 mb3 dn">
+                            <div class="flex justify-between items-center">
+                                <span class="f6 fw6 dark-gray">🔧 Hậu xử lý</span>
                                 <div class="flex gap-2">
                                     <button id="btn-run-retranslate" class="nt-btn nt-btn-secondary f7 pv2">🔄
                                         Retranslate</button>
@@ -209,9 +248,9 @@
                                         Cặp</button>
                                 </div>
                             </div>
-                            <textarea id="done-text" class="nt-input w-100 h5"
-                                placeholder="Chọn file đã dịch để xem..."></textarea>
                         </div>
+
+                        <!-- Progress for retranslate/correction -->
                         <div id="done-progress-container" class="bg-white br3 shadow-4 pa4 mb3 dn">
                             <div class="flex justify-between f6 mb2 fw6 dark-gray">
                                 <span id="done-progress-text">Đang xử lý...</span>
