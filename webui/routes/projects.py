@@ -392,17 +392,24 @@ def translate_project_file(slug):
                 if content:
                     prompts[key] = content
 
-    # Load profile context
+    # Load profile context (Static instructions)
     profile_context = ""
-    for pfile in ["glossary.txt", "characters.txt", "style_guide.txt"]:
+    for pfile in ["style_guide.txt"]:
         fp = pdir / "profile" / pfile
         if fp.exists():
             content = fp.read_text(encoding="utf-8").strip()
             if content and not content.startswith("#"):
-                profile_context += f"\n\n--- {pfile} ---\n{content}"
+                profile_context += f"\n\n# Hướng dẫn phong cách\n{content}"
 
     if profile_context.strip():
-        prompts["main"] += f"\n\n# Thông tin bổ sung dự án\n{profile_context}"
+        prompts["main"] += profile_context
+
+    # Glossary paths (Dynamic terms)
+    glossary_paths = []
+    for g_filename in ["glossary.txt", "characters.txt"]:
+        gp = pdir / "profile" / g_filename
+        if gp.exists():
+            glossary_paths.append(gp)
 
     config = {
         "model_name": data.get("model", get_default_model()),
@@ -450,7 +457,7 @@ def translate_project_file(slug):
 
             progress_queue.put({"type": "info", "message": f"📂 Dự án: {meta['name']} | File: {first_file}"})
 
-            executor = TranslationExecutor(api_keys=api_keys, config=config)
+            executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
             
             def cb(data):
                 if data["type"] == "complete":

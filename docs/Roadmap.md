@@ -35,7 +35,7 @@ Tài liệu này tổng hợp toàn bộ lịch sử phát triển, các tác v�
 
 ### 📅 GIAI ĐOẠN 2: Quản Lý Dữ Liệu & Từ Điển
 - [x] **2.1 SQLite Checkpoint**: Chuyển đổi quản lý trạng thái dự án sang DB bền vững.
-- [ ] **2.2 Dynamic Glossary**: Tự động nhúng Glossary dựa trên nội dung chunk.
+- [x] **2.2 Dynamic Glossary**: Tự động nhúng Glossary dựa trên nội dung chunk.
 
 ### 📅 GIAI ĐOẠN 3: Biên Tập & Xuất Bản
 - [ ] **3.1 Side-by-Side Editor**: Giao diện soát lỗi song ngữ.

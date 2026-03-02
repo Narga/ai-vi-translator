@@ -21,7 +21,7 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
 ### ✨ Tính Năng Mới & Thuật Toán
 - **Sentence Aggregation Chunker** (`chunker.py`): Thuật toán mới tách text thành danh sách câu bằng regex multi-language (Trung/Nhật/Hàn/Latin), rồi dồn câu vào chunk — đảm bảo 100% không cắt ngang câu. Giữ `intelligent_chunking()` làm fallback cho câu quá dài.
 - **SQLite Checkpoint** (`checkpoint_service.py`): Thay thế JSON bằng SQLite với WAL mode và ACID transactions. Hỗ trợ per-chunk upsert, query nhanh tiến độ không cần load toàn bộ text. API tương thích v4.0 + mới (`init_session`, `save_chunk`, `get_translated_chunks`).
-- **Dynamic Glossary Injection**: Hệ thống tự động phân tích và nhúng từ điển thuật ngữ vào Prompt theo ngữ cảnh từng Chunk.
+- **Dynamic Glossary Injection** (`glossary_service.py`): Hệ thống tự động phân tích và nhúng thuật ngữ từ điển vào Prompt theo ngữ cảnh từng Chunk, giúp tiết kiệm Token và tránh nhiễu AI. Khả dụng cho cả CLI và WebUI/Project.
 - **Robust Fallback**: Cơ chế đánh dấu `<!-- FAILED_CHUNK -->` khi gặp lỗi API thay vì dừng tiến trình.
 
 ### 📚 Tài Liệu (Documentation)

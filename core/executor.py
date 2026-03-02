@@ -10,6 +10,7 @@ from typing import Dict, Any, Callable, Optional
 from services.api_service import ApiManager
 from services.cache_service import TranslationCache
 from services.checkpoint_service import CheckpointService
+from services.glossary_service import GlossaryService
 from plugins.translation.chunker import process_text_for_chunking
 from plugins.translation.translator import robust_translate
 from webui.helpers import calculate_stats
@@ -22,13 +23,14 @@ class TranslationExecutor:
     Nhận input, cấu hình và callback để báo cáo tiến độ.
     """
 
-    def __init__(self, api_keys: list[str], config: Dict[str, Any]):
+    def __init__(self, api_keys: list[str], config: Dict[str, Any], glossary_paths: Optional[List[Path]] = None):
         """
         Khởi tạo Executor.
         
         Args:
             api_keys: Danh sách API keys để dùng
             config: C Dict chứa cấu hình (model, prompts, chunk_size, v.v.)
+            glossary_paths: Danh sách các file từ điển (tùy chọn)
         """
         self.api_manager = ApiManager(api_keys)
         self.config = config
@@ -40,6 +42,11 @@ class TranslationExecutor:
         # Init checkpoint
         self.checkpoint_service = CheckpointService("workspace/checkpoints")
         
+        # Init Dynamic Glossary
+        self.glossary_service = None
+        if glossary_paths:
+            self.glossary_service = GlossaryService(glossary_paths)
+            
         # Prompts
         self.prompts = config.get("prompts", {})
 
@@ -136,12 +143,23 @@ class TranslationExecutor:
                         result = tm_match["translation"]
                         emit("info", message=f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚")
                     else:
+                        # Chuẩn bị Prompt (có nhúng Dynamic Glossary nếu có)
+                        chunk_prompts = self.prompts.copy()
+                        if self.glossary_service:
+                            relevant = self.glossary_service.get_relevant_entries(chunk)
+                            if relevant:
+                                glossary_block = self.glossary_service.format_for_prompt(relevant)
+                                # Nhúng vào main prompt
+                                original_main = chunk_prompts.get("main", "")
+                                chunk_prompts["main"] = original_main + glossary_block
+                                emit("info", message=f"Chunk {i + 1}: Đã nhúng dynamic glossary ✅")
+
                         # Thực sự gọi API dịch
                         result, status, api_key = robust_translate(
                             original_chunk=chunk,
                             api_manager=self.api_manager,
                             cache=self.cache,
-                            prompts=self.prompts,
+                            prompts=chunk_prompts,
                             config_params=self.config,
                             previous_chunk_context=prev_context,
                         )
@@ -161,6 +179,7 @@ class TranslationExecutor:
                         else:
                             emit("error", message=f"Dịch thất bại tại chunk {i + 1}: {status}")
                             return None
+
 
                 translated_chunks[i] = result
                 ctx_len = self.config.get("context_char_count", 500)

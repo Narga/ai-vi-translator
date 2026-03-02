@@ -191,7 +191,14 @@ def main():
             "context_char_count": config_service.get("PROCESSING", "CONTEXT_CHAR_COUNT", fallback=500, value_type=int),
         }
 
-        executor = TranslationExecutor(api_keys=api_keys, config=config)
+        # Tìm kiếm glossary paths (nếu có)
+        glossary_paths = []
+        # Support glossary.txt in config or current dir as global
+        for g_file in [Path("config/glossary.txt"), Path("glossary.txt")]:
+            if g_file.exists():
+                glossary_paths.append(g_file)
+
+        executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
 
         input_dir = Path(config_service.get("DIRECTORIES", "INPUT_DIR", fallback="workspace/input"))
         files = find_input_files(input_dir)

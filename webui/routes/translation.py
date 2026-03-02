@@ -40,7 +40,13 @@ def translate_worker(text, config, output_filename="translated", input_file_path
         if not prompts.get("main"):
             config["prompts"] = load_prompts()
 
-        executor = TranslationExecutor(api_keys=api_keys, config=config)
+        # Tìm kiếm glossary paths
+        glossary_paths = []
+        for g_file in [Path("config/glossary.txt"), Path("glossary.txt")]:
+            if g_file.exists():
+                glossary_paths.append(g_file)
+
+        executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
         
         # Hàm callback đẩy event thẳng vào queue SSE
         def cb(data):
