@@ -143,7 +143,8 @@ def get_project(slug):
     sources = []
     src_dir = pdir / "sources"
     if src_dir.exists():
-        for f in sorted(src_dir.rglob("*.txt")):
+        source_files = [f for f in src_dir.rglob("*") if f.suffix in (".txt", ".md")]
+        for f in sorted(source_files):
             if f.name.startswith("."):
                 continue
             rel = str(f.relative_to(src_dir))
@@ -158,7 +159,8 @@ def get_project(slug):
     translated = []
     tr_dir = pdir / "translated"
     if tr_dir.exists():
-        for f in sorted(tr_dir.rglob("*.txt")):
+        translated_files = [f for f in tr_dir.rglob("*") if f.suffix in (".txt", ".md")]
+        for f in sorted(translated_files):
             if f.name.startswith("."):
                 continue
             rel = str(f.relative_to(tr_dir))
@@ -294,9 +296,9 @@ def upload_project_file(slug):
     if not f.filename:
         return jsonify({"error": "Tên file rỗng"}), 400
 
-    # Chỉ cho phép .txt
-    if not f.filename.lower().endswith(".txt"):
-        return jsonify({"error": "Chỉ hỗ trợ file .txt"}), 400
+    # Chỉ cho phép .txt và .md
+    if not (f.filename.lower().endswith(".txt") or f.filename.lower().endswith(".md")):
+        return jsonify({"error": "Chỉ hỗ trợ file .txt và .md"}), 400
 
     safe_name = Path(f.filename).name  # sanitize
     src_dir = pdir / "sources"
@@ -338,9 +340,10 @@ def chunk_project_file(slug, filename):
 
         # Tạo tên chunk: filename_chunk_001.txt, _chunk_002.txt...
         stem = src_file.stem
+        ext = src_file.suffix
         created_files = []
         for i, chunk in enumerate(chunks, 1):
-            chunk_name = f"{stem}_chunk_{i:03d}.txt"
+            chunk_name = f"{stem}_chunk_{i:03d}{ext}"
             chunk_path = pdir / "sources" / chunk_name
             chunk_path.write_text(chunk, encoding="utf-8")
             created_files.append(chunk_name)

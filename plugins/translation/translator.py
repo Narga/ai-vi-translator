@@ -81,6 +81,7 @@ def _call_api(
             status ∈ {'success', 'all_keys_exhausted', 'api_error', 'stopped'}
     """
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
+    last_error_msg = "api_error"
 
     for attempt in range(max_attempts_total):
         # Kiểm tra emergency stop
@@ -144,6 +145,7 @@ def _call_api(
             return None, "stopped", api_key
         except Exception as e:
             error_msg = str(e)
+            last_error_msg = f"Lỗi: {error_msg}"
             logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
             should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
             if should_retry:
@@ -153,7 +155,7 @@ def _call_api(
             else:
                 continue
 
-    return None, "api_error", "unknown"
+    return None, last_error_msg, "unknown"
 
 
 def _call_api_with_original_context(
@@ -183,6 +185,7 @@ def _call_api_with_original_context(
     prompt_filled = prompt_filled.replace("{contextual_snippet}", translated_text)
 
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
+    last_error_msg = "api_error"
 
     for _ in range(max_attempts_total):
         api_key = api_manager.get_next_available_key()
@@ -220,6 +223,7 @@ def _call_api_with_original_context(
 
         except Exception as e:
             error_msg = str(e)
+            last_error_msg = f"Lỗi: {error_msg}"
             logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
             should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
             if should_retry:
@@ -229,7 +233,7 @@ def _call_api_with_original_context(
             else:
                 continue
 
-    return None, "api_error", "unknown"
+    return None, last_error_msg, "unknown"
 
 
 def robust_translate(
@@ -289,7 +293,7 @@ def robust_translate(
 
     if status != "success" or not translated_text:
         logging.error("Dịch lần đầu thất bại.")
-        return "Dịch chunk thất bại.", "failed", api_key_used
+        return "Dịch chunk thất bại.", status, api_key_used
 
     # Bước 2: Kiểm tra độ dài (chống cắt ngắn hoặc quá lệch)
     original_len = len(original_chunk)
@@ -318,7 +322,7 @@ def robust_translate(
 
         if status != "success" or not translated_text:
             logging.error("Dịch lại để chống cắt ngắn thất bại.")
-            return "Dịch chunk thất bại.", "failed", api_key_used
+            return "Dịch chunk thất bại.", status, api_key_used
 
     # Bước 3: Sửa ký tự gốc còn sót (chỉ khi INPUT_LANG được cấu hình)
     input_lang = str(config_params.get("input_lang", "CN")).upper()

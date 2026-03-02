@@ -448,6 +448,7 @@ function loadProjectFile(filename, section) {
             const chunkBtn = document.getElementById('btn-chunk-file');
             chunkBtn.classList.remove('dn');
             chunkBtn.setAttribute('data-filename', filename);
+            updateTokenEstimate();
         } else {
             // Open Side-by-Side Editor
             currentDoneFile = filename;
