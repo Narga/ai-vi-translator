@@ -64,12 +64,18 @@ Tập tin này là "bộ nhớ dài hạn" (Long-term Memory) duy nhất và đ�
 - **Side-by-Side Editor:** Giao diện biên tập song ngữ thời gian thực.
 - **Theme Fixes:** Tối ưu textarea height, layout header và hệ thống Toast Notifications.
 
-### v6.0.0 (Đang phát triển)
-- **Multi-Provider AI:** Tích hợp OpenAI-compatible API (OpenRouter, proxy) song song Gemini. Adapter pattern qua `services/ai_provider.py`.
-- **Template Splitting:** Tách `index.html` monolithic (729 dòng) thành 6 Jinja2 partials trong `templates/partials/`.
-- **Dual-Provider UI:** Tab Cấu hình có 2 cột nằm ngang (Gemini | OpenAI), radio button chọn 1 trong 2.
-- **New files:** `services/openai_client.py`, `services/ai_provider.py`, 6 template partials.
-- **Kế hoạch chi tiết:** Xem `docs/v6-development-plan.md`.
+### Giai đoạn 7: v6.0.0 Alpha (Multi-Provider & Workflow)
+- **Multi-Provider AI:** Tích hợp OpenAI SDK (`openai>=1.0.0`) hỗ trợ OpenAI/OpenRouter song song Gemini qua `services/ai_provider.py` (Adapter Pattern).
+- **Template Architecture:** Tách `index.html` thành 6 Jinja2 partials chuyên biệt (`templates/partials/`).
+- **Project Workflow Tabs:** 5 tabs chức năng (Info, Files, Translation, Guidelines, Prompts).
+- **Guidelines & AI Summarize:** Hỗ trợ `GET/PUT /guidelines` (5 fields) và tự động tóm tắt nội dung bằng AI (`POST /summarize`).
+- **Prompt Library:** Nạp bộ prompt từ thư viện genre (Mặc định + Thể loại) vào project prompt.
+- **Bug Fixes:**
+    - Sidebar toggle expand cột chính (`w-100-l`).
+    - SSE handler ưu tiên hiển thị `translated_text` trong textarea.
+    - `startTranslation()` tự động định tuyến API project.
+    - Model selector cho AI Summarize.
+- **Tài liệu tham khảo:** `docs/v6-development-plan.md` và `docs/CHANGELOG.md`.
 
 ---
 

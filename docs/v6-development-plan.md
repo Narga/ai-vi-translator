@@ -86,7 +86,7 @@ webui/
 ## Ghi chú kỹ thuật
 
 - **Lint errors**: Tất cả do Pyre2 IDE chưa cấu hình venv – không phải lỗi code thực tế
-- **Template splitting**: `index.html` 729 dòng → 6 dòng composition. Mỗi partial chỉnh sửa độc lập.
-- **Provider UI**: CSS grid + opacity/pointer-events disable cột không active
-- **Tab 3**: SBS editor đã có từ v5.0 (sync scroll, save inline)
-- Cần `pip install openai` trước khi test OpenAI provider
+- **Sidebar toggle**: Sử dụng `w-100-l` để mở rộng nội dung chính khi ẩn sidebar.
+- **Translation handling**: SSE complete handler ưu tiên `translated_text` để hiển thị ngay kết quả thay vì path message.
+- **Summarize model**: Model selector cho tóm tắt nạp động từ danh sách model chính.
+- Cần `pip install openai` trước khi test OpenAI provider.

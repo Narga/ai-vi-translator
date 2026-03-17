@@ -31,6 +31,13 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - **Priority Note**: Hiển thị ghi chú ưu tiên prompt dự án > prompt hệ thống.
 - **Placeholders**: Thêm placeholder gợi ý cho các textarea prompt.
 
+### 🐛 Bug Fixes & UI Improvements
+- **Sidebar Toggle**: Fix lỗi ẩn danh sách dự án không mở rộng cột chính (giờ dùng `w-100-l`).
+- **Translation Output**: SSE handler giờ ưu tiên hiển thị text dịch thay vì thông báo đường dẫn file trong textarea.
+- **Project Translate Routing**: `startTranslation()` tự động dùng API project nếu đang mở file trong dự án.
+- **Summarize Model Selector**: Thêm dropdown chọn model ngay cạnh nút AI Tóm tắt.
+- **Summarize Backend**: API `POST /summarize` hỗ trợ nhận parameter `model` tùy chỉnh.
+
 ### 📁 Files Changed
 
 | File | Thay đổi |
