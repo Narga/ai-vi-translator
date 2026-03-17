@@ -1,8 +1,9 @@
 # v4.0.0
 # Các thư viện cần thiết cho dự án Novel Translator
 
-# Gemini API SDKs
-google-genai>=1.0.0              # SDK mới (khuyến nghị, mặc định)
+# AI API SDKs
+google-genai>=1.0.0              # Gemini SDK (khuyến nghị, mặc định)
+openai>=1.0.0                    # OpenAI SDK (hỗ trợ OpenRouter/proxy)
 
 # Tiện ích
 chardet

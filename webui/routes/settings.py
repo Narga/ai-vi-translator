@@ -3,6 +3,7 @@
 
 import re
 import logging
+import configparser
 from pathlib import Path
 
 from flask import Blueprint, request, jsonify
@@ -25,6 +26,128 @@ def get_models():
         default_model = get_default_model()
         return jsonify({"models": models, "default": default_model})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/provider", methods=["GET", "POST"])
+def manage_provider():
+    """Quản lý provider AI (chuyển đổi Gemini ↔ OpenAI)."""
+    from webui.helpers import get_active_provider, get_openai_base_url, get_openai_model, load_openai_key
+
+    if request.method == "GET":
+        try:
+            from services.ai_provider import get_available_providers
+
+            provider = get_active_provider()
+            providers = get_available_providers()
+            return jsonify({
+                "active": provider,
+                "providers": providers,
+                "openai_config": {
+                    "base_url": get_openai_base_url() or "",
+                    "model": get_openai_model(),
+                    "has_key": bool(load_openai_key()),
+                },
+            })
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # POST: Chuyển đổi provider
+    try:
+        data = request.json
+        new_provider = data.get("provider", "gemini").lower()
+
+        if new_provider not in ("gemini", "openai"):
+            return jsonify({"error": "Provider không hợp lệ. Sử dụng 'gemini' hoặc 'openai'."}), 400
+
+        config_path = Path("config/app.ini")
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        if config_path.exists():
+            config.read(config_path)
+
+        if not config.has_section("PROVIDER"):
+            config.add_section("PROVIDER")
+        config.set("PROVIDER", "ACTIVE_PROVIDER", new_provider)
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            config.write(f)
+
+        logger.info(f"Switched AI provider to: {new_provider}")
+        return jsonify({"success": True, "active": new_provider})
+
+    except Exception as e:
+        logger.error(f"Error switching provider: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/openai/models")
+def get_openai_models():
+    """Lấy danh sách models từ OpenAI/OpenRouter."""
+    from webui.helpers import load_openai_key, get_openai_base_url
+
+    try:
+        api_key = load_openai_key()
+        if not api_key:
+            return jsonify({"error": "Chưa cấu hình OpenAI API key"}), 400
+
+        from services.ai_provider import list_models_for_provider
+
+        base_url = get_openai_base_url()
+        models = list_models_for_provider("openai", api_key, base_url)
+        return jsonify({"models": models})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/openai/config", methods=["POST"])
+def save_openai_config():
+    """Lưu cấu hình OpenAI (API key, base URL, model)."""
+    try:
+        data = request.json
+        api_key = data.get("api_key", "").strip()
+        base_url = data.get("base_url", "").strip()
+        model = data.get("model", "gpt-4o-mini").strip()
+
+        # Lưu api_key vào .env
+        if api_key:
+            env_path = Path(".env")
+            env_lines = []
+            if env_path.exists():
+                env_lines = env_path.read_text(encoding="utf-8").splitlines()
+
+            # Update or add OPENAI_API_KEY
+            found = False
+            for i, line in enumerate(env_lines):
+                if line.startswith("OPENAI_API_KEY"):
+                    env_lines[i] = f"OPENAI_API_KEY={api_key}"
+                    found = True
+                    break
+            if not found:
+                env_lines.append(f"OPENAI_API_KEY={api_key}")
+
+            env_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
+
+        # Lưu base_url và model vào app.ini
+        config_path = Path("config/app.ini")
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        if config_path.exists():
+            config.read(config_path)
+
+        if not config.has_section("OPENAI"):
+            config.add_section("OPENAI")
+        if base_url:
+            config.set("OPENAI", "BASE_URL", base_url)
+        if model:
+            config.set("OPENAI", "MODEL", model)
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            config.write(f)
+
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error saving OpenAI config: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -226,4 +349,53 @@ def manage_api_keys():
         save_api_keys(keys_text)
         return jsonify({"success": True})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/settings/app", methods=["GET", "POST"])
+def manage_app_settings():
+    """Đọc hoặc ghi trực tiếp file config/app.ini."""
+    config_path = Path("config/app.ini")
+    config = configparser.ConfigParser()
+    config.optionxform = str  # Preserve case
+
+    if request.method == "GET":
+        try:
+            if config_path.exists():
+                config.read(config_path)
+            
+            config_dict = {
+                section: dict(config.items(section))
+                for section in config.sections()
+            }
+            return jsonify({"success": True, "config": config_dict})
+        except Exception as e:
+            logger.error(f"Error reading app.ini: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    # POST method
+    try:
+        payload = request.json
+        if not payload or "config" not in payload:
+            return jsonify({"error": "Missing config payload"}), 400
+        
+        new_config_data = payload["config"]
+        
+        if config_path.exists():
+            config.read(config_path)
+            
+        for section, items in new_config_data.items():
+            if not isinstance(items, dict):
+                continue
+            if not config.has_section(section):
+                config.add_section(section)
+            for key, val in items.items():
+                config.set(section, key, str(val))
+                
+        with open(config_path, "w", encoding="utf-8") as f:
+            config.write(f)
+            
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error writing app.ini: {e}")
         return jsonify({"error": str(e)}), 500

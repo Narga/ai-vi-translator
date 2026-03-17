@@ -8,8 +8,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Available Gemini models (dynamically updated)
-AVAILABLE_MODELS = [
+# Available Gemini models (fallback list)
+AVAILABLE_GEMINI_MODELS = [
     "gemini-2.0-flash-exp",
     "gemini-2.0-flash",
     "gemini-1.5-pro",
@@ -17,6 +17,14 @@ AVAILABLE_MODELS = [
     "gemini-1.5-flash-8b",
     "gemini-3-pro",
     "gemini-3-flash",
+]
+
+# Available OpenAI-compatible models (fallback list)
+AVAILABLE_OPENAI_MODELS = [
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo",
 ]
 
 
@@ -47,9 +55,67 @@ def get_default_model():
         return "gemini-2.0-flash-exp"
 
 
+def get_active_provider():
+    """Get active AI provider from config."""
+    config = load_config()
+    try:
+        return config.get("PROVIDER", "ACTIVE_PROVIDER", fallback="gemini").lower()
+    except Exception:
+        return "gemini"
+
+
+def load_openai_key():
+    """Load OpenAI/OpenRouter API key từ .env hoặc config."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        key = os.environ.get("OPENAI_API_KEY", "")
+        if key:
+            return key.strip()
+    except ImportError:
+        pass
+
+    # Fallback: đọc từ config/app.ini [OPENAI] section
+    config = load_config()
+    try:
+        return config.get("OPENAI", "API_KEY", fallback="").strip()
+    except Exception:
+        return ""
+
+
+def get_openai_base_url():
+    """Get OpenAI base URL from config."""
+    config = load_config()
+    try:
+        url = config.get("OPENAI", "BASE_URL", fallback="").strip()
+        return url if url else None
+    except Exception:
+        return None
+
+
+def get_openai_model():
+    """Get default OpenAI model from config."""
+    config = load_config()
+    try:
+        return config.get("OPENAI", "MODEL", fallback="gpt-4o-mini")
+    except Exception:
+        return "gpt-4o-mini"
+
+
 def get_available_models():
-    """Get list of available models - tries to detect from API if possible."""
-    models = AVAILABLE_MODELS.copy()
+    """Get list of available models for the active provider."""
+    provider = get_active_provider()
+
+    if provider == "openai":
+        return get_available_openai_models()
+    else:
+        return get_available_gemini_models()
+
+
+def get_available_gemini_models():
+    """Get list of available Gemini models."""
+    models = AVAILABLE_GEMINI_MODELS.copy()
 
     try:
         api_keys = load_api_keys()
@@ -75,6 +141,30 @@ def get_available_models():
     default_model = get_default_model()
     if default_model not in models:
         models.insert(0, default_model)
+
+    return list(dict.fromkeys(models))
+
+
+def get_available_openai_models():
+    """Get list of available OpenAI-compatible models."""
+    models = AVAILABLE_OPENAI_MODELS.copy()
+
+    try:
+        api_key = load_openai_key()
+        if api_key:
+            from services.ai_provider import list_models_for_provider
+
+            fetched = list_models_for_provider(
+                "openai", api_key, get_openai_base_url()
+            )
+            if fetched:
+                models = fetched
+    except Exception as e:
+        logger.debug(f"Could not fetch OpenAI models: {e}")
+
+    openai_model = get_openai_model()
+    if openai_model not in models:
+        models.insert(0, openai_model)
 
     return list(dict.fromkeys(models))
 

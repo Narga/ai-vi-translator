@@ -1,0 +1,62 @@
+
+        <!-- ==================== TAB 3: PROMPT MANAGER ==================== -->
+        <section id="tab-prompts" class="nt-tab-content dn h-100">
+            <div class="flex-l mhn2-l h-100">
+                <!-- Sidebar Genres -->
+                <div class="w-30-l ph2-l flex flex-column">
+                    <div class="nt-card pa3 flex-auto flex flex-column max-h-100">
+                        <div class="flex justify-between items-center mb3">
+                            <h2 class="f5 mt0 mb0 fw6 dark-gray">📚 Thể loại</h2>
+                            <button id="btn-new-genre" class="nt-btn nt-btn-success f7 pv2 px3">+ Thêm mới</button>
+                        </div>
+                        <div class="nt-file-list flex-auto overflow-y-auto ba b--black-10 br2" id="genre-list">
+                            <div class="pa3 tc silver i">Đang tải data...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor -->
+                <div class="w-70-l ph2-l flex flex-column h-100">
+                    <div id="genre-editor" class="nt-card pa3 flex-auto flex flex-column relative dn">
+                        <!-- Top header -->
+                        <div class="flex justify-between items-start mb3 pb3 bb b--black-10">
+                            <div>
+                                <h2 id="genre-editor-title" class="f4 mt0 mb1 fw6 dark-gray flex items-center">
+                                    <span class="mr2">📝</span> Prompt Editor
+                                </h2>
+                                <p id="genre-editor-desc" class="f7 mt0 mb0 silver">...</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button id="btn-delete-genre" class="nt-btn nt-btn-danger f7">🗑️ Xóa</button>
+                                <button id="btn-clone-genre" class="nt-btn nt-btn-outline f7">📄 Nhân bản</button>
+                                <button id="btn-save-genre" class="nt-btn nt-btn-primary f7">💾 Lưu Prompt</button>
+                                <button id="btn-activate-genre"
+                                    class="nt-btn nt-btn-secondary f7 shadow-hover transition-transform">⚡ Nạp vào Dịch
+                                    ngay</button>
+                            </div>
+                        </div>
+
+                        <!-- Prompt sub-tabs -->
+                        <div class="flex gap-2 mb3" id="prompt-tabs">
+                            <button class="nt-tab-btn genre-tab-btn active" data-ptab="main">Main (Dịch thô)</button>
+                            <button class="nt-tab-btn genre-tab-btn" data-ptab="retranslate">Retranslate</button>
+                            <button class="nt-tab-btn genre-tab-btn" data-ptab="correction">Correction</button>
+                        </div>
+
+                        <!-- Textareas -->
+                        <div id="ptab-main" class="genre-ptab-content flex-auto flex flex-column active">
+                            <textarea id="genre-main-text" class="nt-input w-100 flex-auto code f7" style="resize:none;"
+                                placeholder="Main prompt..."></textarea>
+                        </div>
+                        <div id="ptab-retranslate" class="genre-ptab-content flex-auto flex flex-column dn">
+                            <textarea id="genre-retranslate-text" class="nt-input w-100 flex-auto code f7"
+                                style="resize:none;" placeholder="Retranslate prompt..."></textarea>
+                        </div>
+                        <div id="ptab-correction" class="genre-ptab-content flex-auto flex flex-column dn">
+                            <textarea id="genre-correction-text" class="nt-input w-100 flex-auto code f7"
+                                style="resize:none;" placeholder="Correction prompt..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>

@@ -1,0 +1,70 @@
+
+
+    <!-- Dialog / Modal for New Project -->
+    <div id="new-project-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center"
+        style="display: none;">
+        <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+            <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">📁 Tạo Dự án Mới</h3>
+
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên dự án *</label>
+                <input type="text" id="new-project-name" class="nt-input w-100" placeholder="VD: Đạo Mộ Bút Ký, ...">
+            </div>
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả</label>
+                <input type="text" id="new-project-desc" class="nt-input w-100"
+                    placeholder="Mô tả ngắn về dự án (tùy chọn)">
+            </div>
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Thể loại</label>
+                <select id="new-project-genre" class="nt-input w-100">
+                    <option value="">— Không chọn —</option>
+                </select>
+                <small class="db mt1 silver">Liên kết với bộ prompt theo thể loại. Có thể đổi sau.</small>
+            </div>
+
+            <div class="flex justify-end gap-3 pt3 bt b--black-10">
+                <button type="button" id="btn-cancel-project" class="nt-btn nt-btn-outline">Hủy bỏ</button>
+                <button type="button" id="btn-confirm-new-project" class="nt-btn nt-btn-success">✅ Tạo Dự án</button>
+            </div>
+        </div>
+    </div>
+
+    </main>
+
+    <!-- Dialog / Modal for New Genre -->
+    <div id="new-genre-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center"
+        style="display: none;">
+        <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+            <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">Tạo bộ Prompt Mới</h3>
+
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên thể loại *</label>
+                <input type="text" id="new-genre-name" class="nt-input w-100" placeholder="VD: Tiên Hiệp, Đô Thị...">
+            </div>
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Slug nhận dạng</label>
+                <input type="text" id="new-genre-slug" class="nt-input w-100" placeholder="tien-hiep">
+                <small class="db mt1 silver">Đường dẫn folder tạo tự động từ tên.</small>
+            </div>
+            <div class="mb3">
+                <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả khái quát</label>
+                <input type="text" id="new-genre-desc" class="nt-input w-100" placeholder="Mở rộng bối cảnh...">
+            </div>
+
+            <div class="flex justify-end gap-3 pt3 bt b--black-10">
+                <button type="button" id="btn-cancel-genre" class="nt-btn nt-btn-outline">Hủy bỏ</button>
+                <button type="button" id="btn-confirm-new-genre" class="nt-btn nt-btn-success">Xác nhận Tạo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="nt-toast-container" class="fixed bottom-1 right-2 z-max flex flex-column gap-2"
+        style="pointer-events:none;"></div>
+
+    <!-- Script references -->
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>
+</body>
+
+</html>

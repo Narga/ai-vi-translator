@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Translator {{ app_version }}</title>
+    <!-- Tachyons CSS Framework -->
+    <link rel="stylesheet" href="https://unpkg.com/tachyons@4.12.0/css/tachyons.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
+    <script>
+        window.initialPrompts = {{ prompts_json | safe }};
+        window.initialAvailableModels = {{ available_models | safe }};
+        window.initialDefaultModel = '{{ default_model }}';
+    </script>
+</head>
+
+<body class="bg-near-white sans-serif dark-gray flex flex-column vh-100 overflow-hidden">
+
+    <!-- TOP NAVIGATION BAR -->
+    <header class="nt-topnav">
+        <div class="nt-topnav-inner">
+            <!-- Brand -->
+            <div class="nt-brand">
+                <span class="nt-brand-icon">📚</span>
+                <div class="nt-brand-text">
+                    <span class="nt-brand-name">Content Translator</span>
+                    <span class="nt-brand-version">v{{ app_version }}</span>
+                </div>
+            </div>
+
+            <!-- Navigation Items -->
+            <nav class="nt-nav-items">
+                <a href="#workspace" class="nt-nav-item active" data-tab="workspace">
+                    <span class="nt-nav-icon">📁</span>
+                    <span class="nt-nav-label">Dự án</span>
+                </a>
+                <a href="#config" class="nt-nav-item" data-tab="config">
+                    <span class="nt-nav-icon">⚙️</span>
+                    <span class="nt-nav-label">Cấu hình</span>
+                </a>
+                <a href="#prompts" class="nt-nav-item" data-tab="prompts">
+                    <span class="nt-nav-icon">📝</span>
+                    <span class="nt-nav-label">Prompts</span>
+                </a>
+                <a href="#plugins" class="nt-nav-item" data-tab="plugins">
+                    <span class="nt-nav-icon">🔌</span>
+                    <span class="nt-nav-label">Plugins</span>
+                </a>
+            </nav>
+
+            <!-- System Info (inline in navbar) -->
+            <div class="nt-nav-stats">
+                <span class="nt-stat-chip" title="API Keys">🔑 <strong id="api-keys-count">--</strong></span>
+                <span class="nt-stat-chip" title="Cache files (MB)">💾 <strong id="cache-count">--</strong> <small>(<span id="cache-size">--</span>MB)</small></span>
+                <span class="nt-stat-chip" title="Dự án">📁 <strong id="project-count">--</strong></span>
+                <span class="nt-stat-chip" title="File nguồn">📥 <strong id="source-count">--</strong></span>
+                <span class="nt-stat-chip" title="Đã dịch">✅ <strong id="translated-count">--</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-auto overflow-y-auto pa4-l pa3 nt-main-bg">

@@ -1,6 +1,6 @@
 # 🛠️ Hướng Dẫn Phát Triển & Coding Convention
 
-Tài liệu này dành cho các lập trình viên muốn đóng góp hoặc mở rộng hệ thống Novel Translator.
+Tài liệu này dành cho các lập trình viên muốn đóng góp hoặc mở rộng hệ thống Content Translator.
 
 ## 1. Kiến Trúc Phân Tầng (Architectural Layers)
 

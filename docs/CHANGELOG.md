@@ -1,6 +1,42 @@
 # Changelog - Lịch sử thay đổi
 
-Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ được ghi nhận tại đây.
+Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
+
+---
+
+## [6.0.0-alpha] - 2026-03-17 - Multi-Provider AI & Project Workflow
+
+### 🚀 Phase 1: Multi-Provider AI Integration
+- **OpenAI-Compatible API**: Tích hợp OpenAI SDK (`openai>=1.0.0`) hỗ trợ OpenRouter, proxy và các dịch vụ tương thích.
+  - `services/openai_client.py`: Sync + Async wrapper tương tự `genai_client.py`
+  - `services/ai_provider.py`: Protocol adapter + Factory pattern cho multi-provider
+- **Dual-Provider UI**: Tab Cấu hình chia 2 cột nằm ngang (Gemini | OpenAI), radio button chọn 1 trong 2.
+- **Template Splitting**: Tách `index.html` monolithic (729 dòng) thành 6 Jinja2 partials (`templates/partials/`).
+- **4 API endpoints mới**: `/api/provider` (GET/POST), `/api/openai/models`, `/api/openai/config`.
+- **Provider-aware helpers**: 7 functions mới trong `webui/helpers.py`.
+
+### ✨ Phase 2: Project Workflow Tabs Enhancement
+- **Genre Field**: Thêm trường thể loại vào project metadata, liên kết với prompt sets.
+- **Project Creation Modal**: Thay `prompt()` bằng modal form đẹp với genre selector.
+- **Inline Chunk-Size**: Input số ký tự/chunk cạnh nút "Chia Chunk" (để trống = config mặc định).
+- **File Upload**: Mở rộng hỗ trợ `.html`, `.epub` ngoài `.txt`, `.md`.
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `services/openai_client.py` | ✨ NEW – OpenAI SDK wrapper |
+| `services/ai_provider.py` | ✨ NEW – Adapter pattern |
+| `templates/partials/*.html` | ✨ NEW – 6 template partials |
+| `templates/index.html` | Tách thành 6 includes |
+| `config/app.ini` | +`[PROVIDER]`, +`[OPENAI]` |
+| `.env.example` | +`OPENAI_API_KEY` |
+| `requirements.txt` | +`openai>=1.0.0` |
+| `webui/helpers.py` | 7 provider functions |
+| `webui/routes/settings.py` | 4 API endpoints |
+| `webui/routes/projects.py` | Genre create/update |
+| `static/css/style.css` | Dual-provider grid CSS |
+| `static/js/main.js` | Provider switching + project modal |
 
 ---
 
@@ -50,7 +86,7 @@ Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ đ
   - Tách logic JS ra thư mục tĩnh: `static/js/main.js`
 - **Cache Busting**: Frontend script và styles hiện tại nhận biến tham số version `?v=4.0.6` truyền từ flask render_template để cập nhật cache trình duyệt ngay khi có thay đổi bản build.
 
-Tất cả các thay đổi quan trọng của dự án Novel Translator sẽ được ghi nhận tại đây.
+Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
 ---
 

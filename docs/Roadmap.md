@@ -1,6 +1,6 @@
 # 🗺️ Lộ Trình Phát Triển & Theo Dõi Tiến Độ (Project Roadmap)
 
-Tài liệu này tổng hợp toàn bộ lịch sử phát triển, các tác vụ đang thực hiện và kế hoạch tương lai của dự án Novel Translator.
+Tài liệu này tổng hợp toàn bộ lịch sử phát triển, các tác vụ đang thực hiện và kế hoạch tương lai của dự án Content Translator.
 
 ---
 

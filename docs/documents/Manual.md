@@ -1,4 +1,4 @@
-# 📖 Hướng Dẫn Sử Dụng Novel Translator
+# 📖 Hướng Dẫn Sử Dụng Content Translator
 
 Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuyên nghiệp sử dụng sức mạnh của Gemini AI.
 

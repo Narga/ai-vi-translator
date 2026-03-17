@@ -4,6 +4,7 @@ let prompts = window.initialPrompts || {};
 let currentOutputFile = '';
 let allFiles = [];
 let selectedFiles = new Set();
+let selectedTranslatedFiles = new Set();
 let availableModels = window.initialAvailableModels || [];
 let defaultModel = window.initialDefaultModel || '';
 let currentDoneFile = '';
@@ -18,9 +19,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     loadProjects();
     loadStats();
-    loadModels();
+    loadModels();  // loadAppConfig() is called inside after models are loaded
     loadGenres();
     loadApiKeys();
+    initProvider();  // Load active AI provider state
+    initProjectDialog();  // Wire project creation modal
 
     setInterval(loadStats, 30000);
 
@@ -57,21 +60,17 @@ document.addEventListener('DOMContentLoaded', function () {
 // UI Initializations
 // ============================================================
 function initTabs() {
-    const navLinks = document.querySelectorAll('.nt-nav-link');
+    const navItems = document.querySelectorAll('.nt-nav-item');
     const sections = document.querySelectorAll('.nt-tab-content');
 
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
             e.preventDefault();
-            const targetId = link.getAttribute('data-tab');
+            const targetId = item.getAttribute('data-tab');
 
             // Update Nav Classes
-            navLinks.forEach(n => {
-                n.classList.remove('active', 'bg-light-blue', 'blue', 'bl', 'bw2');
-                n.classList.add('color-inherit');
-            });
-            link.classList.remove('color-inherit');
-            link.classList.add('active', 'bg-light-blue', 'blue', 'bl', 'bw2');
+            navItems.forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
 
             // Toggle Sections
             sections.forEach(sec => {
@@ -186,6 +185,212 @@ function saveApiKeys() {
 }
 
 // ============================================================
+// AI Provider Management (Gemini / OpenAI)
+// ============================================================
+function switchProvider(provider) {
+    // Update visual state
+    document.querySelectorAll('.nt-provider-col').forEach(col => {
+        col.classList.toggle('nt-provider-active', col.dataset.provider === provider);
+    });
+
+    // Update badge
+    const badge = document.getElementById('provider-active-badge');
+    if (badge) {
+        badge.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
+        badge.className = 'f7 fw6 ph2 pv1 br2 ' +
+            (provider === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
+    }
+
+    // Save to backend
+    fetch('/api/provider', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Đã chuyển sang ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI Compatible'}`, 'success');
+                // Reload models for the new provider
+                loadModels();
+            } else {
+                showToast(data.error || 'Lỗi chuyển provider', 'error');
+            }
+        })
+        .catch(e => showToast(e.message, 'error'));
+}
+
+function fetchOpenAIModels() {
+    const sel = document.getElementById('openai-model');
+    if (!sel) return;
+    sel.innerHTML = '<option>⏳ Đang tải...</option>';
+
+    fetch('/api/openai/models')
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                sel.innerHTML = '<option>❌ ' + data.error + '</option>';
+                showToast(data.error, 'error');
+                return;
+            }
+            if (data.models && data.models.length > 0) {
+                sel.innerHTML = data.models.map(m =>
+                    `<option value="${m}">${m}</option>`
+                ).join('');
+                showToast(`Đã tải ${data.models.length} models`, 'success');
+            } else {
+                sel.innerHTML = '<option>Không có model nào</option>';
+            }
+        })
+        .catch(e => {
+            sel.innerHTML = '<option>❌ Lỗi kết nối</option>';
+            showToast(e.message, 'error');
+        });
+}
+
+function saveOpenAIConfig() {
+    const data = {
+        api_key: document.getElementById('openai-api-key').value,
+        base_url: document.getElementById('openai-base-url').value,
+        model: document.getElementById('openai-model').value,
+    };
+
+    fetch('/api/openai/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showToast('Đã lưu cấu hình OpenAI', 'success');
+            } else {
+                showToast(res.error || 'Lỗi lưu config', 'error');
+            }
+        })
+        .catch(e => showToast(e.message, 'error'));
+}
+
+function initProvider() {
+    fetch('/api/provider')
+        .then(r => r.json())
+        .then(data => {
+            if (data.active) {
+                // Set radio button
+                const radio = document.querySelector(`input[name="active_provider"][value="${data.active}"]`);
+                if (radio) radio.checked = true;
+
+                // Set visual state
+                document.querySelectorAll('.nt-provider-col').forEach(col => {
+                    col.classList.toggle('nt-provider-active', col.dataset.provider === data.active);
+                });
+
+                // Update badge
+                const badge = document.getElementById('provider-active-badge');
+                if (badge) {
+                    badge.textContent = data.active === 'gemini' ? 'Gemini' : 'OpenAI';
+                    badge.className = 'f7 fw6 ph2 pv1 br2 ' +
+                        (data.active === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
+                }
+            }
+
+            // Fill OpenAI config fields
+            if (data.openai_config) {
+                const cfg = data.openai_config;
+                if (cfg.base_url) document.getElementById('openai-base-url').value = cfg.base_url;
+                if (cfg.model) {
+                    const sel = document.getElementById('openai-model');
+                    sel.innerHTML = `<option value="${cfg.model}" selected>${cfg.model}</option>`;
+                }
+                if (cfg.has_key) {
+                    document.getElementById('openai-api-key').placeholder = '••••••••••• (đã cấu hình)';
+                }
+            }
+        })
+        .catch(e => console.error('Failed to load provider info:', e));
+}
+
+function loadAppConfig() {
+    fetch('/api/settings/app')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.config) {
+                const conf = data.config;
+                // Bind to UI
+                if (conf.MODEL) {
+                    const m = conf.MODEL;
+                    if (m.MODEL) document.getElementById('model').value = m.MODEL;
+                    if (m.QA_MODEL) document.getElementById('cfg-qa-model').value = m.QA_MODEL;
+                    if (m.THINKING_LEVEL) document.getElementById('cfg-thinking').value = m.THINKING_LEVEL;
+                }
+                if (conf.PROCESSING) {
+                    const p = conf.PROCESSING;
+                    if (p.MAX_CHARS_PER_CHUNK) document.getElementById('chunk-size').value = p.MAX_CHARS_PER_CHUNK;
+                    if (p.CONTEXT_CHAR_COUNT !== undefined) document.getElementById('cfg-context').value = p.CONTEXT_CHAR_COUNT;
+                    if (p.TEMPERATURE) {
+                        document.getElementById('temperature').value = p.TEMPERATURE;
+                        document.getElementById('temp-value').textContent = parseFloat(p.TEMPERATURE).toFixed(1);
+                    }
+                    if (p.REQUEST_DELAY) document.getElementById('cfg-delay').value = p.REQUEST_DELAY;
+                }
+                if (conf.DIRECTORIES) {
+                    const d = conf.DIRECTORIES;
+                    if (d.INPUT_DIR) document.getElementById('cfg-dir-in').value = d.INPUT_DIR;
+                    if (d.OUTPUT_DIR) document.getElementById('cfg-dir-out').value = d.OUTPUT_DIR;
+                    if (d.CACHE_DIR) document.getElementById('cfg-dir-cache').value = d.CACHE_DIR;
+                    if (d.LOGS_DIR) document.getElementById('cfg-dir-logs').value = d.LOGS_DIR;
+                    if (d.ARCHIVE_DIR_NAME) document.getElementById('cfg-dir-archive').value = d.ARCHIVE_DIR_NAME;
+                }
+                if (conf.CACHE && conf.CACHE.ENABLE_CACHE) {
+                    document.getElementById('use-cache').checked = conf.CACHE.ENABLE_CACHE.toLowerCase() === 'true';
+                }
+            }
+        })
+        .catch(e => console.error('Failed to load App Config:', e));
+}
+
+function saveAppConfig() {
+    const data = {
+        MODEL: {
+            MODEL: document.getElementById('model').value,
+            QA_MODEL: document.getElementById('cfg-qa-model').value,
+            THINKING_LEVEL: document.getElementById('cfg-thinking').value
+        },
+        PROCESSING: {
+            MAX_CHARS_PER_CHUNK: document.getElementById('chunk-size').value,
+            CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
+            TEMPERATURE: document.getElementById('temperature').value,
+            REQUEST_DELAY: document.getElementById('cfg-delay').value
+        },
+        DIRECTORIES: {
+            INPUT_DIR: document.getElementById('cfg-dir-in').value,
+            OUTPUT_DIR: document.getElementById('cfg-dir-out').value,
+            CACHE_DIR: document.getElementById('cfg-dir-cache').value,
+            LOGS_DIR: document.getElementById('cfg-dir-logs').value,
+            ARCHIVE_DIR_NAME: document.getElementById('cfg-dir-archive').value
+        },
+        CACHE: {
+            ENABLE_CACHE: document.getElementById('use-cache').checked ? 'true' : 'false'
+        }
+    };
+
+    fetch('/api/settings/app', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ config: data })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                showToast('Lưu Cấu hình thành công! Hãy khởi động lại App để cập nhật.', 'success');
+            } else {
+                showToast('Lưu bị lỗi: ' + (res.error || ''), 'error');
+            }
+        })
+        .catch(e => showToast('Gặp lỗi khi lưu Cấu hình: ' + e, 'error'));
+}
+
+// ============================================================
 // Models & Token Estimation
 // ============================================================
 let currentModelInfo = null; // cache model info
@@ -194,20 +399,36 @@ function loadModels() {
     fetch('/api/models')
         .then(r => r.json())
         .then(data => {
-            const sel = document.getElementById('model');
             if (data.models && data.models.length > 0) availableModels = data.models;
-            sel.innerHTML = availableModels.map(m =>
+            const optionsHtml = availableModels.map(m =>
                 `<option value="${m}" ${m === (data.default || defaultModel) ? 'selected' : ''}>${m}</option>`
             ).join('');
+
+            // Populate Model Chính
+            const sel = document.getElementById('model');
+            sel.innerHTML = optionsHtml;
+
+            // Populate QA Model dropdown
+            const qaSel = document.getElementById('cfg-qa-model');
+            if (qaSel) qaSel.innerHTML = optionsHtml;
+
+            // Load saved config values AFTER models dropdown is ready
+            loadAppConfig();
+
             // Auto-fetch info for selected model
             const selected = sel.value;
             if (selected) fetchModelInfo(selected);
         })
         .catch(() => {
-            const sel = document.getElementById('model');
-            sel.innerHTML = availableModels.map(m =>
+            const optionsHtml = availableModels.map(m =>
                 `<option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>`
             ).join('');
+            const sel = document.getElementById('model');
+            sel.innerHTML = optionsHtml;
+            const qaSel = document.getElementById('cfg-qa-model');
+            if (qaSel) qaSel.innerHTML = optionsHtml;
+
+            loadAppConfig();
         });
 }
 
@@ -337,6 +558,71 @@ function _doTokenEstimate() {
     }
 }
 
+function toggleTranslatedFile(filename, isChecked) {
+    if (isChecked) selectedTranslatedFiles.add(filename);
+    else selectedTranslatedFiles.delete(filename);
+}
+
+function selectAllTranslatedFiles() {
+    if (!currentProject || !currentProject.translated) return;
+    const allCount = currentProject.translated.length;
+    if (selectedTranslatedFiles.size === allCount) {
+        selectedTranslatedFiles.clear(); // Bỏ chọn hết
+    } else {
+        currentProject.translated.forEach(f => selectedTranslatedFiles.add(f.name));
+    }
+    renderProjectTranslated(currentProject.translated);
+}
+
+function mergeTranslatedFiles() {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+    if (selectedTranslatedFiles.size === 0) { showToast('Vui lòng chọn ít nhất 1 file để ghép!', 'warning'); return; }
+
+    const slug = currentProject.slug;
+
+    // Convert Set to Array and Sort nicely 
+    // Natural Sort helps handling chunk_2.md vs chunk_10.md properly
+    let filesToMerge = Array.from(selectedTranslatedFiles);
+    filesToMerge.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    const outName = prompt("Nhập tên file xuất bản (ví dụ: Quyen1.txt):", `Full_${slug}.txt`);
+    if (outName === null) return; // User cancelled
+
+    const btn = document.getElementById('btn-merge-translated');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Đang ghép nối...';
+    btn.disabled = true;
+
+    fetch(`/api/projects/${slug}/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            files: filesToMerge,
+            output_filename: outName
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (data.success) {
+                showToast(`Ghép thành công ${filesToMerge.length} file vào: ${data.file}`, 'success');
+                // Gắn link Download popup
+                if (confirm(`Đã lưu file kết quả tại output/${data.file}. Bạn có muốn mở để tải về luôn không?`)) {
+                    window.open(`/api/projects/${slug}/file/output/${data.file}`, '_blank');
+                }
+            } else {
+                showToast('Lỗi ghép file: ' + (data.error || 'Unknown'), 'error');
+            }
+        })
+        .catch(e => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('Lỗi mạng: ' + e.message, 'error');
+        });
+}
+
 // ============================================================
 // Project Management
 // ============================================================
@@ -359,6 +645,7 @@ function selectProject(slug) {
         if (data.error) { showToast(data.error, 'error'); return; }
         currentProject = data;
         selectedFiles.clear();
+        selectedTranslatedFiles.clear(); // Clear translated selection too
 
         // Update header
         document.getElementById('project-header').classList.remove('dn');
@@ -369,6 +656,16 @@ function selectProject(slug) {
         document.getElementById('proj-source-count').textContent = data.source_count;
         document.getElementById('proj-translated-count').textContent = data.translated_count;
         document.getElementById('proj-source-words').textContent = (data.source_words || 0).toLocaleString();
+
+        // Genre badge
+        const genreBadge = document.getElementById('proj-genre-badge');
+        const genreEl = document.getElementById('proj-genre');
+        if (data.genre) {
+            genreEl.textContent = data.genre;
+            genreBadge.classList.remove('dn');
+        } else {
+            genreBadge.classList.add('dn');
+        }
 
         // Render source files
         renderProjectSources(data.sources || []);
@@ -410,10 +707,14 @@ function renderProjectTranslated(translated) {
     if (!translated.length) { el.innerHTML = '<div class="pa3 tc silver i">Chưa có file dịch</div>'; return; }
     el.innerHTML = translated.map(f => {
         const esc = f.name.replace(/'/g, "\\'");
+        const checked = selectedTranslatedFiles.has(f.name) ? 'checked' : '';
         return `<div class="nt-file-item">
-            <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','translated')">
-                <span class="fw6 dark-gray db f6">${f.name}</span>
-                <span class="f7 silver">${f.size_display}</span>
+            <div class="flex items-center flex-auto">
+                <input type="checkbox" class="nt-checkbox mr2" ${checked} onchange="toggleTranslatedFile('${esc}',this.checked)">
+                <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','translated')">
+                    <span class="fw6 dark-gray db f6">${f.name}</span>
+                    <span class="f7 silver">${f.size_display}</span>
+                </div>
             </div>
             <div class="nt-file-actions">
                 <button class="nt-file-action-btn" onclick="event.stopPropagation();moveBackInProject('${esc}')" title="Trả về sources">↩</button>
@@ -444,10 +745,10 @@ function loadProjectFile(filename, section) {
             document.getElementById('source-text').value = data.content || '';
             currentProjectFile = { name: filename, section };
             document.getElementById('btn-save-project-file').classList.remove('dn');
-            // Hiện nút Chia Chunk
-            const chunkBtn = document.getElementById('btn-chunk-file');
-            chunkBtn.classList.remove('dn');
-            chunkBtn.setAttribute('data-filename', filename);
+            // Show chunk controls
+            const chunkControls = document.getElementById('chunk-controls');
+            chunkControls.classList.remove('dn');
+            document.getElementById('btn-chunk-file').setAttribute('data-filename', filename);
             updateTokenEstimate();
         } else {
             // Open Side-by-Side Editor
@@ -598,7 +899,10 @@ function chunkProjectFile() {
     const filename = btn.getAttribute('data-filename');
     if (!filename) { showToast('Chưa chọn file để chia chunk!', 'error'); return; }
 
-    const maxChars = parseInt(document.getElementById('chunk-size').value) || 100000;
+    const maxCharsInput = document.getElementById('inline-chunk-size');
+    const maxChars = maxCharsInput && maxCharsInput.value
+        ? parseInt(maxCharsInput.value)
+        : parseInt(document.getElementById('chunk-size').value) || 100000;
 
     if (!confirm(`Chia "${filename}" thành các chunk (max ${maxChars.toLocaleString()} ký tự/chunk)?`)) return;
 
@@ -726,15 +1030,58 @@ function saveProjectProfile() {
 }
 
 function showCreateProjectDialog() {
-    const name = prompt('Tên dự án mới:');
-    if (!name) return;
-    const desc = prompt('Mô tả (tùy chọn):', '');
-    fetch('/api/projects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: desc || '' })
-    }).then(r => r.json()).then(data => {
-        if (data.success) { loadProjects(); selectProject(data.slug); }
-        else showToast(data.error || 'Lỗi tạo dự án', 'error');
+    const modal = document.getElementById('new-project-modal');
+    // Populate genre dropdown from available genres
+    const genreSelect = document.getElementById('new-project-genre');
+    fetch('/api/prompt-sets')
+        .then(r => r.json())
+        .then(data => {
+            let opts = '<option value="">— Không chọn —</option>';
+            if (data.genres) {
+                data.genres.forEach(g => {
+                    opts += `<option value="${g.slug}">${g.name}</option>`;
+                });
+            }
+            genreSelect.innerHTML = opts;
+        })
+        .catch(() => {});
+    // Clear form
+    document.getElementById('new-project-name').value = '';
+    document.getElementById('new-project-desc').value = '';
+    modal.style.display = 'flex';
+}
+
+function initProjectDialog() {
+    const modal = document.getElementById('new-project-modal');
+    if (!modal) return;
+
+    document.getElementById('btn-cancel-project').addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    document.getElementById('btn-confirm-new-project').addEventListener('click', () => {
+        const name = document.getElementById('new-project-name').value.trim();
+        if (!name) { showToast('Tên dự án không được trống!', 'error'); return; }
+        const desc = document.getElementById('new-project-desc').value.trim();
+        const genre = document.getElementById('new-project-genre').value;
+
+        fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description: desc, genre })
+        })
+            .then(r => r.json())
+            .then(data => {
+                modal.style.display = 'none';
+                if (data.success) {
+                    showToast(`Đã tạo dự án "${name}"`, 'success');
+                    loadProjects();
+                    selectProject(data.slug);
+                } else {
+                    showToast(data.error || 'Lỗi tạo dự án', 'error');
+                }
+            })
+            .catch(e => showToast(e.message, 'error'));
     });
 }
 
@@ -757,12 +1104,7 @@ function archiveProject() {
     window.location.href = '/api/projects/' + currentProject.slug + '/archive';
 }
 
-function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    sidebar.classList.toggle('collapsed');
-    const btn = document.getElementById('btn-toggle-sidebar');
-    btn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '☰';
-}
+// toggleSidebar removed — sidebar replaced by top navigation bar
 
 
 // ============================================================
@@ -838,6 +1180,52 @@ function startTranslation() {
         if (data.error) { addLog(data.error, 'error'); resetButton(btn); }
         else connectToProgress(btn);
     }).catch(e => { addLog(e.message, 'error'); resetButton(btn); });
+}
+
+function saveChunkTranslation() {
+    if (!currentProject || !currentProjectFile) {
+        showToast('Không xác định được dự án hoặc file nguồn đang thao tác.', 'error');
+        return;
+    }
+
+    const slug = currentProject.slug;
+    const filename = currentProjectFile.name; // Tên file chunk gốc
+    const content = document.getElementById('result-text').value;
+
+    if (!content.trim()) {
+        showToast('Nội dung dịch trống, không thể lưu.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-translation');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Đang lưu...';
+    btn.disabled = true;
+
+    fetch(`/api/projects/${slug}/file/translated/${filename}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    })
+        .then(r => r.json())
+        .then(res => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            if (res.success) {
+                showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
+                // Refresh danh sách file dự án để cập nhật UI dấu tick hoàn thành
+                if (typeof loadProjectFiles === 'function') {
+                    loadProjectFiles(slug);
+                }
+            } else {
+                showToast('Lỗi lưu file: ' + (res.error || 'Unknown'), 'error');
+            }
+        })
+        .catch(e => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('Lỗi mạng: ' + e.message, 'error');
+        });
 }
 
 

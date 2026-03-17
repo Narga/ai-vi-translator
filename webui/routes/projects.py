@@ -112,6 +112,7 @@ def create_project():
         "name": name,
         "slug": slug,
         "description": data.get("description", ""),
+        "genre": data.get("genre", ""),
         "status": "active",
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
@@ -190,7 +191,7 @@ def update_project(slug):
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     data = request.json
-    for key in ["name", "description", "status"]:
+    for key in ["name", "description", "genre", "status"]:
         if key in data:
             meta[key] = data[key]
     meta["updated_at"] = datetime.now().isoformat()
@@ -263,6 +264,52 @@ def save_project_file(slug, filepath):
         file_path.write_text(content, encoding="utf-8")
         return jsonify({"success": True})
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@projects_bp.route("/api/projects/<slug>/merge", methods=["POST"])
+def merge_project_files(slug):
+    """Ghép danh sách các file (thường ở translated/) thành 1 file duy nhất."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json
+    filenames = data.get("files", [])
+    if not filenames or not isinstance(filenames, list):
+        return jsonify({"error": "Danh sách file không hợp lệ"}), 400
+
+    out_name = data.get("output_filename", "").strip()
+    if not out_name:
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        out_name = f"Merged_{slug}_{stamp}.txt"
+    out_name = re.sub(r'[^\w\-\.]', '_', out_name)
+
+    out_path = pdir / "output" / out_name
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with open(out_path, "w", encoding="utf-8") as out_f:
+            for fname in filenames:
+                # Chỉ cho ghép từ translated/ hoặc sources/ (mặc định lấy translated ưu tiên)
+                fpath = pdir / "translated" / fname
+                if not fpath.exists():
+                    fpath = pdir / "sources" / fname
+                
+                if fpath.exists() and fpath.is_file():
+                    content = fpath.read_text(encoding="utf-8").strip()
+                    if content:
+                        out_f.write(content + "\n\n")
+                        
+        size = out_path.stat().st_size
+        return jsonify({
+            "success": True, 
+            "file": out_name,
+            "path": str(out_path.relative_to(pdir)),
+            "size": size
+        })
+    except Exception as e:
+        logger.error(f"Error merging files: {e}")
         return jsonify({"error": str(e)}), 500
 
 

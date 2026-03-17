@@ -10,7 +10,7 @@
 ## 1. TỔNG QUAN HỆ THỐNG HIỆN TẠI
 
 ### 1.1 Mục tiêu Dự án
-Novel Translator là hệ thống dịch thuật chuyên biệt cho tiểu thuyết và tài liệu dài hơi, sử dụng sức mạnh của Google Gemini API. Mục tiêu là tạo ra bản dịch văn học trôi chảy, giữ đúng văn phong và ngữ cảnh, đồng thời tối ưu hóa chi phí API thông qua các cơ chế Cache và Rate Limiting thông minh.
+Content Translator là hệ thống dịch thuật chuyên biệt cho tiểu thuyết và tài liệu dài hơi, sử dụng sức mạnh của Google Gemini API. Mục tiêu là tạo ra bản dịch văn học trôi chảy, giữ đúng văn phong và ngữ cảnh, đồng thời tối ưu hóa chi phí API thông qua các cơ chế Cache và Rate Limiting thông minh.
 
 ### 1.2 Đánh giá Cấu trúc Thư mục
 Kiến trúc hiện tại đi theo hướng phân tách Layer nhưng đang gặp vấn đề về sự phình to không đồng đều:
@@ -59,7 +59,7 @@ Kiến trúc hiện tại đi theo hướng phân tách Layer nhưng đang gặp
 
 ## 4. KẾT LUẬN & KIẾN NGHỊ
 
-Hệ thống Novel Translator đang sở hữu một bộ khung (Framework) xử lý API rất mạnh mẽ nhưng cần được **tối giản hóa kiến trúc** và **nâng cấp thuật toán cắt câu**. 
+Hệ thống Content Translator đang sở hữu một bộ khung (Framework) xử lý API rất mạnh mẽ nhưng cần được **tối giản hóa kiến trúc** và **nâng cấp thuật toán cắt câu**. 
 
 **Kiến nghị:**
 1. Phê duyệt việc tái cấu trúc `webui.py` ngay lập tức để tránh nợ kỹ thuật (Technical Debt).

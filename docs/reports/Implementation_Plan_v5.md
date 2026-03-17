@@ -1,4 +1,4 @@
-# 🚀 Kế Hoạch Triển Khai (Implementation Plan) - Novel Translator v5.0.0
+# 🚀 Kế Hoạch Triển Khai (Implementation Plan) - Content Translator v5.0.0
 
 Dựa trên báo cáo phân tích mã nguồn và lộ trình phát triển (Roadmap) đã được thống nhất, tài liệu này chi tiết hóa các bước thực tế cần thực hiện để hoàn thành giai đoạn tái cấu trúc hệ thống.
 
