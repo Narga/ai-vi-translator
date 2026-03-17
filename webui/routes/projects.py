@@ -590,10 +590,13 @@ def summarize_project(slug):
         from webui.helpers import get_active_provider
         provider = get_active_provider()
 
+        # Use model from request or fall back to default
+        requested_model = data.get("model", "")
+
         if provider == "gemini":
             from webui.helpers import load_api_keys, get_model
             keys = load_api_keys()
-            model = get_model()
+            model = requested_model or get_model()
             if not keys:
                 return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
             from services.genai_client import GenAIClient
@@ -608,7 +611,7 @@ def summarize_project(slug):
             client = OpenAIClient(
                 api_key=api_key,
                 base_url=get_openai_base_url(),
-                default_model=get_openai_model()
+                default_model=requested_model or get_openai_model()
             )
             result, status = client.generate_content(summarize_prompt)
 

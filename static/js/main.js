@@ -1041,6 +1041,17 @@ function loadGuidelines() {
             document.getElementById('guide-notes').value = data.additional_notes || '';
         })
         .catch(e => console.error('Failed to load guidelines:', e));
+
+    // Populate summarize model dropdown from main model list
+    const modelSel = document.getElementById('summarize-model');
+    const mainModelSel = document.getElementById('model');
+    if (modelSel && mainModelSel) {
+        let opts = '<option value="">— Mặc định —</option>';
+        for (const opt of mainModelSel.options) {
+            if (opt.value) opts += `<option value="${opt.value}">${opt.text}</option>`;
+        }
+        modelSel.innerHTML = opts;
+    }
 }
 
 function saveGuidelines() {
@@ -1072,10 +1083,13 @@ function aiSummarize() {
     btn.disabled = true;
     btn.textContent = '⏳ Đang tóm tắt...';
 
+    const modelSel = document.getElementById('summarize-model');
+    const model = modelSel ? modelSel.value : '';
+
     fetch(`/api/projects/${currentProject.slug}/summarize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({ model })
     })
         .then(r => r.json())
         .then(data => {
@@ -1233,19 +1247,30 @@ function startTranslation() {
 
     addLog('Bắt đầu dịch nội dung...', 'info');
 
-    fetch('/api/translate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            text, model: document.getElementById('model').value,
-            temperature: parseFloat(document.getElementById('temperature').value),
-            chunk_size: parseInt(document.getElementById('chunk-size').value),
-            use_cache: document.getElementById('use-cache').checked,
-            prompts: getActivePrompts()
-        })
-    }).then(r => r.json()).then(data => {
-        if (data.error) { addLog(data.error, 'error'); resetButton(btn); }
-        else connectToProgress(btn);
-    }).catch(e => { addLog(e.message, 'error'); resetButton(btn); });
+    // Use project-specific translate API if in project context with a file loaded
+    if (currentProject && currentProjectFile) {
+        fetch(`/api/projects/${currentProject.slug}/translate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: [currentProjectFile.name] })
+        }).then(r => r.json()).then(data => {
+            if (data.error) { addLog(data.error, 'error'); resetButton(btn); }
+            else connectToProgress(btn);
+        }).catch(e => { addLog(e.message, 'error'); resetButton(btn); });
+    } else {
+        fetch('/api/translate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text, model: document.getElementById('model').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                chunk_size: parseInt(document.getElementById('chunk-size').value),
+                use_cache: document.getElementById('use-cache').checked,
+                prompts: getActivePrompts()
+            })
+        }).then(r => r.json()).then(data => {
+            if (data.error) { addLog(data.error, 'error'); resetButton(btn); }
+            else connectToProgress(btn);
+        }).catch(e => { addLog(e.message, 'error'); resetButton(btn); });
+    }
 }
 
 function saveChunkTranslation() {
@@ -1316,11 +1341,12 @@ function connectToProgress(btn = null, isBatch = false) {
             evtSource.close();
             showProgress('progress-container', 'progress-bar', 'progress-percent', 'progress-text', 100, 'Tất cả hoàn tất! 🚀');
 
-            if (data.output_file) {
+            // Always prefer translated_text over output_file message
+            if (data.translated_text) {
+                document.getElementById('result-text').value = data.translated_text;
+            } else if (data.output_file) {
                 currentOutputFile = data.output_file;
                 document.getElementById('result-text').value = "Đã dịch xong. Kết quả được lưu tại:\n👉 " + data.output_file;
-            } else {
-                document.getElementById('result-text').value = data.translated_text || '';
             }
 
             // Show result layout
@@ -1832,12 +1858,15 @@ function pollPluginProgress(pluginId, logId, btn, btnLabel) {
 
 function toggleProjectList() {
     const col = document.getElementById('project-list-col');
+    const detail = col.parentElement.querySelector('.w-70-l, .w-100-l');
     const btn = event.currentTarget;
     if (col.classList.contains('dn')) {
         col.classList.remove('dn');
+        if (detail) { detail.classList.remove('w-100-l'); detail.classList.add('w-70-l'); }
         btn.textContent = '◗';
     } else {
         col.classList.add('dn');
+        if (detail) { detail.classList.remove('w-70-l'); detail.classList.add('w-100-l'); }
         btn.textContent = '◖';
     }
 }

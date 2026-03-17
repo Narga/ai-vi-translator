@@ -277,8 +277,14 @@
                             <div class="mb3">
                                 <div class="flex justify-between items-center mb1">
                                     <label class="db f7 fw6 silver">📖 Tóm tắt nội dung sách</label>
-                                    <button class="nt-btn nt-btn-outline f7" onclick="aiSummarize()"
-                                        id="btn-ai-summarize">🤖 AI Tóm tắt</button>
+                                    <div class="flex gap-2 items-center">
+                                        <select id="summarize-model" class="nt-input f7" style="width:180px"
+                                            title="Chọn model để tóm tắt">
+                                            <option value="">— Mặc định —</option>
+                                        </select>
+                                        <button class="nt-btn nt-btn-outline f7" onclick="aiSummarize()"
+                                            id="btn-ai-summarize">🤖 AI Tóm tắt</button>
+                                    </div>
                                 </div>
                                 <textarea id="guide-summary" class="nt-input w-100" style="height:140px"
                                     placeholder="Tóm tắt nội dung, bối cảnh, nhân vật chính... (Bấm 'AI Tóm tắt' để tự động tạo từ file nguồn)"></textarea>
