@@ -233,42 +233,84 @@
                         </div>
                     </div>
 
-                    <!-- Sub-tab: Prompt -->
+                    <!-- Sub-tab: Prompt (Phase 4 Enhanced) -->
                     <div id="ptab-prompt" class="nt-ptab-content dn">
                         <div class="nt-card pa3 mb3">
                             <div class="flex justify-between items-center mb3">
                                 <h3 class="f6 mt0 mb0 dark-gray">🎯 Prompt dự án</h3>
-                                <button class="nt-btn nt-btn-success f7" onclick="saveProjectPrompts()">💾 Lưu
-                                    Prompt</button>
+                                <div class="flex gap-2">
+                                    <select id="prompt-library-select" class="nt-input f7" style="width:180px">
+                                        <option value="">— Nạp từ thư viện —</option>
+                                    </select>
+                                    <button class="nt-btn nt-btn-outline f7" onclick="loadFromPromptLibrary()">📥
+                                        Nạp</button>
+                                    <button class="nt-btn nt-btn-success f7" onclick="saveProjectPrompts()">💾 Lưu
+                                        Prompt</button>
+                                </div>
                             </div>
+                            <p class="f7 silver mt0 mb3 bt b--black-05 pt2">
+                                ⚡ Prompt dự án sẽ được ưu tiên sử dụng khi dịch. Nếu để trống, hệ thống dùng prompt
+                                mặc định.
+                            </p>
                             <label class="db f7 fw6 mb1 silver">Main Prompt</label>
-                            <textarea id="proj-prompt-main" class="nt-input w-100 mb3" style="height:180px"></textarea>
+                            <textarea id="proj-prompt-main" class="nt-input w-100 mb3" style="height:180px"
+                                placeholder="Prompt chính cho dịch thuật..."></textarea>
                             <label class="db f7 fw6 mb1 silver">Retranslate Prompt</label>
-                            <textarea id="proj-prompt-retranslate" class="nt-input w-100 mb3"
-                                style="height:100px"></textarea>
+                            <textarea id="proj-prompt-retranslate" class="nt-input w-100 mb3" style="height:100px"
+                                placeholder="Prompt cho dịch lại..."></textarea>
                             <label class="db f7 fw6 mb1 silver">Correction Prompt</label>
-                            <textarea id="proj-prompt-correction" class="nt-input w-100"
-                                style="height:100px"></textarea>
+                            <textarea id="proj-prompt-correction" class="nt-input w-100" style="height:100px"
+                                placeholder="Prompt cho sửa lỗi..."></textarea>
                         </div>
                     </div>
 
-                    <!-- Sub-tab: Profile -->
+                    <!-- Sub-tab: Guidelines (Phase 3) -->
                     <div id="ptab-profile" class="nt-ptab-content dn">
                         <div class="nt-card pa3 mb3">
                             <div class="flex justify-between items-center mb3">
-                                <h3 class="f6 mt0 mb0 dark-gray">📋 Profile dự án</h3>
-                                <button class="nt-btn nt-btn-success f7" onclick="saveProjectProfile()">💾 Lưu
-                                    Profile</button>
+                                <h3 class="f6 mt0 mb0 dark-gray">📋 Guidelines & Profile dự án</h3>
+                                <button class="nt-btn nt-btn-success f7" onclick="saveGuidelines()">💾 Lưu
+                                    Tất cả</button>
                             </div>
-                            <label class="db f7 fw6 mb1 silver">📚 Bảng thuật ngữ</label>
-                            <textarea id="proj-glossary" class="nt-input w-100 mb3" style="height:120px"
-                                placeholder="thuật ngữ gốc | thuật ngữ dịch | ghi chú"></textarea>
-                            <label class="db f7 fw6 mb1 silver">👥 Bảng nhân vật</label>
-                            <textarea id="proj-characters" class="nt-input w-100 mb3" style="height:120px"
-                                placeholder="tên gốc | tên dịch | vai trò | quan hệ"></textarea>
-                            <label class="db f7 fw6 mb1 silver">🎨 Hướng dẫn phong cách</label>
-                            <textarea id="proj-style-guide" class="nt-input w-100" style="height:120px"
-                                placeholder="Tone, style, quy tắc dịch..."></textarea>
+
+                            <!-- 1. Summary (AI summarize) -->
+                            <div class="mb3">
+                                <div class="flex justify-between items-center mb1">
+                                    <label class="db f7 fw6 silver">📖 Tóm tắt nội dung sách</label>
+                                    <button class="nt-btn nt-btn-outline f7" onclick="aiSummarize()"
+                                        id="btn-ai-summarize">🤖 AI Tóm tắt</button>
+                                </div>
+                                <textarea id="guide-summary" class="nt-input w-100" style="height:140px"
+                                    placeholder="Tóm tắt nội dung, bối cảnh, nhân vật chính... (Bấm 'AI Tóm tắt' để tự động tạo từ file nguồn)"></textarea>
+                            </div>
+
+                            <!-- 2. Characters -->
+                            <div class="mb3">
+                                <label class="db f7 fw6 mb1 silver">👥 Bảng nhân vật & quan hệ</label>
+                                <textarea id="guide-characters" class="nt-input w-100" style="height:120px"
+                                    placeholder="tên gốc | tên dịch | vai trò | quan hệ&#10;VD: 张三 | Trương Tam | Nam chính | Sư huynh của Lý Tứ"></textarea>
+                            </div>
+
+                            <!-- 3. Glossary -->
+                            <div class="mb3">
+                                <label class="db f7 fw6 mb1 silver">📚 Bảng thuật ngữ</label>
+                                <textarea id="guide-glossary" class="nt-input w-100" style="height:120px"
+                                    placeholder="thuật ngữ gốc | thuật ngữ dịch | ghi chú&#10;VD: 灵气 | Linh khí | Năng lượng tu luyện"></textarea>
+                            </div>
+
+                            <!-- 4. Style Guide -->
+                            <div class="mb3">
+                                <label class="db f7 fw6 mb1 silver">🎨 Hướng dẫn phong cách dịch</label>
+                                <textarea id="guide-style" class="nt-input w-100" style="height:100px"
+                                    placeholder="Tone, style, quy tắc dịch riêng cho dự án này..."></textarea>
+                            </div>
+
+                            <!-- 5. Additional Notes -->
+                            <div class="mb3">
+                                <label class="db f7 fw6 mb1 silver">📝 Chỉ dẫn bổ sung</label>
+                                <textarea id="guide-notes" class="nt-input w-100" style="height:100px"
+                                    placeholder="Các chú thích đặc biệt, quy tắc riêng, lưu ý cho AI..."></textarea>
+                            </div>
                         </div>
                     </div>
 

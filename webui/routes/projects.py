@@ -485,6 +485,149 @@ def save_project_prompts(slug):
 
 
 # ============================================================
+# Project Guidelines APIs (Phase 3)
+# ============================================================
+
+@projects_bp.route("/api/projects/<slug>/guidelines")
+def get_project_guidelines(slug):
+    """Load tất cả guidelines/profile của dự án."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    profile_dir = pdir / "profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    fields = {
+        "summary": "summary.txt",
+        "characters": "characters.txt",
+        "glossary": "glossary.txt",
+        "style_guide": "style_guide.txt",
+        "additional_notes": "additional_notes.txt",
+    }
+
+    result = {}
+    for key, fname in fields.items():
+        fp = profile_dir / fname
+        result[key] = fp.read_text(encoding="utf-8") if fp.exists() else ""
+
+    return jsonify(result)
+
+
+@projects_bp.route("/api/projects/<slug>/guidelines", methods=["PUT"])
+def save_project_guidelines(slug):
+    """Lưu guidelines/profile dự án."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    profile_dir = pdir / "profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+
+    data = request.json
+    fields = {
+        "summary": "summary.txt",
+        "characters": "characters.txt",
+        "glossary": "glossary.txt",
+        "style_guide": "style_guide.txt",
+        "additional_notes": "additional_notes.txt",
+    }
+
+    saved = []
+    for key, fname in fields.items():
+        if key in data:
+            (profile_dir / fname).write_text(data[key], encoding="utf-8")
+            saved.append(key)
+
+    return jsonify({"success": True, "saved": saved})
+
+
+@projects_bp.route("/api/projects/<slug>/summarize", methods=["POST"])
+def summarize_project(slug):
+    """AI tóm tắt nội dung sách từ file nguồn."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json
+    source_file = data.get("source_file", "")
+
+    # Tìm file nguồn
+    src_path = pdir / "sources" / source_file
+    if not src_path.exists():
+        # Nếu không có file cụ thể, nối tất cả file nguồn
+        src_dir = pdir / "sources"
+        all_text = []
+        if src_dir.exists():
+            for f in sorted(src_dir.rglob("*.txt")):
+                all_text.append(f.read_text(encoding="utf-8", errors="ignore"))
+            for f in sorted(src_dir.rglob("*.md")):
+                all_text.append(f.read_text(encoding="utf-8", errors="ignore"))
+        content = "\n\n".join(all_text)
+    else:
+        content = src_path.read_text(encoding="utf-8", errors="ignore")
+
+    if not content.strip():
+        return jsonify({"error": "Không có nội dung nguồn để tóm tắt"}), 400
+
+    # Giới hạn nội dung (lấy 50K ký tự đầu để tránh vượt context)
+    max_chars = 50000
+    if len(content) > max_chars:
+        content = content[:max_chars] + "\n\n[... nội dung tiếp theo bị cắt ...]"
+
+    summarize_prompt = (
+        "Bạn là chuyên gia phân tích văn học. Đọc đoạn trích sau và viết bản TÓM TẮT NGẮN GỌN bằng tiếng Việt "
+        "bao gồm:\n"
+        "1. Thể loại và bối cảnh câu chuyện\n"
+        "2. Nhân vật chính và mối quan hệ\n"
+        "3. Tóm tắt cốt truyện (3-5 câu)\n"
+        "4. Phong cách viết và tone\n\n"
+        "--- NỘI DUNG ---\n"
+        f"{content}"
+    )
+
+    try:
+        from webui.helpers import get_active_provider
+        provider = get_active_provider()
+
+        if provider == "gemini":
+            from webui.helpers import load_api_keys, get_model
+            keys = load_api_keys()
+            model = get_model()
+            if not keys:
+                return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
+            from services.genai_client import GenAIClient
+            client = GenAIClient(api_key=keys[0])
+            result, status = client.generate_content(summarize_prompt, model=model)
+        else:
+            from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
+            api_key = load_openai_key()
+            if not api_key:
+                return jsonify({"error": "Chưa cấu hình API Key OpenAI"}), 400
+            from services.openai_client import OpenAIClient
+            client = OpenAIClient(
+                api_key=api_key,
+                base_url=get_openai_base_url(),
+                default_model=get_openai_model()
+            )
+            result, status = client.generate_content(summarize_prompt)
+
+        if status == "success" and result:
+            # Auto-save to profile
+            profile_dir = pdir / "profile"
+            profile_dir.mkdir(parents=True, exist_ok=True)
+            (profile_dir / "summary.txt").write_text(result, encoding="utf-8")
+            return jsonify({"success": True, "summary": result})
+        else:
+            return jsonify({"error": f"AI trả về lỗi: {result or status}"}), 500
+
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Summarize error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================
 # Project Translation API
 # ============================================================
 

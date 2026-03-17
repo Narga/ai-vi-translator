@@ -21,6 +21,16 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - **Inline Chunk-Size**: Input số ký tự/chunk cạnh nút "Chia Chunk" (để trống = config mặc định).
 - **File Upload**: Mở rộng hỗ trợ `.html`, `.epub` ngoài `.txt`, `.md`.
 
+### 📝 Phase 3: Tab Guidelines
+- **Guidelines API**: `GET/PUT /api/projects/<slug>/guidelines` – 5 fields (summary, characters, glossary, style_guide, additional_notes).
+- **AI Summarize**: `POST /api/projects/<slug>/summarize` – Tự động tóm tắt nội dung sách bằng AI (Gemini/OpenAI).
+- **Guidelines Tab UI**: 5 textarea với nút AI Tóm tắt và Lưu Tất cả.
+
+### 📦 Phase 4: Tab Prompts Enhancement
+- **Prompt Library Dropdown**: Nạp bộ prompt từ thư viện (Mặc định + các thể loại).
+- **Priority Note**: Hiển thị ghi chú ưu tiên prompt dự án > prompt hệ thống.
+- **Placeholders**: Thêm placeholder gợi ý cho các textarea prompt.
+
 ### 📁 Files Changed
 
 | File | Thay đổi |
@@ -34,9 +44,9 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 | `requirements.txt` | +`openai>=1.0.0` |
 | `webui/helpers.py` | 7 provider functions |
 | `webui/routes/settings.py` | 4 API endpoints |
-| `webui/routes/projects.py` | Genre create/update |
+| `webui/routes/projects.py` | Genre create/update + Guidelines API + Summarize |
 | `static/css/style.css` | Dual-provider grid CSS |
-| `static/js/main.js` | Provider switching + project modal |
+| `static/js/main.js` | Provider switching + project modal + guidelines + prompt library |
 
 ---
 

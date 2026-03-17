@@ -734,7 +734,7 @@ function switchProjectTab(tab) {
 
     // Load prompt/profile when switching
     if (tab === 'prompt' && currentProject) loadProjectPrompts();
-    if (tab === 'profile' && currentProject) loadProjectProfile();
+    if (tab === 'profile' && currentProject) loadGuidelines();
 }
 
 function loadProjectFile(filename, section) {
@@ -979,6 +979,20 @@ function loadProjectPrompts() {
         document.getElementById('proj-prompt-retranslate').value = data.retranslate || '';
         document.getElementById('proj-prompt-correction').value = data.correction || '';
     });
+    // Populate prompt library dropdown
+    const sel = document.getElementById('prompt-library-select');
+    if (sel) {
+        fetch('/api/prompt-sets').then(r => r.json()).then(data => {
+            let opts = '<option value="">— Nạp từ thư viện —</option>';
+            opts += '<option value="__default__">📌 Mặc định (System)</option>';
+            if (data.genres) {
+                data.genres.forEach(g => {
+                    opts += `<option value="${g.slug}">📁 ${g.name}</option>`;
+                });
+            }
+            sel.innerHTML = opts;
+        }).catch(() => {});
+    }
 }
 
 function saveProjectPrompts() {
@@ -995,38 +1009,90 @@ function saveProjectPrompts() {
     });
 }
 
-function loadProjectProfile() {
-    if (!currentProject) return;
-    const slug = currentProject.slug;
-    Promise.all([
-        fetch(`/api/projects/${slug}/file/profile/glossary.txt`).then(r => r.json()).catch(() => ({ content: '' })),
-        fetch(`/api/projects/${slug}/file/profile/characters.txt`).then(r => r.json()).catch(() => ({ content: '' })),
-        fetch(`/api/projects/${slug}/file/profile/style_guide.txt`).then(r => r.json()).catch(() => ({ content: '' })),
-    ]).then(([g, c, s]) => {
-        document.getElementById('proj-glossary').value = g.content || '';
-        document.getElementById('proj-characters').value = c.content || '';
-        document.getElementById('proj-style-guide').value = s.content || '';
-    });
+function loadFromPromptLibrary() {
+    const sel = document.getElementById('prompt-library-select');
+    const slug = sel ? sel.value : '';
+    if (!slug) { showToast('Chọn bộ prompt từ dropdown trước!', 'error'); return; }
+
+    const url = slug === '__default__'
+        ? '/api/prompt-sets/default'
+        : `/api/prompt-sets/${slug}`;
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.main) document.getElementById('proj-prompt-main').value = data.main;
+            if (data.retranslate) document.getElementById('proj-prompt-retranslate').value = data.retranslate;
+            if (data.correction) document.getElementById('proj-prompt-correction').value = data.correction;
+            showToast(`Đã nạp bộ prompt "${slug === '__default__' ? 'Mặc định' : slug}"`, 'success');
+        })
+        .catch(e => showToast(e.message, 'error'));
 }
 
-function saveProjectProfile() {
+function loadGuidelines() {
     if (!currentProject) return;
-    const slug = currentProject.slug;
-    const saves = [
-        fetch(`/api/projects/${slug}/file/profile/glossary.txt`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: document.getElementById('proj-glossary').value })
-        }),
-        fetch(`/api/projects/${slug}/file/profile/characters.txt`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: document.getElementById('proj-characters').value })
-        }),
-        fetch(`/api/projects/${slug}/file/profile/style_guide.txt`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content: document.getElementById('proj-style-guide').value })
-        }),
-    ];
-    Promise.all(saves).then(() => showToast('Đã lưu profile dự án!', 'success'));
+    fetch(`/api/projects/${currentProject.slug}/guidelines`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('guide-summary').value = data.summary || '';
+            document.getElementById('guide-characters').value = data.characters || '';
+            document.getElementById('guide-glossary').value = data.glossary || '';
+            document.getElementById('guide-style').value = data.style_guide || '';
+            document.getElementById('guide-notes').value = data.additional_notes || '';
+        })
+        .catch(e => console.error('Failed to load guidelines:', e));
+}
+
+function saveGuidelines() {
+    if (!currentProject) return;
+    const data = {
+        summary: document.getElementById('guide-summary').value,
+        characters: document.getElementById('guide-characters').value,
+        glossary: document.getElementById('guide-glossary').value,
+        style_guide: document.getElementById('guide-style').value,
+        additional_notes: document.getElementById('guide-notes').value,
+    };
+
+    fetch(`/api/projects/${currentProject.slug}/guidelines`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) showToast('Đã lưu guidelines dự án!', 'success');
+            else showToast(res.error || 'Lỗi lưu guidelines', 'error');
+        })
+        .catch(e => showToast(e.message, 'error'));
+}
+
+function aiSummarize() {
+    if (!currentProject) return;
+    const btn = document.getElementById('btn-ai-summarize');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang tóm tắt...';
+
+    fetch(`/api/projects/${currentProject.slug}/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+        .then(r => r.json())
+        .then(data => {
+            btn.disabled = false;
+            btn.textContent = '🤖 AI Tóm tắt';
+            if (data.success && data.summary) {
+                document.getElementById('guide-summary').value = data.summary;
+                showToast('Đã tạo tóm tắt AI thành công!', 'success');
+            } else {
+                showToast(data.error || 'Lỗi tóm tắt', 'error');
+            }
+        })
+        .catch(e => {
+            btn.disabled = false;
+            btn.textContent = '🤖 AI Tóm tắt';
+            showToast(e.message, 'error');
+        });
 }
 
 function showCreateProjectDialog() {

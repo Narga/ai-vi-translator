@@ -64,15 +64,20 @@ webui/
 **Tab 2 Files:** Inline chunk-size input cạnh nút chia chunk (placeholder = config mặc định).
 **Tab 3 Translation:** Đã hoàn thể từ v5.0 (SBS editor, sync scroll, save inline).
 
-### ⬜ Phase 3: Tab 4 Guidelines
-- AI summarization (tóm tắt tự động)
-- Bảng nhân vật, thuật ngữ, ghi chú bổ sung
-- Textarea chỉnh sửa trực tiếp
+### ✅ Phase 3: Tab 4 Guidelines (DONE)
 
-### ⬜ Phase 4: Tab 5 Prompts
-- Nạp prompt từ thư viện chuẩn
-- Lưu prompt riêng cho dự án
-- Ưu tiên prompt dự án > prompt hệ thống
+| File | Thay đổi |
+|------|----------|
+| `webui/routes/projects.py` | `GET/PUT /guidelines` (5 fields), `POST /summarize` (AI) |
+| `templates/partials/tab_workspace.html` | Guidelines tab: 5 textareas + AI Tóm tắt |
+| `static/js/main.js` | `loadGuidelines()`, `saveGuidelines()`, `aiSummarize()` |
+
+### ✅ Phase 4: Tab 5 Prompts (DONE)
+
+| File | Thay đổi |
+|------|----------|
+| `templates/partials/tab_workspace.html` | Prompt library dropdown + priority note |
+| `static/js/main.js` | `loadFromPromptLibrary()`, populate dropdown from `/api/prompt-sets` |
 
 ### ⬜ Phase 5: HTML/Markdown Preservation
 - Thuật toán bảo toàn cấu trúc markup
