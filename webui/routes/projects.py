@@ -406,6 +406,47 @@ def chunk_project_file(slug, filename):
         return jsonify({"error": str(e)}), 500
 
 
+@projects_bp.route("/api/projects/<slug>/rename", methods=["POST"])
+def rename_project_file(slug):
+    """Đổi tên file trong dự án."""
+    data = request.json
+    old_name = data.get("old_name")
+    new_name = data.get("new_name")
+    section = data.get("section", "sources") # sources or translated
+
+    if not old_name or not new_name:
+        return jsonify({"error": "Thiếu tên file"}), 400
+
+    pdir = _get_project_dir(slug)
+    old_path = (pdir / section / old_name).resolve()
+    new_path = (pdir / section / new_name).resolve()
+
+    if not str(old_path).startswith(str((pdir / section).resolve())):
+        return jsonify({"error": "Invalid path"}), 403
+
+    if not old_path.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+    
+    if new_path.exists():
+        return jsonify({"error": f"Tên file '{new_name}' đã tồn tại"}), 409
+
+    try:
+        new_path.parent.mkdir(parents=True, exist_ok=True)
+        old_path.rename(new_path)
+        
+        # Nếu đổi tên ở sources, tự động đổi tên ở translated nếu có
+        if section == "sources":
+            old_trans = pdir / "translated" / old_name
+            new_trans = pdir / "translated" / new_name
+            if old_trans.exists() and not new_trans.exists():
+                new_trans.parent.mkdir(parents=True, exist_ok=True)
+                old_trans.rename(new_trans)
+                
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @projects_bp.route("/api/projects/<slug>/move-done", methods=["POST"])
 def project_move_done(slug):
     """Chuyển file source sang translated."""
@@ -693,18 +734,6 @@ def translate_project_file(slug):
         "context_char_count": 500,
     }
 
-    first_file = filenames[0]
-    file_path = pdir / "sources" / first_file
-    if not file_path.exists():
-        return jsonify({"error": f"File không tồn tại: {first_file}"}), 404
-
-    try:
-        text = file_path.read_text(encoding="utf-8")
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    output_filename = file_path.stem
-
     while not progress_queue.empty():
         progress_queue.get()
 
@@ -712,53 +741,71 @@ def translate_project_file(slug):
         """Worker dịch trong project context sử dụng TranslationExecutor."""
         try:
             from core.executor import TranslationExecutor
+            from services.translation_memory import TranslationMemory
 
             api_keys = load_api_keys()
             if not api_keys:
                 progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
                 return
 
-            from services.translation_memory import TranslationMemory
             project_tm = TranslationMemory(
                 tm_dir=str(pdir / "profile" / "translation_memory"),
                 enabled=True,
             )
 
-            progress_queue.put({"type": "info", "message": f"📂 Dự án: {meta['name']} | File: {first_file}"})
+            total_files = len(filenames)
+            for idx, filename in enumerate(filenames, 1):
+                file_path = pdir / "sources" / filename
+                if not file_path.exists():
+                    progress_queue.put({"type": "info", "message": f"⚠️ File không tồn tại: {filename}"})
+                    continue
 
-            executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
-            
-            def cb(data):
-                if data["type"] == "complete":
-                    out_path = pdir / "translated" / first_file
-                    
-                    _state.translation_result = {
-                        "text": data.get("result"), "filename": first_file, "path": str(out_path),
-                    }
-                    meta["updated_at"] = datetime.now().isoformat()
-                    _save_project_meta(slug, meta)
-                    calculate_stats()
-                    
-                    # Override message cho UI
-                    data["message"] = f"✅ Hoàn tất: {first_file} → translated/{first_file}"
-                    data["percent"] = 100
+                try:
+                    text = file_path.read_text(encoding="utf-8")
+                except Exception as e:
+                    progress_queue.put({"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"})
+                    continue
 
-                progress_queue.put(data)
+                progress_queue.put({"type": "info", "message": f"📂 [{idx}/{total_files}] Đang dịch: {filename}"})
 
-            executor.translate_text(
-                text=text,
-                output_filename=first_file,
-                output_file_path=pdir / "translated" / first_file,
-                progress_callback=cb,
-                translation_memory=project_tm
-            )
+                executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
+                
+                def cb(data):
+                    if data["type"] == "complete":
+                        out_path = pdir / "translated" / filename
+                        
+                        _state.translation_result = {
+                            "text": data.get("result"), "filename": filename, "path": str(out_path),
+                        }
+                        # Override message cho UI
+                        data["message"] = f"✅ Đã dịch xong file {idx}/{total_files}: {filename}"
+                        
+                        # Chỉ gửi complete thật sự nếu là file cuối cùng
+                        if idx < total_files:
+                            data["type"] = "file_complete"
+
+                    progress_queue.put(data)
+
+                executor.translate_text(
+                    text=text,
+                    output_filename=filename,
+                    output_file_path=pdir / "translated" / filename,
+                    progress_callback=cb,
+                    translation_memory=project_tm
+                )
+
+            # Gửi thông báo hoàn tất tất cả sau khi loop xong
+            meta["updated_at"] = datetime.now().isoformat()
+            _save_project_meta(slug, meta)
+            calculate_stats()
+            progress_queue.put({"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"})
 
         except Exception as e:
-            progress_queue.put({"type": "error", "message": f"❌ Lỗi: {str(e)}"})
+            progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
 
     thread = Thread(target=_project_translate_worker, daemon=True)
     thread.start()
-    return jsonify({"status": "started", "file": first_file})
+    return jsonify({"status": "started", "files_count": len(filenames)})
 
 
 # ============================================================
