@@ -32,21 +32,20 @@
                             </div>
 
                             <div class="mb2">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Models khả dụng</label>
-                                <select id="model" name="MODEL.MODEL" class="nt-input w-100"
-                                    onchange="onModelChange(this.value)"></select>
-                                <div id="model-loading-hint" class="mt1 silver" style="font-size:0.7rem">⏳ Đang tải
-                                    thông tin model...</div>
-                                <div id="model-info-panel" class="mt2 pa2 bg-white br2 f7 dn">
-                                    <div class="flex justify-between mb1"><span class="silver">📥 Input limit:</span>
-                                        <strong id="model-input-limit" class="dark-gray">—</strong>
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Model Gemini</label>
+                                <div class="flex gap-2">
+                                    <select id="gemini-model" class="nt-input w-100"
+                                        onchange="onModelChange(this.value, 'gemini')"></select>
+                                    <button class="nt-btn nt-btn-outline f7 nowrap" onclick="loadModels('gemini')">🔄 Tải</button>
+                                </div>
+                                <div id="gemini-model-info" class="mt2 pa2 bg-white br2 f7 dn ba b--black-05">
+                                    <div class="flex justify-between mb1"><span class="silver">📥 Input:</span>
+                                        <strong class="gemini-input-limit dark-gray">—</strong>
                                     </div>
-                                    <div class="flex justify-between mb1"><span class="silver">📤 Output limit:</span>
-                                        <strong id="model-output-limit" class="dark-gray">—</strong>
+                                    <div class="flex justify-between mb1"><span class="silver">📤 Output:</span>
+                                        <strong class="gemini-output-limit dark-gray">—</strong>
                                     </div>
-                                    <div id="model-rate-limits" class="dn"></div>
-                                    <div id="model-desc-row" class="mt1 silver lh-copy dn"><span
-                                            id="model-description"></span></div>
+                                    <div class="gemini-rate-limits dn"></div>
                                 </div>
                             </div>
                         </div>
@@ -77,15 +76,25 @@
                             </div>
 
                             <div class="mb2">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Models khả dụng</label>
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Model OpenAI / Compatible</label>
                                 <div class="flex gap-2">
-                                    <select id="openai-model" class="nt-input w-100"></select>
-                                    <button class="nt-btn nt-btn-outline f7 nowrap" onclick="fetchOpenAIModels()">🔄 Tải</button>
+                                    <select id="openai-model" class="nt-input w-100"
+                                        onchange="onModelChange(this.value, 'openai')"></select>
+                                    <button class="nt-btn nt-btn-outline f7 nowrap" onclick="loadModels('openai')">🔄 Tải</button>
+                                </div>
+                                <div id="openai-model-info" class="mt2 pa2 bg-white br2 f7 dn ba b--black-05">
+                                    <div class="flex justify-between mb1"><span class="silver">📥 Input:</span>
+                                        <strong class="openai-input-limit dark-gray">—</strong>
+                                    </div>
+                                    <div class="flex justify-between mb1"><span class="silver">📤 Output:</span>
+                                        <strong class="openai-output-limit dark-gray">—</strong>
+                                    </div>
+                                    <div class="openai-pricing silver f7 mt1"></div>
                                 </div>
                             </div>
 
                             <div class="mt2 flex justify-end">
-                                <button class="nt-btn nt-btn-outline f7" onclick="saveOpenAIConfig()">💾 Lưu</button>
+                                <button class="nt-btn nt-btn-outline f7" onclick="saveOpenAIConfig()">💾 Lưu Cấu hình</button>
                             </div>
                         </div>
                     </div>

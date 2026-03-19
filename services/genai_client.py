@@ -112,7 +112,8 @@ class GenAIClient:
 
         except Exception as e:
             self.logger.error(f"GenAI Error: {e}")
-            return None, f"error: {str(e)}"
+            # Re-raise để translator.py xử lý chuyển key khi gặp 429/quota
+            raise
 
     def get_sdk_info(self) -> Dict[str, Any]:
         """Trả về thông tin SDK."""

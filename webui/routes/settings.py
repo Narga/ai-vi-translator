@@ -20,12 +20,41 @@ settings_bp = Blueprint("settings", __name__)
 
 @settings_bp.route("/api/models")
 def get_models():
-    """Lấy danh sách models khả dụng."""
+    """Lấy danh sách models khả dụng cho provider hiện tại hoặc provider chỉ định."""
     try:
-        models = get_available_models()
+        from webui.helpers import get_active_provider
+        
+        # Lấy provider từ query param hoặc active provider
+        requested_provider = request.args.get("provider")
+        provider = requested_provider if requested_provider in ("gemini", "openai") else get_active_provider()
+        
+        full = request.args.get("full", "false").lower() == "true"
+
+        if provider == "openai":
+            from webui.helpers import load_openai_key, get_openai_base_url
+            api_key = load_openai_key()
+            if not api_key:
+                return jsonify({"models": [], "error": "Chưa cấu hình OpenAI key", "provider": "openai"}), 200
+            from services.openai_client import OpenAIClient
+            client = OpenAIClient(api_key=api_key, base_url=get_openai_base_url())
+            if full:
+                models = client.list_models_full()
+                # Prioritize free models
+                models.sort(key=lambda x: not x.get("is_free", False))
+            else:
+                models = client.list_models()
+        else:
+            # Gemini
+            from webui.helpers import get_available_gemini_models
+            models = get_available_gemini_models()
+            if full:
+                # Wrap Gemini names in objects for consistency
+                models = [{"id": m, "name": m} for m in models]
+
         default_model = get_default_model()
-        return jsonify({"models": models, "default": default_model})
+        return jsonify({"models": models, "default": default_model, "provider": provider})
     except Exception as e:
+        logger.error(f"get_models error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -91,11 +120,20 @@ def get_openai_models():
         if not api_key:
             return jsonify({"error": "Chưa cấu hình OpenAI API key"}), 400
 
-        from services.ai_provider import list_models_for_provider
+        full = request.args.get("full", "false").lower() == "true"
 
+        from services.openai_client import OpenAIClient
         base_url = get_openai_base_url()
-        models = list_models_for_provider("openai", api_key, base_url)
-        return jsonify({"models": models})
+        client = OpenAIClient(api_key=api_key, base_url=base_url)
+        
+        if full:
+            models = client.list_models_full()
+            # Sort: free models first
+            models.sort(key=lambda x: not x.get("is_free", False))
+            return jsonify({"models": models})
+        else:
+            models = client.list_models()
+            return jsonify({"models": models})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -153,74 +191,85 @@ def save_openai_config():
 
 @settings_bp.route("/api/model-info/<path:model_name>")
 def get_model_info(model_name):
-    """Lấy thông tin chi tiết của model (token limits, rate limits, availability)."""
+    """Lấy thông tin chi tiết của model (Gemini hoặc OpenAI)."""
+    from webui.helpers import get_active_provider
+    provider = get_active_provider()
+
     try:
-        api_keys = load_api_keys()
-        if not api_keys:
-            return jsonify({"error": "Không tìm thấy API key"}), 400
+        if provider == "gemini":
+            api_keys = load_api_keys()
+            if not api_keys:
+                return jsonify({"error": "Không tìm thấy API key Gemini"}), 400
 
-        from google import genai
+            from google import genai
+            client = genai.Client(api_key=api_keys[0])
+            full_name = model_name if model_name.startswith("models/") else f"models/{model_name}"
 
-        client = genai.Client(api_key=api_keys[0])
+            try:
+                model = client.models.get(model=full_name)
+                info = {
+                    "provider": "gemini",
+                    "name": getattr(model, "name", model_name),
+                    "display_name": getattr(model, "display_name", model_name),
+                    "description": getattr(model, "description", ""),
+                    "input_token_limit": getattr(model, "input_token_limit", None),
+                    "output_token_limit": getattr(model, "output_token_limit", None),
+                }
+                if info["input_token_limit"]:
+                    info["input_token_display"] = f"{info['input_token_limit']:,}"
+                if info["output_token_limit"]:
+                    info["output_token_display"] = f"{info['output_token_limit']:,}"
 
-        full_name = model_name if model_name.startswith("models/") else f"models/{model_name}"
+                rate_limits = {}
+                for attr_name, label in [
+                    ("rpm_limit", "RPM"), ("rpd_limit", "RPD"),
+                    ("tpm_limit", "TPM"), ("tpd_limit", "TPD"),
+                    ("requests_per_minute", "RPM"), ("requests_per_day", "RPD"),
+                    ("tokens_per_minute", "TPM"), ("tokens_per_day", "TPD"),
+                ]:
+                    val = getattr(model, attr_name, None)
+                    if val is not None and label not in rate_limits:
+                        rate_limits[label] = val
+                info["rate_limits"] = rate_limits
+                return jsonify(info)
+            except Exception as e:
+                return jsonify({"error": f"Không tìm thấy model Gemini: {model_name}", "detail": str(e)}), 404
 
-        try:
-            model = client.models.get(model=full_name)
-        except Exception as e:
-            return jsonify({"error": f"Không tìm thấy model: {model_name}", "detail": str(e)}), 404
+        else:
+            # OpenAI / OpenRouter
+            from webui.helpers import load_openai_key, get_openai_base_url
+            api_key = load_openai_key()
+            if not api_key:
+                return jsonify({"error": "Chưa cấu hình OpenAI key"}), 400
 
-        info = {
-            "name": getattr(model, "name", model_name),
-            "display_name": getattr(model, "display_name", model_name),
-            "description": getattr(model, "description", ""),
-            "input_token_limit": getattr(model, "input_token_limit", None),
-            "output_token_limit": getattr(model, "output_token_limit", None),
-        }
-
-        if info["input_token_limit"]:
-            info["input_token_display"] = f"{info['input_token_limit']:,}"
-        if info["output_token_limit"]:
-            info["output_token_display"] = f"{info['output_token_limit']:,}"
-
-        rate_limits = {}
-        for attr_name, label in [
-            ("rpm_limit", "RPM"), ("rpd_limit", "RPD"),
-            ("tpm_limit", "TPM"), ("tpd_limit", "TPD"),
-            ("requests_per_minute", "RPM"), ("requests_per_day", "RPD"),
-            ("tokens_per_minute", "TPM"), ("tokens_per_day", "TPD"),
-        ]:
-            val = getattr(model, attr_name, None)
-            if val is not None and label not in rate_limits:
-                rate_limits[label] = val
-
-        raw_limits = getattr(model, "rate_limits", None) or getattr(model, "limits", None)
-        if raw_limits:
-            if isinstance(raw_limits, dict):
-                for k, v in raw_limits.items():
-                    rate_limits[k.upper()] = v
-            elif isinstance(raw_limits, list):
-                for item in raw_limits:
-                    if hasattr(item, "key") and hasattr(item, "value"):
-                        rate_limits[item.key.upper()] = item.value
-                    elif isinstance(item, dict):
-                        for k, v in item.items():
-                            rate_limits[k.upper()] = v
-
-        info["rate_limits"] = rate_limits
-
-        all_attrs = {}
-        for attr in dir(model):
-            if not attr.startswith("_"):
-                try:
-                    val = getattr(model, attr)
-                    if not callable(val) and val is not None:
-                        all_attrs[attr] = str(val)[:200]
-                except Exception:
-                    pass
-        info["_raw_attrs"] = all_attrs
-
-        return jsonify(info)
+            from services.openai_client import OpenAIClient
+            client = OpenAIClient(api_key=api_key, base_url=get_openai_base_url())
+            
+            models = client.list_models_full()
+            target = next((m for m in models if m["id"] == model_name), None)
+            
+            if not target:
+                return jsonify({"error": f"Không tìm thấy model OpenAI: {model_name}"}), 404
+            
+            info = {
+                "provider": "openai",
+                "name": target["id"],
+                "display_name": target.get("name", target["id"]),
+                "is_free": target.get("is_free", False),
+            }
+            
+            if "context_length" in target:
+                info["input_token_limit"] = target["context_length"]
+                info["input_token_display"] = f"{target['context_length']:.0f}" if isinstance(target['context_length'], (int, float)) else str(target['context_length'])
+                if isinstance(target['context_length'], (int, float)):
+                    info["input_token_display"] = f"{target['context_length']:,}"
+            
+            # Pricing info if available (OpenRouter)
+            if "pricing" in target:
+                p = target["pricing"]
+                info["description"] = f"Giá: {p.get('prompt', '0')} (in) / {p.get('completion', '0')} (out)"
+                
+            return jsonify(info)
 
     except Exception as e:
         logger.error(f"Model info error: {e}")

@@ -40,9 +40,10 @@ def translate_worker(text, config, output_filename="translated", input_file_path
         if not prompts.get("main"):
             config["prompts"] = load_prompts()
 
-        # Glossary paths
-        glossary_candidates = [Path("config/glossary.txt"), Path("glossary.txt")]
-        glossary_paths = [p for p in glossary_candidates if p.exists()]
+        # Glossary paths (Dùng từ default project)
+        pdir = Path("workspace/projects/default-project")
+        glossary_filenames = ["glossary.txt", "characters.txt"]
+        glossary_paths = [pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()]
 
         executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths or None)
         
@@ -52,7 +53,7 @@ def translate_worker(text, config, output_filename="translated", input_file_path
             # Chụp đường dẫn output sau khi dịch xong
             if data["type"] == "complete":
                 out_name = data.get("output_file")
-                out_path = Path("workspace/output") / out_name if out_name else None
+                out_path = pdir / "translated" / out_name if out_name else None
                 if out_path:
                     _state.translation_result = {
                         "text": data.get("result"),
@@ -63,6 +64,7 @@ def translate_worker(text, config, output_filename="translated", input_file_path
         executor.translate_text(
             text=text,
             output_filename=output_filename,
+            output_file_path=pdir / "translated" / output_filename,
             progress_callback=cb,
             translation_memory=translation_memory
         )
@@ -76,9 +78,6 @@ def translate_worker(text, config, output_filename="translated", input_file_path
 @translation_bp.route("/")
 def index():
     """Render main page."""
-    for dir_name in ["input", "output", "done"]:
-        Path(f"workspace/{dir_name}").mkdir(parents=True, exist_ok=True)
-
     default_model = get_default_model()
     available_models = get_available_models()
 
@@ -193,7 +192,11 @@ def translate_text():
             return jsonify({"error": "Không tìm thấy API keys"}), 400
 
         api_manager = ApiManager(api_keys)
-        cache = TranslationCache("workspace/cache", enabled=True)
+        
+        from webui.helpers import load_config
+        app_config = load_config()
+        cache_dir = app_config.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache")
+        cache = TranslationCache(cache_dir, enabled=True)
 
         config_params = {
             "model_name": model,

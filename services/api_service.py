@@ -261,11 +261,20 @@ class AdaptiveRateLimiter:
             failures = self.failure_count.get(api_key, 0) + 1
             self.failure_count[api_key] = failures
 
-            # Lỗi quota/rate limit - progressive backoff
+            # Lỗi quota/rate limit
             if any(
                 kw in error_lower
                 for kw in ["rate limit", "quota", "429", "resource_exhausted"]
             ):
+                # Quota exhausted (hết hạn ngày) => cooldown dài ngay lập tức
+                if any(kw in error_lower for kw in ["quota", "resource_exhausted"]):
+                    self.cool_down_until[api_key] = current_time + 1800
+                    self._logger.warning(
+                        f"🔑 Key ...{api_key[-4:]} hết quota, cooldown 30 phút"
+                    )
+                    return False, 0  # Chuyển key ngay, không delay
+
+                # Rate limit tạm thời => progressive backoff
                 if failures > self.MAX_RETRIES:
                     # Đưa vào cooldown 30 phút
                     self.cool_down_until[api_key] = current_time + 1800
@@ -278,7 +287,7 @@ class AdaptiveRateLimiter:
                 # Progressive backoff: 30s, 60s, 120s, 240s, 300s (max 5 min)
                 delay = min(30 * (2 ** (failures - 1)), 300)
                 self._logger.warning(
-                    f"⏳ Lỗi quota key ...{api_key[-4:]}, "
+                    f"⏳ Lỗi rate limit key ...{api_key[-4:]}, "
                     f"thử lại {failures}/{self.MAX_RETRIES} sau {delay}s"
                 )
                 return True, delay

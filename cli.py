@@ -93,22 +93,29 @@ Ví dụ sử dụng:
             "translate", aliases=["t", "dịch"], help="Dịch file hoặc thư mục"
         )
 
-        # Input
+        # Project
+        translate_parser.add_argument(
+            "--project",
+            "-p",
+            default="default-project",
+            metavar="SLUG",
+            help="Slug của dự án (mặc định: default-project)",
+        )
+
+        # Input (Optional if project specified)
         translate_parser.add_argument(
             "--input",
             "-i",
-            required=True,
             metavar="PATH",
-            help="File hoặc thư mục đầu vào",
+            help="File hoặc thư mục đầu vào (mặc định: project/sources)",
         )
 
         # Output
         translate_parser.add_argument(
             "--output",
             "-o",
-            default="workspace/output",
             metavar="DIR",
-            help="Thư mục đầu ra (mặc định: workspace/output)",
+            help="Thư mục đầu ra (mặc định: project/translated)",
         )
 
         # Config
@@ -270,7 +277,11 @@ Ví dụ sử dụng:
         if args.quiet:
             sys.argv.append("--quiet")
 
-        sys.argv.extend(["-i", args.input, "-o", args.output])
+        sys.argv.extend(["--project", args.project])
+        if args.input:
+            sys.argv.extend(["-i", args.input])
+        if args.output:
+            sys.argv.extend(["-o", args.output])
 
         # Override config
         if args.config != "config/app.ini":
@@ -310,16 +321,19 @@ Ví dụ sử dụng:
 
         # Check cache
         if args.cache:
-            cache_dir = Path("workspace/cache")
+            from services.config_service import ConfigService
+            config_service = ConfigService(Path("config"))
+            cache_dir = Path(config_service.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache"))
             if cache_dir.exists():
-                cache_files = list(cache_dir.glob("*.pkl"))
+                cache_files = list(cache_dir.glob("*.pkl*"))
                 self.logger.info(f"📦 Cache: {len(cache_files)} items")
             else:
                 self.logger.info("📦 Cache: Chưa khởi tạo")
 
         # Check workspace
-        input_dir = Path("workspace/input")
-        output_dir = Path("workspace/output")
+        pdir = Path("workspace/projects/default-project")
+        input_dir = pdir / "sources"
+        output_dir = pdir / "translated"
 
         self.logger.info(
             f"📂 Input: {input_dir} ({'exists' if input_dir.exists() else 'not found'})"

@@ -73,21 +73,35 @@ def load_api_keys(path: str = "config/API.txt") -> List[str]:
     return keys
 
 
-def load_prompts() -> Dict[str, str]:
-    prompts_dir = Path("prompts")
+def load_prompts(project_dir: Path = None) -> Dict[str, str]:
     prompts = {}
+    
+    # Ưu tiên load từ project
+    if project_dir:
+        prompt_dir = project_dir / "prompt"
+        if prompt_dir.exists():
+            for key, filename in [
+                ("main", "01-main.txt"),
+                ("retranslate", "02-retranslate.txt"),
+                ("correction", "03-correction.txt"),
+            ]:
+                fp = prompt_dir / filename
+                if fp.exists():
+                    prompts[key] = fp.read_text(encoding="utf-8").strip()
 
+    # Fallback/Update với global prompts
+    prompts_root = Path("prompts")
     for key, filename in [
         ("main", "01-main.txt"),
         ("retranslate", "02-retranslate.txt"),
         ("correction", "03-correction.txt"),
     ]:
-        filepath = prompts_dir / filename
-        if filepath.exists():
-            with open(filepath, "r", encoding="utf-8") as f:
-                prompts[key] = f.read()
-        else:
-            prompts[key] = ""
+        if key not in prompts:
+            filepath = prompts_root / filename
+            if filepath.exists():
+                prompts[key] = filepath.read_text(encoding="utf-8").strip()
+            else:
+                prompts[key] = ""
 
     return prompts
 
@@ -142,8 +156,8 @@ def merge_small_files(files: List[Path], min_chunk_size: int = 15000) -> List[Pa
 
     if total_size < min_chunk_size:
         # Tổng kích thước nhỏ hơn min, gộp thành 1 file
-        merged_name = f"merged_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        merged_path = Path("workspace/input") / merged_name
+        merged_name = f"merged_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        merged_path = input_dir / merged_name
 
         merged_content = "\n\n".join([content for _, content in file_contents])
 
@@ -161,25 +175,45 @@ def merge_small_files(files: List[Path], min_chunk_size: int = 15000) -> List[Pa
 
 def main():
     try:
+        import argparse
+        parser = argparse.ArgumentParser(description="Novel Translator CLI")
+        parser.add_argument("--project", "-p", default="default-project", help="Project slug")
+        parser.add_argument("--input", "-i", help="Input directory (optional)")
+        parser.add_argument("--output", "-o", help="Output directory (optional)")
+        parser.add_argument("--config", "-c", default="config/app.ini", help="Config file")
+        parser.add_argument("--dry-run", action="store_true", help="Dry run")
+        parser.add_argument("--resume", help="Resume from checkpoint")
+        parser.add_argument("--force", action="store_true", help="Force translate")
+        parser.add_argument("--quiet", "-q", action="store_true", help="Quiet mode")
+        
+        # Parse known args to avoid conflict with cli.py wrapper
+        args, unknown = parser.parse_known_args()
+
         print("=" * 80)
         print("📚 Novel Translator v5.0.0 | Pure Executor Architecture")
+        print(f"Project: {args.project}")
         print("=" * 80)
 
         # Cài đặt signal handlers cho graceful shutdown
         setup_signal_handlers()
-        reset_emergency_stop()  # Reset từ session trước (nếu có)
+        reset_emergency_stop()
 
         config_service = ConfigService(Path("config"))
         setup_logging(
             Path(config_service.get("DIRECTORIES", "LOGS_DIR", fallback="workspace/logs"))
         )
 
-        logging.info("=" * 80)
-        logging.info("Starting...")
+        pdir = Path("workspace/projects") / args.project
+        if not pdir.exists():
+            from webui.helpers import ensure_default_project
+            if args.project == "default-project":
+                ensure_default_project()
+            else:
+                print(f"❌ Dự án '{args.project}' không tồn tại.")
+                return 1
 
         api_keys = load_api_keys()
-        logging.info(f"API keys: {len(api_keys)}")
-
+        
         # Build config for Executor
         config = {
             "model_name": config_service.get("MODEL", "MODEL", fallback="gemini-3-flash-preview"),
@@ -187,17 +221,17 @@ def main():
             "temperature": config_service.get("PROCESSING", "TEMPERATURE", fallback=0.75, value_type=float),
             "chunk_size": config_service.get("PROCESSING", "MAX_CHARS_PER_CHUNK", fallback=22000, value_type=int),
             "use_cache": config_service.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool),
-            "prompts": load_prompts(),
+            "prompts": load_prompts(pdir),
             "context_char_count": config_service.get("PROCESSING", "CONTEXT_CHAR_COUNT", fallback=500, value_type=int),
         }
 
-        # Glossary paths (nếu tồn tại)
-        glossary_candidates = [Path("config/glossary.txt"), Path("glossary.txt")]
-        glossary_paths = [p for p in glossary_candidates if p.exists()]
+        # Glossary paths (Dùng từ project profile)
+        glossary_filenames = ["glossary.txt", "characters.txt"]
+        glossary_paths = [pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()]
 
         executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths or None)
 
-        input_dir = Path(config_service.get("DIRECTORIES", "INPUT_DIR", fallback="workspace/input"))
+        input_dir = Path(args.input) if args.input else pdir / "sources"
         files = find_input_files(input_dir)
 
         if not files:
@@ -208,9 +242,7 @@ def main():
         for f in files:
             logging.info(f"  • {f.name}")
 
-        output_dir = Path(
-            config_service.get("DIRECTORIES", "OUTPUT_DIR", fallback="workspace/output")
-        )
+        output_dir = Path(args.output) if args.output else pdir / "translated"
         output_dir.mkdir(parents=True, exist_ok=True)
 
         ok = fail = 0

@@ -275,3 +275,48 @@ def save_prompts(prompts):
         filepath = prompts_dir / filename
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(prompts.get(key, ""))
+
+
+def ensure_default_project():
+    """Đảm bảo dự án mặc định 'Dịch nhanh' tồn tại."""
+    slug = "default-project"
+    pdir = Path("workspace/projects") / slug
+    if pdir.exists():
+        return
+
+    import re
+    import shutil
+    import json
+    from datetime import datetime
+
+    pdir.mkdir(parents=True, exist_ok=True)
+    for sub in ["sources", "translated", "prompt", "profile", "output"]:
+        (pdir / sub).mkdir(parents=True, exist_ok=True)
+    (pdir / "profile" / "translation_memory").mkdir(exist_ok=True)
+
+    prompts_root = Path("prompts")
+    for fname in ["01-main.txt", "02-retranslate.txt", "03-correction.txt"]:
+        src = prompts_root / fname
+        if src.exists():
+            shutil.copy2(src, pdir / "prompt" / fname)
+
+    meta = {
+        "name": "Dịch nhanh",
+        "slug": slug,
+        "description": "Dự án mặc định cho các tác vụ dịch lẻ",
+        "genre": "",
+        "status": "active",
+        "created_at": datetime.now().isoformat(),
+        "updated_at": datetime.now().isoformat(),
+    }
+    with open(pdir / "project.json", "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+
+    for fname, content in [
+        ("glossary.txt", "# Bảng thuật ngữ\n# Format: thuật ngữ gốc | thuật ngữ dịch | ghi chú\n"),
+        ("characters.txt", "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n"),
+        ("style_guide.txt", "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n"),
+    ]:
+        fp = pdir / "profile" / fname
+        if not fp.exists():
+            fp.write_text(content, encoding="utf-8")

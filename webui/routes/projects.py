@@ -595,8 +595,8 @@ def summarize_project(slug):
 
     # Tìm file nguồn
     src_path = pdir / "sources" / source_file
-    if not src_path.exists():
-        # Nếu không có file cụ thể, nối tất cả file nguồn
+    if not src_path.is_file():
+        # Nếu không có file cụ thể hoặc path là thư mục, nối tất cả file nguồn
         src_dir = pdir / "sources"
         all_text = []
         if src_dir.exists():

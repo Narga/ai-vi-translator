@@ -6,6 +6,8 @@ let allFiles = [];
 let selectedFiles = new Set();
 let selectedTranslatedFiles = new Set();
 let availableModels = window.initialAvailableModels || [];
+let availableGeminiModels = [];
+let availableOpenAIModels = [];
 let defaultModel = window.initialDefaultModel || '';
 let currentDoneFile = '';
 let currentGenre = '';
@@ -211,41 +213,13 @@ function switchProvider(provider) {
         .then(data => {
             if (data.success) {
                 showToast(`Đã chuyển sang ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI Compatible'}`, 'success');
-                // Reload models for the new provider
-                loadModels();
+                // Reload models for the new provider to ensure they are available
+                loadModels(provider);
             } else {
                 showToast(data.error || 'Lỗi chuyển provider', 'error');
             }
         })
         .catch(e => showToast(e.message, 'error'));
-}
-
-function fetchOpenAIModels() {
-    const sel = document.getElementById('openai-model');
-    if (!sel) return;
-    sel.innerHTML = '<option>⏳ Đang tải...</option>';
-
-    fetch('/api/openai/models')
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) {
-                sel.innerHTML = '<option>❌ ' + data.error + '</option>';
-                showToast(data.error, 'error');
-                return;
-            }
-            if (data.models && data.models.length > 0) {
-                sel.innerHTML = data.models.map(m =>
-                    `<option value="${m}">${m}</option>`
-                ).join('');
-                showToast(`Đã tải ${data.models.length} models`, 'success');
-            } else {
-                sel.innerHTML = '<option>Không có model nào</option>';
-            }
-        })
-        .catch(e => {
-            sel.innerHTML = '<option>❌ Lỗi kết nối</option>';
-            showToast(e.message, 'error');
-        });
 }
 
 function saveOpenAIConfig() {
@@ -300,10 +274,11 @@ function initProvider() {
                 if (cfg.base_url) document.getElementById('openai-base-url').value = cfg.base_url;
                 if (cfg.model) {
                     const sel = document.getElementById('openai-model');
-                    sel.innerHTML = `<option value="${cfg.model}" selected>${cfg.model}</option>`;
+                    if (sel) sel.innerHTML = `<option value="${cfg.model}" selected>${cfg.model}</option>`;
                 }
                 if (cfg.has_key) {
-                    document.getElementById('openai-api-key').placeholder = '••••••••••• (đã cấu hình)';
+                    const keyInput = document.getElementById('openai-api-key');
+                    if (keyInput) keyInput.placeholder = '••••••••••• (đã cấu hình)';
                 }
             }
         })
@@ -319,9 +294,33 @@ function loadAppConfig() {
                 // Bind to UI
                 if (conf.MODEL) {
                     const m = conf.MODEL;
-                    if (m.MODEL) document.getElementById('model').value = m.MODEL;
-                    if (m.QA_MODEL) document.getElementById('cfg-qa-model').value = m.QA_MODEL;
-                    if (m.THINKING_LEVEL) document.getElementById('cfg-thinking').value = m.THINKING_LEVEL;
+                    // Current behavior: if Gemini is active, m.MODEL goes to Gemini dropdown. 
+                    // If OpenAI is active, m.MODEL goes to OpenAI dropdown.
+                    const geminiCol = document.getElementById('provider-gemini-col');
+                    const isActiveGemini = geminiCol && geminiCol.classList.contains('nt-provider-active');
+                    
+                    if (isActiveGemini) {
+                        const sel = document.getElementById('gemini-model');
+                        if (sel && m.MODEL) {
+                            sel.value = m.MODEL;
+                            onModelChange(m.MODEL, 'gemini');
+                        }
+                    } else {
+                        const sel = document.getElementById('openai-model');
+                        if (sel && m.MODEL) {
+                            sel.value = m.MODEL;
+                            onModelChange(m.MODEL, 'openai');
+                        }
+                    }
+
+                    if (m.QA_MODEL) {
+                        const qaSel = document.getElementById('cfg-qa-model');
+                        if (qaSel) qaSel.value = m.QA_MODEL;
+                    }
+                    if (m.THINKING_LEVEL) {
+                        const thinkSel = document.getElementById('cfg-thinking');
+                        if (thinkSel) thinkSel.value = m.THINKING_LEVEL;
+                    }
                 }
                 if (conf.PROCESSING) {
                     const p = conf.PROCESSING;
@@ -342,7 +341,8 @@ function loadAppConfig() {
                     if (d.ARCHIVE_DIR_NAME) document.getElementById('cfg-dir-archive').value = d.ARCHIVE_DIR_NAME;
                 }
                 if (conf.CACHE && conf.CACHE.ENABLE_CACHE) {
-                    document.getElementById('use-cache').checked = conf.CACHE.ENABLE_CACHE.toLowerCase() === 'true';
+                    const cacheCheck = document.getElementById('use-cache');
+                    if (cacheCheck) cacheCheck.checked = conf.CACHE.ENABLE_CACHE.toLowerCase() === 'true';
                 }
             }
         })
@@ -350,9 +350,16 @@ function loadAppConfig() {
 }
 
 function saveAppConfig() {
+    // Determine which model to save based on active provider
+    const geminiCol = document.getElementById('provider-gemini-col');
+    const isActiveGemini = geminiCol && geminiCol.classList.contains('nt-provider-active');
+    const modelValue = isActiveGemini ? 
+        document.getElementById('gemini-model').value : 
+        document.getElementById('openai-model').value;
+
     const data = {
         MODEL: {
-            MODEL: document.getElementById('model').value,
+            MODEL: modelValue,
             QA_MODEL: document.getElementById('cfg-qa-model').value,
             THINKING_LEVEL: document.getElementById('cfg-thinking').value
         },
@@ -395,115 +402,145 @@ function saveAppConfig() {
 // ============================================================
 let currentModelInfo = null; // cache model info
 
-function loadModels() {
-    fetch('/api/models')
+function loadModels(targetProvider = null) {
+    const url = targetProvider ? `/api/models?full=true&provider=${targetProvider}` : '/api/models?full=true';
+    fetch(url)
         .then(r => r.json())
         .then(data => {
-            if (data.models && data.models.length > 0) availableModels = data.models;
-            const optionsHtml = availableModels.map(m =>
-                `<option value="${m}" ${m === (data.default || defaultModel) ? 'selected' : ''}>${m}</option>`
-            ).join('');
+            const provider = data.provider || targetProvider;
+            if (data.models && data.models.length > 0) {
+                if (provider === 'gemini') availableGeminiModels = data.models;
+                else if (provider === 'openai') availableOpenAIModels = data.models;
+                else availableModels = data.models;
+            }
+            
+            const renderOptions = (models, currentDefault) => {
+                return models.map(m => {
+                    const id = typeof m === 'string' ? m : m.id;
+                    const name = typeof m === 'string' ? m : m.name;
+                    const isFree = m.is_free ? ' 🎁' : '';
+                    const isSelected = id === currentDefault ? 'selected' : '';
+                    return `<option value="${id}" ${isSelected}>${name}${isFree}</option>`;
+                }).join('');
+            };
 
-            // Populate Model Chính
-            const sel = document.getElementById('model');
-            sel.innerHTML = optionsHtml;
+            const defaultModel = data.default || '';
 
-            // Populate QA Model dropdown
+            if (!targetProvider || targetProvider === 'gemini') {
+                const geminiSel = document.getElementById('gemini-model');
+                if (geminiSel) {
+                    geminiSel.innerHTML = renderOptions(availableGeminiModels, provider === 'gemini' ? defaultModel : '');
+                    if (provider === 'gemini') onModelChange(geminiSel.value, 'gemini');
+                }
+            }
+
+            if (!targetProvider || targetProvider === 'openai') {
+                const openaiSel = document.getElementById('openai-model');
+                if (openaiSel) {
+                    openaiSel.innerHTML = renderOptions(availableOpenAIModels, provider === 'openai' ? defaultModel : '');
+                    if (provider === 'openai') onModelChange(openaiSel.value, 'openai');
+                }
+            }
+
+            // Populate QA Model dropdown (system config)
             const qaSel = document.getElementById('cfg-qa-model');
-            if (qaSel) qaSel.innerHTML = optionsHtml;
+            if (qaSel) {
+                const allModels = [...availableGeminiModels, ...availableOpenAIModels];
+                qaSel.innerHTML = renderOptions(allModels, '');
+            }
+
+            // Populate Summarize Model dropdown
+            const sumSel = document.getElementById('summarize-model');
+            if (sumSel) {
+                const allModels = [...availableGeminiModels, ...availableOpenAIModels];
+                sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(allModels, '');
+            }
 
             // Load saved config values AFTER models dropdown is ready
             loadAppConfig();
-
-            // Auto-fetch info for selected model
-            const selected = sel.value;
-            if (selected) fetchModelInfo(selected);
         })
-        .catch(() => {
-            const optionsHtml = availableModels.map(m =>
-                `<option value="${m}" ${m === defaultModel ? 'selected' : ''}>${m}</option>`
-            ).join('');
-            const sel = document.getElementById('model');
-            sel.innerHTML = optionsHtml;
-            const qaSel = document.getElementById('cfg-qa-model');
-            if (qaSel) qaSel.innerHTML = optionsHtml;
-
-            loadAppConfig();
+        .catch(err => {
+            console.error('Error loading models:', err);
         });
 }
 
-function onModelChange(modelName) {
-    fetchModelInfo(modelName);
+function onModelChange(modelName, provider) {
+    if (!provider) {
+        // Fallback to active provider if not specified
+        const geminiCol = document.getElementById('provider-gemini-col');
+        provider = geminiCol && geminiCol.classList.contains('nt-provider-active') ? 'gemini' : 'openai';
+    }
+    fetchModelInfo(modelName, provider);
 }
 
-function fetchModelInfo(modelName) {
-    const panel = document.getElementById('model-info-panel');
+function fetchModelInfo(modelName, provider) {
+    const infoPanelId = `${provider}-model-info`;
+    const panel = document.getElementById(infoPanelId);
     if (!panel) return;
 
     // Show panel with loading state
     panel.classList.remove('dn');
-    document.getElementById('model-input-limit').textContent = '⏳...';
-    document.getElementById('model-output-limit').textContent = '⏳...';
-    const loadHint = document.getElementById('model-loading-hint');
-    if (loadHint) loadHint.classList.remove('dn');
+    const inputLimitEl = panel.querySelector(`.${provider}-input-limit`);
+    const outputLimitEl = panel.querySelector(`.${provider}-output-limit`);
+    if (inputLimitEl) inputLimitEl.textContent = '⏳...';
+    if (outputLimitEl) outputLimitEl.textContent = '⏳...';
+
+    const sel = document.getElementById(`${provider}-model`);
+    if (sel) sel.style.color = '';
 
     fetch('/api/model-info/' + encodeURIComponent(modelName))
         .then(r => r.json())
         .then(info => {
-            if (loadHint) loadHint.classList.add('dn');
-
             if (info.error) {
-                document.getElementById('model-input-limit').textContent = '❌ N/A';
-                document.getElementById('model-output-limit').textContent = '❌ N/A';
-                currentModelInfo = null;
+                if (inputLimitEl) inputLimitEl.textContent = '❌ N/A';
+                if (outputLimitEl) outputLimitEl.textContent = '❌ N/A';
+                if (sel) sel.style.color = 'red';
                 return;
             }
 
-            currentModelInfo = info;
+            if (inputLimitEl) inputLimitEl.textContent = info.input_token_display ? info.input_token_display : 'N/A';
+            if (outputLimitEl) outputLimitEl.textContent = info.output_token_display ? info.output_token_display : 'N/A';
 
-            document.getElementById('model-input-limit').textContent =
-                info.input_token_display ? info.input_token_display + ' tokens' : 'N/A';
-            document.getElementById('model-output-limit').textContent =
-                info.output_token_display ? info.output_token_display + ' tokens' : 'N/A';
-
-            // Rate limits
-            const rlEl = document.getElementById('model-rate-limits');
-            if (info.rate_limits && Object.keys(info.rate_limits).length > 0) {
-                const labels = { RPM: '🔄 RPM', RPD: '📅 RPD', TPM: '⚡ TPM', TPD: '📊 TPD' };
-                const descs = { RPM: 'Requests/phút', RPD: 'Requests/ngày', TPM: 'Tokens/phút', TPD: 'Tokens/ngày' };
-                let html = '';
-                for (const [key, val] of Object.entries(info.rate_limits)) {
-                    const label = labels[key] || key;
-                    const desc = descs[key] || key;
-                    const formatted = typeof val === 'number' ? val.toLocaleString() : val;
-                    html += `<div class="flex justify-between mb1">
-                        <span class="silver" title="${desc}">${label}:</span>
-                        <strong class="dark-gray">${formatted}</strong>
-                    </div>`;
+            // Rate limits (Gemini only)
+            const rlEl = panel.querySelector('.gemini-rate-limits');
+            if (rlEl) {
+                if (info.provider === 'gemini' && info.rate_limits && Object.keys(info.rate_limits).length > 0) {
+                    const labels = { RPM: '🔄 RPM', RPD: '📅 RPD', TPM: '⚡ TPM', TPD: '📊 TPD' };
+                    let html = '';
+                    for (const [key, val] of Object.entries(info.rate_limits)) {
+                        const label = labels[key] || key;
+                        const formatted = typeof val === 'number' ? val.toLocaleString() : val;
+                        html += `<div class="flex justify-between mb1"><span class="silver">${label}:</span> <strong class="dark-gray">${formatted}</strong></div>`;
+                    }
+                    rlEl.innerHTML = html;
+                    rlEl.classList.remove('dn');
+                } else {
+                    rlEl.classList.add('dn');
                 }
-                rlEl.innerHTML = html;
-                rlEl.classList.remove('dn');
-            } else {
-                rlEl.classList.add('dn');
             }
 
-            // Description
-            const descRow = document.getElementById('model-desc-row');
-            if (info.description) {
-                document.getElementById('model-description').textContent = info.description;
-                descRow.classList.remove('dn');
-            } else {
-                descRow.classList.add('dn');
+            // Pricing (OpenAI only)
+            const prEl = panel.querySelector('.openai-pricing');
+            if (prEl) {
+                if (info.provider === 'openai' && info.description) {
+                    prEl.textContent = info.description;
+                    prEl.classList.remove('dn');
+                } else {
+                    prEl.classList.add('dn');
+                }
             }
 
-            // Update token fit check if text exists
-            updateTokenEstimate();
+            // If this is the active provider's model, update currentModelInfo for token estimate
+            const activeCol = document.getElementById(`provider-${provider}-col`);
+            if (activeCol && activeCol.classList.contains('nt-provider-active')) {
+                currentModelInfo = info;
+                updateTokenEstimate();
+            }
         })
         .catch(() => {
-            if (loadHint) loadHint.classList.add('dn');
-            document.getElementById('model-input-limit').textContent = '❌ Lỗi';
-            document.getElementById('model-output-limit').textContent = '❌ Lỗi';
-            currentModelInfo = null;
+            if (inputLimitEl) inputLimitEl.textContent = '❌ Lỗi';
+            if (outputLimitEl) outputLimitEl.textContent = '❌ Lỗi';
+            if (sel) sel.style.color = 'red';
         });
 }
 
@@ -1154,7 +1191,14 @@ function aiSummarize() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model })
     })
-        .then(r => r.json())
+        .then(async r => {
+            const isJson = r.headers.get('content-type')?.includes('application/json');
+            const data = isJson ? await r.json() : null;
+            if (!r.ok) {
+                throw new Error(data?.error || `Server error: ${r.status} ${r.statusText}`);
+            }
+            return data;
+        })
         .then(data => {
             btn.disabled = false;
             btn.textContent = '🤖 AI Tóm tắt';
@@ -1162,13 +1206,14 @@ function aiSummarize() {
                 document.getElementById('guide-summary').value = data.summary;
                 showToast('Đã tạo tóm tắt AI thành công!', 'success');
             } else {
-                showToast(data.error || 'Lỗi tóm tắt', 'error');
+                showToast(data.error || 'Lỗi tóm tắt không xác định', 'error');
             }
         })
         .catch(e => {
             btn.disabled = false;
             btn.textContent = '🤖 AI Tóm tắt';
             showToast(e.message, 'error');
+            console.error('Summarize error:', e);
         });
 }
 

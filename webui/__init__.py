@@ -34,7 +34,7 @@ try:
     from services.translation_memory import TranslationMemory
 
     translation_memory = TranslationMemory(
-        tm_dir="workspace/translation_memory",
+        tm_dir="workspace/projects/default-project/profile/translation_memory",
         enabled=True,
         min_match_length=20,
         similarity_threshold=0.85,
@@ -64,5 +64,9 @@ def create_app():
     app.register_blueprint(prompts_bp)
     app.register_blueprint(projects_bp)
     app.register_blueprint(plugins_bp)
+
+    # Đảm bảo dự án mặc định tồn tại
+    from webui.helpers import ensure_default_project
+    ensure_default_project()
 
     return app

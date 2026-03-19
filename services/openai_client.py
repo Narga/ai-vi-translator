@@ -119,6 +119,35 @@ class OpenAIClient:
             self.logger.error(f"Error listing OpenAI models: {e}")
             return []
 
+    def list_models_full(self) -> List[Dict[str, Any]]:
+        """
+        Liệt kê các models khả dụng với đầy đủ thông tin (OpenRouter-friendly).
+        """
+        try:
+            response = self._client.models.list()
+            models = []
+            for model in response.data:
+                # OpenRouter returns many custom fields in the model object
+                m_dict = {
+                    "id": model.id,
+                    "name": getattr(model, "name", model.id),
+                }
+                # Check for OpenRouter specific metadata if available
+                if hasattr(model, "context_length"):
+                    m_dict["context_length"] = getattr(model, "context_length")
+                if hasattr(model, "pricing"):
+                    m_dict["pricing"] = getattr(model, "pricing")
+                
+                # Check if it's likely a free model (OpenRouter pattern)
+                is_free = ":free" in model.id.lower() or "free" in getattr(model, "name", "").lower()
+                m_dict["is_free"] = is_free
+                
+                models.append(m_dict)
+            return models
+        except Exception as e:
+            self.logger.error(f"Error listing OpenAI models (full): {e}")
+            return []
+
     def get_sdk_info(self) -> Dict[str, Any]:
         """Trả về thông tin SDK."""
         return {
