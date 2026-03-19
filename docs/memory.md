@@ -64,17 +64,16 @@ Tập tin này là "bộ nhớ dài hạn" (Long-term Memory) duy nhất và đ�
 - **Side-by-Side Editor:** Giao diện biên tập song ngữ thời gian thực.
 - **Theme Fixes:** Tối ưu textarea height, layout header và hệ thống Toast Notifications.
 
-### Giai đoạn 7: v6.0.0 Alpha (Multi-Provider & Workflow)
-- **Multi-Provider AI:** Tích hợp OpenAI SDK (`openai>=1.0.0`) hỗ trợ OpenAI/OpenRouter song song Gemini qua `services/ai_provider.py` (Adapter Pattern).
-- **Template Architecture:** Tách `index.html` thành 6 Jinja2 partials chuyên biệt (`templates/partials/`).
-- **Project Workflow Tabs:** 5 tabs chức năng (Info, Files, Translation, Guidelines, Prompts).
-- **Guidelines & AI Summarize:** Hỗ trợ `GET/PUT /guidelines` (5 fields) và tự động tóm tắt nội dung bằng AI (`POST /summarize`).
-- **Prompt Library:** Nạp bộ prompt từ thư viện genre (Mặc định + Thể loại) vào project prompt.
-- **Bug Fixes:**
-    - Sidebar toggle expand cột chính (`w-100-l`).
-    - SSE handler ưu tiên hiển thị `translated_text` trong textarea.
-    - `startTranslation()` tự động định tuyến API project.
-    - Model selector cho AI Summarize.
+### Giai đoạn 7: v6.0.0 Beta 1 (Project Sources & AI Config Enhancements)
+- **Project Sources Improvements**:
+  - Batch translation: Nút "Dịch đã chọn" đã hoạt động, cho phép dịch nhiều file cùng lúc.
+  - Select All Toggle: Nút "Chọn hết" có chức năng bật/tắt chọn tất cả và hiển thị số lượng file đã chọn.
+  - File Renaming: Thêm chức năng đổi tên file (✏️) cho cả file nguồn và file đã dịch, với tính năng tự động đổi tên file dịch tương ứng.
+- **AI Model Configuration & UX Improvements**:
+  - JSON Parse Error Fix: Cải thiện xử lý lỗi frontend cho AI Summarize.
+  - Provider-Specific Model Selection: Tách biệt danh sách model cho Gemini và OpenAI trong cấu hình.
+  - Enhanced Model Information Display: Hiển thị giới hạn token, giá cả, và đánh dấu model miễn phí hoặc không khả dụng.
+  - Summarize Bug Fix: Khắc phục lỗi `IsADirectoryError` khi tóm tắt thư mục `sources`.
 - **Tài liệu tham khảo:** `docs/v6-development-plan.md` và `docs/CHANGELOG.md`.
 
 ---
@@ -90,4 +89,4 @@ Tập tin này là "bộ nhớ dài hạn" (Long-term Memory) duy nhất và đ�
 
 
 ---
-*Cập nhật lần cuối: 17/03/2026*
+*Cập nhật lần cuối: 19/03/2026*

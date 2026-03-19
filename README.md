@@ -81,5 +81,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.0.0-alpha  
-**Ngày:** 17/03/2026
+**Phiên bản:** 6.0.0-beta.1  
+**Ngày:** 19/03/2026

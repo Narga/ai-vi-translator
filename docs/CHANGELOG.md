@@ -38,6 +38,33 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - **Summarize Model Selector**: Thêm dropdown chọn model ngay cạnh nút AI Tóm tắt.
 - **Summarize Backend**: API `POST /summarize` hỗ trợ nhận parameter `model` tùy chỉnh.
 
+### [6.0.0-beta.1] - 2026-03-19 - Project Sources & AI Config Enhancements
+
+### ✨ Project Sources Improvements
+- **Batch Translation**: Nút "Dịch đã chọn" giờ hoạt động và có thể dịch nhiều file cùng lúc.
+- **Select All Toggle**: Nút "Chọn hết" trong Project Sources giờ có thể bật/tắt chọn tất cả các file và hiển thị số lượng file đã chọn.
+- **File Renaming**: Thêm chức năng đổi tên file (✏️) cho cả file nguồn và file đã dịch. Khi đổi tên file nguồn, file dịch tương ứng (nếu có) cũng sẽ được đổi tên tự động.
+
+### ⚙️ AI Model Configuration & UX Improvements
+- **JSON Parse Error Fix**: Khắc phục lỗi `JSON.parse` khi tóm tắt AI bằng cách cải thiện xử lý lỗi phía frontend.
+- **Provider-Specific Model Selection**: Tách biệt rõ ràng danh sách model cho Gemini và OpenAI trong cấu hình, tránh nhầm lẫn khi chuyển đổi nhà cung cấp AI.
+- **Enhanced Model Information Display**:
+  - Hiển thị thông tin chi tiết về model (giới hạn input/output token, giá cả OpenRouter) cho cả Gemini và OpenAI.
+  - Các model miễn phí được ưu tiên và đánh dấu bằng 🎁.
+  - Các model không khả dụng hoặc cấu hình lỗi sẽ được đánh dấu màu đỏ.
+- **Summarize Bug Fix**: Khắc phục lỗi `IsADirectoryError` khi tóm tắt AI nếu thư mục `sources` trống hoặc không có file cụ thể. Giờ đây, nếu không có file cụ thể được chỉ định, tất cả các file trong thư mục `sources` sẽ được gộp lại để tóm tắt.
+
+### 📁 Files Changed
+
+| File | Thay đổi |
+|------|----------|
+| `webui/routes/projects.py` | Fix `summarize_project` bug, update `translate_project_file`, add `rename_project_file` |
+| `webui/routes/settings.py` | Update `get_models`, `get_model_info` for multi-provider support |
+| `services/openai_client.py` | Add `list_models_full` for detailed OpenAI model info |
+| `templates/partials/tab_config.html` | Reorganize AI provider blocks, separate model selectors |
+| `templates/partials/tab_workspace.html` | Add `id="btn-translate-selected"` |
+| `static/js/main.js` | Update model loading/info, selection logic, rename func, translation triggers |
+
 ### 📁 Files Changed
 
 | File | Thay đổi |
