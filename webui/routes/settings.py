@@ -357,24 +357,25 @@ def clear_cache():
         return jsonify({"error": str(e)}), 500
 
 
-@settings_bp.route("/api/remove-done", methods=["POST"])
-def remove_done_file():
-    """Xóa file khỏi thư mục done."""
-    data = request.json
-    filename = data.get("filename")
+@settings_bp.route("/api/restart", methods=["POST"])
+def restart_server():
+    """Khởi động lại web server bằng cách thoát tiến trình."""
+    import os
+    import signal
+    import threading
+    import time
 
-    if not filename:
-        return jsonify({"error": "Thiếu filename"}), 400
+    def kill_process():
+        time.sleep(3)
+        logger.info("Restarting: Process re-executing...")
+        import sys
+        import os
+        # Re-exec the process with same arguments
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
-    done_dir = Path("workspace/done")
-    file_path = done_dir / filename
-
-    if not file_path.exists():
-        return jsonify({"error": "File không tồn tại"}), 404
-
-    file_path.unlink()
-
-    return jsonify({"success": True})
+    # Chạy trong thread riêng để kịp trả về response cho UI
+    threading.Thread(target=kill_process, daemon=True).start()
+    return jsonify({"success": True, "message": "Server đang khởi động lại..."})
 
 
 @settings_bp.route("/api/keys", methods=["GET", "POST"])

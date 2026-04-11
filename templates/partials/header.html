@@ -15,50 +15,40 @@
     </script>
 </head>
 
-<body class="bg-near-white sans-serif dark-gray flex flex-column vh-100 overflow-hidden">
+<body class="bg-near-white sans-serif dark-gray">
 
     <!-- TOP NAVIGATION BAR -->
-    <header class="nt-topnav">
-        <div class="nt-topnav-inner">
-            <!-- Brand -->
-            <div class="nt-brand">
-                <span class="nt-brand-icon">📚</span>
-                <div class="nt-brand-text">
-                    <span class="nt-brand-name">Content Translator</span>
-                    <span class="nt-brand-version">v{{ app_version }}</span>
-                </div>
-            </div>
+    <header class="header-container shadow-sm">
+        <!-- Brand (Left) -->
+        <div class="header-left flex items-center">
+            <span class="f3 mr2">📚</span>
+            <span class="fw6 f4 dark-gray">Content Translator<sup class="f7 silver fw4 ml1">v{{ app_version }}</sup></span>
+        </div>
 
-            <!-- Navigation Items -->
-            <nav class="nt-nav-items">
-                <a href="#workspace" class="nt-nav-item active" data-tab="workspace">
-                    <span class="nt-nav-icon">📁</span>
-                    <span class="nt-nav-label">Dự án</span>
-                </a>
-                <a href="#config" class="nt-nav-item" data-tab="config">
-                    <span class="nt-nav-icon">⚙️</span>
-                    <span class="nt-nav-label">Cấu hình</span>
-                </a>
-                <a href="#prompts" class="nt-nav-item" data-tab="prompts">
-                    <span class="nt-nav-icon">📝</span>
-                    <span class="nt-nav-label">Prompts</span>
-                </a>
-                <a href="#plugins" class="nt-nav-item" data-tab="plugins">
-                    <span class="nt-nav-icon">🔌</span>
-                    <span class="nt-nav-label">Plugins</span>
-                </a>
-            </nav>
+        <!-- Navigation (Center) -->
+        <nav class="header-center flex justify-center">
+            <a href="#workspace" class="nav-link active" data-tab="workspace">Dự án</a>
+            <a href="#config" class="nav-link" data-tab="config">Cấu hình</a>
+            <a href="#prompts" class="nav-link" data-tab="prompts">Prompts</a>
+            <a href="#plugins" class="nav-link" data-tab="plugins">Plugins</a>
+            <a href="#archive" class="nav-link" data-tab="archive">Lưu trữ</a>
+        </nav>
 
-            <!-- System Info (inline in navbar) -->
-            <div class="nt-nav-stats">
-                <span class="nt-stat-chip" title="API Keys">🔑 <strong id="api-keys-count">--</strong></span>
-                <span class="nt-stat-chip" title="Cache files (MB)">💾 <strong id="cache-count">--</strong> <small>(<span id="cache-size">--</span>MB)</small></span>
-                <span class="nt-stat-chip" title="Dự án">📁 <strong id="project-count">--</strong></span>
-                <span class="nt-stat-chip" title="File nguồn">📥 <strong id="source-count">--</strong></span>
-                <span class="nt-stat-chip" title="Đã dịch">✅ <strong id="translated-count">--</strong></span>
+        <!-- Stats (Right) -->
+        <div class="header-right gray">
+            <div class="flex items-center gap-3 ba b--near-white bg-near-white br-pill ph3 pv1 shadow-sm f7">
+                <span title="API Keys">🔑 <strong id="api-keys-count" class="blue">--</strong></span>
+                <span class="silver">|</span>
+                <span title="Bộ nhớ đệm (Dung lượng và số tệp)">📦 <strong id="cache-size" class="green">--</strong>MB <small class="silver">(<span id="cache-count">--</span>)</small></span>
+                <span class="silver">|</span>
+                <span title="Dự án (Hoạt động và Lưu trữ)">📁 <strong id="project-count" class="orange">--</strong> <small class="silver">(<span id="archive-count" class="orange">--</span>)</small></span>
+                <button class="ml2 pointer bn bg-transparent hover-gray" onclick="restartServer()" title="Khởi động lại Server">🔄</button>
             </div>
         </div>
     </header>
 
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-container"></div>
+
     <!-- MAIN CONTENT AREA -->
-    <main class="flex-auto overflow-y-auto pa4-l pa3 nt-main-bg">
+    <main class="nt-main-bg">

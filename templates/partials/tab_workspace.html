@@ -1,331 +1,166 @@
         <!-- ==================== TAB 1: DỰ ÁN ==================== -->
         <section id="tab-workspace" class="nt-tab-content block">
-            <div class="flex-l mhn2-l">
+            <div class="workspace-wrapper">
 
-                <!-- Left Col: Project List -->
-                <div id="project-list-col" class="w-30-l ph2-l mb3">
-                    <div class="nt-card pa3 h-100 flex flex-column">
-                        <div class="flex justify-between items-center mb3">
-                            <h2 class="f5 mt0 mb0 fw6 dark-gray">📁 Dự án</h2>
-                            <button class="nt-btn nt-btn-primary f7" onclick="showCreateProjectDialog()">➕
-                                Tạo mới</button>
-                        </div>
-                        <div class="nt-file-list flex-auto overflow-y-auto ba b--black-10 br2" id="project-list">
-                            <div class="pa3 tc silver i">Đang tải...</div>
-                        </div>
+                <!-- Sidebar (Project List Card) -->
+                <div class="sidebar nt-card flex flex-column">
+                    <div class="nt-block-header">
+                        <span class="f6 fw6 text-muted uppercase tracked">Dự án</span>
+                        <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 shadow-1" onclick="showCreateProjectDialog()" title="Tạo dự án mới">➕</button>
+                    </div>
+                    <div id="project-list" class="flex-auto overflow-y-auto">
+                        <!-- Injected by JS -->
+                        <div class="pa3 tc silver i">Đang tải...</div>
                     </div>
                 </div>
 
-                <!-- Right Col: Project Detail -->
-                <div class="w-70-l ph2-l mb3 flex flex-column">
+                <!-- Main Workspace Pane -->
+                <div class="main-content flex-auto flex flex-column pa0">
 
-                    <!-- Project Header -->
-                    <div id="project-header" class="nt-card pa3 mb3 dn">
-                        <div class="flex justify-between items-center mb2">
-                            <div class="flex items-center gap-2">
-                                <button class="nt-btn nt-btn-outline f7" onclick="toggleProjectList()"
-                                    title="Ẩn/hiện danh sách dự án">◗</button>
-                                <div>
-                                    <h2 class="f5 mt0 mb1 fw6 dark-gray" id="project-title">—</h2>
-                                    <p class="f7 mt0 mb0 silver" id="project-desc"></p>
-                                </div>
-                            </div>
-                            <div class="flex gap-2">
-                                <button class="nt-btn nt-btn-outline f7" onclick="archiveProject()">📦 Nén</button>
-                                <button class="nt-btn nt-btn-danger f7" onclick="deleteCurrentProject()">🗑️
-                                    Xóa</button>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap gap-3 f7 silver items-center">
-                            <span>📄 Nguồn: <strong id="proj-source-count" class="blue">0</strong></span>
-                            <span>✅ Đã dịch: <strong id="proj-translated-count" class="green">0</strong></span>
-                            <span>🔤 Từ nguồn: <strong id="proj-source-words">0</strong></span>
-                            <span id="proj-genre-badge" class="dn">
-                                📚 <strong id="proj-genre" class="purple"></strong>
-                            </span>
+                    <!-- Empty State Block -->
+                    <div id="project-empty-state" class="nt-card flex-auto flex-column-center pa-block gray shadow-4">
+                        <div class="icon-large mb4">📁</div>
+                        <div class="w-max-500 ma-auto">
+                            <h3 class="f3 dark-gray mb3">Chọn dự án để bắt đầu</h3>
+                            <p class="f6 line-height-copy mb4">Sử dụng danh sách bên trái hoặc nhấn nút bên dưới để tạo một dự án mới và bắt đầu công việc dịch thuật.</p>
+                            <button class="ph4 pv3 pointer ba b--blue blue bg-white br2 fw6 shadow-1 hover-bg-light-blue transition" onclick="showCreateProjectDialog()">➕ Tạo dự án mới</button>
                         </div>
                     </div>
 
-                    <!-- Sub-tabs -->
-                    <div id="project-tabs" class="flex bb b--black-10 mb3 dn">
-                        <button class="nt-tab-btn active" data-ptab="sources" onclick="switchProjectTab('sources')">📄
-                            Sources</button>
-                        <button class="nt-tab-btn" data-ptab="translated" onclick="switchProjectTab('translated')">✅
-                            Translated</button>
-                        <button class="nt-tab-btn" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝
-                            Prompt</button>
-                        <button class="nt-tab-btn" data-ptab="profile" onclick="switchProjectTab('profile')">📋
-                            Profile</button>
-                    </div>
-
-                    <!-- Sub-tab: Sources -->
-                    <div id="ptab-sources" class="nt-ptab-content dn">
-                        <div class="nt-card pa3 mb3">
-                            <div class="flex justify-between items-center mb3">
-                                <h3 class="f6 mt0 mb0 dark-gray">File nguồn</h3>
-                                <div class="flex gap-2">
-                                    <button class="nt-btn nt-btn-outline f7" id="btn-select-all"
-                                        onclick="selectAllProjectFiles()">✓ Chọn hết</button>
-                                    <button id="btn-translate-selected" class="nt-btn nt-btn-success f7" onclick="translateSelectedInProject()">🚀
-                                        Dịch đã chọn</button>
-                                </div>
+                    <!-- Active Project Content -->
+                    <div id="project-active-content" class="dn flex-auto flex flex-column">
+                        
+                        <!-- Project Header Card -->
+                        <div class="nt-card pa3 mb3 flex justify-between items-center">
+                            <div class="truncate pr3">
+                                <h2 id="project-title" class="f4 ma0 dark-gray truncate">Tên dự án</h2>
+                                <p id="project-desc" class="f7 gray ma0 mt1 truncate">Mô tả dự án...</p>
                             </div>
-                            <div class="nt-file-list overflow-y-auto ba b--black-10 br2" id="project-source-list"
-                                style="max-height:250px">
-                                <div class="pa3 tc silver i">Chọn dự án</div>
-                            </div>
-                            <div class="mt3 flex flex-wrap gap-2 items-center">
-                                <label class="nt-btn nt-btn-outline f7 pointer">
-                                    📤 Tải file lên
-                                    <input type="file" id="upload-source-file" accept=".txt,.md,.html,.epub" class="dn"
-                                        onchange="uploadProjectFile()">
-                                </label>
-                                <div id="chunk-controls" class="flex gap-2 items-center dn">
-                                    <input type="number" id="inline-chunk-size" class="nt-input f7"
-                                        style="width:100px" placeholder="Ký tự/chunk"
-                                        title="Số ký tự tối đa mỗi chunk (để trống = dùng config mặc định)">
-                                    <button id="btn-chunk-file" class="nt-btn nt-btn-secondary f7"
-                                        onclick="chunkProjectFile()">✂️ Chia Chunk</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="nt-card pa3 mb3">
-                            <div class="flex justify-between items-center mb2">
-                                <h3 class="f6 mt0 mb0 fw6 dark-gray">📝 Nội dung file</h3>
-                                <button id="btn-save-project-file" class="nt-btn nt-btn-outline f7 dn"
-                                    onclick="saveProjectFile()">💾 Lưu</button>
-                            </div>
-                            <textarea id="source-text" class="nt-input w-100 mb2"
-                                style="height: 200px"
-                                placeholder="Click vào file nguồn để xem và chỉnh sửa..."
-                                oninput="updateTokenEstimate()"></textarea>
-                            <!-- Token Estimation Bar -->
-                            <div id="token-estimate-bar"
-                                class="flex justify-between items-center pa2 bg-near-white br2 mb3 f7 silver">
-                                <span>📊 <span id="token-char-count">0</span> ký tự → <strong id="token-estimate"
-                                        class="blue">~0</strong> tokens</span>
-                                <span id="token-model-fit" class=""></span>
-                            </div>
-                            <button id="translate-btn" class="nt-btn nt-btn-primary w-100 pv3 f6 fw6 shadow-hover">🚀
-                                Dịch Nội Dung</button>
-                        </div>
-                        <div id="progress-container" class="nt-card pa3 mb3 dn">
-                            <div class="flex justify-between f6 mb2 fw6 dark-gray">
-                                <span id="progress-text">Đang chuẩn bị...</span>
-                                <span id="progress-percent" class="blue">0%</span>
-                            </div>
-                            <div class="w-100 bg-light-gray br-pill h1 overflow-hidden">
-                                <div id="progress-bar" class="nt-bg-gradient h-100"
-                                    style="width:0%;transition:width 0.3s ease;"></div>
-                            </div>
-                            <div id="log-container" class="nt-log mt3 f7 pt2 bt b--black-10 dn"></div>
-                        </div>
-                        <div id="result-container" class="nt-card pa3 flex-auto dn flex flex-column">
-                            <div class="flex justify-between items-center mb3">
-                                <h2 class="f5 mt0 mb0 fw6 green flex items-center"><span class="mr2">✅</span> Kết quả
-                                    dịch</h2>
-                                <div id="result-stats" class="flex gap-2 f7"></div>
-                            </div>
-                            <textarea id="result-text" class="nt-input w-100 flex-auto mb3 min-h5" readonly></textarea>
-                            <div class="flex gap-3 justify-end">
-                                <button id="btn-save-translation" class="nt-btn nt-btn-success"
-                                    onclick="saveChunkTranslation()" title="Lưu trực tiếp vào dự án">💾 Lưu bản
-                                    dịch</button>
-                                <button id="btn-copy-result" class="nt-btn nt-btn-outline">📋 Copy</button>
-                                <button id="download-btn" class="nt-btn nt-btn-primary">⬇️ Tải file</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sub-tab: Translated (Side-by-Side Editor) -->
-                    <div id="ptab-translated" class="nt-ptab-content dn">
-                        <div class="nt-card pa3 mb3">
-                            <div class="flex justify-between items-center mb3">
-                                <h3 class="f6 mt0 mb0 dark-gray">File đã dịch</h3>
-                                <div class="flex gap-2">
-                                    <button class="nt-btn nt-btn-outline f7" id="btn-select-all-translated"
-                                        onclick="selectAllTranslatedFiles()">✓ Chọn hết</button>
-                                    <button class="nt-btn nt-btn-primary f7" id="btn-merge-translated"
-                                        onclick="mergeTranslatedFiles()">🔗 Ghép các file đã chọn</button>
-                                </div>
-                            </div>
-                            <div class="nt-file-list overflow-y-auto ba b--black-10 br2" id="project-translated-list"
-                                style="max-height:200px">
-                                <div class="pa3 tc silver i">Chưa có file dịch</div>
+                            <div class="flex gap-2 no-shrink">
+                                <button class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-1" onclick="archiveProject()" title="Nén và tải về">📦 Lưu trữ</button>
+                                <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-1" onclick="deleteCurrentProject()" title="Xóa dự án">🗑️ Xóa</button>
                             </div>
                         </div>
 
-                        <!-- Side-by-Side Editor -->
-                        <div id="sbs-editor-container" class="nt-card mb3 dn">
-                            <!-- Editor Header -->
-                            <div class="nt-editor-header pa3 flex justify-between items-center bb b--black-10">
-                                <div class="flex items-center gap-2">
-                                    <span class="f6 fw6 dark-gray">📝</span>
-                                    <span id="sbs-filename" class="f6 fw6 dark-gray">—</span>
-                                    <span id="sbs-save-status" class="f7 silver ml2"></span>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button class="nt-btn nt-btn-success f7" onclick="saveSideBySideEditor()">💾 Lưu bản
-                                        dịch</button>
-                                    <button class="nt-btn nt-btn-outline f7" onclick="closeSideBySideEditor()">✕
-                                        Đóng</button>
-                                </div>
+                        <!-- Tab Groups Block -->
+                        <div class="nt-card flex-auto flex flex-column overflow-hidden">
+                            <div id="project-tabs" class="flex bb b--border bg-near-white">
+                                <button class="tab-btn active" data-ptab="workspace" onclick="switchProjectTab('workspace')">📁 Workspace</button>
+                                <button class="tab-btn" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
+                                <button class="tab-btn" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Profile</button>
                             </div>
 
-                            <!-- Split Panes -->
-                            <div class="nt-editor-split pa3">
-                                <div class="nt-editor-pane">
-                                    <label class="db f7 fw6 mb2 silver">📄 Bản gốc (Source) — Chỉ đọc</label>
-                                    <textarea id="editor-source" class="nt-input w-100 code f7" readonly
-                                        placeholder="Chọn file đã dịch để xem bản gốc..."></textarea>
-                                </div>
-                                <div class="nt-editor-pane">
-                                    <label class="db f7 fw6 mb2 silver">✏️ Bản dịch (Translated) — Có thể chỉnh
-                                        sửa</label>
-                                    <textarea id="editor-translated" class="nt-input w-100 code f7"
-                                        placeholder="Bản dịch sẽ hiển thị ở đây..."></textarea>
-                                </div>
-                            </div>
-
-                            <!-- Status Bar -->
-                            <div class="nt-editor-status pa3 bt b--black-10 flex justify-between f7 silver">
-                                <span>Gốc: <strong id="sbs-source-chars" class="dark-gray">0</strong> ký tự</span>
-                                <span>Dịch: <strong id="sbs-trans-chars" class="dark-gray">0</strong> ký tự</span>
-                                <span>Tỷ lệ: <strong id="sbs-ratio" class="blue">—</strong></span>
-                            </div>
-                        </div>
-
-                        <!-- Retranslate / Correction actions -->
-                        <div id="sbs-actions" class="nt-card pa3 mb3 dn">
-                            <div class="flex justify-between items-center">
-                                <span class="f6 fw6 dark-gray">🔧 Hậu xử lý</span>
-                                <div class="flex gap-2">
-                                    <button id="btn-run-retranslate" class="nt-btn nt-btn-secondary f7 pv2">🔄
-                                        Retranslate</button>
-                                    <button id="btn-run-correction" class="nt-btn nt-btn-outline f7 pv2">✏️
-                                        Correction</button>
-                                    <button id="btn-run-both" class="nt-btn nt-btn-primary f7 pv2">⚡ Chạy Cả
-                                        Cặp</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Progress for retranslate/correction -->
-                        <div id="done-progress-container" class="nt-card pa3 mb3 dn">
-                            <div class="flex justify-between f6 mb2 fw6 dark-gray">
-                                <span id="done-progress-text">Đang xử lý...</span>
-                                <span id="done-progress-percent" class="blue">0%</span>
-                            </div>
-                            <div class="w-100 bg-light-gray br-pill h1 overflow-hidden">
-                                <div id="done-progress-bar" class="nt-bg-gradient h-100"
-                                    style="width:0%;transition:width 0.3s ease;"></div>
-                            </div>
-                            <div id="done-log-container" class="nt-log mt3 f7 pt2 bt b--black-10 dn"></div>
-                        </div>
-                        <div id="done-result-container" class="nt-card pa3 flex-auto dn flex flex-column">
-                            <h2 class="f5 mt0 mb3 fw6 green">✅ Đã xử lý xong</h2>
-                            <textarea id="done-result-text" class="nt-input w-100 flex-auto mb3 min-h5"
-                                readonly></textarea>
-                            <div class="flex gap-3 justify-end">
-                                <button id="btn-copy-done-result" class="nt-btn nt-btn-outline">📋 Copy</button>
-                                <button id="btn-download-done-result" class="nt-btn nt-btn-primary">💾 Tải file</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sub-tab: Prompt (Phase 4 Enhanced) -->
-                    <div id="ptab-prompt" class="nt-ptab-content dn">
-                        <div class="nt-card pa3 mb3">
-                            <div class="flex justify-between items-center mb3">
-                                <h3 class="f6 mt0 mb0 dark-gray">🎯 Prompt dự án</h3>
-                                <div class="flex gap-2">
-                                    <select id="prompt-library-select" class="nt-input f7" style="width:180px">
-                                        <option value="">— Nạp từ thư viện —</option>
-                                    </select>
-                                    <button class="nt-btn nt-btn-outline f7" onclick="loadFromPromptLibrary()">📥
-                                        Nạp</button>
-                                    <button class="nt-btn nt-btn-success f7" onclick="saveProjectPrompts()">💾 Lưu
-                                        Prompt</button>
-                                </div>
-                            </div>
-                            <p class="f7 silver mt0 mb3 bt b--black-05 pt2">
-                                ⚡ Prompt dự án sẽ được ưu tiên sử dụng khi dịch. Nếu để trống, hệ thống dùng prompt
-                                mặc định.
-                            </p>
-                            <label class="db f7 fw6 mb1 silver">Main Prompt</label>
-                            <textarea id="proj-prompt-main" class="nt-input w-100 mb3" style="height:180px"
-                                placeholder="Prompt chính cho dịch thuật..."></textarea>
-                            <label class="db f7 fw6 mb1 silver">Retranslate Prompt</label>
-                            <textarea id="proj-prompt-retranslate" class="nt-input w-100 mb3" style="height:100px"
-                                placeholder="Prompt cho dịch lại..."></textarea>
-                            <label class="db f7 fw6 mb1 silver">Correction Prompt</label>
-                            <textarea id="proj-prompt-correction" class="nt-input w-100" style="height:100px"
-                                placeholder="Prompt cho sửa lỗi..."></textarea>
-                        </div>
-                    </div>
-
-                    <!-- Sub-tab: Guidelines (Phase 3) -->
-                    <div id="ptab-profile" class="nt-ptab-content dn">
-                        <div class="nt-card pa3 mb3">
-                            <div class="flex justify-between items-center mb3">
-                                <h3 class="f6 mt0 mb0 dark-gray">📋 Guidelines & Profile dự án</h3>
-                                <button class="nt-btn nt-btn-success f7" onclick="saveGuidelines()">💾 Lưu
-                                    Tất cả</button>
-                            </div>
-
-                            <!-- 1. Summary (AI summarize) -->
-                            <div class="mb3">
-                                <div class="flex justify-between items-center mb1">
-                                    <label class="db f7 fw6 silver">📖 Tóm tắt nội dung sách</label>
-                                    <div class="flex gap-2 items-center">
-                                        <select id="summarize-model" class="nt-input f7" style="width:180px"
-                                            title="Chọn model để tóm tắt">
-                                            <option value="">— Mặc định —</option>
-                                        </select>
-                                        <button class="nt-btn nt-btn-outline f7" onclick="aiSummarize()"
-                                            id="btn-ai-summarize">🤖 AI Tóm tắt</button>
+                            <!-- Workspace Content Section -->
+                            <div id="ptab-workspace" class="nt-ptab-content flex-auto overflow-y-auto pa3">
+                                
+                                <!-- Source Table Block -->
+                                <div id="workspace-sources" class="ba b--border br2 overflow-hidden bg-white mb3">
+                                    <div class="pa3 bb b--border flex justify-between items-center bg-near-white">
+                                        <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-source-count" class="blue fw7">0</span>)</span>
+                                        <div class="flex gap-2">
+                                            <label class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white">
+                                                📤 Upload <input type="file" id="upload-source-file" class="dn" onchange="uploadProjectFile()">
+                                            </label>
+                                            <button class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white" onclick="showChunkConfig()">⚙️ Chia Chunk</button>
+                                            <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch Loạt</button>
+                                        </div>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="minimal-table">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px"><input type="checkbox" onclick="selectAllProjectFiles()"></th>
+                                                    <th>Tên tệp</th>
+                                                    <th>Size</th>
+                                                    <th>Status</th>
+                                                    <th class="tr">Hành động</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="project-source-table-body">
+                                                <!-- Rows injected by JS -->
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
-                                <textarea id="guide-summary" class="nt-input w-100" style="height:140px"
-                                    placeholder="Tóm tắt nội dung, bối cảnh, nhân vật chính... (Bấm 'AI Tóm tắt' để tự động tạo từ file nguồn)"></textarea>
+
+                                <!-- Integrated Editor Block (Side-by-Side) -->
+                                <div id="workspace-editor" class="dn flex flex-column pv2">
+                                    <div class="editor-container mb3" style="min-height: 500px;">
+                                        <div class="editor-pane">
+                                            <div class="editor-header">
+                                                <span class="f7 fw6 gray uppercase">Nguồn</span>
+                                                <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray" onclick="closeEditor()">⬅️ Quay lại</button>
+                                            </div>
+                                            <textarea id="source-text" placeholder="Nội dung nguồn..." oninput="updateTokenEstimate()"></textarea>
+                                        </div>
+                                        <div class="editor-pane">
+                                            <div class="editor-header">
+                                                <span class="f7 fw6 gray uppercase">Bản dịch</span>
+                                                <button class="pointer ph2 pv1 f7 bn bg-green white br1 shadow-1" onclick="saveChunkTranslation()">💾 Lưu</button>
+                                            </div>
+                                            <textarea id="result-text" placeholder="Kết quả dịch..."></textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Token & Quick Actions -->
+                                    <div class="flex justify-between items-center pa2 ba b--border br2 bg-near-white">
+                                        <div id="token-estimate-mini" class="dn f7 text-muted">
+                                            📊 <span id="token-char-count">0</span> chars | <strong id="token-estimate" class="blue">0</strong> tokens
+                                        </div>
+                                        <button id="translate-btn" class="ml-auto pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="startTranslation()">Dịch Nội Dung ⚡</button>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- 2. Characters -->
-                            <div class="mb3">
-                                <label class="db f7 fw6 mb1 silver">👥 Bảng nhân vật & quan hệ</label>
-                                <textarea id="guide-characters" class="nt-input w-100" style="height:120px"
-                                    placeholder="tên gốc | tên dịch | vai trò | quan hệ&#10;VD: 张三 | Trương Tam | Nam chính | Sư huynh của Lý Tứ"></textarea>
+                            <!-- Prompt Settings Section -->
+                            <div id="ptab-prompt" class="nt-ptab-content dn pa4">
+                                <div class="flex justify-between items-center mb3">
+                                    <h3 class="f5 ma0 dark-gray">🎯 Tùy chỉnh Prompt dự án</h3>
+                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1" onclick="saveProjectPrompts()">Lưu tất cả</button>
+                                </div>
+                                <label class="db f7 gray mb2 uppercase tracked">Main Prompt</label>
+                                <textarea id="proj-prompt-main" class="w-100 pa3 ba b--border br2 mb4" style="height:350px"></textarea>
+                                <label class="db f7 gray mb2 uppercase tracked">Correction Prompt</label>
+                                <textarea id="proj-prompt-correction" class="w-100 pa3 ba b--border br2" style="height:150px"></textarea>
                             </div>
 
-                            <!-- 3. Glossary -->
-                            <div class="mb3">
-                                <label class="db f7 fw6 mb1 silver">📚 Bảng thuật ngữ</label>
-                                <textarea id="guide-glossary" class="nt-input w-100" style="height:120px"
-                                    placeholder="thuật ngữ gốc | thuật ngữ dịch | ghi chú&#10;VD: 灵气 | Linh khí | Năng lượng tu luyện"></textarea>
+                            <!-- Profile/Glossary Section -->
+                            <div id="ptab-profile" class="nt-ptab-content dn pa4">
+                                <div class="flex justify-between items-center mb3">
+                                    <h3 class="f5 ma0 dark-gray">📋 Profile & Glossary</h3>
+                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1" onclick="saveGuidelines()">Lưu Profile</button>
+                                </div>
+                                <div class="mb4">
+                                    <label class="db f7 gray mb2 uppercase tracked">Tóm tắt bối cảnh/Nhân vật</label>
+                                    <textarea id="guide-summary" class="w-100 pa3 ba b--border br2" style="height:200px" placeholder="AI Summarize hoặc viết tay..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="db f7 gray mb2 uppercase tracked">Thuật ngữ & Tên riêng (Glossary)</label>
+                                    <textarea id="guide-glossary" class="w-100 pa3 ba b--border br2" style="height:200px" placeholder="Gốc | Dịch | Ghi chú..."></textarea>
+                                </div>
                             </div>
 
-                            <!-- 4. Style Guide -->
-                            <div class="mb3">
-                                <label class="db f7 fw6 mb1 silver">🎨 Hướng dẫn phong cách dịch</label>
-                                <textarea id="guide-style" class="nt-input w-100" style="height:100px"
-                                    placeholder="Tone, style, quy tắc dịch riêng cho dự án này..."></textarea>
-                            </div>
-
-                            <!-- 5. Additional Notes -->
-                            <div class="mb3">
-                                <label class="db f7 fw6 mb1 silver">📝 Chỉ dẫn bổ sung</label>
-                                <textarea id="guide-notes" class="nt-input w-100" style="height:100px"
-                                    placeholder="Các chú thích đặc biệt, quy tắc riêng, lưu ý cho AI..."></textarea>
-                            </div>
                         </div>
-                    </div>
-
-                    <!-- Empty state (no project selected) -->
-                    <div id="project-empty-state" class="nt-card pa4 tc">
-                        <div class="f2 mb3">📁</div>
-                        <h3 class="f5 fw6 dark-gray mb2">Chọn hoặc tạo dự án</h3>
-                        <p class="silver">Chọn dự án bên trái để bắt đầu dịch</p>
                     </div>
                 </div>
             </div>
         </section>
+
+        <!-- Chunking Modal -->
+        <div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 flex items-center justify-center z-max">
+            <div class="bg-white pa4 br3 w-100 max-w5 shadow-5">
+                <h3 class="mt0 dark-gray">Cấu hình Chia Chunk</h3>
+                <div class="mb3 flex justify-center ba b--border pa2 br2 bg-near-white">
+                    <label class="mr4 pointer"><input type="radio" name="chunk-type" value="word" checked class="mr1"> Theo từ</label>
+                    <label class="pointer"><input type="radio" name="chunk-type" value="char" class="mr1"> Theo ký tự</label>
+                </div>
+                <div class="mb4">
+                    <label class="db f7 gray mb2 uppercase tracked">Giới hạn mỗi phần</label>
+                    <input type="number" id="chunk-size-input" class="w-100 pa3 ba b--border br2 f4 fw6 tc" value="1000">
+                </div>
+                <div class="flex gap-2">
+                    <button class="flex-auto ph3 pv2 pointer ba b--silver bg-white br2 gray" onclick="hideChunkConfig()">Hủy</button>
+                    <button class="flex-auto ph3 pv2 pointer bn white bg-blue br2 fw6 shadow-1" onclick="confirmChunking()">🚀 Chia ngay</button>
+                </div>
+            </div>
+        </div>

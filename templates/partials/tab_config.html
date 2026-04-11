@@ -3,15 +3,15 @@
         <section id="tab-config" class="nt-tab-content dn">
             <div class="mw8 center">
 
-                <!-- ===== AI Provider Selection (Dual-column) ===== -->
+                <!-- ===== AI Provider Configuration (Keys only) ===== -->
                 <div class="nt-card pa3 mb3">
                     <div class="flex justify-between items-center bb b--black-10 pb3 mb3">
-                        <h2 class="f4 mt0 mb0 fw6 dark-gray">🤖 Nhà cung cấp AI</h2>
+                        <h2 class="f4 mt0 mb0 fw6 dark-gray">🔑 Cấu hình API Keys</h2>
                         <span id="provider-active-badge" class="f7 fw6 ph2 pv1 br2 bg-light-green dark-green">Gemini</span>
                     </div>
 
                     <div class="nt-provider-grid">
-                        <!-- Gemini Provider Column -->
+                        <!-- Gemini API Keys -->
                         <div id="provider-gemini-col" class="nt-provider-col nt-provider-active" data-provider="gemini">
                             <div class="flex justify-between items-center mb3">
                                 <label class="flex items-center pointer">
@@ -19,38 +19,19 @@
                                         onchange="switchProvider('gemini')">
                                     <span class="f5 fw6 dark-gray">🔷 Google Gemini</span>
                                 </label>
-                                <span class="f7 silver">google-genai SDK</span>
                             </div>
 
                             <div class="mb3">
                                 <label class="db fw6 lh-copy f7 mb1 dark-gray">API Keys (mỗi dòng 1 key)</label>
-                                <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:80px"
+                                <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:120px"
                                     placeholder="AIzaSy..."></textarea>
                                 <div class="mt2 flex justify-end">
-                                    <button class="nt-btn nt-btn-outline f7" onclick="saveApiKeys()">💾 Lưu Keys</button>
-                                </div>
-                            </div>
-
-                            <div class="mb2">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Model Gemini</label>
-                                <div class="flex gap-2">
-                                    <select id="gemini-model" class="nt-input w-100"
-                                        onchange="onModelChange(this.value, 'gemini')"></select>
-                                    <button class="nt-btn nt-btn-outline f7 nowrap" onclick="loadModels('gemini')">🔄 Tải</button>
-                                </div>
-                                <div id="gemini-model-info" class="mt2 pa2 bg-white br2 f7 dn ba b--black-05">
-                                    <div class="flex justify-between mb1"><span class="silver">📥 Input:</span>
-                                        <strong class="gemini-input-limit dark-gray">—</strong>
-                                    </div>
-                                    <div class="flex justify-between mb1"><span class="silver">📤 Output:</span>
-                                        <strong class="gemini-output-limit dark-gray">—</strong>
-                                    </div>
-                                    <div class="gemini-rate-limits dn"></div>
+                                    <button class="nt-btn nt-btn-outline f7" onclick="saveApiKeys()">💾 Lưu Keys Gemini</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- OpenAI-Compatible Provider Column -->
+                        <!-- OpenAI API Key -->
                         <div id="provider-openai-col" class="nt-provider-col" data-provider="openai">
                             <div class="flex justify-between items-center mb3">
                                 <label class="flex items-center pointer">
@@ -58,43 +39,50 @@
                                         onchange="switchProvider('openai')">
                                     <span class="f5 fw6 dark-gray">🟢 OpenAI Compatible</span>
                                 </label>
-                                <span class="f7 silver">OpenRouter / Proxy</span>
                             </div>
 
                             <div class="mb3">
                                 <label class="db fw6 lh-copy f7 mb1 dark-gray">API Key</label>
-                                <input type="password" id="openai-api-key" class="nt-input w-100 code f7"
+                                <input type="password" id="openai-api-key" class="nt-input w-100 code f7 mb3"
                                     placeholder="sk-or-... hoặc sk-...">
-                            </div>
-
-                            <div class="mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Base URL
-                                    <small class="normal silver">(để trống nếu dùng OpenAI trực tiếp)</small>
-                                </label>
+                                
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Base URL</label>
                                 <input type="text" id="openai-base-url" class="nt-input w-100 f7"
                                     placeholder="https://openrouter.ai/api/v1" value="https://openrouter.ai/api/v1">
-                            </div>
-
-                            <div class="mb2">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Model OpenAI / Compatible</label>
-                                <div class="flex gap-2">
-                                    <select id="openai-model" class="nt-input w-100"
-                                        onchange="onModelChange(this.value, 'openai')"></select>
-                                    <button class="nt-btn nt-btn-outline f7 nowrap" onclick="loadModels('openai')">🔄 Tải</button>
-                                </div>
-                                <div id="openai-model-info" class="mt2 pa2 bg-white br2 f7 dn ba b--black-05">
-                                    <div class="flex justify-between mb1"><span class="silver">📥 Input:</span>
-                                        <strong class="openai-input-limit dark-gray">—</strong>
-                                    </div>
-                                    <div class="flex justify-between mb1"><span class="silver">📤 Output:</span>
-                                        <strong class="openai-output-limit dark-gray">—</strong>
-                                    </div>
-                                    <div class="openai-pricing silver f7 mt1"></div>
+                                <small class="silver mt1 db">Để trống nếu dùng trực tiếp OpenAI</small>
+                                
+                                <div class="mt3 flex justify-end">
+                                    <button class="nt-btn nt-btn-outline f7" onclick="saveOpenAIConfig()">💾 Lưu Cấu hình OpenAI</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <div class="mt2 flex justify-end">
-                                <button class="nt-btn nt-btn-outline f7" onclick="saveOpenAIConfig()">💾 Lưu Cấu hình</button>
+                <!-- Unified Model Selector Block -->
+                <div class="nt-card pa3 mb3 bg-lightest-blue">
+                    <h3 class="f5 fw6 mt0 mb3 dark-gray bb b--black-10 pb2">🤖 Chọn Model cho <span id="current-provider-name" class="blue">Gemini</span></h3>
+                    
+                    <div class="flex flex-wrap mhn2">
+                        <div class="w-100 w-60-ns ph2 mb3">
+                            <label class="db fw6 lh-copy f7 mb1 dark-gray">Model khả dụng từ API</label>
+                            <div class="flex gap-2">
+                                <select id="model" class="nt-input w-100" onchange="onModelChange(this.value)"></select>
+                                <button class="nt-btn nt-btn-primary f7 nowrap" onclick="loadModels()">🔄 Lấy danh sách</button>
+                            </div>
+                        </div>
+                        <div class="w-100 w-40-ns ph2 mb3">
+                            <div id="model-info-panel" class="pa2 bg-white br2 f7 ba b--black-10 h-100">
+                                <div class="flex justify-between mb1">
+                                    <span class="silver">📥 Input limit:</span>
+                                    <strong id="model-input-limit" class="dark-gray">—</strong>
+                                </div>
+                                <div class="flex justify-between mb1">
+                                    <span class="silver">📤 Output limit:</span>
+                                    <strong id="model-output-limit" class="dark-gray">—</strong>
+                                </div>
+                                <div id="model-rate-limits" class="dn"></div>
+                                <div id="model-desc-row" class="mt1 blue i dn"><span id="model-description"></span></div>
                             </div>
                         </div>
                     </div>
@@ -108,12 +96,15 @@
                     </div>
 
                     <form id="app-config-form" onsubmit="event.preventDefault(); saveAppConfig();">
-                        <!-- Group 1: Model -->
-                        <h3 class="f6 fw6 mt0 mb2 dark-gray">🤖 Cấu hình Model</h3>
+                        <!-- Group 1: Model Usage -->
+                        <h3 class="f6 fw6 mt0 mb2 dark-gray">🎯 Thiết lập Model Mặc định</h3>
+                        <p class="f7 silver mt0 mb3">Các model này sẽ được dùng cho mọi tác vụ trừ khi có thiết lập riêng.</p>
+                        
                         <div class="flex flex-wrap mhn2 mb3 bg-near-white pa3 br2">
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">QA Model (Kiểm tra)</label>
+                            <div class="w-100 ph2 mb3">
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">QA Model (Kiểm tra & Sửa lỗi)</label>
                                 <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="nt-input w-100"></select>
+                                <small class="silver mt1 db">Dùng để hậu xử lý, kiểm tra tính logic và văn phong sau khi dịch.</small>
                             </div>
                             <div class="w-100 w-50-ns ph2 mb3">
                                 <label class="db fw6 lh-copy f7 mb1 dark-gray">Thinking Level (v3)</label>
@@ -122,26 +113,26 @@
                                     <option value="MEDIUM">MEDIUM</option>
                                     <option value="HIGH">HIGH</option>
                                 </select>
+                                <small class="silver mt1 db">Độ sâu suy luận của AI (Chỉ áp dụng với một số model hỗ trợ).</small>
                             </div>
                         </div>
 
                         <!-- Group 2: Processing -->
-                        <h3 class="f6 fw6 mt0 mb2 dark-gray">⚡ Xử lý Dịch thuật</h3>
+                        <h3 class="f6 fw6 mt0 mb2 dark-gray">⚡ Thông số Xử lý</h3>
                         <div class="flex flex-wrap mhn2 mb3 bg-near-white pa3 br2">
                             <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Chunk Size (Ký tự max/đoạn)</label>
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Chunk Size (Tối đa ký tự/đoạn)</label>
                                 <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000"
                                     max="100000" class="nt-input w-100">
-                                <small class="silver mt1 db">Gợi ý: 15,000 - 25,000 với Gemini 3</small>
                             </div>
                             <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Context Radius</label>
+                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Context Radius (Bối cảnh)</label>
                                 <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0"
                                     max="5000" class="nt-input w-100">
                             </div>
                             <div class="w-100 ph2 mb3">
                                 <label class="flex justify-between fw6 lh-copy f7 mb1 dark-gray">
-                                    <span>Temperature (Độ sáng tạo)</span>
+                                    <span>Temperature (Độ sáng tạo: 0 - 2.0)</span>
                                     <span id="temp-value" class="blue">1.0</span>
                                 </label>
                                 <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2"
@@ -157,56 +148,22 @@
                                 <label class="flex items-center pointer h-2rem">
                                     <input type="checkbox" id="use-cache" name="CACHE.ENABLE_CACHE"
                                         class="nt-checkbox mr2 pointer">
-                                    <span class="fw6 dark-gray f7">Sử dụng Cache API</span>
+                                    <span class="fw6 dark-gray f7">Sử dụng Cache API (Khuyên dùng)</span>
                                 </label>
-                            </div>
-                        </div>
-
-                        <!-- Group 3: Thư mục -->
-                        <h3 class="f6 fw6 mt0 mb2 dark-gray">📁 Cấu trúc thư mục</h3>
-                        <div class="flex flex-wrap mhn2 bg-near-white pa3 br2">
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Thư mục Input</label>
-                                <input type="text" id="cfg-dir-in" name="DIRECTORIES.INPUT_DIR" class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Thư mục Output</label>
-                                <input type="text" id="cfg-dir-out" name="DIRECTORIES.OUTPUT_DIR"
-                                    class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Thư mục Cache</label>
-                                <input type="text" id="cfg-dir-cache" name="DIRECTORIES.CACHE_DIR"
-                                    class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Thư mục Logs</label>
-                                <input type="text" id="cfg-dir-logs" name="DIRECTORIES.LOGS_DIR" class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Tên thư mục nén (Archive)</label>
-                                <input type="text" id="cfg-dir-archive" name="DIRECTORIES.ARCHIVE_DIR_NAME"
-                                    class="nt-input w-100">
                             </div>
                         </div>
                     </form>
                 </div>
 
+                <!-- Memory cleanup (Kept but simplified) -->
                 <div class="nt-card pa3 mb3 border-top-red">
-                    <h3 class="f5 mt0 mb3 fw6 red pb2 bb b--black-10">🗑️ Quản trị Bộ nhớ</h3>
+                    <h3 class="f5 mt0 mb3 fw6 red pb2 bb b--black-10">🧹 Dọn dẹp hệ thống</h3>
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="mt0 mb1 dark-gray fw5 f6">Dọn dẹp file nháp</p>
-                            <p class="f7 silver mt0 mb0">Xóa các file tạm do API cache lại để giải phóng ổ cứng.</p>
+                            <p class="mt0 mb1 dark-gray fw5 f6">Xóa Cache dịch thuật</p>
+                            <p class="f7 silver mt0 mb0">Giải phóng dung lượng bằng cách xóa các phản hồi API đã lưu tạm.</p>
                         </div>
-                        <button id="btn-clear-cache" class="nt-btn nt-btn-danger">Xóa toàn bộ Cache</button>
-                    </div>
-                </div>
-
-                <div class="nt-card pa3 mb3">
-                    <h3 class="f5 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">📄 File Output đã tải</h3>
-                    <div class="nt-file-list max-h5 overflow-y-auto ba b--black-10 br2" id="output-list">
-                        <div class="pa3 tc silver i">Đang tải data...</div>
+                        <button id="btn-clear-cache" class="nt-btn nt-btn-danger" onclick="clearCache()">Xóa Cache</button>
                     </div>
                 </div>
             </div>

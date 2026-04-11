@@ -4,6 +4,34 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.1.0] - 2026-04-11 - Project Archiving & UI Performance
+
+### 📦 Hệ thống Lưu trữ (Project Archiving System)
+- **Zip-based Archiving**: Tính năng "Lưu trữ" mới cho phép nén dự án thành file `.zip`, di chuyển vào `workspace/archive` và xóa khỏi thư mục làm việc để giữ workspace gọn gàng.
+- **Conflict Handling**: Xử lý xung đột khi lưu trữ (Ghi đè hoặc Tạo bản sao với suffix timestamp).
+- **Archive Management**: Tab "Lưu trữ" mới trên Navigation Bar cho phép liệt kê, xóa và **Khôi phục (Restore)** dự án về workspace gốc.
+
+### ⚡ Tối ưu hóa Dashboard Performance
+- **Tachyons Card UI**: Chuyển đổi toàn bộ layout sang card-based dùng Tachyons CSS, giảm tải JS và loại bỏ các hiệu ứng gây chậm trình duyệt.
+- **Header Monitoring**: 
+    - Hover tooltips (title) cho tất cả các chỉ số hệ thống.
+    - Thống kê song hành: Dự án (Hoạt động / Lưu trữ) và Cache (Dung lượng / Số tệp).
+    - MB-first cache display: Ưu tiên hiển thị dung lượng bộ nhớ đệm.
+
+### 🔄 Hệ thống & Độ ổn định
+- **Reliable Restart**: Upgraded mechanism sử dụng `os.execv` (UNIX) kết hợp delay port-release 3s để đảm bảo khởi động lại server không bị treo port.
+- **Bug Fixes**: 
+    - Sửa lỗi "Method Not Allowed" khi tải file archive.
+    - Khắc phục lỗi render danh sách file dự án sau khi chuyển đổi context.
+    - Đồng bộ hóa trạng thái "Select All" checkbox trong Project Sources.
+
+### 📂 Tổ chức Tài liệu (Documentation)
+- Đưa `CHANGELOG.md`, `README.md`, `ROADMAP.md` ra thư mục gốc.
+- Tổng hợp các báo cáo rời rạc thành `REPORTS.md`.
+- Dọn dẹp thư mục `docs/`.
+
+---
+
 ## [6.0.0-alpha] - 2026-03-17 - Multi-Provider AI & Project Workflow
 
 ### 🚀 Phase 1: Multi-Provider AI Integration

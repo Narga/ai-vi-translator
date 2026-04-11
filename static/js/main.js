@@ -62,13 +62,18 @@ document.addEventListener('DOMContentLoaded', function () {
 // UI Initializations
 // ============================================================
 function initTabs() {
-    const navItems = document.querySelectorAll('.nt-nav-item');
+    const navItems = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('.nt-tab-content');
 
     navItems.forEach(item => {
         item.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = item.getAttribute('data-tab');
+
+            // Hook loadArchiveList when switching to archive tab
+            if (targetId === 'archive') {
+                loadArchiveList();
+            }
 
             // Update Nav Classes
             navItems.forEach(n => n.classList.remove('active'));
@@ -138,24 +143,23 @@ function initDialogs() {
 // Toast & API Keys
 // ============================================================
 function showToast(message, type = 'success') {
-    const container = document.getElementById('nt-toast-container');
+    const container = document.getElementById('toast-container');
     if (!container) return;
 
     const toast = document.createElement('div');
-    toast.className = `nt-toast ${type}`;
+    toast.className = `toast ${type}`;
 
     let icon = 'ℹ️';
     if (type === 'success') icon = '✅';
     if (type === 'error') icon = '❌';
 
-    toast.innerHTML = `<span>${icon}</span><span class="flex-auto">${message}</span>`;
+    toast.innerHTML = `<span>${icon}</span><span class="ml2">${message}</span>`;
 
     container.appendChild(toast);
 
     setTimeout(() => {
-        toast.classList.add('fading-out');
-        toast.addEventListener('animationend', () => toast.remove());
-    }, 3000);
+        toast.remove();
+    }, 4000);
 }
 
 function loadApiKeys() {
@@ -189,19 +193,25 @@ function saveApiKeys() {
 // ============================================================
 // AI Provider Management (Gemini / OpenAI)
 // ============================================================
+// ============================================================
+// Models & Token Estimation
+// ============================================================
+
 function switchProvider(provider) {
     // Update visual state
     document.querySelectorAll('.nt-provider-col').forEach(col => {
         col.classList.toggle('nt-provider-active', col.dataset.provider === provider);
     });
 
-    // Update badge
+    // Update badge & name
     const badge = document.getElementById('provider-active-badge');
     if (badge) {
         badge.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
         badge.className = 'f7 fw6 ph2 pv1 br2 ' +
             (provider === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
     }
+    const nameEl = document.getElementById('current-provider-name');
+    if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
 
     // Save to backend
     fetch('/api/provider', {
@@ -213,8 +223,8 @@ function switchProvider(provider) {
         .then(data => {
             if (data.success) {
                 showToast(`Đã chuyển sang ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI Compatible'}`, 'success');
-                // Reload models for the new provider to ensure they are available
-                loadModels(provider);
+                // Reload models for the new provider
+                loadModels();
             } else {
                 showToast(data.error || 'Lỗi chuyển provider', 'error');
             }
@@ -226,7 +236,7 @@ function saveOpenAIConfig() {
     const data = {
         api_key: document.getElementById('openai-api-key').value,
         base_url: document.getElementById('openai-base-url').value,
-        model: document.getElementById('openai-model').value,
+        model: document.getElementById('model').value, // Use unified model
     };
 
     fetch('/api/openai/config', {
@@ -250,32 +260,31 @@ function initProvider() {
         .then(r => r.json())
         .then(data => {
             if (data.active) {
+                const provider = data.active;
                 // Set radio button
-                const radio = document.querySelector(`input[name="active_provider"][value="${data.active}"]`);
+                const radio = document.querySelector(`input[name="active_provider"][value="${provider}"]`);
                 if (radio) radio.checked = true;
 
                 // Set visual state
                 document.querySelectorAll('.nt-provider-col').forEach(col => {
-                    col.classList.toggle('nt-provider-active', col.dataset.provider === data.active);
+                    col.classList.toggle('nt-provider-active', col.dataset.provider === provider);
                 });
 
-                // Update badge
+                // Update badge & name
                 const badge = document.getElementById('provider-active-badge');
                 if (badge) {
-                    badge.textContent = data.active === 'gemini' ? 'Gemini' : 'OpenAI';
+                    badge.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
                     badge.className = 'f7 fw6 ph2 pv1 br2 ' +
-                        (data.active === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
+                        (provider === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
                 }
+                const nameEl = document.getElementById('current-provider-name');
+                if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
             }
 
             // Fill OpenAI config fields
             if (data.openai_config) {
                 const cfg = data.openai_config;
                 if (cfg.base_url) document.getElementById('openai-base-url').value = cfg.base_url;
-                if (cfg.model) {
-                    const sel = document.getElementById('openai-model');
-                    if (sel) sel.innerHTML = `<option value="${cfg.model}" selected>${cfg.model}</option>`;
-                }
                 if (cfg.has_key) {
                     const keyInput = document.getElementById('openai-api-key');
                     if (keyInput) keyInput.placeholder = '••••••••••• (đã cấu hình)';
@@ -294,25 +303,13 @@ function loadAppConfig() {
                 // Bind to UI
                 if (conf.MODEL) {
                     const m = conf.MODEL;
-                    // Current behavior: if Gemini is active, m.MODEL goes to Gemini dropdown. 
-                    // If OpenAI is active, m.MODEL goes to OpenAI dropdown.
-                    const geminiCol = document.getElementById('provider-gemini-col');
-                    const isActiveGemini = geminiCol && geminiCol.classList.contains('nt-provider-active');
-                    
-                    if (isActiveGemini) {
-                        const sel = document.getElementById('gemini-model');
-                        if (sel && m.MODEL) {
+                    if (m.MODEL) {
+                        const sel = document.getElementById('model');
+                        if (sel) {
                             sel.value = m.MODEL;
-                            onModelChange(m.MODEL, 'gemini');
-                        }
-                    } else {
-                        const sel = document.getElementById('openai-model');
-                        if (sel && m.MODEL) {
-                            sel.value = m.MODEL;
-                            onModelChange(m.MODEL, 'openai');
+                            onModelChange(m.MODEL);
                         }
                     }
-
                     if (m.QA_MODEL) {
                         const qaSel = document.getElementById('cfg-qa-model');
                         if (qaSel) qaSel.value = m.QA_MODEL;
@@ -332,14 +329,6 @@ function loadAppConfig() {
                     }
                     if (p.REQUEST_DELAY) document.getElementById('cfg-delay').value = p.REQUEST_DELAY;
                 }
-                if (conf.DIRECTORIES) {
-                    const d = conf.DIRECTORIES;
-                    if (d.INPUT_DIR) document.getElementById('cfg-dir-in').value = d.INPUT_DIR;
-                    if (d.OUTPUT_DIR) document.getElementById('cfg-dir-out').value = d.OUTPUT_DIR;
-                    if (d.CACHE_DIR) document.getElementById('cfg-dir-cache').value = d.CACHE_DIR;
-                    if (d.LOGS_DIR) document.getElementById('cfg-dir-logs').value = d.LOGS_DIR;
-                    if (d.ARCHIVE_DIR_NAME) document.getElementById('cfg-dir-archive').value = d.ARCHIVE_DIR_NAME;
-                }
                 if (conf.CACHE && conf.CACHE.ENABLE_CACHE) {
                     const cacheCheck = document.getElementById('use-cache');
                     if (cacheCheck) cacheCheck.checked = conf.CACHE.ENABLE_CACHE.toLowerCase() === 'true';
@@ -350,16 +339,9 @@ function loadAppConfig() {
 }
 
 function saveAppConfig() {
-    // Determine which model to save based on active provider
-    const geminiCol = document.getElementById('provider-gemini-col');
-    const isActiveGemini = geminiCol && geminiCol.classList.contains('nt-provider-active');
-    const modelValue = isActiveGemini ? 
-        document.getElementById('gemini-model').value : 
-        document.getElementById('openai-model').value;
-
     const data = {
         MODEL: {
-            MODEL: modelValue,
+            MODEL: document.getElementById('model').value,
             QA_MODEL: document.getElementById('cfg-qa-model').value,
             THINKING_LEVEL: document.getElementById('cfg-thinking').value
         },
@@ -368,13 +350,6 @@ function saveAppConfig() {
             CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
             TEMPERATURE: document.getElementById('temperature').value,
             REQUEST_DELAY: document.getElementById('cfg-delay').value
-        },
-        DIRECTORIES: {
-            INPUT_DIR: document.getElementById('cfg-dir-in').value,
-            OUTPUT_DIR: document.getElementById('cfg-dir-out').value,
-            CACHE_DIR: document.getElementById('cfg-dir-cache').value,
-            LOGS_DIR: document.getElementById('cfg-dir-logs').value,
-            ARCHIVE_DIR_NAME: document.getElementById('cfg-dir-archive').value
         },
         CACHE: {
             ENABLE_CACHE: document.getElementById('use-cache').checked ? 'true' : 'false'
@@ -389,7 +364,7 @@ function saveAppConfig() {
         .then(r => r.json())
         .then(res => {
             if (res.success) {
-                showToast('Lưu Cấu hình thành công! Hãy khởi động lại App để cập nhật.', 'success');
+                showToast('Lưu Cấu hình thành công!', 'success');
             } else {
                 showToast('Lưu bị lỗi: ' + (res.error || ''), 'error');
             }
@@ -402,17 +377,12 @@ function saveAppConfig() {
 // ============================================================
 let currentModelInfo = null; // cache model info
 
-function loadModels(targetProvider = null) {
-    const url = targetProvider ? `/api/models?full=true&provider=${targetProvider}` : '/api/models?full=true';
+function loadModels() {
+    const url = '/api/models?full=true';
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            const provider = data.provider || targetProvider;
-            if (data.models && data.models.length > 0) {
-                if (provider === 'gemini') availableGeminiModels = data.models;
-                else if (provider === 'openai') availableOpenAIModels = data.models;
-                else availableModels = data.models;
-            }
+            if (data.models && data.models.length > 0) availableModels = data.models;
             
             const renderOptions = (models, currentDefault) => {
                 return models.map(m => {
@@ -424,36 +394,24 @@ function loadModels(targetProvider = null) {
                 }).join('');
             };
 
-            const defaultModel = data.default || '';
+            const defaultModelVal = data.default || '';
 
-            if (!targetProvider || targetProvider === 'gemini') {
-                const geminiSel = document.getElementById('gemini-model');
-                if (geminiSel) {
-                    geminiSel.innerHTML = renderOptions(availableGeminiModels, provider === 'gemini' ? defaultModel : '');
-                    if (provider === 'gemini') onModelChange(geminiSel.value, 'gemini');
-                }
-            }
-
-            if (!targetProvider || targetProvider === 'openai') {
-                const openaiSel = document.getElementById('openai-model');
-                if (openaiSel) {
-                    openaiSel.innerHTML = renderOptions(availableOpenAIModels, provider === 'openai' ? defaultModel : '');
-                    if (provider === 'openai') onModelChange(openaiSel.value, 'openai');
-                }
+            const mainSel = document.getElementById('model');
+            if (mainSel) {
+                mainSel.innerHTML = renderOptions(availableModels, defaultModelVal);
+                onModelChange(mainSel.value);
             }
 
             // Populate QA Model dropdown (system config)
             const qaSel = document.getElementById('cfg-qa-model');
             if (qaSel) {
-                const allModels = [...availableGeminiModels, ...availableOpenAIModels];
-                qaSel.innerHTML = renderOptions(allModels, '');
+                qaSel.innerHTML = renderOptions(availableModels, '');
             }
 
             // Populate Summarize Model dropdown
             const sumSel = document.getElementById('summarize-model');
             if (sumSel) {
-                const allModels = [...availableGeminiModels, ...availableOpenAIModels];
-                sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(allModels, '');
+                sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(availableModels, '');
             }
 
             // Load saved config values AFTER models dropdown is ready
@@ -464,45 +422,41 @@ function loadModels(targetProvider = null) {
         });
 }
 
-function onModelChange(modelName, provider) {
-    if (!provider) {
-        // Fallback to active provider if not specified
-        const geminiCol = document.getElementById('provider-gemini-col');
-        provider = geminiCol && geminiCol.classList.contains('nt-provider-active') ? 'gemini' : 'openai';
-    }
-    fetchModelInfo(modelName, provider);
+function onModelChange(modelName) {
+    fetchModelInfo(modelName);
 }
 
-function fetchModelInfo(modelName, provider) {
-    const infoPanelId = `${provider}-model-info`;
-    const panel = document.getElementById(infoPanelId);
+function fetchModelInfo(modelName) {
+    const panel = document.getElementById('model-info-panel');
     if (!panel) return;
 
-    // Show panel with loading state
-    panel.classList.remove('dn');
-    const inputLimitEl = panel.querySelector(`.${provider}-input-limit`);
-    const outputLimitEl = panel.querySelector(`.${provider}-output-limit`);
-    if (inputLimitEl) inputLimitEl.textContent = '⏳...';
-    if (outputLimitEl) outputLimitEl.textContent = '⏳...';
+    // Reset UI state
+    document.getElementById('model-input-limit').textContent = '⏳...';
+    document.getElementById('model-output-limit').textContent = '⏳...';
+    const rlEl = document.getElementById('model-rate-limits');
+    if (rlEl) rlEl.classList.add('dn');
+    const descRow = document.getElementById('model-desc-row');
+    if (descRow) descRow.classList.add('dn');
 
-    const sel = document.getElementById(`${provider}-model`);
+    const sel = document.getElementById('model');
     if (sel) sel.style.color = '';
 
     fetch('/api/model-info/' + encodeURIComponent(modelName))
         .then(r => r.json())
         .then(info => {
             if (info.error) {
-                if (inputLimitEl) inputLimitEl.textContent = '❌ N/A';
-                if (outputLimitEl) outputLimitEl.textContent = '❌ N/A';
+                document.getElementById('model-input-limit').textContent = '❌ N/A';
+                document.getElementById('model-output-limit').textContent = '❌ N/A';
                 if (sel) sel.style.color = 'red';
                 return;
             }
 
-            if (inputLimitEl) inputLimitEl.textContent = info.input_token_display ? info.input_token_display : 'N/A';
-            if (outputLimitEl) outputLimitEl.textContent = info.output_token_display ? info.output_token_display : 'N/A';
+            currentModelInfo = info;
+
+            document.getElementById('model-input-limit').textContent = info.input_token_display ? info.input_token_display : 'N/A';
+            document.getElementById('model-output-limit').textContent = info.output_token_display ? info.output_token_display : 'N/A';
 
             // Rate limits (Gemini only)
-            const rlEl = panel.querySelector('.gemini-rate-limits');
             if (rlEl) {
                 if (info.provider === 'gemini' && info.rate_limits && Object.keys(info.rate_limits).length > 0) {
                     const labels = { RPM: '🔄 RPM', RPD: '📅 RPD', TPM: '⚡ TPM', TPD: '📊 TPD' };
@@ -514,32 +468,20 @@ function fetchModelInfo(modelName, provider) {
                     }
                     rlEl.innerHTML = html;
                     rlEl.classList.remove('dn');
-                } else {
-                    rlEl.classList.add('dn');
                 }
             }
 
-            // Pricing (OpenAI only)
-            const prEl = panel.querySelector('.openai-pricing');
-            if (prEl) {
-                if (info.provider === 'openai' && info.description) {
-                    prEl.textContent = info.description;
-                    prEl.classList.remove('dn');
-                } else {
-                    prEl.classList.add('dn');
-                }
+            // Pricing / Description
+            if (descRow && info.description) {
+                document.getElementById('model-description').textContent = info.description;
+                descRow.classList.remove('dn');
             }
 
-            // If this is the active provider's model, update currentModelInfo for token estimate
-            const activeCol = document.getElementById(`provider-${provider}-col`);
-            if (activeCol && activeCol.classList.contains('nt-provider-active')) {
-                currentModelInfo = info;
-                updateTokenEstimate();
-            }
+            updateTokenEstimate();
         })
         .catch(() => {
-            if (inputLimitEl) inputLimitEl.textContent = '❌ Lỗi';
-            if (outputLimitEl) outputLimitEl.textContent = '❌ Lỗi';
+            document.getElementById('model-input-limit').textContent = '❌ Lỗi';
+            document.getElementById('model-output-limit').textContent = '❌ Lỗi';
             if (sel) sel.style.color = 'red';
         });
 }
@@ -683,81 +625,118 @@ function mergeTranslatedFiles() {
 function loadProjects() {
     fetch('/api/projects').then(r => r.json()).then(projects => {
         const el = document.getElementById('project-list');
-        if (!projects.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có dự án. Tạo mới!</div>'; return; }
+        if (!el) return;
+        if (!projects.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có dự án.</div>'; return; }
         el.innerHTML = projects.map(p => {
-            const active = currentProject && currentProject.slug === p.slug ? 'active' : '';
-            return `<div class="nt-project-card ${active}" onclick="selectProject('${p.slug}')">
-                <div class="fw6 dark-gray f6">${p.name}</div>
-                <div class="f7 silver mt1">Đang dịch: ${p.source_count} file | Hoàn tất: ${p.translated_count}</div>
+            const active = (currentProject && currentProject.slug === p.slug) ? 'active shadow-1' : '';
+            const isDone = p.source_count > 0 && p.translated_count >= p.source_count;
+            const doneCheck = isDone ? '<span class="green ml1">✅</span>' : '';
+            return `<div class="sidebar-item ${active} flex flex-column gap-1" onclick="selectProject('${p.slug}')">
+                <div class="flex justify-between items-center">
+                    <span class="fw6 f5 dark-gray truncate">${p.name}${doneCheck}</span>
+                </div>
+                <div class="f7 gray truncate">
+                    Nguồn: <span class="fw6">${p.source_count || 0}</span> | Đã dịch: <span class="fw6">${p.translated_count || 0}</span>
+                </div>
             </div>`;
         }).join('');
     });
 }
 
 function selectProject(slug, keepSelection = false) {
-    fetch('/api/projects/' + slug).then(r => r.json()).then(data => {
-        if (data.error) { showToast(data.error, 'error'); return; }
+    if (!slug) return;
+    console.log('Selecting project:', slug);
+    
+    fetch('/api/projects/' + slug)
+    .then(r => {
+        if (!r.ok) throw new Error('Network response was not ok: ' + r.statusText);
+        return r.json();
+    })
+    .then(data => {
+        if (data.error) { throw new Error(data.error); }
+        
+        console.log('Project data loaded:', data);
         currentProject = data;
+        
         if (!keepSelection) {
             selectedFiles.clear();
-            selectedTranslatedFiles.clear(); // Clear translated selection too
+            selectedTranslatedFiles.clear();
         }
 
-        // Update header
-        document.getElementById('project-header').classList.remove('dn');
-        document.getElementById('project-tabs').classList.remove('dn');
-        document.getElementById('project-empty-state').classList.add('dn');
-        document.getElementById('project-title').textContent = data.name;
-        document.getElementById('project-desc').textContent = data.description || '';
-        document.getElementById('proj-source-count').textContent = data.source_count;
-        document.getElementById('proj-translated-count').textContent = data.translated_count;
-        document.getElementById('proj-source-words').textContent = (data.source_words || 0).toLocaleString();
+        // 1. Force state visibility
+        const emptyState = document.getElementById('project-empty-state');
+        const activeContent = document.getElementById('project-active-content');
+        
+        if (emptyState) emptyState.classList.add('dn');
+        if (activeContent) activeContent.classList.remove('dn');
+        
+        // 2. Update Meta Information
+        const titleEl = document.getElementById('project-title');
+        const descEl = document.getElementById('project-desc');
+        if (titleEl) titleEl.textContent = data.name;
+        if (descEl) descEl.textContent = data.description || 'Dự án không có mô tả';
+        
+        // Stats in Header & Table
+        const srcCount = document.getElementById('proj-source-count');
+        const trCount = document.getElementById('proj-translated-count');
+        if (srcCount) srcCount.textContent = data.source_count || 0;
+        if (trCount) trCount.textContent = data.translated_count || 0;
 
-        // Genre badge
-        const genreBadge = document.getElementById('proj-genre-badge');
-        const genreEl = document.getElementById('proj-genre');
-        if (data.genre) {
-            genreEl.textContent = data.genre;
-            genreBadge.classList.remove('dn');
-        } else {
-            genreBadge.classList.add('dn');
-        }
-
-        // Render source files
+        // 3. Render Files
         renderProjectSources(data.sources || []);
-        renderProjectTranslated(data.translated || []);
-
-        // Show sources sub-tab
-        switchProjectTab('sources');
-
-        // Highlight in list
-        loadProjects();
+        
+        // 4. Reset View
+        switchProjectTab('workspace');
+        loadProjects(); // Keep sidebar sync
+        
+        showToast('Đã chọn: ' + data.name, 'success');
+    })
+    .catch(err => {
+        console.error('selectProject error:', err);
+        showToast('Lỗi nạp dự án: ' + err.message, 'error');
     });
 }
 
 function renderProjectSources(sources) {
-    const el = document.getElementById('project-source-list');
-    if (!sources.length) { el.innerHTML = '<div class="pa3 tc silver i">Chưa có file nguồn</div>'; updateSelectAllButton(); return; }
-    el.innerHTML = sources.map(f => {
-        const esc = f.name.replace(/'/g, "\\'");
-        const checked = selectedFiles.has(f.name) ? 'checked' : '';
-        const badge = f.has_translation ? '<span class="f7 bg-green white br2 ph1 pv1 ml2">✅</span>' : '';
-        return `<div class="nt-file-item">
-            <div class="flex items-center flex-auto">
-                <input type="checkbox" class="nt-checkbox mr2" ${checked} onchange="toggleProjectFile('${esc}',this.checked)">
-                <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','sources')">
-                    <span class="fw6 dark-gray db f6">${f.name} ${badge}</span>
-                    <span class="f7 silver">${f.size_display}</span>
-                </div>
-            </div>
-            <div class="nt-file-actions">
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();renameProjectFile('${esc}','sources')" title="Đổi tên">✏️</button>
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();translateFileInProject('${esc}')" title="Dịch">⚡</button>
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')" title="Xóa">🗑️</button>
-            </div>
-        </div>`;
-    }).join('');
-    updateSelectAllButton();
+    const el = document.getElementById('project-source-table-body');
+    if (!el) return;
+    if (!sources.length) { 
+        el.innerHTML = '<tr><td colspan="5" class="pa3 tc silver i">Chưa có file nguồn</td></tr>'; 
+        return; 
+    }
+    
+    try {
+        el.innerHTML = sources.map(f => {
+            const esc = f.name.replace(/'/g, "\\'");
+            const checked = selectedFiles.has(f.name) ? 'checked' : '';
+            const statusText = f.has_translation ? 'Xong' : 'Chưa';
+            const statusColor = f.has_translation ? 'green' : 'orange';
+            
+            return `<tr>
+                <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
+                <td>
+                    <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','sources')">${f.name}</div>
+                </td>
+                <td class="f7 gray">${f.size_display}</td>
+                <td>
+                    <span class="f7 ${statusColor} fw6">
+                        ${f.has_translation ? '✅' : '⏳'} ${statusText}
+                    </span>
+                </td>
+                <td class="tr">
+                    <div class="flex justify-end gap-1">
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();translateFileInProject('${esc}')" title="Dịch">🚀</button>
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','sources')" title="Đổi tên">✏️</button>
+                        <button class="ph2 pv1 f7 ba b--red red bg-white pointer hover-bg-washed-red br1" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')" title="Xóa">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+        updateSelectAllButton();
+    } catch (err) {
+        console.error('Error rendering sources:', err);
+        el.innerHTML = `<tr><td colspan="5" class="pa3 tc red">Lỗi hiển thị danh sách file: ${err.message}</td></tr>`;
+    }
 }
 
 function renderProjectTranslated(translated) {
@@ -804,18 +783,30 @@ function loadProjectFile(filename, section) {
         if (section === 'sources') {
             document.getElementById('source-text').value = data.content || '';
             currentProjectFile = { name: filename, section };
-            document.getElementById('btn-save-project-file').classList.remove('dn');
-            // Show chunk controls
-            const chunkControls = document.getElementById('chunk-controls');
-            chunkControls.classList.remove('dn');
-            document.getElementById('btn-chunk-file').setAttribute('data-filename', filename);
+            
+            // Show Editor, Hide Table
+            document.getElementById('workspace-sources').classList.add('dn');
+            document.getElementById('workspace-editor').classList.remove('dn');
+            document.getElementById('token-estimate-mini').classList.remove('dn');
+            
             updateTokenEstimate();
-        } else {
-            // Open Side-by-Side Editor
-            currentDoneFile = filename;
-            openSideBySideEditor(filename, data.content || '');
+            
+            // Populate Translation if exists
+            fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
+                document.getElementById('result-text').value = tData.content || '';
+            }).catch(() => {
+                document.getElementById('result-text').value = '';
+            });
         }
     });
+}
+
+function closeEditor() {
+    document.getElementById('workspace-sources').classList.remove('dn');
+    document.getElementById('workspace-editor').classList.add('dn');
+    document.getElementById('token-estimate-mini').classList.add('dn');
+    currentProjectFile = null;
+    selectProject(currentProject.slug, true); // Refresh state
 }
 
 // ============================================================
@@ -953,33 +944,46 @@ function uploadProjectFile() {
     });
 }
 
-function chunkProjectFile() {
-    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
-    const btn = document.getElementById('btn-chunk-file');
-    const filename = btn.getAttribute('data-filename');
-    if (!filename) { showToast('Chưa chọn file để chia chunk!', 'error'); return; }
+function showChunkConfig() {
+    document.getElementById('chunk-config-modal').classList.remove('dn');
+}
 
-    const maxCharsInput = document.getElementById('inline-chunk-size');
-    const maxChars = maxCharsInput && maxCharsInput.value
-        ? parseInt(maxCharsInput.value)
-        : parseInt(document.getElementById('chunk-size').value) || 100000;
+function hideChunkConfig() {
+    document.getElementById('chunk-config-modal').classList.add('dn');
+}
 
-    if (!confirm(`Chia "${filename}" thành các chunk (max ${maxChars.toLocaleString()} ký tự/chunk)?`)) return;
-
+function confirmChunking() {
+    if (!currentProject) return;
+    const size = document.getElementById('chunk-size-input').value;
+    const type = document.querySelector('input[name="chunk-type"]:checked').value;
+    
+    if (selectedFiles.size === 0) {
+        showToast('Vui lòng chọn ít nhất 1 file để chia chunk!', 'warning');
+        return;
+    }
+    
     showToast('✂️ Đang chia chunk...', 'info');
-
-    fetch(`/api/projects/${currentProject.slug}/chunk/${filename}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_chars: maxChars })
-    }).then(r => r.json()).then(data => {
-        if (data.success) {
-            showToast(data.message, 'success');
-            selectProject(currentProject.slug); // Reload danh sách file
+    hideChunkConfig();
+    
+    const files = Array.from(selectedFiles);
+    
+    Promise.all(files.map(filename => 
+        fetch(`/api/projects/${currentProject.slug}/chunk/${filename}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ max_chars: parseInt(size) })
+        }).then(r => r.json())
+    )).then(results => {
+        const failed = results.filter(r => !r.success);
+        if (failed.length > 0) {
+            showToast(`Lỗi chia ${failed.length} file`, 'error');
         } else {
-            showToast(data.error || 'Lỗi chia chunk', 'error');
+            showToast(`Đã chia chunk thành công ${files.length} file`, 'success');
         }
-    }).catch(e => showToast(e.message, 'error'));
+        selectProject(currentProject.slug);
+    }).catch(e => {
+        showToast('Lỗi chia chunk: ' + e.message, 'error');
+    });
 }
 
 function deleteProjectFile(filename, section) {
@@ -1015,15 +1019,23 @@ function toggleProjectFile(name, checked) {
 
 function updateSelectAllButton() {
     const btn = document.getElementById('btn-select-all');
-    if (!btn) return;
-    if (selectedFiles.size > 0) {
-        btn.innerHTML = `✓ Chọn hết (${selectedFiles.size})`;
-        btn.classList.add('nt-btn-primary');
-        btn.classList.remove('nt-btn-outline');
-    } else {
-        btn.innerHTML = `✓ Chọn hết`;
-        btn.classList.add('nt-btn-outline');
-        btn.classList.remove('nt-btn-primary');
+    const chk = document.querySelector('#workspace-sources thead input[type="checkbox"]');
+    
+    if (btn) {
+        if (selectedFiles.size > 0) {
+            btn.innerHTML = `✓ Chọn hết (${selectedFiles.size})`;
+            btn.classList.add('nt-btn-primary');
+            btn.classList.remove('nt-btn-outline');
+        } else {
+            btn.innerHTML = `✓ Chọn hết`;
+            btn.classList.add('nt-btn-outline');
+            btn.classList.remove('nt-btn-primary');
+        }
+    }
+    
+    if (chk && currentProject && currentProject.sources) {
+        chk.checked = (selectedFiles.size > 0 && selectedFiles.size === currentProject.sources.length);
+        chk.indeterminate = (selectedFiles.size > 0 && selectedFiles.size < currentProject.sources.length);
     }
 }
 
@@ -1289,7 +1301,123 @@ function deleteCurrentProject() {
 
 function archiveProject() {
     if (!currentProject) return;
-    window.location.href = '/api/projects/' + currentProject.slug + '/archive';
+    
+    // First, check if archive already exists
+    fetch('/api/projects/' + currentProject.slug + '/archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ strategy: 'check' })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        
+        let strategy = 'overwrite';
+        if (data.exists) {
+            const userChoice = confirm(`Bản lưu trữ của dự án ${currentProject.name} đã tồn tại.\n\nNhấn OK để GHI ĐÈ.\nNhấn Cancel để TẠO BẢN SAO.`);
+            strategy = userChoice ? 'overwrite' : 'copy';
+        }
+        
+        showToast('Đang tiến hành lưu trữ...', 'info');
+        
+        return fetch('/api/projects/' + currentProject.slug + '/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ strategy: strategy })
+        });
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Lỗi lưu trữ: ' + data.error, 'error');
+        } else {
+            showToast(data.message, 'success');
+            // Remove project from current view
+            currentProject = null;
+            document.getElementById('project-empty-state').classList.remove('dn');
+            document.getElementById('project-active-content').classList.add('dn');
+            loadProjects(); // Reload sidebar
+        }
+    })
+    .catch(err => {
+        showToast('Lỗi: ' + err.message, 'error');
+    });
+}
+
+// ============================================================
+// Archive Management
+// ============================================================
+
+function loadArchiveList() {
+    const tbody = document.getElementById('archive-list-body');
+    if (!tbody) return;
+    
+    fetch('/api/archive')
+        .then(r => r.json())
+        .then(archives => {
+            if (!archives || !archives.length) {
+                tbody.innerHTML = `<tr><td colspan="3" class="pa5 tc silver i flex-column-center">Không có bản lưu trữ nào.</td></tr>`;
+                return;
+            }
+            
+            tbody.innerHTML = archives.map(file => {
+                const df = new Date(file.mtime * 1000).toLocaleString('vi-VN');
+                return `
+                <tr class="hover-bg-near-white transition">
+                    <td class="pa3 bb b--border">
+                        <span class="fw6 dark-gray f6">${file.filename}</span>
+                        <div class="f7 silver mt1">Ngày lưu: ${df}</div>
+                    </td>
+                    <td class="pa3 bb b--border gray f6">${file.size_display}</td>
+                    <td class="pa3 tr bb b--border">
+                        <button class="pointer ph3 pv1 f7 ba b--blue blue bg-white br1 shadow-1 hover-bg-light-blue transition mr2" onclick="restoreProject('${file.filename}')">Khôi phục</button>
+                        <button class="pointer ph3 pv1 f7 ba b--red red bg-white br1 shadow-1 hover-bg-washed-red transition" onclick="deleteArchive('${file.filename}')">Xóa</button>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+        })
+        .catch(err => {
+            tbody.innerHTML = `<tr><td colspan="3" class="pa3 tc red">Lỗi tải danh sách: ${err.message}</td></tr>`;
+        });
+}
+
+function restoreProject(filename) {
+    if (!confirm(`Khôi phục dự án từ ${filename}?`)) return;
+    
+    showToast('Đang khôi phục...', 'info');
+    fetch('/api/archive/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: filename })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            showToast('Lỗi khôi phục: ' + data.error, 'error');
+        } else {
+            showToast('Khôi phục thành công!', 'success');
+            loadArchiveList(); // reload tab
+            loadProjects(); // reload sidebar
+        }
+    });
+}
+
+function deleteArchive(filename) {
+    if (!confirm(`Xóa VĨNH VIỄN bản lưu trữ ${filename}?`)) return;
+    
+    fetch('/api/archive/' + filename, {
+        method: 'DELETE'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Đã xóa ' + filename, 'success');
+            loadArchiveList();
+        } else {
+            showToast(data.error, 'error');
+        }
+    });
 }
 
 // toggleSidebar removed — sidebar replaced by top navigation bar
@@ -1300,15 +1428,17 @@ function archiveProject() {
 // ============================================================
 function loadStats() {
     fetch('/api/stats').then(r => r.json()).then(data => {
-        document.getElementById('api-keys-count').textContent = data.api_keys_count || data.api_keys || 0;
-        document.getElementById('cache-count').textContent = data.cache_files || 0;
-        document.getElementById('cache-size').textContent = data.cache_size_mb || 0;
-        const pc = document.getElementById('project-count');
-        const sc = document.getElementById('source-count');
-        const tc = document.getElementById('translated-count');
-        if (pc) pc.textContent = data.project_count || 0;
-        if (sc) sc.textContent = data.total_sources || 0;
-        if (tc) tc.textContent = data.total_translated || 0;
+        const apiKeyEl = document.getElementById('api-keys-count');
+        const cacheCountEl = document.getElementById('cache-count');
+        const cacheSizeEl = document.getElementById('cache-size');
+        const projCountEl = document.getElementById('project-count');
+        const archiveCountEl = document.getElementById('archive-count');
+
+        if (apiKeyEl) apiKeyEl.textContent = data.api_keys_count || data.api_keys || 0;
+        if (cacheCountEl) cacheCountEl.textContent = data.cache_files || 0;
+        if (cacheSizeEl) cacheSizeEl.textContent = data.cache_size_mb || 0;
+        if (projCountEl) projCountEl.textContent = data.project_count || 0;
+        if (archiveCountEl) archiveCountEl.textContent = data.archive_count || 0;
     });
 }
 
@@ -1318,6 +1448,22 @@ function clearCache() {
         showToast('Đã dọn dẹp ' + data.deleted + ' files nháp.', 'success');
         loadStats();
     });
+}
+
+function restartServer() {
+    if (!confirm('Khởi động lại Web Server?')) return;
+    fetch('/api/restart', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            showToast(data.message || 'Đang khởi động lại...', 'info');
+            // Đợi 3 giây rồi reload trang
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        })
+        .catch(e => {
+            showToast('Lỗi gửi yêu cầu restart: ' + e.message, 'error');
+        });
 }
 
 // ============================================================
@@ -1333,6 +1479,8 @@ function showProgress(containerId, barId, percentId, textId, percent, text) {
     document.getElementById(barId).style.width = percent + '%';
     document.getElementById(percentId).textContent = percent + '%';
     document.getElementById(textId).textContent = text;
+    document.getElementById('workspace-sources').classList.add('dn');
+    document.getElementById('workspace-editor').classList.remove('dn');
 }
 
 function hideProgress(containerId) {

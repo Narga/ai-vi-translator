@@ -19,6 +19,23 @@ AVAILABLE_GEMINI_MODELS = [
     "gemini-3-flash",
 ]
 
+def get_app_version():
+    """Tự động nhận diện phiên bản từ CHANGELOG.md."""
+    try:
+        changelog_path = Path("CHANGELOG.md")
+        if changelog_path.exists():
+            with open(changelog_path, "r", encoding="utf-8") as f:
+                content = f.read()
+                # Tìm entry đầu tiên có dạng ## [x.y.z]
+                match = re.search(r'##\s*\[(\d+\.\d+\.\d+)\]', content)
+                if match:
+                    return match.group(1)
+    except Exception as e:
+        logger.debug(f"Could not extract version from CHANGELOG.md: {e}")
+    
+    # Fallback
+    return "6.1.0"
+
 # Available OpenAI-compatible models (fallback list)
 AVAILABLE_OPENAI_MODELS = [
     "gpt-4o-mini",
@@ -223,6 +240,10 @@ def calculate_stats():
                 if tr.exists():
                     total_translated += len(list(tr.glob("*.txt")))
 
+    # Count archives
+    archive_dir = Path("workspace/archive")
+    archive_count = len(list(archive_dir.glob("*.zip"))) if archive_dir.exists() else 0
+
     # Get TM stats
     tm_stats = {}
     if translation_memory:
@@ -230,6 +251,7 @@ def calculate_stats():
 
     stats = {
         "project_count": project_count,
+        "archive_count": archive_count,
         "total_sources": total_sources,
         "total_translated": total_translated,
         "cache_files": len(cache_files),

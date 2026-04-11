@@ -86,13 +86,16 @@ def index():
 
     prompts = load_prompts()
 
+    from webui.helpers import get_app_version
+    app_version = get_app_version()
+
     return render_template(
         "index.html",
         default_chunk=get_default_chunk_size(),
         default_model=default_model,
         available_models=json.dumps(available_models),
         prompts_json=json.dumps(prompts),
-        app_version="5.0.0",
+        app_version=app_version,
     )
 
 

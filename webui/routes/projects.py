@@ -210,18 +210,117 @@ def delete_project(slug):
     return jsonify({"success": True})
 
 
+ARCHIVE_DIR = Path("workspace/archive")
+
 @projects_bp.route("/api/projects/<slug>/archive", methods=["POST"])
 def archive_project(slug):
-    """Nén dự án thành file .zip."""
+    """Nén dự án và di chuyển sang thư mục archive, sau đó xóa dự án gốc."""
     pdir = _get_project_dir(slug)
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    zip_path = PROJECTS_DIR / f"{slug}"
-    shutil.make_archive(str(zip_path), 'zip', str(pdir))
-    zip_file = f"{zip_path}.zip"
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    
+    data = request.json or {}
+    strategy = data.get("strategy", "check") # "check", "overwrite", "copy"
+    
+    # Target zip names
+    base_zip_name = f"{slug}.zip"
+    target_zip = ARCHIVE_DIR / base_zip_name
+    
+    if strategy == "check":
+        return jsonify({"exists": target_zip.exists()})
+        
+    final_zip_path = target_zip
+    
+    if target_zip.exists() and strategy == "copy":
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        final_zip_path = ARCHIVE_DIR / f"{slug}_{stamp}.zip"
 
-    return send_file(zip_file, as_attachment=True, download_name=f"{slug}.zip")
+    # Nén vào thư mục temp hoặc trực tiếp
+    temp_zip = PROJECTS_DIR / f"temp_{slug}"
+    shutil.make_archive(str(temp_zip), 'zip', str(pdir))
+    
+    # Di chuyển file zip tới archive
+    shutil.move(f"{temp_zip}.zip", final_zip_path)
+    
+    # Xóa dự án gốc
+    shutil.rmtree(pdir)
+    
+    return jsonify({
+        "success": True, 
+        "message": f"Đã nén thành công vào {final_zip_path.name}"
+    })
+
+
+@projects_bp.route("/api/archive", methods=["GET"])
+def list_archives():
+    """Liệt kê các server đã lưu trữ."""
+    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+    archives = []
+    
+    for f in sorted(ARCHIVE_DIR.glob("*.zip")):
+        size = f.stat().st_size
+        archives.append({
+            "filename": f.name,
+            "size": size,
+            "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
+            "mtime": f.stat().st_mtime
+        })
+        
+    return jsonify(archives)
+
+
+@projects_bp.route("/api/archive/restore", methods=["POST"])
+def restore_archive():
+    """Khôi phục dự án từ archive."""
+    data = request.json or {}
+    filename = data.get("filename", "")
+    if not filename:
+        return jsonify({"error": "Chưa chọn file"}), 400
+        
+    archive_path = ARCHIVE_DIR / filename
+    if not archive_path.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+        
+    # Lấy slug từ filename (xóa .zip và suffix ngày tháng nếu có)
+    base_slug = filename.replace(".zip", "")
+    # Thử check nếu có suffix _YYYYMMDD_HHMMSS
+    base_slug = re.sub(r'_\d{8}_\d{6}$', '', base_slug)
+    
+    pdir = _get_project_dir(base_slug)
+    
+    # Nếu thư mục dự án đã tồn tại
+    if pdir.exists():
+        # Xử lý tự động đổi tên dự án nếu cần thiết
+        return jsonify({"error": f"Dự án '{base_slug}' đang tồn tại, vui lòng xóa hoặc đổi tên dự án đó trước."}), 409
+        
+    # Giải nén
+    import zipfile
+    try:
+        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+            zip_ref.extractall(pdir)
+            
+        return jsonify({"success": True, "slug": base_slug})
+    except Exception as e:
+        if pdir.exists():
+            shutil.rmtree(pdir)
+        return jsonify({"error": str(e)}), 500
+
+
+@projects_bp.route("/api/archive/<filename>", methods=["DELETE"])
+def delete_archive(filename):
+    """Xóa file lưu trữ."""
+    archive_path = ARCHIVE_DIR / filename
+    if not archive_path.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+        
+    # Prevent path traversal
+    if archive_path.parent != ARCHIVE_DIR:
+        return jsonify({"error": "Invalid path"}), 403
+        
+    archive_path.unlink()
+    return jsonify({"success": True})
 
 
 # ============================================================

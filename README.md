@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.0.0 Alpha)
+# 📚 Content Translator (v6.1.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -11,13 +11,13 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 
 ## 🔥 Tính năng Nổi bật
 
-- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, proxy). Chuyển đổi linh hoạt giữa các provider.
+- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, proxy).
+- 📦 **Project Archiving**: Hệ thống lưu trữ dự án thông minh (Zip/Restore) giúp tối ưu không gian làm việc.
+- ⚡ **High Performance UI**: Giao diện Dashboard tối giản, cực nhanh dựa trên Tachyons CSS.
 - 🧩 **Sentence-Level Chunker**: Tuyệt đối không cắt ngang câu, đảm bảo bản dịch liền mạch.
 - 📖 **Dynamic Glossary**: Tự động nhận diện và nhúng thuật ngữ vào AI tùy theo ngữ cảnh.
 - 🧠 **Translation Memory**: Tự học từ bản dịch cũ, tiết kiệm tới 30% chi phí API.
 - 🛠️ **Project-Based Workspace**: Quản lý từng bộ truyện riêng biệt với prompt, glossary và TM riêng.
-- 🎭 **Genre-based Prompt Sets**: Bộ prompt theo từng thể loại (Tiên hiệp, Đô thị, Ngôn tình...).
-- 📄 **Format Support**: Xử lý trực tiếp TXT, EPUB và PDF (via OCR).
 
 ---
 
@@ -50,36 +50,36 @@ python cli.py translate -i input/novel.txt  # CLI mode
 
 | Tài liệu | Mô tả |
 |-----------|--------|
-| [📗 Manual.md](docs/documents/Manual.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
-| [🗺️ Roadmap.md](docs/Roadmap.md) | Lộ trình phát triển v5.0.0 |
-| [🛠️ DEVELOPMENT.md](docs/documents/DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
-| [📋 CHANGELOG.md](docs/CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
+| [📗 MANUAL.md](MANUAL.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
+| [🗺️ ROADMAP.md](ROADMAP.md) | Lộ trình phát triển và kế hoạch tương lai |
+| [🛠️ DEVELOPMENT.md](DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
+| [📋 CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
+| [📊 REPORTS.md](REPORTS.md) | Tổng hợp các báo cáo tối ưu hóa và fix lỗi |
+| [🧠 memory.md](memory.md) | "Bộ nhớ" dự án, context cho AI |
 
 ---
 
-## 🏗️ Kiến Trúc (v6.0.0)
+## 🏗️ Kiến Trúc (v6.1.0)
 
 ```
 webui.py ──→ webui/          # Flask App (Blueprints)
-main.py  ──→ core/           # Plugin Manager
+main.py  ──→ core/           # Dispatcher / Functional Pipeline
              services/       # AI Provider, Cache, Translation Memory
                ├── ai_provider.py    # Multi-provider adapter
                ├── openai_client.py  # OpenAI/OpenRouter wrapper
                └── genai_client.py   # Google Gemini wrapper
              plugins/        # Translation, EPUB, OCR
              templates/
-               └── partials/  # 6 Jinja2 modular templates
+               └── partials/  # Modular Tachyons templates
 ```
-
-> WebUI sử dụng Flask Blueprints + Jinja2 partials. Hỗ trợ đa provider AI qua adapter pattern.
 
 ---
 
 ## 🤝 Đóng góp
 
-Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANGELOG.md](docs/CHANGELOG.md) để nắm bắt các thay đổi mới nhất.
+Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANGELOG.md](CHANGELOG.md) để nắm bắt các thay đổi mới nhất.
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.0.0-beta.1  
-**Ngày:** 19/03/2026
+**Phiên bản:** 6.1.0  
+**Ngày:** 11/04/2026
