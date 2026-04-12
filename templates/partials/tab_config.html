@@ -1,170 +1,143 @@
-
-        <!-- ==================== TAB 2: CẤU HÌNH ==================== -->
+<!-- ==================== TAB 2: CẤU HÌNH ==================== -->
         <section id="tab-config" class="nt-tab-content dn">
-            <div class="mw8 center">
+            <div class="workspace-wrapper flex flex-column items-center">
+                <div class="w-100 mw8">
 
-                <!-- ===== AI Provider Configuration (Keys only) ===== -->
-                <div class="nt-card pa3 mb3">
-                    <div class="flex justify-between items-center bb b--black-10 pb3 mb3">
-                        <h2 class="f4 mt0 mb0 fw6 dark-gray">🔑 Cấu hình API Keys</h2>
-                        <span id="provider-active-badge" class="f7 fw6 ph2 pv1 br2 bg-light-green dark-green">Gemini</span>
+                    <!-- Main Header: Selection & Model Config -->
+                    <div class="flex justify-between items-center mb3">
+                        <h2 class="f4 mt0 mb0 fw6 dark-gray">Cấu hình Hệ thống & AI Provider</h2>
+                        <button class="ph3 pv2 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveAppConfig()">Lưu Cấu Hình</button>
                     </div>
 
-                    <div class="nt-provider-grid">
+                    <!-- Row 1: Provider Cards (Parallel) -->
+                    <div class="flex flex-wrap mhn2 mb3">
                         <!-- Gemini API Keys -->
-                        <div id="provider-gemini-col" class="nt-provider-col nt-provider-active" data-provider="gemini">
-                            <div class="flex justify-between items-center mb3">
-                                <label class="flex items-center pointer">
-                                    <input type="radio" name="active_provider" value="gemini" class="mr2" checked
-                                        onchange="switchProvider('gemini')">
-                                    <span class="f5 fw6 dark-gray">🔷 Google Gemini</span>
-                                </label>
-                            </div>
-
-                            <div class="mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">API Keys (mỗi dòng 1 key)</label>
-                                <textarea id="config-api-keys" class="nt-input w-100 code f7" style="height:120px"
-                                    placeholder="AIzaSy..."></textarea>
-                                <div class="mt2 flex justify-end">
-                                    <button class="nt-btn nt-btn-outline f7" onclick="saveApiKeys()">💾 Lưu Keys Gemini</button>
+                        <div class="w-100 w-50-ns ph2 mb3">
+                            <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba b--blue o-100 br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" data-provider="gemini" onclick="switchProvider('gemini')">
+                                <div class="flex-auto">
+                                    <div class="flex justify-between items-center mb3">
+                                        <label class="flex items-center pointer">
+                                            <input type="radio" name="active_provider" value="gemini" class="mr2 pointer" checked>
+                                            <span class="f5 fw6 dark-gray">Google Gemini</span>
+                                        </label>
+                                    </div>
+                                    <div class="tc pv3 mb2">
+                                        <img src="/static/images/gemini-logo.png" alt="Gemini Logo" title="Gemini Logo" class="h3 object-fit-contain">
+                                    </div>
+                                    <div class="mb3">
+                                        <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Keys (mỗi dòng 1 key)</label>
+                                        <textarea id="config-api-keys" class="ba b--black-10 br2 pa2 w-100 code f7 outline-0" style="height:120px; resize:none" placeholder="AIzaSy..."></textarea>
+                                    </div>
+                                </div>
+                                <div class="mt2">
+                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); saveApiKeys()">💾 Lưu Keys Gemini</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- OpenAI API Key -->
-                        <div id="provider-openai-col" class="nt-provider-col" data-provider="openai">
-                            <div class="flex justify-between items-center mb3">
-                                <label class="flex items-center pointer">
-                                    <input type="radio" name="active_provider" value="openai" class="mr2"
-                                        onchange="switchProvider('openai')">
-                                    <span class="f5 fw6 dark-gray">🟢 OpenAI Compatible</span>
-                                </label>
-                            </div>
-
-                            <div class="mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">API Key</label>
-                                <input type="password" id="openai-api-key" class="nt-input w-100 code f7 mb3"
-                                    placeholder="sk-or-... hoặc sk-...">
-                                
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Base URL</label>
-                                <input type="text" id="openai-base-url" class="nt-input w-100 f7"
-                                    placeholder="https://openrouter.ai/api/v1" value="https://openrouter.ai/api/v1">
-                                <small class="silver mt1 db">Để trống nếu dùng trực tiếp OpenAI</small>
-                                
-                                <div class="mt3 flex justify-end">
-                                    <button class="nt-btn nt-btn-outline f7" onclick="saveOpenAIConfig()">💾 Lưu Cấu hình OpenAI</button>
+                        <div class="w-100 w-50-ns ph2 mb3">
+                            <div id="provider-openai-col" class="nt-provider-col flex flex-column justify-between h-100 ba b--black-10 o-60 br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" data-provider="openai" onclick="switchProvider('openai')">
+                                <div class="flex-auto">
+                                    <div class="flex justify-between items-center mb3">
+                                        <label class="flex items-center pointer">
+                                            <input type="radio" name="active_provider" value="openai" class="mr2 pointer">
+                                            <span class="f5 fw6 dark-gray">OpenAI Compatible</span>
+                                        </label>
+                                    </div>
+                                    <div class="tc pv3 mb2">
+                                        <img src="/static/images/openai-logo.png" alt="OpenAI Logo" title="OpenAI Logo" class="h3 object-fit-contain">
+                                    </div>
+                                    <div class="mb3">
+                                        <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Key</label>
+                                        <input type="text" id="openai-api-key" class="ba b--black-10 br2 pa2 w-100 code f7 mb3 outline-0" placeholder="Nhập API Key hoặc để trống nếu cấu hình qua ENV">
+                                        
+                                        <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Base URL</label>
+                                        <input type="text" id="openai-base-url" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" placeholder="https://openrouter.ai/api/v1" value="https://openrouter.ai/api/v1">
+                                        <small class="silver mt1 db f7">Để trống nếu dùng trực tiếp OpenAI</small>
+                                    </div>
+                                </div>
+                                <div class="mt2">
+                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); saveOpenAIConfig()">💾 Lưu Cấu hình OpenAI</button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Unified Model Selector Block -->
-                <div class="nt-card pa3 mb3 bg-lightest-blue">
-                    <h3 class="f5 fw6 mt0 mb3 dark-gray bb b--black-10 pb2">🤖 Chọn Model cho <span id="current-provider-name" class="blue">Gemini</span></h3>
-                    
-                    <div class="flex flex-wrap mhn2">
-                        <div class="w-100 w-60-ns ph2 mb3">
-                            <label class="db fw6 lh-copy f7 mb1 dark-gray">Model khả dụng từ API</label>
-                            <div class="flex gap-2">
-                                <select id="model" class="nt-input w-100" onchange="onModelChange(this.value)"></select>
-                                <button class="nt-btn nt-btn-primary f7 nowrap" onclick="loadModels()">🔄 Lấy danh sách</button>
+                    <!-- Combined Model Selection & System Config Block -->
+                    <div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3">
+                        <!-- Model Selection Sub-section -->
+                        <div class="bb b--black-10 pb3 mb3">
+                            <h3 class="f5 fw6 mt0 mb3 dark-gray">Chọn Model cho <span id="current-provider-name" class="blue fw7">Gemini</span></h3>
+                            <div class="flex items-center gap-2 mb2">
+                                <select id="model" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="onModelChange(this.value)"></select>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="markModel()" title="Đánh dấu thiết lập yêu thích để dễ tìm kiếm">⭐ Đánh dấu</button>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="loadModels()">🔄 Lấy danh sách</button>
+                            </div>
+                            <div id="model-info-panel" class="f7 gray mt1">
+                                <span>Input limit: <strong id="model-input-limit" class="dark-gray">—</strong></span>
+                                <span class="ml3">Output limit: <strong id="model-output-limit" class="dark-gray">—</strong></span>
                             </div>
                         </div>
-                        <div class="w-100 w-40-ns ph2 mb3">
-                            <div id="model-info-panel" class="pa2 bg-white br2 f7 ba b--black-10 h-100">
-                                <div class="flex justify-between mb1">
-                                    <span class="silver">📥 Input limit:</span>
-                                    <strong id="model-input-limit" class="dark-gray">—</strong>
+
+                        <!-- System Config Sub-section -->
+                        <form id="app-config-form" onsubmit="event.preventDefault(); saveAppConfig();">
+                            <h4 class="f5 fw6 mt0 mb3 dark-gray">Thiết lập Hệ thống</h4>
+                            <div class="flex flex-wrap mhn2 pb2">
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">QA Model</label>
+                                    <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0"></select>
                                 </div>
-                                <div class="flex justify-between mb1">
-                                    <span class="silver">📤 Output limit:</span>
-                                    <strong id="model-output-limit" class="dark-gray">—</strong>
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Thinking Level</label>
+                                    <select id="cfg-thinking" name="MODEL.THINKING_LEVEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                        <option value="LOW">LOW</option>
+                                        <option value="MEDIUM" selected>MEDIUM</option>
+                                        <option value="HIGH">HIGH</option>
+                                    </select>
                                 </div>
-                                <div id="model-rate-limits" class="dn"></div>
-                                <div id="model-desc-row" class="mt1 blue i dn"><span id="model-description"></span></div>
                             </div>
+
+                            <div class="flex flex-wrap mhn2 pt2">
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Chunk Size</label>
+                                    <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                </div>
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Context Radius</label>
+                                    <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                </div>
+                                <div class="w-100 ph2 mb3">
+                                    <label class="db f7 fw6 gray mb2 uppercase tracked">Temperature (<span id="temp-value" class="blue fw6">0.7</span>)</label>
+                                    <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer">
+                                </div>
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Delay (giây)</label>
+                                    <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                </div>
+                                <div class="w-100 w-50-ns ph2 mb3">
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Độ trễ bù trừ (Antilag)</label>
+                                    <input type="text" class="ba b--black-10 br2 pa2 w-100 f7 bg-near-white outline-0 silver" value="10ms" readonly>
+                                </div>
+                                <div class="w-100 ph2 mt2">
+                                    <label class="flex items-center pointer">
+                                        <input type="checkbox" id="use-cache" name="CACHE.ENABLE_CACHE" class="mr2 pointer">
+                                        <span class="f7 fw6 dark-gray">Sử dụng Cache API (Khuyên dùng)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Clean Up System Block -->
+                    <div class="ba b--black-10 br2 bg-white pa4 shadow-1 mb3">
+                        <h4 class="f5 fw6 mt0 mb3 dark-gray">Dọn dẹp hệ thống</h4>
+                        <div class="flex items-center justify-between">
+                            <p class="f7 silver ma0 w-70 lh-copy">Giải phóng dung lượng bộ nhớ tạm đệm của hệ thống bằng cách xóa các phản hồi API đã được lưu.</p>
+                            <button id="btn-clear-cache" class="ba b--red bg-white pv2 ph3 br2 pointer f7 red hover-bg-washed-red fw6 nowrap shadow-sm" onclick="clearCache()">Xóa Cache</button>
                         </div>
                     </div>
-                </div>
 
-                <!-- App Config Form -->
-                <div class="nt-card pa3 mb3">
-                    <div class="flex justify-between items-center bb b--black-10 pb3 mb3">
-                        <h2 class="f4 mt0 mb0 fw6 dark-gray">⚙️ Cấu hình hệ thống</h2>
-                        <button class="nt-btn nt-btn-primary" onclick="saveAppConfig()">💾 Lưu Cấu Hình</button>
-                    </div>
-
-                    <form id="app-config-form" onsubmit="event.preventDefault(); saveAppConfig();">
-                        <!-- Group 1: Model Usage -->
-                        <h3 class="f6 fw6 mt0 mb2 dark-gray">🎯 Thiết lập Model Mặc định</h3>
-                        <p class="f7 silver mt0 mb3">Các model này sẽ được dùng cho mọi tác vụ trừ khi có thiết lập riêng.</p>
-                        
-                        <div class="flex flex-wrap mhn2 mb3 bg-near-white pa3 br2">
-                            <div class="w-100 ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">QA Model (Kiểm tra & Sửa lỗi)</label>
-                                <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="nt-input w-100"></select>
-                                <small class="silver mt1 db">Dùng để hậu xử lý, kiểm tra tính logic và văn phong sau khi dịch.</small>
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Thinking Level (v3)</label>
-                                <select id="cfg-thinking" name="MODEL.THINKING_LEVEL" class="nt-input w-100">
-                                    <option value="LOW">LOW</option>
-                                    <option value="MEDIUM">MEDIUM</option>
-                                    <option value="HIGH">HIGH</option>
-                                </select>
-                                <small class="silver mt1 db">Độ sâu suy luận của AI (Chỉ áp dụng với một số model hỗ trợ).</small>
-                            </div>
-                        </div>
-
-                        <!-- Group 2: Processing -->
-                        <h3 class="f6 fw6 mt0 mb2 dark-gray">⚡ Thông số Xử lý</h3>
-                        <div class="flex flex-wrap mhn2 mb3 bg-near-white pa3 br2">
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Chunk Size (Tối đa ký tự/đoạn)</label>
-                                <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000"
-                                    max="100000" class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">Context Radius (Bối cảnh)</label>
-                                <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0"
-                                    max="5000" class="nt-input w-100">
-                            </div>
-                            <div class="w-100 ph2 mb3">
-                                <label class="flex justify-between fw6 lh-copy f7 mb1 dark-gray">
-                                    <span>Temperature (Độ sáng tạo: 0 - 2.0)</span>
-                                    <span id="temp-value" class="blue">1.0</span>
-                                </label>
-                                <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2"
-                                    step="0.1" class="w-100 nt-range"
-                                    oninput="document.getElementById('temp-value').textContent=this.value">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3">
-                                <label class="db fw6 lh-copy f7 mb1 dark-gray">API Delay (Giây)</label>
-                                <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" max="60"
-                                    class="nt-input w-100">
-                            </div>
-                            <div class="w-100 w-50-ns ph2 mb3 flex items-end">
-                                <label class="flex items-center pointer h-2rem">
-                                    <input type="checkbox" id="use-cache" name="CACHE.ENABLE_CACHE"
-                                        class="nt-checkbox mr2 pointer">
-                                    <span class="fw6 dark-gray f7">Sử dụng Cache API (Khuyên dùng)</span>
-                                </label>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Memory cleanup (Kept but simplified) -->
-                <div class="nt-card pa3 mb3 border-top-red">
-                    <h3 class="f5 mt0 mb3 fw6 red pb2 bb b--black-10">🧹 Dọn dẹp hệ thống</h3>
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="mt0 mb1 dark-gray fw5 f6">Xóa Cache dịch thuật</p>
-                            <p class="f7 silver mt0 mb0">Giải phóng dung lượng bằng cách xóa các phản hồi API đã lưu tạm.</p>
-                        </div>
-                        <button id="btn-clear-cache" class="nt-btn nt-btn-danger" onclick="clearCache()">Xóa Cache</button>
-                    </div>
                 </div>
             </div>
         </section>

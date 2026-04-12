@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.1.0)
+# 📚 Content Translator (v6.2.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -11,13 +11,11 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 
 ## 🔥 Tính năng Nổi bật
 
-- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, proxy).
-- 📦 **Project Archiving**: Hệ thống lưu trữ dự án thông minh (Zip/Restore) giúp tối ưu không gian làm việc.
+- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API.
+- 📋 **Advanced Logging**: Hệ thống xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
+- 📦 **Project Archiving**: Hệ thống lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
 - ⚡ **High Performance UI**: Giao diện Dashboard tối giản, cực nhanh dựa trên Tachyons CSS.
-- 🧩 **Sentence-Level Chunker**: Tuyệt đối không cắt ngang câu, đảm bảo bản dịch liền mạch.
-- 📖 **Dynamic Glossary**: Tự động nhận diện và nhúng thuật ngữ vào AI tùy theo ngữ cảnh.
-- 🧠 **Translation Memory**: Tự học từ bản dịch cũ, tiết kiệm tới 30% chi phí API.
-- 🛠️ **Project-Based Workspace**: Quản lý từng bộ truyện riêng biệt với prompt, glossary và TM riêng.
+- 🛡️ **Stable Layout**: Cơ chế chuyển tab và scroll được tối ưu hóa, đảm bảo độ ổn định cao.
 
 ---
 
@@ -59,7 +57,7 @@ python cli.py translate -i input/novel.txt  # CLI mode
 
 ---
 
-## 🏗️ Kiến Trúc (v6.1.0)
+## 🏗️ Kiến Trúc (v6.2.0)
 
 ```
 webui.py ──→ webui/          # Flask App (Blueprints)
@@ -81,5 +79,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.1.0  
-**Ngày:** 11/04/2026
+**Phiên bản:** 6.2.0  
+**Ngày:** 12/04/2026

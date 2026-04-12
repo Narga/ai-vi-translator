@@ -1,32 +1,37 @@
 <!-- ==================== TAB: LƯU TRỮ ==================== -->
-<section id="tab-archive" class="nt-tab-content dn pb4">
-    <div class="workspace-wrapper flex min-h-100 flex-column-center">
-        <div class="nt-card w-100 max-w-custom ma-auto mt4 shadow-4" style="max-width: 900px;">
-            <div class="nt-block-header bg-near-white bb b--border pa3 flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <span class="f4 mb0">📦</span>
-                    <h3 class="f5 ma0 dark-gray fw6">Kho lưu trữ dự án</h3>
+<section id="tab-archive" class="nt-tab-content dn">
+    <div class="workspace-wrapper flex flex-column items-center">
+        <div class="w-100 mw8">
+            <div class="ba b--black-10 br2 bg-white shadow-1 overflow-hidden">
+                <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <span class="f4 mb0">📦</span>
+                        <h3 class="f5 ma0 dark-gray fw6">Kho lưu trữ dự án</h3>
+                    </div>
+                    <button class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue transition-all fw6" onclick="loadArchiveList()">🔄 Làm mới</button>
                 </div>
-                <button class="pointer ph3 pv2 bn white bg-blue br2 shadow-1 hover-bg-dark-blue transition f7 fw6" onclick="loadArchiveList()">🔄 Làm mới</button>
-            </div>
-            <div class="pa4">
-                <div class="overflow-x-auto ba b--border br2">
-                    <table class="minimal-table w-100 collapse">
-                        <thead>
-                            <tr class="bg-near-white f7 silver uppercase tracked">
-                                <th class="pa3 tl bb b--border">Tên tập tin</th>
-                                <th class="pa3 tl bb b--border">Kích thước</th>
-                                <th class="pa3 tr bb b--border">Hành động</th>
-                            </tr>
-                        </thead>
-                        <tbody id="archive-list-body" class="f6 dark-gray">
-                            <tr>
-                                <td colspan="3" class="pa5 tc silver i flex-column-center">
-                                    <span class="f1 mb3 dib">⏳</span><br>Đang tải danh sách lưu trữ...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="pa4">
+                    <div class="overflow-x-auto ba b--black-10 br2 bg-near-white">
+                        <table class="minimal-table w-100 collapse f7">
+                            <thead>
+                                <tr class="bg-white silver tc tracked uppercase">
+                                    <th class="pa3 tl bb b--black-10">Tên tập tin</th>
+                                    <th class="pa3 tl bb b--black-10">Kích thước</th>
+                                    <th class="pa3 tr bb b--black-10">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="archive-list-body" class="dark-gray">
+                                <tr>
+                                    <td colspan="3" class="pa5 tc silver i">
+                                        <div class="flex flex-column items-center">
+                                            <span class="f1 mb3">⏳</span>
+                                            <span>Đang tải danh sách lưu trữ...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,0 +1,77 @@
+<!-- ==================== GLOBAL MODALS ==================== -->
+
+<!-- Chunking Modal -->
+<div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 9999;">
+    <div class="bg-white pa4 br3 w-100 mw6 shadow-5 relative animate-pop">
+        <h3 class="mt0 dark-gray fw6 pb2 bb b--black-10">✂️ Cấu hình Chia Chunk</h3>
+        
+        <div class="mv4 flex justify-center ba b--black-10 pa2 br2 bg-near-white">
+            <label class="mr4 pointer f7 fw6 gray uppercase tracked"><input type="radio" name="chunk-type" value="word" checked class="mr2"> Theo từ</label>
+            <label class="pointer f7 fw6 gray uppercase tracked"><input type="radio" name="chunk-type" value="char" class="mr2"> Theo ký tự</label>
+        </div>
+        
+        <div class="mb4">
+            <label class="db f7 gray mb2 uppercase tracked fw6">Giới hạn mỗi phần (Token/Char)</label>
+            <input type="number" id="chunk-size-input" class="w-100 pa3 ba b--black-10 br2 f3 fw6 tc blue outline-0" value="1000">
+        </div>
+        
+        <div class="flex gap-3 pt3 bt b--black-10">
+            <button class="flex-auto ph3 pv3 pointer ba b--silver bg-white br2 gray hover-bg-near-white fw6 uppercase tracked f7" onclick="hideChunkConfig()">Hủy bỏ</button>
+            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="confirmChunking()">🚀 Chia ngay</button>
+        </div>
+    </div>
+</div>
+
+<!-- Translation Progress Modal -->
+<div id="translation-progress-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 10000;">
+    <div class="bg-white br3 shadow-5 w-100 mw7 overflow-hidden relative animate-pop">
+        <!-- Modal Header -->
+        <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center relative">
+            <div class="flex items-center">
+                <span class="f4 mr2">⚡</span>
+                <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="closeProgress()">Xong</button>
+                <button class="pointer bg-transparent bn f4 gray hover-dark-gray" onclick="closeProgress()" title="Đóng cửa sổ">&times;</button>
+            </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="pa4">
+            <!-- Progress Bar Section -->
+            <div id="progress-container" class="mb4">
+                <div class="flex justify-between items-end mb2">
+                    <span id="progress-text" class="f7 gray fw6 uppercase tracked">Đang chuẩn bị...</span>
+                    <span id="progress-percent" class="f5 fw6 blue">0%</span>
+                </div>
+                <div class="h1 w-100 bg-near-white br-pill overflow-hidden ba b--black-05">
+                    <div id="progress-bar" class="h-100 bg-blue transition-all" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Stats Bar (Hidden initially) -->
+            <div id="result-container" class="dn flex gap-2 mb3">
+                <div id="result-stats" class="flex gap-2 f7">
+                    <!-- Stats will be injected here -->
+                </div>
+            </div>
+
+            <!-- Log Section -->
+            <div class="ba b--black-10 br2 bg-near-black near-white pa3 overflow-hidden flex flex-column" style="height: 300px;">
+                <div class="f7 mb2 gray pb1 bb b--white-10 flex justify-between items-center">
+                    <span class="uppercase tracked fw6">Nhật ký hệ thống</span>
+                    <span class="f8">Dòng thời gian thực</span>
+                </div>
+                <div id="log-container" class="flex-auto overflow-y-auto code f7 pr2">
+                    <!-- Logs will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Help -->
+        <div class="pa3 bg-washed-yellow f7 gray i tc bt b--black-05">
+            Hệ thống đang xử lý tự động. Vui lòng không đóng cửa sổ này cho đến khi hoàn tất.
+        </div>
+    </div>
+</div>

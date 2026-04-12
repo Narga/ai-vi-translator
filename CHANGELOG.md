@@ -4,6 +4,27 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.2.0] - 2026-04-12 - Stability, Logging & UI Restoration
+
+### ✨ Hệ thống Nhật ký (Logging System)
+- **Log Viewer**: Thêm tab "Nhật ký" mới cho phép duyệt và xem nội dung các tệp log hệ thống và dự án ngay trên WebUI.
+- **Log Parsing**: Tự động phân tích và tô màu các cấp độ log (`[INFO]`, `[WARN]`, `[ERROR]`) để dễ theo dõi.
+- **Path Security**: Sửa lỗi "Path không hợp lệ" bằng cách chuẩn hóa việc xử lý đường dẫn log trên backend.
+
+### 🛡️ Độ ổn định & Sửa lỗi (Stability & Fixes)
+- **Defensive JS**: Cập nhật `main.js` với cơ chế kiểm tra lỗi "Null Pointer", giúp ứng dụng không bị treo nếu thiếu thành phần giao diện.
+- **Port Binding Retry**: Thêm cơ chế tự động thử lại khi khởi động server nếu gặp lỗi "Address already in use", hỗ trợ tốt hơn cho lệnh `uv run`.
+- **Infinite Loop Fix**: Khắc phục lỗi lặp vô hạn khi nạp dự án gây treo trình duyệt.
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Tab Isolation System**: Thiết kế lại cơ chế chuyển tab bằng class `.active`, loại bỏ hoàn toàn lỗi hiển thị chồng chéo các tab.
+- **Improved Scrolling**: Định nghĩa lại layout `.nt-main-bg` giúp thanh cuộn hoạt động chính xác trên mọi thiết bị.
+- **Local Assets**: Chuyển sang sử dụng logo Gemini và OpenAI trực tiếp từ thư mục `static/images/` thay vì link online.
+- **OpenAI API Visibility**: Hiển thị đầy đủ API Key của OpenAI trong tab cấu hình tương tự như Gemini.
+- **Cleanup**: Loại bỏ khối "Project Empty State" không cần thiết và khôi phục các nút chức năng Copy/Download bị mất.
+
+---
+
 ## [6.1.0] - 2026-04-11 - Project Archiving & UI Performance
 
 ### 📦 Hệ thống Lưu trữ (Project Archiving System)

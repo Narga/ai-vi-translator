@@ -69,13 +69,15 @@ def manage_provider():
 
             provider = get_active_provider()
             providers = get_available_providers()
+            openai_key = load_openai_key()
             return jsonify({
                 "active": provider,
                 "providers": providers,
                 "openai_config": {
                     "base_url": get_openai_base_url() or "",
                     "model": get_openai_model(),
-                    "has_key": bool(load_openai_key()),
+                    "has_key": bool(openai_key),
+                    "key": openai_key or "",
                 },
             })
         except Exception as e:
@@ -448,4 +450,51 @@ def manage_app_settings():
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Error writing app.ini: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/logs", methods=["GET"])
+def get_sys_logs():
+    """Lấy danh sách các file log hệ thống."""
+    try:
+        log_dir = Path("workspace/logs")
+        if not log_dir.exists():
+            return jsonify([])
+            
+        logs = []
+        for f in sorted(log_dir.glob("*.log"), reverse=True):
+            size = f.stat().st_size
+            logs.append({
+                "filename": f.name,
+                "size": size,
+                "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
+                "mtime": f.stat().st_mtime
+            })
+        return jsonify(logs)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@settings_bp.route("/api/logs/<filename>", methods=["GET", "DELETE"])
+def manage_sys_log(filename):
+    """Đọc nội dung hoặc xóa file log."""
+    try:
+        log_dir = Path("workspace/logs")
+        log_path = log_dir / filename
+        
+        if not log_path.exists():
+            return jsonify({"error": "File log không tồn tại"}), 404
+            
+        # Prevent path traversal
+        if log_path.resolve().parent != log_dir.resolve():
+            return jsonify({"error": "Path không hợp lệ"}), 403
+
+        if request.method == "DELETE":
+            log_path.unlink()
+            return jsonify({"success": True})
+            
+        # GET method - Đọc content log
+        content = log_path.read_text(encoding="utf-8", errors="replace")
+        return jsonify({"content": content})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -1,141 +1,130 @@
-
-        <!-- ==================== TAB 4: PLUGINS ==================== -->
+<!-- ==================== TAB 4: PLUGINS ==================== -->
         <section id="tab-plugins" class="nt-tab-content dn">
-            <div class="mw8 center">
+            <div class="workspace-wrapper flex flex-column items-center">
+                <div class="w-100 mw8">
 
-                <!-- EPUB Converter -->
-                <div class="nt-card pa3 mb3">
-                    <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
-                        <div>
-                            <h2 class="f4 mt0 mb1 fw6 dark-gray">📚 EPUB Converter</h2>
-                            <p class="f7 mt0 mb0 silver">Chuyển đổi qua lại giữa EPUB và Text/Markdown</p>
+                    <!-- EPUB Converter -->
+                    <div class="ba b--black-10 br2 bg-white pa4 mb3 shadow-1">
+                        <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
+                            <div>
+                                <h2 class="f4 mt0 mb1 fw6 dark-gray">📚 EPUB Converter</h2>
+                                <p class="f7 mt0 mb0 silver">Chuyển đổi qua lại giữa EPUB và Text/Markdown</p>
+                            </div>
                         </div>
+
+                        <div class="flex flex-wrap mhn2 pt2">
+                            <div class="w-100 ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Hướng chuyển đổi</label>
+                                <select id="epub-direction" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" onchange="toggleEpubForm()">
+                                    <option value="epub_to_text">📖 EPUB → Text (Trích xuất)</option>
+                                    <option value="text_to_epub">📝 Text → EPUB (Đóng gói)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- EPUB -> Text Form -->
+                        <div id="epub-to-text-form" class="flex flex-wrap mhn2">
+                            <div class="w-100 ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file EPUB *</label>
+                                <input type="text" id="epub-path" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/novel.epub">
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Thư mục đầu ra</label>
+                                <input type="text" id="epub-out-dir" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" value="workspace/input" placeholder="workspace/input">
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Chế độ tạo file</label>
+                                <select id="epub-mode" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
+                                    <option value="single">Single – 1 file duy nhất</option>
+                                    <option value="multi">Multi – Nhiều file riêng lẻ</option>
+                                    <option value="both">Both – Cả 2 kiểu</option>
+                                </select>
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Đuôi file xuất</label>
+                                <select id="epub-ext" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
+                                    <option value="txt">TXT</option>
+                                    <option value="md">Markdown</option>
+                                </select>
+                            </div>
+                            <div class="w-50-ns ph2 mb3 flex items-center pt3">
+                                <label class="flex items-center pointer">
+                                    <input type="checkbox" id="epub-underline" class="mr2 pointer"><span class="dark-gray f7 fw6">Giữ underline</span>
+                                </label>
+                                <label class="flex items-center pointer ml3">
+                                    <input type="checkbox" id="epub-nonspine" class="mr2 pointer"><span class="dark-gray f7 fw6">Bao gồm non-spine</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Text -> EPUB Form -->
+                        <div id="text-to-epub-form" class="flex flex-wrap mhn2 dn">
+                            <div class="w-100 ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Thư mục chứa sách *</label>
+                                <input type="text" id="epub-book-dir" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/book_directory">
+                            </div>
+                            <div class="w-50-ns ph2 mb3 flex items-center pt3">
+                                <label class="flex items-center pointer">
+                                    <input type="checkbox" id="epub-use-md" class="mr2 pointer"><span class="dark-gray f7 fw6">Nguồn là Markdown</span>
+                                </label>
+                            </div>
+                            <div class="w-50-ns ph2 mb3 flex items-center pt3">
+                                <label class="flex items-center pointer">
+                                    <input type="checkbox" id="epub-split-chapters" class="mr2 pointer" checked><span class="dark-gray f7 fw6">Tách chương</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button id="btn-run-epub" class="pointer w-100 pv3 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6 mt3" onclick="runEpubConverter()">🚀 Chạy EPUB Converter</button>
+
+                        <div id="epub-log" class="mt4 f7 ba b--black-10 br2 pa3 bg-near-black near-white code overflow-y-auto dn" style="height: 200px"></div>
                     </div>
 
-                    <div class="flex flex-wrap mhn2">
-                        <div class="w-100 ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Hướng chuyển đổi</label>
-                            <select id="epub-direction" class="nt-input w-100" onchange="toggleEpubForm()">
-                                <option value="epub_to_text">📖 EPUB → Text (Trích xuất)</option>
-                                <option value="text_to_epub">📝 Text → EPUB (Đóng gói)</option>
-                            </select>
+                    <!-- OCR Reader -->
+                    <div class="ba b--black-10 br2 bg-white pa4 mb3 shadow-1">
+                        <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
+                            <div>
+                                <h2 class="f4 mt0 mb1 fw6 dark-gray">🔍 OCR Reader</h2>
+                                <p class="f7 mt0 mb0 silver">Nhận dạng ký tự từ PDF / Ảnh (Tesseract + AI cleanup)</p>
+                            </div>
                         </div>
+
+                        <div class="flex flex-wrap mhn2 pt2">
+                            <div class="w-100 ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file PDF/Ảnh *</label>
+                                <input type="text" id="ocr-input" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/document.pdf">
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file xuất</label>
+                                <input type="text" id="ocr-output" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/output.txt">
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Chế độ xử lý</label>
+                                <select id="ocr-mode" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
+                                    <option value="process">Xử lý đầy đủ (OCR + Cleanup + Spell)</option>
+                                    <option value="cleanup-only">Chỉ Cleanup (AI sửa lỗi)</option>
+                                    <option value="spellcheck-only">Chỉ Spell Check</option>
+                                </select>
+                            </div>
+                            <div class="w-50-ns ph2 mb3">
+                                <label class="db fw6 f7 mb2 gray uppercase tracked">Trang cần xử lý (PDF)</label>
+                                <input type="text" id="ocr-pages" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="VD: 1-5,8,10 (để trống = tất cả)">
+                            </div>
+                            <div class="w-100 ph2 mb3 flex items-center pt2">
+                                <label class="flex items-center pointer">
+                                    <input type="checkbox" id="ocr-skip-cleanup" class="mr2 pointer"><span class="dark-gray f7 fw6">Bỏ qua AI cleanup</span>
+                                </label>
+                                <label class="flex items-center pointer ml4">
+                                    <input type="checkbox" id="ocr-skip-spell" class="mr2 pointer"><span class="dark-gray f7 fw6">Bỏ qua Spell check</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button id="btn-run-ocr" class="pointer w-100 pv3 bn white bg-green br2 fw6 shadow-1 hover-bg-dark-green f6 mt3" onclick="runOcr()">🚀 Chạy OCR Reader</button>
+
+                        <div id="ocr-log" class="mt4 f7 ba b--black-10 br2 pa3 bg-near-black near-white code overflow-y-auto dn" style="height: 200px"></div>
                     </div>
 
-                    <!-- EPUB -> Text Form -->
-                    <div id="epub-to-text-form" class="flex flex-wrap mhn2">
-                        <div class="w-100 ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Đường dẫn file EPUB *</label>
-                            <input type="text" id="epub-path" class="nt-input w-100" placeholder="/path/to/novel.epub">
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Thư mục đầu ra</label>
-                            <input type="text" id="epub-out-dir" class="nt-input w-100" value="workspace/input"
-                                placeholder="workspace/input">
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Chế độ tạo file</label>
-                            <select id="epub-mode" class="nt-input w-100">
-                                <option value="single">Single – 1 file duy nhất</option>
-                                <option value="multi">Multi – Nhiều file riêng lẻ</option>
-                                <option value="both">Both – Cả 2 kiểu</option>
-                            </select>
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Đuôi file xuất</label>
-                            <select id="epub-ext" class="nt-input w-100">
-                                <option value="txt">TXT</option>
-                                <option value="md">Markdown</option>
-                            </select>
-                        </div>
-                        <div class="w-50-ns ph2 mb3 flex items-center">
-                            <label class="flex items-center pointer">
-                                <input type="checkbox" id="epub-underline" class="nt-checkbox mr2"><span
-                                    class="dark-gray f7">Giữ underline</span>
-                            </label>
-                            <label class="flex items-center pointer ml3">
-                                <input type="checkbox" id="epub-nonspine" class="nt-checkbox mr2"><span
-                                    class="dark-gray f7">Bao gồm non-spine</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <!-- Text -> EPUB Form -->
-                    <div id="text-to-epub-form" class="flex flex-wrap mhn2 dn">
-                        <div class="w-100 ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Thư mục chứa sách *</label>
-                            <input type="text" id="epub-book-dir" class="nt-input w-100"
-                                placeholder="/path/to/book_directory">
-                        </div>
-                        <div class="w-50-ns ph2 mb3 flex items-center">
-                            <label class="flex items-center pointer">
-                                <input type="checkbox" id="epub-use-md" class="nt-checkbox mr2"><span
-                                    class="dark-gray f7">Nguồn là Markdown</span>
-                            </label>
-                        </div>
-                        <div class="w-50-ns ph2 mb3 flex items-center">
-                            <label class="flex items-center pointer">
-                                <input type="checkbox" id="epub-split-chapters" class="nt-checkbox mr2" checked><span
-                                    class="dark-gray f7">Tách chương</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <button id="btn-run-epub" class="nt-btn nt-btn-primary w-100 pv3 f6 fw6 shadow-hover"
-                        onclick="runEpubConverter()">🚀 Chạy EPUB Converter</button>
-
-                    <div id="epub-log" class="nt-log mt3 f7 ba b--black-10 br2 pa3 dn"></div>
                 </div>
-
-                <!-- OCR Reader -->
-                <div class="nt-card pa3">
-                    <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
-                        <div>
-                            <h2 class="f4 mt0 mb1 fw6 dark-gray">🔍 OCR Reader</h2>
-                            <p class="f7 mt0 mb0 silver">Nhận dạng ký tự từ PDF / Ảnh (Tesseract + AI cleanup)</p>
-                        </div>
-                    </div>
-
-                    <div class="flex flex-wrap mhn2">
-                        <div class="w-100 ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Đường dẫn file PDF/Ảnh *</label>
-                            <input type="text" id="ocr-input" class="nt-input w-100"
-                                placeholder="/path/to/document.pdf">
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Đường dẫn file xuất</label>
-                            <input type="text" id="ocr-output" class="nt-input w-100" placeholder="/path/to/output.txt">
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Chế độ xử lý</label>
-                            <select id="ocr-mode" class="nt-input w-100">
-                                <option value="process">Xử lý đầy đủ (OCR + Cleanup + Spell)</option>
-                                <option value="cleanup-only">Chỉ Cleanup (AI sửa lỗi)</option>
-                                <option value="spellcheck-only">Chỉ Spell Check</option>
-                            </select>
-                        </div>
-                        <div class="w-50-ns ph2 mb3">
-                            <label class="db fw6 f6 mb2 dark-gray">Trang cần xử lý (PDF)</label>
-                            <input type="text" id="ocr-pages" class="nt-input w-100"
-                                placeholder="VD: 1-5,8,10 (để trống = tất cả)">
-                        </div>
-                        <div class="w-50-ns ph2 mb3 flex items-center">
-                            <label class="flex items-center pointer">
-                                <input type="checkbox" id="ocr-skip-cleanup" class="nt-checkbox mr2"><span
-                                    class="dark-gray f7">Bỏ qua AI cleanup</span>
-                            </label>
-                            <label class="flex items-center pointer ml3">
-                                <input type="checkbox" id="ocr-skip-spell" class="nt-checkbox mr2"><span
-                                    class="dark-gray f7">Bỏ qua Spell check</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <button id="btn-run-ocr" class="nt-btn nt-btn-success w-100 pv3 f6 fw6 shadow-hover"
-                        onclick="runOcr()">🚀 Chạy OCR Reader</button>
-
-                    <div id="ocr-log" class="nt-log mt3 f7 ba b--black-10 br2 pa3 dn"></div>
-                </div>
-
             </div>
         </section>

@@ -1,4 +1,4 @@
-# webui.py - v5.0.0
+# webui.py - v6.2.0
 # Entry point cho Novel Translator Web UI
 # Logic đã được module hóa trong package webui/
 
@@ -27,9 +27,33 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print("=" * 60)
-    print("📚 Novel Translator Web UI v5.0.0")
+    print("📚 Novel Translator Web UI v6.2.0")
     print("=" * 60)
     print(f"\n🌐 Mở trình duyệt và truy cập: http://localhost:{args.port}")
     print("\nNhấn Ctrl+C để dừng\n")
 
-    app.run(host=args.host, port=args.port, debug=False, threaded=True)
+    import time
+    import socket
+
+    def is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('localhost', port)) == 0
+
+    max_retries = 5
+    for i in range(max_retries):
+        try:
+            app.run(host=args.host, port=args.port, debug=False, threaded=True)
+            break
+        except Exception as e:
+            # Error 48 is for macOS (EADDRINUSE), Error 98 is for Linux
+            err_msg = str(e)
+            is_busy = "Address already in use" in err_msg or \
+                      (isinstance(e, OSError) and e.errno in (48, 98))
+            
+            if is_busy:
+                print(f"⚠️ Cổng {args.port} đang bận (có thể do tiến trình cũ đang thoát), thử lại sau 2 giây... ({i+1}/{max_retries})")
+                time.sleep(2)
+            else:
+                raise e
+    else:
+        print(f"❌ Không thể khởi động server trên cổng {args.port} sau {max_retries} lần thử.")

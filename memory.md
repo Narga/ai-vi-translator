@@ -83,15 +83,17 @@ Dự án đã chuyển đổi hoàn toàn sang mô hình "Project-based":
 ---
 
 ## 6. 🔄 Session Marker (Handover)
-- **Phiên bản hiện tại**: v6.1.0
-- **Trạng thái**: ACTIVE
-- **Hoạt động gần nhất**: 
-    - Hoàn thiện hệ thống Project Archiving (Zip/Restore).
-    - Tối ưu hóa Dashboard UI sang Tachyons (Performance focus).
-    - Reorganize documentation: CHANGELOG, ROADMAP, REPORTS, README, DEVELOPMENT ra thư mục gốc.
-- **Handover Note**:
-    - Dự án đã đạt độ ổn định cao về cấu trúc. Sẵn sàng cho Giai đoạn 6.2 (Bảo toàn định dạng EPUB/Markdown).
-    - Cần rà soát `REPORTS.md` khi có các đợt audit hệ thống định kỳ.
+- **Phiên bản hiện tại**: v6.1.0 (Stable)
+- **Trạng thái**: COMPLETED (v6.1 Milestone)
+- **Hoạt động chính trong phiên**: 
+    - Triển khai toàn diện hệ thống Project Archiving (Zip/Restore/Conflict handling).
+    - Tối ưu hóa Dashboard UI bằng Tachyons (Card-style), tăng hiệu năng và trải nghiệm người dùng.
+    - Tự động hóa việc nhận diện phiên bản dự án qua CHANGELOG.md.
+    - Tái cấu trúc và chuẩn hóa toàn bộ hệ thống tài liệu (README, CHANGELOG, ROADMAP, REPORTS).
+- **Handover Note cho AI tiếp theo**:
+    - Dự án hiện đã đạt cột mốc 6.1 ổn định.
+    - **Hướng phát triển tiếp theo**: Tập trung vào Giai đoạn 6.2 trong ROADMAP (HTML/Markdown Preservation & EPUB Output).
+    - Lưu ý: Mọi tài liệu quan trọng hiện đã nằm ở thư mục gốc (root).
 
 ---
 *Cập nhật lần cuối: 11/04/2026*

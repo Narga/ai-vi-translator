@@ -1,0 +1,33 @@
+<!-- ==================== TAB: NHẬT KÝ (LOGS) ==================== -->
+<section id="tab-logs" class="nt-tab-content dn">
+    <div class="workspace-wrapper flex flex-column items-center">
+        <div class="w-100 mw8 flex gap-3">
+            <!-- Sidebar: Log Files List -->
+            <div class="w-30 ba b--black-10 br2 bg-white flex flex-column shadow-1 overflow-hidden" style="height: 70vh;">
+                <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
+                    <span class="f6 fw6 light-silver uppercase tracked">File Log Hệ Thống</span>
+                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white" onclick="loadLogList()" title="Làm mới">🔄</button>
+                </div>
+                <!-- Log List -->
+                <div id="sys-log-list" class="flex-auto overflow-y-auto">
+                    <div class="pa3 tc silver i">Đang tải...</div>
+                </div>
+            </div>
+
+            <!-- Main Content: Log Viewer -->
+            <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column shadow-1 overflow-hidden" style="height: 70vh;">
+                <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
+                    <h3 id="current-log-title" class="f5 ma0 dark-gray fw6 truncate">Chọn file để xem</h3>
+                    <button id="btn-delete-log" class="dn pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="deleteCurrentLog()" title="Xóa file log">🗑️ Xóa</button>
+                </div>
+                <!-- Log Editor/Viewer content -->
+                <div class="flex-auto bg-near-black near-white pa3 overflow-auto relative">
+                    <!-- Log entries parsed will go here -->
+                    <div id="sys-log-viewer" class="code f7 lh-copy">
+                        <div class="tc silver mt5 i">Chưa chọn file log.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

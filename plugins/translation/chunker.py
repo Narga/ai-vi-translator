@@ -1,4 +1,4 @@
-# plugins/translation/chunker.py - v5.0.0
+# plugins/translation/chunker.py - v6.2.0
 # Tác giả: Narga
 # Chức năng: Module xử lý thông minh cho việc cắt file.
 # v5.0.0: Thêm thuật toán Sentence Aggregation — tách text thành câu trước,

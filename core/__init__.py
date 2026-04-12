@@ -1,4 +1,4 @@
-# core/__init__.py - v5.0.0
+# core/__init__.py - v6.2.0
 # Core package initialization
 
 from .executor import TranslationExecutor
