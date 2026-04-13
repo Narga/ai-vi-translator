@@ -4,6 +4,35 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.3.0] - 2026-04-13 - Project Workspace & Translation Modal Refinements
+
+### 📂 Quản lý Dự án (Project Management)
+- **Merged File Handling**: File ghép (`merge`) được lưu trực tiếp vào `translated/{slug}.txt` thay vì `output/`, hiển thị trong danh sách file dịch để tiếp tục chỉnh sửa.
+- **Simplified Merge**: Tự động ghép tất cả file dịch, không cần chọn thủ công. Loại bỏ popup xác nhận download sau khi merge.
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Translated Tab Action Bar**: Thêm thanh công cụ (Token info, Copy, Download, Retranslate) bên dưới editor "Bản dịch" đồng nhất với tab "Nội dung gốc".
+- **Tab Renaming**: 
+    - "Workspace" → "Nội dung gốc" (Source Content)
+    - "Dịch nội dung" → "Dịch lại" (Retranslate)
+- **Header Cleanup**: Loại bỏ nút "Upload" và "Chia Chunk" khỏi header "Nội dung gốc".
+
+### ⚡ Translation Modal Improvements
+- **Background Translation**: Modal có thể đóng giữa chừng mà tiến trình dịch vẫn tiếp tục ngầm. Cập nhật footer message để thông báo cho người dùng.
+- **Auto-Close**: Modal tự động đóng sau 10 giây kể từ khi hoàn tất (áp dụng cho tất cả các loại dịch, không chỉ batch mode).
+- **Clean Stats**: Loại bỏ hiển thị thời gian, số đoạn, số ký tự trong modal vì ít giá trị và không chính xác.
+
+### 🛡️ Độ ổn định & Sửa lỗi (Stability & Fixes)
+- **Retranslation Logic**: Đảm bảo "Dịch lại" ghi đè file dịch hiện có trong `translated/`.
+- **Token Estimate**: Hiển thị token ước tính cho cả tab "Nội dung gốc" và "Bản dịch".
+
+### 📦 Code Cleanup
+- Removed `selectedTranslatedFiles` set (không còn cần thiết sau khi merge tự động).
+- Removed các hàm không dùng: `toggleTranslatedFile`, `updateSelectAllTranslatedButton`, `selectAllTranslatedFiles`.
+- Removed `result-stats` container từ HTML modal.
+
+---
+
 ## [6.2.0] - 2026-04-12 - Stability, Logging & UI Restoration
 
 ### ✨ Hệ thống Nhật ký (Logging System)

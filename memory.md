@@ -8,7 +8,7 @@ Tập tin này là "bộ nhớ dài hạn" (Long-term Memory) duy nhất và đ�
 ---
 
 ## 1. 🎯 Tổng Quan & Triết Lý Dự Án
-- **Tên dự án:** Content Translator (v6.1.0).
+- **Tên dự án:** Content Translator (v6.3.0).
 - **Mục tiêu:** Hệ sinh thái dịch thuật nội dung (tiểu thuyết, tài liệu dài) chuyên nghiệp tối ưu cho Gemini AI và OpenAI-compatible APIs.
 - **Triết lý cốt lõi:** 
     - **Context-aware**: Dịch văn học trôi chảy, giữ đúng ngữ cảnh.
@@ -18,7 +18,7 @@ Tập tin này là "bộ nhớ dài hạn" (Long-term Memory) duy nhất và đ�
 
 ---
 
-## 2. 🏛️ Kiến Trúc Hệ Thống (v6.1.0)
+## 2. 🏛️ Kiến Trúc Hệ Thống (v6.3.0)
 
 ### A. Phân Tầng Chức Năng
 1.  **WebUI (`webui/`)**: Module hóa bằng Flask Blueprints.

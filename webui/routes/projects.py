@@ -12,8 +12,11 @@ from threading import Thread
 from flask import Blueprint, request, jsonify, send_file
 
 from webui.helpers import (
-    load_api_keys, load_prompts, calculate_stats,
-    get_default_model, get_default_chunk_size,
+    load_api_keys,
+    load_prompts,
+    calculate_stats,
+    get_default_model,
+    get_default_chunk_size,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,6 +29,7 @@ PROJECTS_DIR = Path("workspace/projects")
 # ============================================================
 # Project Helpers
 # ============================================================
+
 
 def _get_project_dir(slug):
     """Trả về Path thư mục dự án, đảm bảo an toàn."""
@@ -52,18 +56,25 @@ def _project_stats(slug):
     """Tính nhanh stats cho dự án."""
     pdir = _get_project_dir(slug)
     sources = list((pdir / "sources").rglob("*.txt")) if (pdir / "sources").exists() else []
-    translated = list((pdir / "translated").rglob("*.txt")) if (pdir / "translated").exists() else []
+    translated = (
+        list((pdir / "translated").rglob("*.txt")) if (pdir / "translated").exists() else []
+    )
     return {
         "source_count": len(sources),
         "translated_count": len(translated),
-        "source_words": sum(len(f.read_text(encoding="utf-8").split()) for f in sources if f.is_file()),
-        "translated_words": sum(len(f.read_text(encoding="utf-8").split()) for f in translated if f.is_file()),
+        "source_words": sum(
+            len(f.read_text(encoding="utf-8").split()) for f in sources if f.is_file()
+        ),
+        "translated_words": sum(
+            len(f.read_text(encoding="utf-8").split()) for f in translated if f.is_file()
+        ),
     }
 
 
 # ============================================================
 # Project CRUD
 # ============================================================
+
 
 @projects_bp.route("/api/projects")
 def list_projects():
@@ -89,8 +100,8 @@ def create_project():
     if not name:
         return jsonify({"error": "Tên dự án không được trống"}), 400
 
-    slug = re.sub(r'[^\w\-]', '-', name.lower()).strip('-')
-    slug = re.sub(r'-+', '-', slug)
+    slug = re.sub(r"[^\w\-]", "-", name.lower()).strip("-")
+    slug = re.sub(r"-+", "-", slug)
     if not slug:
         slug = "project"
 
@@ -121,8 +132,14 @@ def create_project():
 
     for fname, content in [
         ("glossary.txt", "# Bảng thuật ngữ\n# Format: thuật ngữ gốc | thuật ngữ dịch | ghi chú\n"),
-        ("characters.txt", "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n"),
-        ("style_guide.txt", "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n"),
+        (
+            "characters.txt",
+            "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n",
+        ),
+        (
+            "style_guide.txt",
+            "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n",
+        ),
     ]:
         fp = pdir / "profile" / fname
         if not fp.exists():
@@ -151,11 +168,17 @@ def get_project(slug):
             rel = str(f.relative_to(src_dir))
             size = f.stat().st_size
             has_translation = (pdir / "translated" / rel).exists()
-            sources.append({
-                "name": rel, "path": str(f), "size": size,
-                "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
-                "has_translation": has_translation,
-            })
+            sources.append(
+                {
+                    "name": rel,
+                    "path": str(f),
+                    "size": size,
+                    "size_display": f"{size / 1024:.1f} KB"
+                    if size < 1048576
+                    else f"{size / 1048576:.1f} MB",
+                    "has_translation": has_translation,
+                }
+            )
 
     translated = []
     tr_dir = pdir / "translated"
@@ -166,10 +189,16 @@ def get_project(slug):
                 continue
             rel = str(f.relative_to(tr_dir))
             size = f.stat().st_size
-            translated.append({
-                "name": rel, "path": str(f), "size": size,
-                "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
-            })
+            translated.append(
+                {
+                    "name": rel,
+                    "path": str(f),
+                    "size": size,
+                    "size_display": f"{size / 1024:.1f} KB"
+                    if size < 1048576
+                    else f"{size / 1048576:.1f} MB",
+                }
+            )
 
     profile_files = []
     prof_dir = pdir / "profile"
@@ -177,10 +206,16 @@ def get_project(slug):
         for f in sorted(prof_dir.glob("*.txt")):
             profile_files.append({"name": f.name, "size": f.stat().st_size})
 
-    return jsonify({
-        **meta, "slug": slug, **stats,
-        "sources": sources, "translated": translated, "profile_files": profile_files,
-    })
+    return jsonify(
+        {
+            **meta,
+            "slug": slug,
+            **stats,
+            "sources": sources,
+            "translated": translated,
+            "profile_files": profile_files,
+        }
+    )
 
 
 @projects_bp.route("/api/projects/<slug>", methods=["PUT"])
@@ -212,6 +247,7 @@ def delete_project(slug):
 
 ARCHIVE_DIR = Path("workspace/archive")
 
+
 @projects_bp.route("/api/projects/<slug>/archive", methods=["POST"])
 def archive_project(slug):
     """Nén dự án và di chuyển sang thư mục archive, sau đó xóa dự án gốc."""
@@ -220,37 +256,34 @@ def archive_project(slug):
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
-    
+
     data = request.json or {}
-    strategy = data.get("strategy", "check") # "check", "overwrite", "copy"
-    
+    strategy = data.get("strategy", "check")  # "check", "overwrite", "copy"
+
     # Target zip names
     base_zip_name = f"{slug}.zip"
     target_zip = ARCHIVE_DIR / base_zip_name
-    
+
     if strategy == "check":
         return jsonify({"exists": target_zip.exists()})
-        
+
     final_zip_path = target_zip
-    
+
     if target_zip.exists() and strategy == "copy":
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         final_zip_path = ARCHIVE_DIR / f"{slug}_{stamp}.zip"
 
     # Nén vào thư mục temp hoặc trực tiếp
     temp_zip = PROJECTS_DIR / f"temp_{slug}"
-    shutil.make_archive(str(temp_zip), 'zip', str(pdir))
-    
+    shutil.make_archive(str(temp_zip), "zip", str(pdir))
+
     # Di chuyển file zip tới archive
     shutil.move(f"{temp_zip}.zip", final_zip_path)
-    
+
     # Xóa dự án gốc
     shutil.rmtree(pdir)
-    
-    return jsonify({
-        "success": True, 
-        "message": f"Đã nén thành công vào {final_zip_path.name}"
-    })
+
+    return jsonify({"success": True, "message": f"Đã nén thành công vào {final_zip_path.name}"})
 
 
 @projects_bp.route("/api/archive", methods=["GET"])
@@ -258,16 +291,20 @@ def list_archives():
     """Liệt kê các server đã lưu trữ."""
     ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
     archives = []
-    
+
     for f in sorted(ARCHIVE_DIR.glob("*.zip")):
         size = f.stat().st_size
-        archives.append({
-            "filename": f.name,
-            "size": size,
-            "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
-            "mtime": f.stat().st_mtime
-        })
-        
+        archives.append(
+            {
+                "filename": f.name,
+                "size": size,
+                "size_display": f"{size / 1024:.1f} KB"
+                if size < 1048576
+                else f"{size / 1048576:.1f} MB",
+                "mtime": f.stat().st_mtime,
+            }
+        )
+
     return jsonify(archives)
 
 
@@ -278,29 +315,34 @@ def restore_archive():
     filename = data.get("filename", "")
     if not filename:
         return jsonify({"error": "Chưa chọn file"}), 400
-        
+
     archive_path = ARCHIVE_DIR / filename
     if not archive_path.exists():
         return jsonify({"error": "File không tồn tại"}), 404
-        
+
     # Lấy slug từ filename (xóa .zip và suffix ngày tháng nếu có)
     base_slug = filename.replace(".zip", "")
     # Thử check nếu có suffix _YYYYMMDD_HHMMSS
-    base_slug = re.sub(r'_\d{8}_\d{6}$', '', base_slug)
-    
+    base_slug = re.sub(r"_\d{8}_\d{6}$", "", base_slug)
+
     pdir = _get_project_dir(base_slug)
-    
+
     # Nếu thư mục dự án đã tồn tại
     if pdir.exists():
         # Xử lý tự động đổi tên dự án nếu cần thiết
-        return jsonify({"error": f"Dự án '{base_slug}' đang tồn tại, vui lòng xóa hoặc đổi tên dự án đó trước."}), 409
-        
+        return jsonify(
+            {
+                "error": f"Dự án '{base_slug}' đang tồn tại, vui lòng xóa hoặc đổi tên dự án đó trước."
+            }
+        ), 409
+
     # Giải nén
     import zipfile
+
     try:
-        with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+        with zipfile.ZipFile(archive_path, "r") as zip_ref:
             zip_ref.extractall(pdir)
-            
+
         return jsonify({"success": True, "slug": base_slug})
     except Exception as e:
         if pdir.exists():
@@ -314,11 +356,11 @@ def delete_archive(filename):
     archive_path = ARCHIVE_DIR / filename
     if not archive_path.exists():
         return jsonify({"error": "File không tồn tại"}), 404
-        
+
     # Prevent path traversal
     if archive_path.parent != ARCHIVE_DIR:
         return jsonify({"error": "Invalid path"}), 403
-        
+
     archive_path.unlink()
     return jsonify({"success": True})
 
@@ -326,6 +368,7 @@ def delete_archive(filename):
 # ============================================================
 # Project File APIs
 # ============================================================
+
 
 @projects_bp.route("/api/projects/<slug>/file/<path:filepath>")
 def get_project_file(slug, filepath):
@@ -368,7 +411,7 @@ def save_project_file(slug, filepath):
 
 @projects_bp.route("/api/projects/<slug>/merge", methods=["POST"])
 def merge_project_files(slug):
-    """Ghép danh sách các file (thường ở translated/) thành 1 file duy nhất."""
+    """Ghép danh sách các file (thường ở translated/) thành 1 file duy nhất trong thư mục translated."""
     pdir = _get_project_dir(slug)
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
@@ -378,35 +421,36 @@ def merge_project_files(slug):
     if not filenames or not isinstance(filenames, list):
         return jsonify({"error": "Danh sách file không hợp lệ"}), 400
 
-    out_name = data.get("output_filename", "").strip()
-    if not out_name:
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        out_name = f"Merged_{slug}_{stamp}.txt"
-    out_name = re.sub(r'[^\w\-\.]', '_', out_name)
+    # Use project name as the merged file name, placed in translated/
+    out_name = f"{slug}.txt"
+    out_name = re.sub(r"[^\w\-\.]", "_", out_name)  # Sanitize
 
-    out_path = pdir / "output" / out_name
+    out_path = pdir / "translated" / out_name
+    # Ensure translated directory exists
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
         with open(out_path, "w", encoding="utf-8") as out_f:
             for fname in filenames:
-                # Chỉ cho ghép từ translated/ hoặc sources/ (mặc định lấy translated ưu tiên)
+                # Only allow merging from translated/ or sources/ (prefer translated)
                 fpath = pdir / "translated" / fname
                 if not fpath.exists():
                     fpath = pdir / "sources" / fname
-                
+
                 if fpath.exists() and fpath.is_file():
                     content = fpath.read_text(encoding="utf-8").strip()
                     if content:
                         out_f.write(content + "\n\n")
-                        
+
         size = out_path.stat().st_size
-        return jsonify({
-            "success": True, 
-            "file": out_name,
-            "path": str(out_path.relative_to(pdir)),
-            "size": size
-        })
+        return jsonify(
+            {
+                "success": True,
+                "file": out_name,
+                "path": str(out_path.relative_to(pdir)),
+                "size": size,
+            }
+        )
     except Exception as e:
         logger.error(f"Error merging files: {e}")
         return jsonify({"error": str(e)}), 500
@@ -453,12 +497,16 @@ def upload_project_file(slug):
     f.save(str(dest))
 
     size = dest.stat().st_size
-    return jsonify({
-        "success": True,
-        "filename": safe_name,
-        "size": size,
-        "size_display": f"{size/1024:.1f} KB" if size < 1048576 else f"{size/1048576:.1f} MB",
-    })
+    return jsonify(
+        {
+            "success": True,
+            "filename": safe_name,
+            "size": size,
+            "size_display": f"{size / 1024:.1f} KB"
+            if size < 1048576
+            else f"{size / 1048576:.1f} MB",
+        }
+    )
 
 
 @projects_bp.route("/api/projects/<slug>/chunk/<filename>", methods=["POST"])
@@ -482,7 +530,14 @@ def chunk_project_file(slug, filename):
         chunks = process_text_for_chunking(text, min_chars, max_chars)
 
         if len(chunks) <= 1:
-            return jsonify({"success": True, "chunks": 1, "message": "File quá nhỏ, không cần chia chunk.", "files": [filename]})
+            return jsonify(
+                {
+                    "success": True,
+                    "chunks": 1,
+                    "message": "File quá nhỏ, không cần chia chunk.",
+                    "files": [filename],
+                }
+            )
 
         # Tạo tên chunk: filename_chunk_001.txt, _chunk_002.txt...
         stem = src_file.stem
@@ -494,12 +549,14 @@ def chunk_project_file(slug, filename):
             chunk_path.write_text(chunk, encoding="utf-8")
             created_files.append(chunk_name)
 
-        return jsonify({
-            "success": True,
-            "chunks": len(chunks),
-            "files": created_files,
-            "message": f"Đã chia thành {len(chunks)} chunk.",
-        })
+        return jsonify(
+            {
+                "success": True,
+                "chunks": len(chunks),
+                "files": created_files,
+                "message": f"Đã chia thành {len(chunks)} chunk.",
+            }
+        )
     except Exception as e:
         logger.error(f"Chunk error: {e}")
         return jsonify({"error": str(e)}), 500
@@ -511,7 +568,7 @@ def rename_project_file(slug):
     data = request.json
     old_name = data.get("old_name")
     new_name = data.get("new_name")
-    section = data.get("section", "sources") # sources or translated
+    section = data.get("section", "sources")  # sources or translated
 
     if not old_name or not new_name:
         return jsonify({"error": "Thiếu tên file"}), 400
@@ -525,14 +582,14 @@ def rename_project_file(slug):
 
     if not old_path.exists():
         return jsonify({"error": "File không tồn tại"}), 404
-    
+
     if new_path.exists():
         return jsonify({"error": f"Tên file '{new_name}' đã tồn tại"}), 409
 
     try:
         new_path.parent.mkdir(parents=True, exist_ok=True)
         old_path.rename(new_path)
-        
+
         # Nếu đổi tên ở sources, tự động đổi tên ở translated nếu có
         if section == "sources":
             old_trans = pdir / "translated" / old_name
@@ -540,7 +597,7 @@ def rename_project_file(slug):
             if old_trans.exists() and not new_trans.exists():
                 new_trans.parent.mkdir(parents=True, exist_ok=True)
                 old_trans.rename(new_trans)
-                
+
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -588,6 +645,7 @@ def project_move_back(slug):
 # Project Prompt APIs
 # ============================================================
 
+
 @projects_bp.route("/api/projects/<slug>/prompts")
 def get_project_prompts(slug):
     """Load prompt dự án (fallback global)."""
@@ -599,7 +657,11 @@ def get_project_prompts(slug):
 
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
-        for key, fname in [("main", "01-main.txt"), ("retranslate", "02-retranslate.txt"), ("correction", "03-correction.txt")]:
+        for key, fname in [
+            ("main", "01-main.txt"),
+            ("retranslate", "02-retranslate.txt"),
+            ("correction", "03-correction.txt"),
+        ]:
             fp = prompt_dir / fname
             if fp.exists():
                 content = fp.read_text(encoding="utf-8").strip()
@@ -617,7 +679,11 @@ def save_project_prompts(slug):
     prompt_dir.mkdir(parents=True, exist_ok=True)
 
     data = request.json
-    for key, fname in [("main", "01-main.txt"), ("retranslate", "02-retranslate.txt"), ("correction", "03-correction.txt")]:
+    for key, fname in [
+        ("main", "01-main.txt"),
+        ("retranslate", "02-retranslate.txt"),
+        ("correction", "03-correction.txt"),
+    ]:
         if key in data:
             (prompt_dir / fname).write_text(data[key], encoding="utf-8")
 
@@ -627,6 +693,7 @@ def save_project_prompts(slug):
 # ============================================================
 # Project Guidelines APIs (Phase 3)
 # ============================================================
+
 
 @projects_bp.route("/api/projects/<slug>/guidelines")
 def get_project_guidelines(slug):
@@ -728,6 +795,7 @@ def summarize_project(slug):
 
     try:
         from webui.helpers import get_active_provider
+
         provider = get_active_provider()
 
         # Use model from request or fall back to default
@@ -735,23 +803,27 @@ def summarize_project(slug):
 
         if provider == "gemini":
             from webui.helpers import load_api_keys, get_model
+
             keys = load_api_keys()
             model = requested_model or get_model()
             if not keys:
                 return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
             from services.genai_client import GenAIClient
+
             client = GenAIClient(api_key=keys[0])
             result, status = client.generate_content(summarize_prompt, model=model)
         else:
             from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
+
             api_key = load_openai_key()
             if not api_key:
                 return jsonify({"error": "Chưa cấu hình API Key OpenAI"}), 400
             from services.openai_client import OpenAIClient
+
             client = OpenAIClient(
                 api_key=api_key,
                 base_url=get_openai_base_url(),
-                default_model=requested_model or get_openai_model()
+                default_model=requested_model or get_openai_model(),
             )
             result, status = client.generate_content(summarize_prompt)
 
@@ -766,6 +838,7 @@ def summarize_project(slug):
 
     except Exception as e:
         import logging
+
         logging.getLogger(__name__).error(f"Summarize error: {e}")
         return jsonify({"error": str(e)}), 500
 
@@ -773,6 +846,7 @@ def summarize_project(slug):
 # ============================================================
 # Project Translation API
 # ============================================================
+
 
 @projects_bp.route("/api/projects/<slug>/translate", methods=["POST"])
 def translate_project_file(slug):
@@ -797,7 +871,11 @@ def translate_project_file(slug):
     prompts.update(global_prompts)
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
-        for key, fname in [("main", "01-main.txt"), ("retranslate", "02-retranslate.txt"), ("correction", "03-correction.txt")]:
+        for key, fname in [
+            ("main", "01-main.txt"),
+            ("retranslate", "02-retranslate.txt"),
+            ("correction", "03-correction.txt"),
+        ]:
             fp = prompt_dir / fname
             if fp.exists():
                 content = fp.read_text(encoding="utf-8").strip()
@@ -818,7 +896,9 @@ def translate_project_file(slug):
 
     # Glossary paths (Dynamic terms)
     glossary_filenames = ["glossary.txt", "characters.txt"]
-    glossary_paths = [pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()]
+    glossary_paths = [
+        pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()
+    ]
 
     config = {
         "model_name": data.get("model", get_default_model()),
@@ -856,29 +936,39 @@ def translate_project_file(slug):
             for idx, filename in enumerate(filenames, 1):
                 file_path = pdir / "sources" / filename
                 if not file_path.exists():
-                    progress_queue.put({"type": "info", "message": f"⚠️ File không tồn tại: {filename}"})
+                    progress_queue.put(
+                        {"type": "info", "message": f"⚠️ File không tồn tại: {filename}"}
+                    )
                     continue
 
                 try:
                     text = file_path.read_text(encoding="utf-8")
                 except Exception as e:
-                    progress_queue.put({"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"})
+                    progress_queue.put(
+                        {"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"}
+                    )
                     continue
 
-                progress_queue.put({"type": "info", "message": f"📂 [{idx}/{total_files}] Đang dịch: {filename}"})
+                progress_queue.put(
+                    {"type": "info", "message": f"📂 [{idx}/{total_files}] Đang dịch: {filename}"}
+                )
 
-                executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths)
-                
+                executor = TranslationExecutor(
+                    api_keys=api_keys, config=config, glossary_paths=glossary_paths
+                )
+
                 def cb(data):
                     if data["type"] == "complete":
                         out_path = pdir / "translated" / filename
-                        
+
                         _state.translation_result = {
-                            "text": data.get("result"), "filename": filename, "path": str(out_path),
+                            "text": data.get("result"),
+                            "filename": filename,
+                            "path": str(out_path),
                         }
                         # Override message cho UI
                         data["message"] = f"✅ Đã dịch xong file {idx}/{total_files}: {filename}"
-                        
+
                         # Chỉ gửi complete thật sự nếu là file cuối cùng
                         if idx < total_files:
                             data["type"] = "file_complete"
@@ -890,14 +980,16 @@ def translate_project_file(slug):
                     output_filename=filename,
                     output_file_path=pdir / "translated" / filename,
                     progress_callback=cb,
-                    translation_memory=project_tm
+                    translation_memory=project_tm,
                 )
 
             # Gửi thông báo hoàn tất tất cả sau khi loop xong
             meta["updated_at"] = datetime.now().isoformat()
             _save_project_meta(slug, meta)
             calculate_stats()
-            progress_queue.put({"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"})
+            progress_queue.put(
+                {"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"}
+            )
 
         except Exception as e:
             progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
@@ -911,10 +1003,12 @@ def translate_project_file(slug):
 # Translation Memory APIs
 # ============================================================
 
+
 @projects_bp.route("/api/tm/stats")
 def get_tm_stats():
     """Lấy thống kê Translation Memory."""
     from webui import translation_memory
+
     try:
         if translation_memory:
             stats = translation_memory.get_stats()
@@ -928,6 +1022,7 @@ def get_tm_stats():
 def tm_find():
     """Tìm kiếm trong Translation Memory."""
     from webui import translation_memory
+
     try:
         data = request.json
         text = data.get("text", "")
@@ -947,6 +1042,7 @@ def tm_find():
 def tm_add():
     """Thêm translation vào TM."""
     from webui import translation_memory
+
     try:
         data = request.json
         source = data.get("source", "")
@@ -966,6 +1062,7 @@ def tm_add():
 def tm_clear():
     """Xóa toàn bộ TM."""
     from webui import translation_memory
+
     try:
         if translation_memory:
             count = translation_memory.clear()
@@ -979,6 +1076,7 @@ def tm_clear():
 def tm_export():
     """Export TM ra file."""
     from webui import translation_memory
+
     try:
         data = request.json
         filepath = data.get("filepath", "workspace/translation_memory_export.json")
@@ -995,6 +1093,7 @@ def tm_export():
 def tm_import():
     """Import TM từ file."""
     from webui import translation_memory
+
     try:
         data = request.json
         filepath = data.get("filepath", "")

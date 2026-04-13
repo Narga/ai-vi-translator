@@ -36,7 +36,7 @@ def get_app_version():
         logger.debug(f"Could not extract version from CHANGELOG.md: {e}")
 
     # Fallback
-    return "6.2.0"
+    return "6.3.0"
 
 
 # Available OpenAI-compatible models (fallback list)

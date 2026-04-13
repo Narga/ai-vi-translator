@@ -4,7 +4,6 @@ let prompts = window.initialPrompts || {};
 let currentOutputFile = '';
 let allFiles = [];
 let selectedFiles = new Set();
-let selectedTranslatedFiles = new Set();
 let availableModels = window.initialAvailableModels || [];
 let availableGeminiModels = [];
 let availableOpenAIModels = [];
@@ -38,6 +37,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Token estimate for translated text
+    const translatedResultEl = document.getElementById('translated-result-text');
+    if (translatedResultEl) {
+        translatedResultEl.addEventListener('input', updateTranslatedTokenEstimate);
+    }
+
     // Core action buttons
     const btnTranslate = document.getElementById('translate-btn');
     if (btnTranslate) btnTranslate.addEventListener('click', startTranslation);
@@ -50,6 +55,16 @@ document.addEventListener('DOMContentLoaded', function () {
     
     const btnDownload = document.getElementById('download-btn');
     if (btnDownload) btnDownload.addEventListener('click', downloadResult);
+
+    // Translated tab action buttons
+    const btnCopyTranslated = document.getElementById('btn-copy-translated');
+    if (btnCopyTranslated) btnCopyTranslated.addEventListener('click', copyTranslatedResult);
+    
+    const btnDownloadTranslated = document.getElementById('download-translated-btn');
+    if (btnDownloadTranslated) btnDownloadTranslated.addEventListener('click', downloadTranslatedResult);
+    
+    const btnRetranslate = document.getElementById('retranslate-btn');
+    if (btnRetranslate) btnRetranslate.addEventListener('click', retranslateFile);
 
     // Done tab buttons
     const btnRetrans = document.getElementById('btn-run-retranslate');
@@ -595,87 +610,51 @@ function _doTokenEstimate() {
     }
 }
 
-function toggleTranslatedFile(filename, isChecked) {
-    if (isChecked) selectedTranslatedFiles.add(filename);
-    else selectedTranslatedFiles.delete(filename);
-    updateSelectAllTranslatedButton();
-}
+ function mergeTranslatedFiles() {
+     if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+     const translated = currentProject.translated || [];
+     if (translated.length === 0) { showToast('Chưa có file dịch để ghép!', 'warning'); return; }
 
-function updateSelectAllTranslatedButton() {
-    const btn = document.getElementById('btn-select-all-translated');
-    if (!btn) return;
-    const allCount = (currentProject && currentProject.translated) ? currentProject.translated.length : 0;
-    if (selectedTranslatedFiles.size > 0) {
-        btn.innerHTML = `✓ Chọn hết (${selectedTranslatedFiles.size})`;
-        btn.classList.add('nt-btn-primary');
-        btn.classList.remove('nt-btn-outline');
-    } else {
-        btn.innerHTML = `✓ Chọn hết`;
-        btn.classList.add('nt-btn-outline');
-        btn.classList.remove('nt-btn-primary');
-    }
-}
+     const slug = currentProject.slug;
 
-function selectAllTranslatedFiles() {
-    if (!currentProject || !currentProject.translated) return;
-    const allCount = currentProject.translated.length;
-    if (selectedTranslatedFiles.size === allCount && allCount > 0) {
-        selectedTranslatedFiles.clear(); // Bỏ chọn hết
-    } else {
-        currentProject.translated.forEach(f => selectedTranslatedFiles.add(f.name));
-    }
-    updateSelectAllTranslatedButton();
-    renderProjectTranslated(currentProject.translated);
-}
+     // Natural sort helps handling chunk_2.md vs chunk_10.md properly
+     let filesToMerge = translated.map(f => f.name);
+     filesToMerge.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
-function mergeTranslatedFiles() {
-    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
-    if (selectedTranslatedFiles.size === 0) { showToast('Vui lòng chọn ít nhất 1 file để ghép!', 'warning'); return; }
+     const outName = `${slug}.txt`;
 
-    const slug = currentProject.slug;
+     const btn = document.getElementById('btn-merge-translated');
+     const originalText = btn.innerHTML;
+     btn.innerHTML = '⏳ Đang ghép nối...';
+     btn.disabled = true;
 
-    // Convert Set to Array and Sort nicely 
-    // Natural Sort helps handling chunk_2.md vs chunk_10.md properly
-    let filesToMerge = Array.from(selectedTranslatedFiles);
-    filesToMerge.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+     fetch(`/api/projects/${slug}/merge`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({
+             files: filesToMerge,
+             output_filename: outName
+         })
+     })
+         .then(r => r.json())
+         .then(data => {
+             btn.innerHTML = originalText;
+             btn.disabled = false;
 
-    const outName = prompt("Nhập tên file xuất bản (ví dụ: Quyen1.txt):", `Full_${slug}.txt`);
-    if (outName === null) return; // User cancelled
-
-    const btn = document.getElementById('btn-merge-translated');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '⏳ Đang ghép nối...';
-    btn.disabled = true;
-
-    fetch(`/api/projects/${slug}/merge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            files: filesToMerge,
-            output_filename: outName
-        })
-    })
-        .then(r => r.json())
-        .then(data => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-
-            if (data.success) {
-                showToast(`Ghép thành công ${filesToMerge.length} file vào: ${data.file}`, 'success');
-                // Gắn link Download popup
-                if (confirm(`Đã lưu file kết quả tại output/${data.file}. Bạn có muốn mở để tải về luôn không?`)) {
-                    window.open(`/api/projects/${slug}/file/output/${data.file}`, '_blank');
-                }
-            } else {
-                showToast('Lỗi ghép file: ' + (data.error || 'Unknown'), 'error');
-            }
-        })
-        .catch(e => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-            showToast('Lỗi mạng: ' + e.message, 'error');
-        });
-}
+             if (data.success) {
+                 showToast(`Ghép thành công ${filesToMerge.length} file vào: ${data.file}`, 'success');
+                 // Refresh danh sách file dịch để hiển thị file vừa ghép
+                 selectProject(currentProject.slug, true);
+             } else {
+                 showToast('Lỗi ghép file: ' + (data.error || 'Unknown'), 'error');
+             }
+         })
+         .catch(e => {
+             btn.innerHTML = originalText;
+             btn.disabled = false;
+             showToast('Lỗi mạng: ' + e.message, 'error');
+         });
+ }
 
 // ============================================================
 // Project Management
@@ -723,7 +702,6 @@ function selectProject(slug, keepSelection = false) {
         
         if (!keepSelection) {
             selectedFiles.clear();
-            selectedTranslatedFiles.clear();
         }
 
         // 1. Force state visibility
@@ -744,6 +722,7 @@ function selectProject(slug, keepSelection = false) {
 
         // 3. Render Files
         renderProjectSources(data.sources || []);
+        renderProjectTranslated(data.translated || []);
 
         // Reset editor content when opening a project
         const sourceText = document.getElementById('source-text');
@@ -808,27 +787,32 @@ function renderProjectSources(sources) {
 }
 
 function renderProjectTranslated(translated) {
-    const el = document.getElementById('project-translated-list');
-    if (!translated.length) { el.innerHTML = '<div class="pa3 tc silver i">Chưa có file dịch</div>'; updateSelectAllTranslatedButton(); return; }
+    const el = document.getElementById('project-translated-table-body');
+    const countEl = document.getElementById('proj-translated-count');
+    if (countEl) countEl.textContent = translated.length;
+    if (!el) return;
+
+    if (!translated.length) {
+        el.innerHTML = '<tr><td colspan="3" class="pa3 tc silver i">Chưa có file dịch</td></tr>';
+        return;
+    }
+
     el.innerHTML = translated.map(f => {
         const esc = f.name.replace(/'/g, "\\'");
-        const checked = selectedTranslatedFiles.has(f.name) ? 'checked' : '';
-        return `<div class="nt-file-item">
-            <div class="flex items-center flex-auto">
-                <input type="checkbox" class="nt-checkbox mr2" ${checked} onchange="toggleTranslatedFile('${esc}',this.checked)">
-                <div class="flex-auto pointer" onclick="loadProjectFile('${esc}','translated')">
-                    <span class="fw6 dark-gray db f6">${f.name}</span>
-                    <span class="f7 silver">${f.size_display}</span>
+        return `<tr>
+            <td>
+                <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','translated')">${f.name}</div>
+            </td>
+            <td class="f7 gray">${f.size_display}</td>
+            <td class="tr">
+                <div class="flex justify-end gap-1">
+                    <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','translated')" title="Đổi tên">✏️</button>
+                    <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();moveBackInProject('${esc}')" title="Trả về sources">↩</button>
+                    <button class="ph2 pv1 f7 ba b--red red bg-white pointer hover-bg-washed-red br1" onclick="event.stopPropagation();deleteProjectFile('${esc}','translated')" title="Xóa">🗑️</button>
                 </div>
-            </div>
-            <div class="nt-file-actions">
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();renameProjectFile('${esc}','translated')" title="Đổi tên">✏️</button>
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();moveBackInProject('${esc}')" title="Trả về sources">↩</button>
-                <button class="nt-file-action-btn" onclick="event.stopPropagation();deleteProjectFile('${esc}','translated')" title="Xóa">🗑️</button>
-            </div>
-        </div>`;
+            </td>
+        </tr>`;
     }).join('');
-    updateSelectAllTranslatedButton();
 }
 
 function switchProjectTab(tab) {
@@ -865,6 +849,22 @@ function loadProjectFile(filename, section) {
                 document.getElementById('result-text').value = tData.content || '';
             }).catch(() => {
                 document.getElementById('result-text').value = '';
+            });
+        } else if (section === 'translated') {
+            document.getElementById('translated-result-text').value = data.content || '';
+            document.getElementById('translated-source-text').value = '';
+            currentProjectFile = { name: filename, section };
+
+            // Show token estimate for translated file
+            const tokenMini = document.getElementById('translated-token-estimate');
+            if (tokenMini) tokenMini.classList.remove('dn');
+            updateTranslatedTokenEstimate();
+
+            // Load source counterpart for comparison
+            fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
+                document.getElementById('translated-source-text').value = sData.content || '';
+            }).catch(() => {
+                document.getElementById('translated-source-text').value = '(Không tìm thấy bản gốc tương ứng)';
             });
         }
     });
@@ -1600,6 +1600,13 @@ function closeProgress() {
         clearInterval(window._autoReturnTimer);
         window._autoReturnTimer = null;
     }
+    
+    // Hide the modal (but don't stop SSE - translation continues)
+    const modal = document.getElementById('translation-progress-modal');
+    if (modal) {
+        modal.classList.add('dn');
+        modal.classList.remove('flex');
+    }
 }
 
 function startTranslation() {
@@ -1690,6 +1697,49 @@ function saveChunkTranslation() {
         });
 }
 
+function saveTranslatedFile() {
+    if (!currentProject || !currentProjectFile || currentProjectFile.section !== 'translated') {
+        showToast('Chưa chọn file bản dịch để lưu.', 'error');
+        return;
+    }
+
+    const slug = currentProject.slug;
+    const filename = currentProjectFile.name;
+    const content = document.getElementById('translated-result-text').value;
+
+    if (!content.trim()) {
+        showToast('Nội dung bản dịch trống, không thể lưu.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btn-save-translated');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Đang lưu...';
+    btn.disabled = true;
+
+    fetch(`/api/projects/${slug}/file/translated/${filename}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    })
+        .then(r => r.json())
+        .then(res => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            if (res.success) {
+                showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
+                selectProject(slug, true);
+            } else {
+                showToast('Lỗi lưu file: ' + (res.error || 'Unknown'), 'error');
+            }
+        })
+        .catch(e => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showToast('Lỗi mạng: ' + e.message, 'error');
+        });
+}
+
 
 
 
@@ -1741,29 +1791,20 @@ function connectToProgress(btn = null, isBatch = false) {
             } else if (data.output_file) {
                 currentOutputFile = data.output_file;
                 const resText = document.getElementById('result-text');
-                if(resText) resText.value = "Đã dịch xong. Kết quả được lưu tại:\n👉 " + data.output_file;
+                if(resText) resText.value = "�ã dịch xong. Kết quả được lưu tại:\n👉 " + data.output_file;
             }
 
-            // Show result layout
+            // Show result layout (hidden by default, only show if not in project context)
             const resContainer = document.getElementById('result-container');
-            if(resContainer) {
+            if(resContainer && !currentProject) {
                 resContainer.classList.remove('dn');
                 resContainer.classList.add('flex');
             }
 
-            // Render Stats
-            const resStats = document.getElementById('result-stats');
-            if(resStats) {
-                resStats.innerHTML =
-                    `<span class="bg-near-white br2 pa1 ph2 ba b--black-10">⏱️ ${(data.duration || 0).toFixed(1)}s</span>
-                     <span class="bg-near-white br2 pa1 ph2 ba b--black-10">💬 ${data.chunks_count || 0} đoạn</span>
-                     <span class="bg-near-white br2 pa1 ph2 ba b--black-10">🔤 ${(data.char_count || 0).toLocaleString()} ký tự</span>`;
-            }
-
             resetButton(btn, isBatch);
             
-            // Auto Return Logic for Batch Translation
-            if (isBatch && btnDone) {
+            // Auto-close modal after 10 seconds for all completions
+            if (btnDone) {
                 btnDone.classList.remove('dn');
                 let seconds = 10;
                 btnDone.textContent = `Xong (${seconds}s)`;
@@ -1778,8 +1819,18 @@ function connectToProgress(btn = null, isBatch = false) {
                         btnDone.textContent = `Xong (${seconds}s)`;
                     }
                 }, 1000);
-            } else if (currentProject && document.getElementById('ptab-sources') && !document.getElementById('ptab-sources').classList.contains('dn')) {
-                selectProject(currentProject.slug, isBatch); // Keep selection if it was a batch
+            } else {
+                // Fallback: auto close after 10s if no button
+                window._autoReturnTimer = setInterval(() => {
+                    clearInterval(window._autoReturnTimer);
+                    window._autoReturnTimer = null;
+                    closeProgress();
+                }, 10000);
+            }
+            
+            // Update project UI if in project context
+            if (currentProject) {
+                selectProject(currentProject.slug, isBatch);
             }
             if(typeof loadOutputFiles === 'function') loadOutputFiles(); 
             if(typeof loadStats === 'function') loadStats(); 
@@ -1829,6 +1880,76 @@ function copyResult() {
 function downloadResult() {
     if (currentOutputFile) window.open('/api/download/' + currentOutputFile, '_blank');
     else showToast('Chưa xác định file output!', 'error');
+}
+
+function copyTranslatedResult() {
+    navigator.clipboard.writeText(document.getElementById('translated-result-text').value)
+        .then(() => showToast('Đã sao chép vào Clipboard!', 'success'))
+        .catch(() => showToast('Copy thất bại', 'error'));
+}
+
+function downloadTranslatedResult() {
+    const text = document.getElementById('translated-result-text').value;
+    if (!text) { showToast('Chưa có nội dung để tải!', 'error'); return; }
+    const fname = currentProjectFile ? currentProjectFile.name : 'translated.txt';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    a.download = fname; a.click();
+}
+
+function retranslateFile() {
+    if (!currentProject || !currentProjectFile) {
+        showToast('Chưa chọn file để dịch lại!', 'error');
+        return;
+    }
+    translateFileInProject(currentProjectFile.name);
+}
+
+function updateTranslatedTokenEstimate() {
+    const text = document.getElementById('translated-result-text').value || '';
+    const charCount = text.length;
+
+    const charCountEl = document.getElementById('translated-token-char-count');
+    if (charCountEl) charCountEl.textContent = charCount.toLocaleString();
+
+    if (charCount === 0) {
+        const estEl = document.getElementById('translated-token-count');
+        if (estEl) estEl.textContent = '~0';
+        const fitEl = document.getElementById('translated-token-model-fit');
+        if (fitEl) fitEl.textContent = '';
+        return;
+    }
+
+    const cjkMatch = text.match(/[\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]/g);
+    const cjkCount = cjkMatch ? cjkMatch.length : 0;
+    const cjkRatio = cjkCount / charCount;
+
+    let tokensPerChar;
+    if (cjkRatio > 0.5) tokensPerChar = 1 / 1.5;
+    else if (cjkRatio > 0.2) tokensPerChar = 1 / 2.5;
+    else tokensPerChar = 1 / 4.0;
+
+    const estimatedTokens = Math.round(charCount * tokensPerChar);
+    const promptOverhead = 2000;
+    const totalInput = estimatedTokens + promptOverhead;
+
+    const tokenEstEl = document.getElementById('translated-token-count');
+    if (tokenEstEl) tokenEstEl.textContent = '~' + estimatedTokens.toLocaleString();
+
+    const fitEl = document.getElementById('translated-token-model-fit');
+    if (currentModelInfo && currentModelInfo.input_token_limit) {
+        const limit = currentModelInfo.input_token_limit;
+        const ratio = totalInput / limit;
+        if (ratio > 0.9) {
+            fitEl.innerHTML = '<span class="red fw6">⚠️ Gần/vượt limit!</span>';
+        } else if (ratio > 0.5) {
+            fitEl.innerHTML = '<span class="orange">⚡ ' + Math.round(ratio * 100) + '% input limit</span>';
+        } else {
+            fitEl.innerHTML = '<span class="green">✅ OK (' + Math.round(ratio * 100) + '% limit)</span>';
+        }
+    } else {
+        fitEl.textContent = '';
+    }
 }
 
 // ============================================================

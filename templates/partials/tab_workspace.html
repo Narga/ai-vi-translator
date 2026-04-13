@@ -34,11 +34,12 @@
 
                         <!-- Tab Groups Content -->
                         <div class="ba b--black-10 br2 bg-white flex-auto flex flex-column overflow-hidden shadow-1">
-                            <div id="project-tabs" class="flex bb b--black-10 bg-near-white">
-                                <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn blue bb b--blue" data-ptab="workspace" onclick="switchProjectTab('workspace')">📁 Workspace</button>
-                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
-                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Thông tin</button>
-                            </div>
+                                 <div id="project-tabs" class="flex bb b--black-10 bg-near-white">
+                                 <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn blue bb b--blue" data-ptab="workspace" onclick="switchProjectTab('workspace')">📄 Nội dung gốc</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="translated" onclick="switchProjectTab('translated')">📚 Bản dịch</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Thông tin</button>
+                             </div>
 
                             <!-- Workspace Content Section -->
                              <div id="ptab-workspace" class="nt-ptab-content flex-auto overflow-y-auto pa3">
@@ -46,14 +47,10 @@
                                 <!-- Source Table Block -->
                                 <div id="workspace-sources" class="ba b--black-10 br2 overflow-hidden bg-white mb3">
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white">
-                                        <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-source-count" class="blue fw7">0</span>)</span>
-                                        <div class="flex gap-2">
-                                            <label class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white">
-                                                📤 Upload <input type="file" id="upload-source-file" class="dn" onchange="uploadProjectFile()">
-                                            </label>
-                                            <button class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white" onclick="showChunkConfig()">⚙️ Chia Chunk</button>
-                                            <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch được chọn</button>
-                                        </div>
+                                         <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-source-count" class="blue fw7">0</span>)</span>
+                                         <div class="flex gap-2">
+                                             <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch được chọn</button>
+                                         </div>
                                     </div>
                                     <div class="overflow-x-auto">
                                         <table class="minimal-table w-100 collapse f7">
@@ -100,7 +97,60 @@
                                         <div class="ml-auto flex gap-2">
                                             <button id="btn-copy-result" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="copyResult()">📋 Copy</button>
                                             <button id="download-btn" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="downloadResult()">📥 Tải về</button>
-                                            <button id="translate-btn" class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="startTranslation()">Dịch Nội Dung ⚡</button>
+                                            <button id="translate-btn" class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="startTranslation()">Dịch lại</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Translated Files Section -->
+                            <div id="ptab-translated" class="nt-ptab-content dn flex-auto overflow-y-auto pa3">
+                                <div id="translated-files" class="ba b--black-10 br2 overflow-hidden bg-white mb3">
+                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white">
+                                        <span class="f6 fw6 dark-gray">Tệp đã dịch (<span id="proj-translated-count" class="blue fw7">0</span>)</span>
+                                        <button id="btn-merge-translated" class="pointer ph3 pv1 f7 bn white bg-dark-green br2 shadow-1 hover-bg-green fw6" onclick="mergeTranslatedFiles()">🧩 Ghép tập tin</button>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="minimal-table w-100 collapse f7">
+                                            <thead>
+                                                <tr class="bg-near-white silver tc tracked uppercase">
+                                                    <th class="pa2 tl bb b--black-05">Tên tệp</th>
+                                                    <th class="pa2 tl bb b--black-05">Size</th>
+                                                    <th class="pa2 tr bb b--black-05">Hành động</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="project-translated-table-body"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div id="translated-editor" class="flex flex-column pv2">
+                                    <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white">
+                                                <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
+                                            </div>
+                                            <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." style="resize:none"></textarea>
+                                        </div>
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                            <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
+                                                <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
+                                                <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
+                                            </div>
+                                            <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." style="resize:none"></textarea>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Token & Quick Actions -->
+                                    <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2">
+                                        <div id="translated-token-estimate" class="dn f7 gray">
+                                            📊 <span id="translated-token-char-count">0</span> chars | <strong id="translated-token-count">0</strong> tokens
+                                            <span id="translated-token-model-fit" class="ml2"></span>
+                                        </div>
+                                        <div class="ml-auto flex gap-2">
+                                            <button id="btn-copy-translated" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="copyTranslatedResult()">📋 Copy</button>
+                                            <button id="download-translated-btn" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="downloadTranslatedResult()">📥 Tải về</button>
+                                            <button id="retranslate-btn" class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="retranslateFile()">Dịch lại</button>
                                         </div>
                                     </div>
                                 </div>
