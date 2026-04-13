@@ -83,17 +83,21 @@ Dự án đã chuyển đổi hoàn toàn sang mô hình "Project-based":
 ---
 
 ## 6. 🔄 Session Marker (Handover)
-- **Phiên bản hiện tại**: v6.1.0 (Stable)
-- **Trạng thái**: COMPLETED (v6.1 Milestone)
+- **Phiên bản hiện tại**: v6.2.0 (UI/UX Enhancement)
+- **Trạng thái**: COMPLETED
 - **Hoạt động chính trong phiên**: 
-    - Triển khai toàn diện hệ thống Project Archiving (Zip/Restore/Conflict handling).
-    - Tối ưu hóa Dashboard UI bằng Tachyons (Card-style), tăng hiệu năng và trải nghiệm người dùng.
-    - Tự động hóa việc nhận diện phiên bản dự án qua CHANGELOG.md.
-    - Tái cấu trúc và chuẩn hóa toàn bộ hệ thống tài liệu (README, CHANGELOG, ROADMAP, REPORTS).
+    - Sửa log area không bị co méo khi chọn file, thêm multi-select delete (checkbox).
+    - Chuyển Prompt/Thông tin trong Dự án sang radio-tab CSS pattern (thay JS), tránh lỗi chồng tab lần đầu.
+    - Đổi tên Profile tab → "Thông tin".
+    - Mở rộng Prompt hệ thống lên 6 textarea (Dịch thô, Dịch lại, Sửa lỗi, Tóm tắt, Mối quan hệ, Thuật ngữ).
+    - Backend prompts.py và helpers.py hỗ trợ 6 trường prompt (summary, relationships, glossary).
+    - Sửa trạng thái active của project tabs (Workspace/Prompt/Thông tin) đổi màu đúng.
+    - Bỏ chức năng chuyển trang khi chọn file trong Workspace - giữ danh sách luôn visible, nạp file xuống editor bên dưới.
 - **Handover Note cho AI tiếp theo**:
-    - Dự án hiện đã đạt cột mốc 6.1 ổn định.
-    - **Hướng phát triển tiếp theo**: Tập trung vào Giai đoạn 6.2 trong ROADMAP (HTML/Markdown Preservation & EPUB Output).
-    - Lưu ý: Mọi tài liệu quan trọng hiện đã nằm ở thư mục gốc (root).
+    - Các thay đổi UI/UX đã triển khai xong, cần test toàn bộ.
+    - Radio-based tabs cho UX mượt hơn JS click handlers.
+    - Workspace giữ danh sách file visible cho thao tác nhanh.
+    - Nếu mọi thứ OK → Update changelog và commit các thay đổi.
 
 ---
-*Cập nhật lần cuối: 11/04/2026*
+*Cập nhật lần cuối: 13/04/2026*

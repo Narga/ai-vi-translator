@@ -2,6 +2,7 @@
 # Shared utility functions for WebUI blueprints
 
 import os
+import re
 import logging
 import configparser
 from pathlib import Path
@@ -19,6 +20,7 @@ AVAILABLE_GEMINI_MODELS = [
     "gemini-3-flash",
 ]
 
+
 def get_app_version():
     """Tự động nhận diện phiên bản từ CHANGELOG.md."""
     try:
@@ -27,14 +29,15 @@ def get_app_version():
             with open(changelog_path, "r", encoding="utf-8") as f:
                 content = f.read()
                 # Tìm entry đầu tiên có dạng ## [x.y.z]
-                match = re.search(r'##\s*\[(\d+\.\d+\.\d+)\]', content)
+                match = re.search(r"##\s*\[(\d+\.\d+\.\d+)\]", content)
                 if match:
                     return match.group(1)
     except Exception as e:
         logger.debug(f"Could not extract version from CHANGELOG.md: {e}")
-    
+
     # Fallback
-    return "6.1.0"
+    return "6.2.0"
+
 
 # Available OpenAI-compatible models (fallback list)
 AVAILABLE_OPENAI_MODELS = [
@@ -171,9 +174,7 @@ def get_available_openai_models():
         if api_key:
             from services.ai_provider import list_models_for_provider
 
-            fetched = list_models_for_provider(
-                "openai", api_key, get_openai_base_url()
-            )
+            fetched = list_models_for_provider("openai", api_key, get_openai_base_url())
             if fetched:
                 models = fetched
     except Exception as e:
@@ -213,6 +214,7 @@ def save_api_keys(keys_text):
     with open(api_file, "w", encoding="utf-8") as f:
         f.write(keys_text)
     return True
+
 
 def calculate_stats():
     """Tính toán thống kê hệ thống (project-based)."""
@@ -269,12 +271,22 @@ def calculate_stats():
 def load_prompts():
     """Load prompts từ thư mục prompts/."""
     prompts_dir = Path("prompts")
-    prompts = {"main": "", "retranslate": "", "correction": ""}
+    prompts = {
+        "main": "",
+        "retranslate": "",
+        "correction": "",
+        "summary": "",
+        "relationships": "",
+        "glossary": "",
+    }
 
     for key, filename in [
         ("main", "01-main.txt"),
         ("retranslate", "02-retranslate.txt"),
         ("correction", "03-correction.txt"),
+        ("summary", "04-summary.txt"),
+        ("relationships", "05-relationships.txt"),
+        ("glossary", "06-glossary.txt"),
     ]:
         filepath = prompts_dir / filename
         if filepath.exists():
@@ -293,6 +305,9 @@ def save_prompts(prompts):
         ("main", "01-main.txt"),
         ("retranslate", "02-retranslate.txt"),
         ("correction", "03-correction.txt"),
+        ("summary", "04-summary.txt"),
+        ("relationships", "05-relationships.txt"),
+        ("glossary", "06-glossary.txt"),
     ]:
         filepath = prompts_dir / filename
         with open(filepath, "w", encoding="utf-8") as f:
@@ -336,8 +351,14 @@ def ensure_default_project():
 
     for fname, content in [
         ("glossary.txt", "# Bảng thuật ngữ\n# Format: thuật ngữ gốc | thuật ngữ dịch | ghi chú\n"),
-        ("characters.txt", "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n"),
-        ("style_guide.txt", "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n"),
+        (
+            "characters.txt",
+            "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n",
+        ),
+        (
+            "style_guide.txt",
+            "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n",
+        ),
     ]:
         fp = pdir / "profile" / fname
         if not fp.exists():

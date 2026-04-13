@@ -15,7 +15,7 @@
                 </div>
 
                 <!-- Main Workspace Pane -->
-                <div class="main-content flex-auto flex flex-column pa0">
+                <div class="main-content flex-auto flex flex-column pa0" style="min-height: 100%;">
 
                     <!-- Active Project Content -->
                     <div id="project-active-content" class="flex-auto flex flex-column">
@@ -35,13 +35,13 @@
                         <!-- Tab Groups Content -->
                         <div class="ba b--black-10 br2 bg-white flex-auto flex flex-column overflow-hidden shadow-1">
                             <div id="project-tabs" class="flex bb b--black-10 bg-near-white">
-                                <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--blue blue" data-ptab="workspace" onclick="switchProjectTab('workspace')">📁 Workspace</button>
-                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray mr2" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
-                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Profile</button>
+                                <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn blue bb b--blue" data-ptab="workspace" onclick="switchProjectTab('workspace')">📁 Workspace</button>
+                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
+                                <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Thông tin</button>
                             </div>
 
                             <!-- Workspace Content Section -->
-                            <div id="ptab-workspace" class="nt-ptab-content flex-auto overflow-y-auto pa3">
+                             <div id="ptab-workspace" class="nt-ptab-content flex-auto overflow-y-auto pa3">
                                 
                                 <!-- Source Table Block -->
                                 <div id="workspace-sources" class="ba b--black-10 br2 overflow-hidden bg-white mb3">
@@ -74,21 +74,20 @@
                                 </div>
 
                                 <!-- Integrated Editor Block (Side-by-Side) -->
-                                <div id="workspace-editor" class="dn flex flex-column pv2">
+                                <div id="workspace-editor" class="flex flex-column pv2">
                                     <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
-                                            <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
-                                                <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 silver hover-bg-near-white" onclick="closeEditor()">⬅️ Quay lại</button>
+                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                             </div>
-                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung nguồn..." oninput="updateTokenEstimate()" style="resize:none"></textarea>
+                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate()" style="resize:none"></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
-                                                <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
+                                                <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
                                             </div>
-                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Kết quả dịch..." style="resize:none"></textarea>
+                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." style="resize:none"></textarea>
                                         </div>
                                     </div>
                                     
@@ -107,31 +106,77 @@
                                 </div>
                             </div>
 
-                            <!-- Prompt Settings Section -->
-                            <div id="ptab-prompt" class="nt-ptab-content dn pa4">
-                                <div class="flex justify-between items-center mb3">
-                                    <h3 class="f5 ma0 dark-gray fw6">🎯 Tùy chỉnh Prompt dự án</h3>
-                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveProjectPrompts()">Lưu tất cả</button>
-                                </div>
-                                <label class="db f7 gray mb2 uppercase tracked fw6">Main Prompt</label>
-                                <textarea id="proj-prompt-main" class="w-100 pa3 ba b--black-10 br2 mb4 f6 lh-copy outline-0" style="height:350px; resize:none"></textarea>
-                                <label class="db f7 gray mb2 uppercase tracked fw6">Correction Prompt</label>
-                                <textarea id="proj-prompt-correction" class="w-100 pa3 ba b--black-10 br2 f6 lh-copy outline-0" style="height:150px; resize:none"></textarea>
-                            </div>
+                             <!-- Prompt Settings Section -->
+                             <div id="ptab-prompt" class="nt-ptab-content dn pa4 flex-auto overflow-y-auto">
+                                 <div class="flex items-center gap-3 mb3 bg-near-white pa2 br2 ba b--black-05">
+                                     <div class="f7 fw6 gray uppercase tracked">📚 Thư viện:</div>
+                                     <div class="flex-auto">
+                                         <select id="prompt-library-select" class="w-100 pa1 f7 ba b--black-10 br2 outline-0" onchange="loadFromPromptLibrary()">
+                                             <option value="">— Chọn bộ prompt —</option>
+                                             <option value="__default__">Mặc định (Hệ thống)</option>
+                                         </select>
+                                     </div>
+                                     <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveProjectPrompts()">Lưu tất cả</button>
+                                 </div>
+                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-main" checked>
+                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-retranslate">
+                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-correction">
 
-                            <!-- Profile/Glossary Section -->
-                            <div id="ptab-profile" class="nt-ptab-content dn pa4">
+                                 <div class="nt-tab-nav flex bb b--black-10 mb3" role="tablist" aria-label="Prompt dự án">
+                                     <label for="project-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-main">Dịch thô</label>
+                                     <label for="project-tab-retranslate" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-retranslate">Dịch lại</label>
+                                     <label for="project-tab-correction" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-correction">Sửa lỗi</label>
+                                 </div>
+
+                                 <div class="nt-tab-panels flex-auto">
+                                     <section id="project-panel-main" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-main">
+                                         <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
+                                     </section>
+                                     <section id="project-panel-retranslate" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-retranslate">
+                                         <textarea id="proj-prompt-retranslate" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
+                                     </section>
+                                     <section id="project-panel-correction" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-correction">
+                                         <textarea id="proj-prompt-correction" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
+                                     </section>
+                                 </div>
+                             </div>
+
+                            <!-- Project Info Section -->
+                            <div id="ptab-profile" class="nt-ptab-content dn pa4 flex-auto overflow-y-auto">
                                 <div class="flex justify-between items-center mb3">
-                                    <h3 class="f5 ma0 dark-gray fw6">📋 Profile & Glossary</h3>
-                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveGuidelines()">Lưu Profile</button>
+                                    <h3 class="f5 ma0 dark-gray fw6">📋 Thông tin</h3>
+                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveGuidelines()">Lưu chỉ dẫn dự án</button>
                                 </div>
-                                <div class="mb4">
-                                    <label class="db f7 gray mb2 uppercase tracked fw6">Tóm tắt bối cảnh/Nhân vật</label>
-                                    <textarea id="guide-summary" class="w-100 pa3 ba b--black-10 br2 f6 lh-copy outline-0" style="height:200px; resize:none" placeholder="AI Summarize hoặc viết tay..."></textarea>
+
+                                <!-- AI Action Bar -->
+                                <div class="flex items-center gap-2 mb4 pa2 bg-light-blue br2 ba b--blue op-80">
+                                    <span class="f7 fw6 blue mr2">🪄 AI Actions:</span>
+                                    <select id="summarize-model" class="f7 ba b--blue blue br2 ph1 bg-white outline-0" style="height:24px">
+                                        <option value="">— Model mặc định —</option>
+                                    </select>
+                                    <button id="btn-ai-summarize" class="pointer ph2 pv1 f7 bn white bg-blue br2 hover-bg-dark-blue fw6" onclick="aiSummarize()" title="Tự động tóm tắt nội dung từ các file nguồn">Tóm tắt bối cảnh</button>
                                 </div>
-                                <div>
-                                    <label class="db f7 gray mb2 uppercase tracked fw6">Thuật ngữ & Tên riêng (Glossary)</label>
-                                    <textarea id="guide-glossary" class="w-100 pa3 ba b--black-10 br2 f6 lh-copy outline-0" style="height:200px; resize:none" placeholder="Gốc | Dịch | Ghi chú..."></textarea>
+
+                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-summary" checked>
+                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-relationships">
+                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-glossary">
+
+                                <div class="nt-tab-nav flex bb b--black-10 mb3" role="tablist" aria-label="Thông tin dự án">
+                                    <label for="project-info-tab-summary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-summary">Tóm tắt</label>
+                                    <label for="project-info-tab-relationships" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-relationships">Mối quan hệ</label>
+                                    <label for="project-info-tab-glossary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-glossary">Thuật ngữ</label>
+                                </div>
+
+                                <div class="nt-tab-panels flex-auto">
+                                    <section id="project-info-panel-summary" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-summary">
+                                        <textarea id="guide-summary" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="AI Summarize hoặc viết tay..."></textarea>
+                                    </section>
+                                    <section id="project-info-panel-relationships" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-relationships">
+                                        <textarea id="guide-characters" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="Tên nhân vật | Mối quan hệ | Ghi chú..."></textarea>
+                                    </section>
+                                    <section id="project-info-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-glossary">
+                                        <textarea id="guide-glossary" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="Gốc | Dịch | Ghi chú..."></textarea>
+                                    </section>
                                 </div>
                             </div>
 
@@ -140,4 +185,3 @@
                 </div>
             </div>
         </section>
-

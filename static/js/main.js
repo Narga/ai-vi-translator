@@ -121,26 +121,6 @@ function initTabs() {
 }
 
 function initPromptTabs() {
-    const pTabs = document.querySelectorAll('.genre-tab-btn');
-    const pContents = document.querySelectorAll('.genre-ptab-content');
-
-    pTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const target = tab.getAttribute('data-ptab');
-            pTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-
-            pContents.forEach(c => {
-                c.classList.remove('flex');
-                c.classList.add('dn');
-            });
-            const content = document.getElementById('ptab-' + target);
-            if (content) {
-                content.classList.remove('dn');
-                content.classList.add('flex');
-            }
-        });
-    });
 }
 
 function initDialogs() {
@@ -764,6 +744,15 @@ function selectProject(slug, keepSelection = false) {
 
         // 3. Render Files
         renderProjectSources(data.sources || []);
+
+        // Reset editor content when opening a project
+        const sourceText = document.getElementById('source-text');
+        const resultText = document.getElementById('result-text');
+        const tokenMini = document.getElementById('token-estimate-mini');
+        if (sourceText) sourceText.value = '';
+        if (resultText) resultText.value = '';
+        if (tokenMini) tokenMini.classList.add('dn');
+        currentProjectFile = null;
         
         // 4. Reset View
         switchProjectTab('workspace');
@@ -843,8 +832,13 @@ function renderProjectTranslated(translated) {
 }
 
 function switchProjectTab(tab) {
-    document.querySelectorAll('.nt-tab-btn').forEach(b => {
-        b.classList.toggle('active', b.getAttribute('data-ptab') === tab);
+    document.querySelectorAll('#project-tabs .tab-btn').forEach(b => {
+        const isActive = b.getAttribute('data-ptab') === tab;
+        b.classList.toggle('active', isActive);
+        b.classList.toggle('blue', isActive);
+        b.classList.toggle('gray', !isActive);
+        b.classList.toggle('b--blue', isActive);
+        b.classList.toggle('b--transparent', !isActive);
     });
     document.querySelectorAll('.nt-ptab-content').forEach(el => el.classList.add('dn'));
     const target = document.getElementById('ptab-' + tab);
@@ -862,10 +856,6 @@ function loadProjectFile(filename, section) {
         if (section === 'sources') {
             document.getElementById('source-text').value = data.content || '';
             currentProjectFile = { name: filename, section };
-            
-            // Show Editor, Hide Table
-            document.getElementById('workspace-sources').classList.add('dn');
-            document.getElementById('workspace-editor').classList.remove('dn');
             document.getElementById('token-estimate-mini').classList.remove('dn');
             
             updateTokenEstimate();
@@ -878,14 +868,6 @@ function loadProjectFile(filename, section) {
             });
         }
     });
-}
-
-function closeEditor() {
-    document.getElementById('workspace-sources').classList.remove('dn');
-    document.getElementById('workspace-editor').classList.add('dn');
-    document.getElementById('token-estimate-mini').classList.add('dn');
-    currentProjectFile = null;
-    selectProject(currentProject.slug, true); // Refresh state
 }
 
 // ============================================================
@@ -1233,11 +1215,17 @@ function loadGuidelines() {
     fetch(`/api/projects/${currentProject.slug}/guidelines`)
         .then(r => r.json())
         .then(data => {
-            document.getElementById('guide-summary').value = data.summary || '';
-            document.getElementById('guide-characters').value = data.characters || '';
-            document.getElementById('guide-glossary').value = data.glossary || '';
-            document.getElementById('guide-style').value = data.style_guide || '';
-            document.getElementById('guide-notes').value = data.additional_notes || '';
+            const guideSummary = document.getElementById('guide-summary');
+            const guideCharacters = document.getElementById('guide-characters');
+            const guideGlossary = document.getElementById('guide-glossary');
+            const guideStyle = document.getElementById('guide-style');
+            const guideNotes = document.getElementById('guide-notes');
+
+            if (guideSummary) guideSummary.value = data.summary || '';
+            if (guideCharacters) guideCharacters.value = data.characters || '';
+            if (guideGlossary) guideGlossary.value = data.glossary || '';
+            if (guideStyle) guideStyle.value = data.style_guide || '';
+            if (guideNotes) guideNotes.value = data.additional_notes || '';
         })
         .catch(e => console.error('Failed to load guidelines:', e));
 
@@ -1255,12 +1243,18 @@ function loadGuidelines() {
 
 function saveGuidelines() {
     if (!currentProject) return;
+    const guideSummary = document.getElementById('guide-summary');
+    const guideCharacters = document.getElementById('guide-characters');
+    const guideGlossary = document.getElementById('guide-glossary');
+    const guideStyle = document.getElementById('guide-style');
+    const guideNotes = document.getElementById('guide-notes');
+
     const data = {
-        summary: document.getElementById('guide-summary').value,
-        characters: document.getElementById('guide-characters').value,
-        glossary: document.getElementById('guide-glossary').value,
-        style_guide: document.getElementById('guide-style').value,
-        additional_notes: document.getElementById('guide-notes').value,
+        summary: guideSummary ? guideSummary.value : '',
+        characters: guideCharacters ? guideCharacters.value : '',
+        glossary: guideGlossary ? guideGlossary.value : '',
+        style_guide: guideStyle ? guideStyle.value : '',
+        additional_notes: guideNotes ? guideNotes.value : '',
     };
 
     fetch(`/api/projects/${currentProject.slug}/guidelines`, {
@@ -1590,11 +1584,8 @@ function hideProgressModal() {
 function closeProgress() {
     const workspaceSources = document.getElementById('workspace-sources');
     const workspaceProgress = document.getElementById('workspace-progress');
-    const workspaceEditor = document.getElementById('workspace-editor');
-    
     if(workspaceSources) workspaceSources.classList.remove('dn');
     if(workspaceProgress) workspaceProgress.classList.add('dn');
-    if(workspaceEditor) workspaceEditor.classList.add('dn');
     
     if (typeof selectedFiles !== 'undefined' && selectedFiles) {
         selectedFiles.clear();
@@ -1973,6 +1964,9 @@ function selectGenre(slug) {
             document.getElementById('genre-main-text').value = data.prompts.main || '';
             document.getElementById('genre-retranslate-text').value = data.prompts.retranslate || '';
             document.getElementById('genre-correction-text').value = data.prompts.correction || '';
+            document.getElementById('genre-summary-text').value = data.prompts.summary || '';
+            document.getElementById('genre-relationships-text').value = data.prompts.relationships || '';
+            document.getElementById('genre-glossary-text').value = data.prompts.glossary || '';
             loadGenres(); // Refresh active state in list
         });
 }
@@ -2000,8 +1994,11 @@ function createGenre(e) {
     const promptsData = window.isCloning ? {
         main: document.getElementById('genre-main-text').value,
         retranslate: document.getElementById('genre-retranslate-text').value,
-        correction: document.getElementById('genre-correction-text').value
-    } : { main: '', retranslate: '', correction: '' };
+        correction: document.getElementById('genre-correction-text').value,
+        summary: document.getElementById('genre-summary-text').value,
+        relationships: document.getElementById('genre-relationships-text').value,
+        glossary: document.getElementById('genre-glossary-text').value,
+    } : { main: '', retranslate: '', correction: '', summary: '', relationships: '', glossary: '' };
     window.isCloning = false;
 
     fetch('/api/prompt-sets', {
@@ -2033,7 +2030,10 @@ function saveGenre() {
             prompts: {
                 main: document.getElementById('genre-main-text').value,
                 retranslate: document.getElementById('genre-retranslate-text').value,
-                correction: document.getElementById('genre-correction-text').value
+                correction: document.getElementById('genre-correction-text').value,
+                summary: document.getElementById('genre-summary-text').value,
+                relationships: document.getElementById('genre-relationships-text').value,
+                glossary: document.getElementById('genre-glossary-text').value,
             }
         })
     }).then(r => r.json()).then(data => {
@@ -2056,7 +2056,10 @@ function activateGenre() {
                 prompts = {
                     main: document.getElementById('genre-main-text').value,
                     retranslate: document.getElementById('genre-retranslate-text').value,
-                    correction: document.getElementById('genre-correction-text').value
+                    correction: document.getElementById('genre-correction-text').value,
+                    summary: document.getElementById('genre-summary-text').value,
+                    relationships: document.getElementById('genre-relationships-text').value,
+                    glossary: document.getElementById('genre-glossary-text').value,
                 };
                 showGenreAlert('Nạp thông tin AI vào bộ xử lý Thành Công 🚀', 'success');
             }
@@ -2305,29 +2308,62 @@ function toggleProjectList() {
 // ============================================================
 
 let currentLogFile = '';
+let selectedLogFiles = new Set();
+
+function updateSelectedLogsUI() {
+    const btn = document.getElementById('btn-delete-selected-logs');
+    if (!btn) return;
+    if (selectedLogFiles.size > 0) {
+        btn.classList.remove('dn');
+        btn.textContent = `🗑️ Xóa đã chọn (${selectedLogFiles.size})`;
+    } else {
+        btn.classList.add('dn');
+        btn.textContent = '🗑️ Xóa đã chọn';
+    }
+}
+
+function toggleLogFile(filename, checked) {
+    if (checked) selectedLogFiles.add(filename);
+    else selectedLogFiles.delete(filename);
+    updateSelectedLogsUI();
+}
+
+function selectAllLogs(checked) {
+    const boxes = document.querySelectorAll('.sys-log-checkbox');
+    boxes.forEach(box => {
+        box.checked = checked;
+        toggleLogFile(box.value, checked);
+    });
+}
 
 function loadLogList() {
     fetch('/api/logs')
         .then(r => r.json())
         .then(data => {
             const listEl = document.getElementById('sys-log-list');
+            selectedLogFiles.clear();
+            updateSelectedLogsUI();
             if (data.length === 0) {
                 listEl.innerHTML = '<div class="pa3 tc silver i">Không có file log nào.</div>';
                 document.getElementById('sys-log-viewer').innerHTML = '<div class="tc silver mt5 i">Chưa chọn file log.</div>';
                 return;
             }
             
-            let html = '';
+            let html = '<div class="pa2 bb b--black-10 bg-near-white"><label class="f7 gray"><input type="checkbox" onclick="selectAllLogs(this.checked)"> Chọn tất cả</label></div>';
             data.forEach(log => {
                 const dateStr = new Date(log.mtime * 1000).toLocaleString('vi-VN');
+                const safeName = log.filename.replace(/'/g, "\\'");
+                const safeValue = log.filename.replace(/"/g, '&quot;');
                 html += `
-                    <div class="pv2 ph3 bb b--black-05 pointer hover-bg-near-white flex justify-between items-center" 
-                         onclick="viewLogFile('${log.filename}')">
-                        <div>
-                            <div class="f6 fw6 dark-gray truncate" style="max-width: 180px;">${log.filename}</div>
-                            <div class="f7 gray">${dateStr}</div>
+                    <div class="pv2 ph3 bb b--black-05 flex items-center gap-2">
+                        <input class="sys-log-checkbox" type="checkbox" value="${safeValue}" onchange="toggleLogFile('${safeName}', this.checked)">
+                        <div class="pointer hover-bg-near-white flex items-center justify-between flex-auto" onclick="viewLogFile('${safeName}')">
+                            <div class="pr2" style="min-width:0;">
+                                <div class="f7 fw6 dark-gray truncate" style="max-width: 170px;">${log.filename}</div>
+                                <div class="f7 silver mt1 truncate" style="max-width: 170px;">${dateStr}</div>
+                            </div>
+                            <div class="f7 silver tr nowrap" style="min-width: 96px; max-width: 96px;">${log.size_display}</div>
                         </div>
-                        <div class="f7 silver bg-light-gray br2 ph1">${log.size_display}</div>
                     </div>
                 `;
             });
@@ -2336,13 +2372,37 @@ function loadLogList() {
         .catch(e => showToast('Lỗi tải danh sách logs: ' + e.message, 'error'));
 }
 
+function deleteSelectedLogs() {
+    if (selectedLogFiles.size === 0) return;
+    const files = Array.from(selectedLogFiles);
+    if (!confirm(`Xóa vĩnh viễn ${files.length} file log đã chọn?`)) return;
+
+    Promise.all(files.map(filename =>
+        fetch(`/api/logs/${encodeURIComponent(filename)}`, { method: 'DELETE' }).then(r => r.json())
+    ))
+        .then(results => {
+            const failed = results.filter(r => !r.success);
+            if (failed.length > 0) {
+                showToast(`Xóa thất bại ${failed.length} file log`, 'error');
+            } else {
+                showToast(`Đã xóa ${files.length} file log`, 'success');
+            }
+            currentLogFile = '';
+            document.getElementById('current-log-title').textContent = 'Chọn file để xem';
+            document.getElementById('sys-log-viewer').innerHTML = '<div class="tc silver mt5 i">Chưa chọn file log.</div>';
+            document.getElementById('btn-delete-log').classList.add('dn');
+            loadLogList();
+        })
+        .catch(e => showToast('Lỗi xóa logs: ' + e.message, 'error'));
+}
+
 function viewLogFile(filename) {
     currentLogFile = filename;
     document.getElementById('current-log-title').textContent = filename;
     document.getElementById('btn-delete-log').classList.remove('dn');
     document.getElementById('sys-log-viewer').innerHTML = '<div class="tc silver mt5 i">Đang tải nội dung...</div>';
 
-    fetch(`/api/logs/${filename}`)
+    fetch(`/api/logs/${encodeURIComponent(filename)}`)
         .then(r => r.json())
         .then(data => {
             if (data.error) throw new Error(data.error);
@@ -2388,7 +2448,7 @@ function deleteCurrentLog() {
     if (!currentLogFile) return;
     if (!confirm(`Xóa vĩnh viễn file log "${currentLogFile}"?`)) return;
     
-    fetch(`/api/logs/${currentLogFile}`, { method: 'DELETE' })
+    fetch(`/api/logs/${encodeURIComponent(currentLogFile)}`, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {

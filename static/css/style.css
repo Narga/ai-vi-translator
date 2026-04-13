@@ -76,6 +76,59 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .gap-3 { gap: 1rem; }
 .gap-4 { gap: 1.5rem; }
 
+/* Radio Tabs */
+.nt-tab-radio { position: absolute; opacity: 0; pointer-events: none; }
+.nt-tab-label { cursor: pointer; }
+.nt-tab-panel { display: none; }
+
+#project-tab-main:checked ~ .nt-tab-nav label[for="project-tab-main"],
+#project-tab-retranslate:checked ~ .nt-tab-nav label[for="project-tab-retranslate"],
+#project-tab-correction:checked ~ .nt-tab-nav label[for="project-tab-correction"] {
+  color: #111;
+  border-bottom: 2px solid #357edd;
+  font-weight: 600;
+}
+
+#project-tab-main:checked ~ .nt-tab-panels #project-panel-main,
+#project-tab-retranslate:checked ~ .nt-tab-panels #project-panel-retranslate,
+#project-tab-correction:checked ~ .nt-tab-panels #project-panel-correction {
+  display: block;
+}
+
+#project-info-tab-summary:checked ~ .nt-tab-nav label[for="project-info-tab-summary"],
+#project-info-tab-relationships:checked ~ .nt-tab-nav label[for="project-info-tab-relationships"],
+#project-info-tab-glossary:checked ~ .nt-tab-nav label[for="project-info-tab-glossary"] {
+  color: #111;
+  border-bottom: 2px solid #357edd;
+  font-weight: 600;
+}
+
+#project-info-tab-summary:checked ~ .nt-tab-panels #project-info-panel-summary,
+#project-info-tab-relationships:checked ~ .nt-tab-panels #project-info-panel-relationships,
+#project-info-tab-glossary:checked ~ .nt-tab-panels #project-info-panel-glossary {
+  display: block;
+}
+
+#system-tab-main:checked ~ .nt-tab-nav label[for="system-tab-main"],
+#system-tab-retranslate:checked ~ .nt-tab-nav label[for="system-tab-retranslate"],
+#system-tab-correction:checked ~ .nt-tab-nav label[for="system-tab-correction"],
+#system-tab-summary:checked ~ .nt-tab-nav label[for="system-tab-summary"],
+#system-tab-relationships:checked ~ .nt-tab-nav label[for="system-tab-relationships"],
+#system-tab-glossary:checked ~ .nt-tab-nav label[for="system-tab-glossary"] {
+  color: #111;
+  border-bottom: 2px solid #357edd;
+  font-weight: 600;
+}
+
+#system-tab-main:checked ~ .nt-tab-panels #system-panel-main,
+#system-tab-retranslate:checked ~ .nt-tab-panels #system-panel-retranslate,
+#system-tab-correction:checked ~ .nt-tab-panels #system-panel-correction,
+#system-tab-summary:checked ~ .nt-tab-panels #system-panel-summary,
+#system-tab-relationships:checked ~ .nt-tab-panels #system-panel-relationships,
+#system-tab-glossary:checked ~ .nt-tab-panels #system-panel-glossary {
+  display: block;
+}
+
 /* Modal Animations */
 @keyframes pop-in {
   0% { transform: scale(0.9); opacity: 0; }

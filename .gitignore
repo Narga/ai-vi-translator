@@ -68,3 +68,5 @@ Desktop.ini
 .env.*
 *.pem
 *.key
+.antigravity/media/
+.agent/*

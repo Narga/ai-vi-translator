@@ -1,10 +1,10 @@
 <!-- ==================== TAB 3: PROMPT MANAGER ==================== -->
-        <section id="tab-prompts" class="nt-tab-content dn h-100">
-            <div class="workspace-wrapper h-100">
-                <div class="flex-l flex-auto h-100 gap-3">
+        <section id="tab-prompts" class="nt-tab-content dn">
+            <div class="workspace-wrapper flex flex-column items-center" style="min-height: 100%;">
+                <div class="w-100 mw8 flex gap-3">
                     
                     <!-- Sidebar Genres -->
-                    <div class="w-30-l flex flex-column h-100">
+                    <div class="w-30-l flex flex-column" style="min-height: 500px">
                         <div class="ba b--black-10 br2 bg-white flex flex-column shadow-1 h-100">
                             <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
                                 <h2 class="f5 ma0 fw6 dark-gray">📚 Thể loại</h2>
@@ -19,7 +19,7 @@
                     </div>
 
                     <!-- Editor -->
-                    <div class="w-70-l flex flex-column h-100">
+                    <div class="w-70-l flex flex-column" style="min-height: 500px">
                         <div id="genre-editor" class="ba b--black-10 br2 bg-white flex-auto flex flex-column relative dn shadow-1">
                             <!-- Top header -->
                             <div class="pa3 flex justify-between items-center bb b--black-10 bg-near-white">
@@ -38,22 +38,41 @@
                             </div>
 
                             <div class="pa3 flex-auto flex flex-column">
-                                <!-- Prompt sub-tabs -->
-                                <div class="flex gap-2 mb3" id="prompt-tabs">
-                                    <button class="genre-tab-btn active ph3 pv2 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--blue blue" data-ptab="main">Main (Dịch thô)</button>
-                                    <button class="genre-tab-btn ph3 pv2 pointer f7 fw6 tracked uppercase bg-transparent bn gray mr2" data-ptab="retranslate">Retranslate</button>
-                                    <button class="genre-tab-btn ph3 pv2 pointer f7 fw6 tracked uppercase bg-transparent bn gray" data-ptab="correction">Correction</button>
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-main" checked>
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-retranslate">
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-correction">
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-summary">
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-relationships">
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-glossary">
+
+                                <div class="nt-tab-nav flex bb b--black-10 mb3 flex-wrap" role="tablist" aria-label="Prompt hệ thống">
+                                    <label for="system-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-main">Dịch thô</label>
+                                    <label for="system-tab-retranslate" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-retranslate">Dịch lại</label>
+                                    <label for="system-tab-correction" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-correction">Sửa lỗi</label>
+                                    <label for="system-tab-summary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-summary">Tóm tắt</label>
+                                    <label for="system-tab-relationships" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-relationships">Mối quan hệ</label>
+                                    <label for="system-tab-glossary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-glossary">Thuật ngữ</label>
                                 </div>
 
-                                <!-- Textareas -->
-                                <div id="ptab-main" class="genre-ptab-content flex-auto flex flex-column active">
-                                    <textarea id="genre-main-text" class="ba b--black-10 br2 pa3 w-100 flex-auto code f7 outline-0" style="resize:none;" placeholder="Main prompt..."></textarea>
-                                </div>
-                                <div id="ptab-retranslate" class="genre-ptab-content flex-auto flex flex-column dn">
-                                    <textarea id="genre-retranslate-text" class="ba b--black-10 br2 pa3 w-100 flex-auto code f7 outline-0" style="resize:none;" placeholder="Retranslate prompt..."></textarea>
-                                </div>
-                                <div id="ptab-correction" class="genre-ptab-content flex-auto flex flex-column dn">
-                                    <textarea id="genre-correction-text" class="ba b--black-10 br2 pa3 w-100 flex-auto code f7 outline-0" style="resize:none;" placeholder="Correction prompt..."></textarea>
+                                <div class="nt-tab-panels flex-auto">
+                                    <section id="system-panel-main" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-main">
+                                        <textarea id="genre-main-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Main prompt..."></textarea>
+                                    </section>
+                                    <section id="system-panel-retranslate" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-retranslate">
+                                        <textarea id="genre-retranslate-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Retranslate prompt..."></textarea>
+                                    </section>
+                                    <section id="system-panel-correction" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-correction">
+                                        <textarea id="genre-correction-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Correction prompt..."></textarea>
+                                    </section>
+                                    <section id="system-panel-summary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-summary">
+                                        <textarea id="genre-summary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Tóm tắt..."></textarea>
+                                    </section>
+                                    <section id="system-panel-relationships" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-relationships">
+                                        <textarea id="genre-relationships-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Mối quan hệ..."></textarea>
+                                    </section>
+                                    <section id="system-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-glossary">
+                                        <textarea id="genre-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Thuật ngữ..."></textarea>
+                                    </section>
                                 </div>
                             </div>
                         </div>
