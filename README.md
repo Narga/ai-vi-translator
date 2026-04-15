@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.2.0)
+# 📚 Content Translator (v6.5.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -15,7 +15,8 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 - 📋 **Advanced Logging**: Hệ thống xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Hệ thống lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
 - ⚡ **High Performance UI**: Giao diện Dashboard tối giản, cực nhanh dựa trên Tachyons CSS.
-- 🛡️ **Stable Layout**: Cơ chế chuyển tab và scroll được tối ưu hóa, đảm bảo độ ổn định cao.
+- 🛡️ **Stable Layout**: Hệ thống 7-Tab hợp nhất với cơ chế Flexbox ổn định, chống chồng lấn.
+- ✨ **Integrated AI Guidelines**: Tự động tạo Chỉ dẫn, Thuật ngữ, Mối quan hệ và Tóm tắt bằng AI ngay trong từng thẻ.
 
 ---
 
@@ -57,7 +58,7 @@ python cli.py translate -i input/novel.txt  # CLI mode
 
 ---
 
-## 🏗️ Kiến Trúc (v6.2.0)
+## 🏗️ Kiến Trúc (v6.5.0)
 
 ```
 webui.py ──→ webui/          # Flask App (Blueprints)
@@ -79,5 +80,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.2.0  
-**Ngày:** 12/04/2026
+**Phiên bản:** 6.5.0  
+**Ngày:** 15/04/2026

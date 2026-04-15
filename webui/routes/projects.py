@@ -109,12 +109,12 @@ def create_project():
     if pdir.exists():
         return jsonify({"error": f"Dự án '{slug}' đã tồn tại"}), 409
 
-    for sub in ["sources", "translated", "prompt", "profile", "output"]:
+    for sub in ["sources", "translated", "prompt", "assets", "output"]:
         (pdir / sub).mkdir(parents=True, exist_ok=True)
-    (pdir / "profile" / "translation_memory").mkdir(exist_ok=True)
+    (pdir / "assets" / "translation_memory").mkdir(exist_ok=True)
 
-    prompts_root = Path("prompts")
-    for fname in ["01-main.txt", "02-retranslate.txt", "03-correction.txt"]:
+    prompts_root = Path("workspace/prompts/default")
+    for fname in ["main_prompt.txt", "retranslate_prompt.txt", "correction_prompt.txt"]:
         src = prompts_root / fname
         if src.exists():
             shutil.copy2(src, pdir / "prompt" / fname)
@@ -133,15 +133,19 @@ def create_project():
     for fname, content in [
         ("glossary.txt", "# Bảng thuật ngữ\n# Format: thuật ngữ gốc | thuật ngữ dịch | ghi chú\n"),
         (
-            "characters.txt",
+            "relationship.txt",
             "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n",
         ),
         (
             "style_guide.txt",
             "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n",
         ),
+        (
+            "summary.txt",
+            "# Tóm tắt cốt truyện\n# Ghi chú diễn biến chính\n",
+        ),
     ]:
-        fp = pdir / "profile" / fname
+        fp = pdir / "assets" / fname
         if not fp.exists():
             fp.write_text(content, encoding="utf-8")
 
@@ -658,9 +662,9 @@ def get_project_prompts(slug):
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
         for key, fname in [
-            ("main", "01-main.txt"),
-            ("retranslate", "02-retranslate.txt"),
-            ("correction", "03-correction.txt"),
+            ("main", "main_prompt.txt"),
+            ("retranslate", "retranslate_prompt.txt"),
+            ("correction", "correction_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():
@@ -680,9 +684,9 @@ def save_project_prompts(slug):
 
     data = request.json
     for key, fname in [
-        ("main", "01-main.txt"),
-        ("retranslate", "02-retranslate.txt"),
-        ("correction", "03-correction.txt"),
+        ("main", "main_prompt.txt"),
+        ("retranslate", "retranslate_prompt.txt"),
+        ("correction", "correction_prompt.txt"),
     ]:
         if key in data:
             (prompt_dir / fname).write_text(data[key], encoding="utf-8")
@@ -702,12 +706,12 @@ def get_project_guidelines(slug):
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    profile_dir = pdir / "profile"
-    profile_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir = pdir / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
 
     fields = {
         "summary": "summary.txt",
-        "characters": "characters.txt",
+        "characters": "relationship.txt",
         "glossary": "glossary.txt",
         "style_guide": "style_guide.txt",
         "additional_notes": "additional_notes.txt",
@@ -715,7 +719,7 @@ def get_project_guidelines(slug):
 
     result = {}
     for key, fname in fields.items():
-        fp = profile_dir / fname
+        fp = assets_dir / fname
         result[key] = fp.read_text(encoding="utf-8") if fp.exists() else ""
 
     return jsonify(result)
@@ -728,13 +732,13 @@ def save_project_guidelines(slug):
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    profile_dir = pdir / "profile"
-    profile_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir = pdir / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
 
     data = request.json
     fields = {
         "summary": "summary.txt",
-        "characters": "characters.txt",
+        "characters": "relationship.txt",
         "glossary": "glossary.txt",
         "style_guide": "style_guide.txt",
         "additional_notes": "additional_notes.txt",
@@ -743,7 +747,7 @@ def save_project_guidelines(slug):
     saved = []
     for key, fname in fields.items():
         if key in data:
-            (profile_dir / fname).write_text(data[key], encoding="utf-8")
+            (assets_dir / fname).write_text(data[key], encoding="utf-8")
             saved.append(key)
 
     return jsonify({"success": True, "saved": saved})
@@ -828,10 +832,10 @@ def summarize_project(slug):
             result, status = client.generate_content(summarize_prompt)
 
         if status == "success" and result:
-            # Auto-save to profile
-            profile_dir = pdir / "profile"
-            profile_dir.mkdir(parents=True, exist_ok=True)
-            (profile_dir / "summary.txt").write_text(result, encoding="utf-8")
+            # Auto-save to assets
+            assets_dir = pdir / "assets"
+            assets_dir.mkdir(parents=True, exist_ok=True)
+            (assets_dir / "summary.txt").write_text(result, encoding="utf-8")
             return jsonify({"success": True, "summary": result})
         else:
             return jsonify({"error": f"AI trả về lỗi: {result or status}"}), 500
@@ -872,9 +876,9 @@ def translate_project_file(slug):
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
         for key, fname in [
-            ("main", "01-main.txt"),
-            ("retranslate", "02-retranslate.txt"),
-            ("correction", "03-correction.txt"),
+            ("main", "main_prompt.txt"),
+            ("retranslate", "retranslate_prompt.txt"),
+            ("correction", "correction_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():
@@ -882,22 +886,22 @@ def translate_project_file(slug):
                 if content:
                     prompts[key] = content
 
-    # Load profile context (Static instructions)
-    profile_context = ""
+    # Load assets context (Static instructions)
+    assets_context = ""
     for pfile in ["style_guide.txt"]:
-        fp = pdir / "profile" / pfile
+        fp = pdir / "assets" / pfile
         if fp.exists():
             content = fp.read_text(encoding="utf-8").strip()
             if content and not content.startswith("#"):
-                profile_context += f"\n\n# Hướng dẫn phong cách\n{content}"
+                assets_context += f"\n\n# Hướng dẫn phong cách\n{content}"
 
-    if profile_context.strip():
-        prompts["main"] += profile_context
+    if assets_context.strip():
+        prompts["main"] += assets_context
 
     # Glossary paths (Dynamic terms)
-    glossary_filenames = ["glossary.txt", "characters.txt"]
+    glossary_filenames = ["glossary.txt", "relationship.txt"]
     glossary_paths = [
-        pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()
+        pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
     ]
 
     config = {
@@ -928,7 +932,7 @@ def translate_project_file(slug):
                 return
 
             project_tm = TranslationMemory(
-                tm_dir=str(pdir / "profile" / "translation_memory"),
+                tm_dir=str(pdir / "assets" / "translation_memory"),
                 enabled=True,
             )
 

@@ -453,6 +453,13 @@ function loadModels() {
                 sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(availableModels, '');
             }
 
+            // Populate per-tab content model dropdowns (guideline tabs)
+            const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model'];
+            contentTabModels.forEach(selId => {
+                const sel = document.getElementById(selId);
+                if (sel) sel.innerHTML = '<option value="">— Chọn Model —</option>' + renderOptions(availableModels, '');
+            });
+
             // Load saved config values AFTER models dropdown is ready
             loadAppConfig();
         })
@@ -816,21 +823,32 @@ function renderProjectTranslated(translated) {
 }
 
 function switchProjectTab(tab) {
-    document.querySelectorAll('#project-tabs .tab-btn').forEach(b => {
-        const isActive = b.getAttribute('data-ptab') === tab;
-        b.classList.toggle('active', isActive);
-        b.classList.toggle('blue', isActive);
-        b.classList.toggle('gray', !isActive);
-        b.classList.toggle('b--blue', isActive);
-        b.classList.toggle('b--transparent', !isActive);
-    });
-    document.querySelectorAll('.nt-ptab-content').forEach(el => el.classList.add('dn'));
-    const target = document.getElementById('ptab-' + tab);
-    if (target) target.classList.remove('dn');
+    try {
+        document.querySelectorAll('#project-tabs .tab-btn').forEach(b => {
+            const isActive = b.getAttribute('data-ptab') === tab;
+            b.classList.toggle('active', isActive);
+            b.classList.toggle('blue', isActive);
+            b.classList.toggle('gray', !isActive);
+            b.classList.toggle('b--blue', isActive);
+            b.classList.toggle('b--transparent', !isActive);
+        });
+        document.querySelectorAll('.nt-ptab-content').forEach(el => el.classList.add('dn'));
+        const target = document.getElementById('ptab-' + tab);
+        if (target) {
+            target.classList.remove('dn');
+        }
 
-    // Load prompt/profile when switching
-    if (tab === 'prompt' && currentProject) loadProjectPrompts();
-    if (tab === 'profile' && currentProject) loadGuidelines();
+        // Load data when switching to content tabs (Safely)
+        if (currentProject) {
+            if (tab === 'prompt') {
+                loadProjectPrompts();
+            } else if (['style-guide', 'relationship', 'glossary', 'summary'].includes(tab)) {
+                loadGuidelineTab(tab);
+            }
+        }
+    } catch (e) {
+        console.error('Error switching tab:', e);
+    }
 }
 
 function loadProjectFile(filename, section) {
@@ -1156,9 +1174,8 @@ function moveBackInProject(filename) {
 function loadProjectPrompts() {
     if (!currentProject) return;
     fetch(`/api/projects/${currentProject.slug}/prompts`).then(r => r.json()).then(data => {
-        document.getElementById('proj-prompt-main').value = data.main || '';
-        document.getElementById('proj-prompt-retranslate').value = data.retranslate || '';
-        document.getElementById('proj-prompt-correction').value = data.correction || '';
+        const el = document.getElementById('proj-prompt-main');
+        if (el) el.value = data.main || '';
     });
     // Populate prompt library dropdown
     const sel = document.getElementById('prompt-library-select');
@@ -1178,12 +1195,11 @@ function loadProjectPrompts() {
 
 function saveProjectPrompts() {
     if (!currentProject) return;
+    const mainEl = document.getElementById('proj-prompt-main');
     fetch(`/api/projects/${currentProject.slug}/prompts`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            main: document.getElementById('proj-prompt-main').value,
-            retranslate: document.getElementById('proj-prompt-retranslate').value,
-            correction: document.getElementById('proj-prompt-correction').value,
+            main: mainEl ? mainEl.value : '',
         })
     }).then(r => r.json()).then(data => {
         if (data.success) showToast('Đã lưu prompt dự án!', 'success');
@@ -1202,73 +1218,128 @@ function loadFromPromptLibrary() {
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            if (data.main) document.getElementById('proj-prompt-main').value = data.main;
-            if (data.retranslate) document.getElementById('proj-prompt-retranslate').value = data.retranslate;
-            if (data.correction) document.getElementById('proj-prompt-correction').value = data.correction;
+            if (data.main) {
+                const el = document.getElementById('proj-prompt-main');
+                if (el) el.value = data.main;
+            }
             showToast(`Đã nạp bộ prompt "${slug === '__default__' ? 'Mặc định' : slug}"`, 'success');
         })
         .catch(e => showToast(e.message, 'error'));
 }
 
-function loadGuidelines() {
+// Tab-to-field mapping for guideline tabs
+const GUIDELINE_TAB_MAP = {
+    'style-guide':  { field: 'style_guide',  elId: 'guide-style-guide',  modelId: 'style-guide-model' },
+    'relationship': { field: 'characters',   elId: 'guide-relationship', modelId: 'relationship-model' },
+    'glossary':     { field: 'glossary',     elId: 'guide-glossary',     modelId: 'glossary-model' },
+    'summary':      { field: 'summary',      elId: 'guide-summary',      modelId: 'summary-model' },
+};
+
+function _populateModelSelect(selId) {
+    const sel = document.getElementById(selId);
+    const mainSel = document.getElementById('model');
+    if (!sel || !mainSel) return;
+    let opts = '<option value="">— Chọn Model —</option>';
+    for (const opt of mainSel.options) {
+        if (opt.value) opts += `<option value="${opt.value}">${opt.text}</option>`;
+    }
+    sel.innerHTML = opts;
+}
+
+function loadGuidelineTab(tab) {
     if (!currentProject) return;
+    const mapping = GUIDELINE_TAB_MAP[tab];
+    if (!mapping) return;
+
+    // Populate model dropdown
+    _populateModelSelect(mapping.modelId);
+
     fetch(`/api/projects/${currentProject.slug}/guidelines`)
         .then(r => r.json())
         .then(data => {
-            const guideSummary = document.getElementById('guide-summary');
-            const guideCharacters = document.getElementById('guide-characters');
-            const guideGlossary = document.getElementById('guide-glossary');
-            const guideStyle = document.getElementById('guide-style');
-            const guideNotes = document.getElementById('guide-notes');
-
-            if (guideSummary) guideSummary.value = data.summary || '';
-            if (guideCharacters) guideCharacters.value = data.characters || '';
-            if (guideGlossary) guideGlossary.value = data.glossary || '';
-            if (guideStyle) guideStyle.value = data.style_guide || '';
-            if (guideNotes) guideNotes.value = data.additional_notes || '';
+            const el = document.getElementById(mapping.elId);
+            if (el) el.value = data[mapping.field] || '';
         })
-        .catch(e => console.error('Failed to load guidelines:', e));
-
-    // Populate summarize model dropdown from main model list
-    const modelSel = document.getElementById('summarize-model');
-    const mainModelSel = document.getElementById('model');
-    if (modelSel && mainModelSel) {
-        let opts = '<option value="">— Mặc định —</option>';
-        for (const opt of mainModelSel.options) {
-            if (opt.value) opts += `<option value="${opt.value}">${opt.text}</option>`;
-        }
-        modelSel.innerHTML = opts;
-    }
+        .catch(e => console.error('loadGuidelineTab error:', e));
 }
 
-function saveGuidelines() {
+function saveGuidelineField(fieldKey) {
     if (!currentProject) return;
-    const guideSummary = document.getElementById('guide-summary');
-    const guideCharacters = document.getElementById('guide-characters');
-    const guideGlossary = document.getElementById('guide-glossary');
-    const guideStyle = document.getElementById('guide-style');
-    const guideNotes = document.getElementById('guide-notes');
-
-    const data = {
-        summary: guideSummary ? guideSummary.value : '',
-        characters: guideCharacters ? guideCharacters.value : '',
-        glossary: guideGlossary ? guideGlossary.value : '',
-        style_guide: guideStyle ? guideStyle.value : '',
-        additional_notes: guideNotes ? guideNotes.value : '',
+    // Map fieldKey -> tab -> elId
+    const reverseMap = {
+        'style_guide': 'guide-style-guide',
+        'relationship': 'guide-relationship',
+        'glossary': 'guide-glossary',
+        'summary': 'guide-summary',
     };
+    const elId = reverseMap[fieldKey];
+    const el = document.getElementById(elId);
+    if (!el) return;
+
+    // characters is the backend key for relationship
+    const backendKey = fieldKey === 'relationship' ? 'characters' : fieldKey;
 
     fetch(`/api/projects/${currentProject.slug}/guidelines`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+        body: JSON.stringify({ [backendKey]: el.value })
     })
         .then(r => r.json())
         .then(res => {
-            if (res.success) showToast('Đã lưu guidelines dự án!', 'success');
-            else showToast(res.error || 'Lỗi lưu guidelines', 'error');
+            if (res.success) showToast('Đã lưu thành công!', 'success');
+            else showToast(res.error || 'Lỗi lưu', 'error');
         })
         .catch(e => showToast(e.message, 'error'));
 }
+
+function aiGenerateContent(fieldKey) {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+
+    const modelSelMap = {
+        'style_guide': 'style-guide-model',
+        'relationship': 'relationship-model',
+        'glossary': 'glossary-model',
+        'summary': 'summary-model',
+    };
+    const outputElMap = {
+        'style_guide': 'guide-style-guide',
+        'relationship': 'guide-relationship',
+        'glossary': 'guide-glossary',
+        'summary': 'guide-summary',
+    };
+
+    const modelSel = document.getElementById(modelSelMap[fieldKey]);
+    const model = modelSel ? modelSel.value : '';
+    const outputEl = document.getElementById(outputElMap[fieldKey]);
+
+    if (outputEl) { outputEl.placeholder = '⏳ AI đang tạo nội dung...'; outputEl.disabled = true; }
+
+    fetch(`/api/projects/${currentProject.slug}/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, content_type: fieldKey })
+    })
+        .then(async r => {
+            const isJson = r.headers.get('content-type')?.includes('application/json');
+            const data = isJson ? await r.json() : null;
+            if (!r.ok) throw new Error(data?.error || `Lỗi server: ${r.status}`);
+            return data;
+        })
+        .then(data => {
+            if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
+            if (data.success && data.summary) {
+                if (outputEl) outputEl.value = data.summary;
+                showToast('AI đã tạo nội dung thành công!', 'success');
+            } else {
+                showToast(data.error || 'AI không trả về kết quả', 'error');
+            }
+        })
+        .catch(e => {
+            if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
+            showToast('Lỗi: ' + e.message, 'error');
+        });
+}
+
 
 function aiSummarize() {
     if (!currentProject) return;

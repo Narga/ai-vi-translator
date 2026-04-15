@@ -33,20 +33,23 @@
                         </div>
 
                         <!-- Tab Groups Content -->
-                        <div class="ba b--black-10 br2 bg-white flex-auto flex flex-column overflow-hidden shadow-1">
-                                 <div id="project-tabs" class="flex bb b--black-10 bg-near-white">
-                                 <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn blue bb b--blue" data-ptab="workspace" onclick="switchProjectTab('workspace')">📄 Nội dung gốc</button>
-                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="translated" onclick="switchProjectTab('translated')">📚 Bản dịch</button>
-                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent mr2" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
-                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent" data-ptab="profile" onclick="switchProjectTab('profile')">📋 Thông tin</button>
+                        <div class="ba b--black-10 br2 bg-white flex-auto flex flex-column overflow-hidden shadow-1" style="position: relative;">
+                                 <div id="project-tabs" class="flex flex-shrink-0 bb b--black-10 bg-near-white overflow-x-auto" style="z-index: 10;">
+                                 <button class="tab-btn active ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn blue bb b--blue nowrap" data-ptab="workspace" onclick="switchProjectTab('workspace')">📄 Nội dung gốc</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="translated" onclick="switchProjectTab('translated')">📚 Bản dịch</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="style-guide" onclick="switchProjectTab('style-guide')">🖊️ Chỉ dẫn</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="relationship" onclick="switchProjectTab('relationship')">👥 Mối quan hệ</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="glossary" onclick="switchProjectTab('glossary')">📖 Thuật ngữ</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="summary" onclick="switchProjectTab('summary')">📋 Tóm tắt</button>
                              </div>
 
                             <!-- Workspace Content Section -->
-                             <div id="ptab-workspace" class="nt-ptab-content flex-auto overflow-y-auto pa3">
+                             <div id="ptab-workspace" class="nt-ptab-content flex-auto flex flex-column overflow-hidden pa3">
                                 
                                 <!-- Source Table Block -->
-                                <div id="workspace-sources" class="ba b--black-10 br2 overflow-hidden bg-white mb3">
-                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white">
+                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                          <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-source-count" class="blue fw7">0</span>)</span>
                                          <div class="flex gap-2">
                                              <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch được chọn</button>
@@ -71,15 +74,15 @@
                                 </div>
 
                                 <!-- Integrated Editor Block (Side-by-Side) -->
-                                <div id="workspace-editor" class="flex flex-column pv2">
+                                <div id="workspace-editor" class="pv2">
                                     <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
-                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                             </div>
                                             <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate()" style="resize:none"></textarea>
                                         </div>
-                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
@@ -89,7 +92,7 @@
                                     </div>
                                     
                                     <!-- Token & Quick Actions -->
-                                    <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2">
+                                    <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2 flex-shrink-0">
                                         <div id="token-estimate-mini" class="dn f7 gray">
                                             📊 <span id="token-char-count">0</span> chars | <strong id="token-estimate" class="blue">0</strong> tokens
                                             <span id="token-model-fit" class="ml2"></span>
@@ -103,10 +106,9 @@
                                 </div>
                             </div>
 
-                            <!-- Translated Files Section -->
-                            <div id="ptab-translated" class="nt-ptab-content dn flex-auto overflow-y-auto pa3">
-                                <div id="translated-files" class="ba b--black-10 br2 overflow-hidden bg-white mb3">
-                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white">
+                            <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                         <span class="f6 fw6 dark-gray">Tệp đã dịch (<span id="proj-translated-count" class="blue fw7">0</span>)</span>
                                         <button id="btn-merge-translated" class="pointer ph3 pv1 f7 bn white bg-dark-green br2 shadow-1 hover-bg-green fw6" onclick="mergeTranslatedFiles()">🧩 Ghép tập tin</button>
                                     </div>
@@ -124,15 +126,15 @@
                                     </div>
                                 </div>
 
-                                <div id="translated-editor" class="flex flex-column pv2">
+                                <div id="translated-editor" class="pv2">
                                     <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
-                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                             </div>
                                             <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." style="resize:none"></textarea>
                                         </div>
-                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden">
+                                        <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
@@ -142,7 +144,7 @@
                                     </div>
                                     
                                     <!-- Token & Quick Actions -->
-                                    <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2">
+                                    <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2 flex-shrink-0">
                                         <div id="translated-token-estimate" class="dn f7 gray">
                                             📊 <span id="translated-token-char-count">0</span> chars | <strong id="translated-token-count">0</strong> tokens
                                             <span id="translated-token-model-fit" class="ml2"></span>
@@ -156,79 +158,72 @@
                                 </div>
                             </div>
 
-                             <!-- Prompt Settings Section -->
-                             <div id="ptab-prompt" class="nt-ptab-content dn pa4 flex-auto overflow-y-auto">
-                                 <div class="flex items-center gap-3 mb3 bg-near-white pa2 br2 ba b--black-05">
-                                     <div class="f7 fw6 gray uppercase tracked">📚 Thư viện:</div>
-                                     <div class="flex-auto">
-                                         <select id="prompt-library-select" class="w-100 pa1 f7 ba b--black-10 br2 outline-0" onchange="loadFromPromptLibrary()">
-                                             <option value="">— Chọn bộ prompt —</option>
-                                             <option value="__default__">Mặc định (Hệ thống)</option>
-                                         </select>
-                                     </div>
-                                     <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveProjectPrompts()">Lưu tất cả</button>
-                                 </div>
-                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-main" checked>
-                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-retranslate">
-                                 <input class="nt-tab-radio" type="radio" name="project-prompt-tabs" id="project-tab-correction">
+                            <!-- Chỉ dẫn phong cách Section -->
+                              <div id="ptab-style-guide" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                  <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
+                                      <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
+                                      <select id="style-guide-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                          <option value="">— Chọn Model —</option>
+                                      </select>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('style_guide')">✨ Generate</button>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('style_guide')">💾 Lưu</button>
+                                  </div>
+                                  <textarea id="guide-style-guide" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Mô tả tone, phong cách dịch, các quy tắc cần tuân thủ..."></textarea>
+                              </div>
 
-                                 <div class="nt-tab-nav flex bb b--black-10 mb3" role="tablist" aria-label="Prompt dự án">
-                                     <label for="project-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-main">Dịch thô</label>
-                                     <label for="project-tab-retranslate" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-retranslate">Dịch lại</label>
-                                     <label for="project-tab-correction" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-panel-correction">Sửa lỗi</label>
-                                 </div>
+                              <!-- Mối quan hệ Section -->
+                              <div id="ptab-relationship" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                  <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
+                                      <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
+                                      <select id="relationship-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                          <option value="">— Chọn Model —</option>
+                                      </select>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('relationship')">✨ Generate</button>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('relationship')">💾 Lưu</button>
+                                  </div>
+                                  <textarea id="guide-relationship" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Tên gốc | Tên dịch | Vai trò | Mối quan hệ..."></textarea>
+                              </div>
 
-                                 <div class="nt-tab-panels flex-auto">
-                                     <section id="project-panel-main" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-main">
-                                         <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
-                                     </section>
-                                     <section id="project-panel-retranslate" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-retranslate">
-                                         <textarea id="proj-prompt-retranslate" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
-                                     </section>
-                                     <section id="project-panel-correction" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-tab-correction">
-                                         <textarea id="proj-prompt-correction" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none"></textarea>
-                                     </section>
-                                 </div>
-                             </div>
+                              <!-- Thuật ngữ Section -->
+                              <div id="ptab-glossary" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                  <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
+                                      <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
+                                      <select id="glossary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                          <option value="">— Chọn Model —</option>
+                                      </select>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('glossary')">✨ Generate</button>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('glossary')">💾 Lưu</button>
+                                  </div>
+                                  <textarea id="guide-glossary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Thuật ngữ gốc | Thuật ngữ dịch | Ghi chú..."></textarea>
+                              </div>
 
-                            <!-- Project Info Section -->
-                            <div id="ptab-profile" class="nt-ptab-content dn pa4 flex-auto overflow-y-auto">
-                                <div class="flex justify-between items-center mb3">
-                                    <h3 class="f5 ma0 dark-gray fw6">📋 Thông tin</h3>
-                                    <button class="pointer ph3 pv2 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveGuidelines()">Lưu chỉ dẫn dự án</button>
-                                </div>
+                              <!-- Prompt Dự án Section -->
+                              <div id="ptab-prompt" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                  <div class="flex items-center gap-3 mb3 bg-near-white pa2 br2 ba b--black-05">
+                                      <div class="f7 fw6 gray uppercase tracked">📚 Thư viện:</div>
+                                      <div class="flex-auto">
+                                          <select id="prompt-library-select" class="w-100 pa1 f7 ba b--black-10 br2 outline-0" onchange="loadFromPromptLibrary()">
+                                              <option value="">— Chọn bộ prompt —</option>
+                                              <option value="__default__">Mặc định (Hệ thống)</option>
+                                          </select>
+                                      </div>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 nowrap" onclick="saveProjectPrompts()">💾 Lưu prompt</button>
+                                  </div>
+                                  <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Nhập prompt chính cho dịch thuật..."></textarea>
+                              </div>
 
-                                <!-- AI Action Bar -->
-                                <div class="flex items-center gap-2 mb4 pa2 bg-light-blue br2 ba b--blue op-80">
-                                    <span class="f7 fw6 blue mr2">🪄 AI Actions:</span>
-                                    <select id="summarize-model" class="f7 ba b--blue blue br2 ph1 bg-white outline-0" style="height:24px">
-                                        <option value="">— Model mặc định —</option>
-                                    </select>
-                                    <button id="btn-ai-summarize" class="pointer ph2 pv1 f7 bn white bg-blue br2 hover-bg-dark-blue fw6" onclick="aiSummarize()" title="Tự động tóm tắt nội dung từ các file nguồn">Tóm tắt bối cảnh</button>
-                                </div>
-
-                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-summary" checked>
-                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-relationships">
-                                <input class="nt-tab-radio" type="radio" name="project-info-tabs" id="project-info-tab-glossary">
-
-                                <div class="nt-tab-nav flex bb b--black-10 mb3" role="tablist" aria-label="Thông tin dự án">
-                                    <label for="project-info-tab-summary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-summary">Tóm tắt</label>
-                                    <label for="project-info-tab-relationships" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-relationships">Mối quan hệ</label>
-                                    <label for="project-info-tab-glossary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="project-info-panel-glossary">Thuật ngữ</label>
-                                </div>
-
-                                <div class="nt-tab-panels flex-auto">
-                                    <section id="project-info-panel-summary" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-summary">
-                                        <textarea id="guide-summary" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="AI Summarize hoặc viết tay..."></textarea>
-                                    </section>
-                                    <section id="project-info-panel-relationships" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-relationships">
-                                        <textarea id="guide-characters" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="Tên nhân vật | Mối quan hệ | Ghi chú..."></textarea>
-                                    </section>
-                                    <section id="project-info-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="project-info-tab-glossary">
-                                        <textarea id="guide-glossary" class="w-100 pa3 ba b--black-10 br2 f7 lh-copy outline-0" style="min-height:340px; resize:none" placeholder="Gốc | Dịch | Ghi chú..."></textarea>
-                                    </section>
-                                </div>
-                            </div>
+                              <!-- Tóm tắt Section -->
+                              <div id="ptab-summary" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                  <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
+                                      <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
+                                      <select id="summary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                          <option value="">— Chọn Model —</option>
+                                      </select>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('summary')">✨ Generate</button>
+                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('summary')">💾 Lưu</button>
+                                  </div>
+                                  <textarea id="guide-summary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="AI Generate hoặc viết tóm tắt cốt truyện tại đây..."></textarea>
+                              </div>
 
                         </div>
                     </div>

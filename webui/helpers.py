@@ -269,8 +269,8 @@ def calculate_stats():
 
 
 def load_prompts():
-    """Load prompts từ thư mục prompts/."""
-    prompts_dir = Path("prompts")
+    """Load prompts từ thư mục workspace/prompts/default/."""
+    prompts_dir = Path("workspace/prompts/default")
     prompts = {
         "main": "",
         "retranslate": "",
@@ -281,12 +281,12 @@ def load_prompts():
     }
 
     for key, filename in [
-        ("main", "01-main.txt"),
-        ("retranslate", "02-retranslate.txt"),
-        ("correction", "03-correction.txt"),
-        ("summary", "04-summary.txt"),
-        ("relationships", "05-relationships.txt"),
-        ("glossary", "06-glossary.txt"),
+        ("main", "main_prompt.txt"),
+        ("retranslate", "retranslate_prompt.txt"),
+        ("correction", "correction_prompt.txt"),
+        ("summary", "summary_prompt.txt"),
+        ("relationships", "relationship_prompt.txt"),
+        ("glossary", "glossary_prompt.txt"),
     ]:
         filepath = prompts_dir / filename
         if filepath.exists():
@@ -297,17 +297,17 @@ def load_prompts():
 
 
 def save_prompts(prompts):
-    """Lưu prompts vào thư mục prompts/."""
-    prompts_dir = Path("prompts")
+    """Lưu prompts vào thư mục workspace/prompts/default/."""
+    prompts_dir = Path("workspace/prompts/default")
     prompts_dir.mkdir(parents=True, exist_ok=True)
 
     for key, filename in [
-        ("main", "01-main.txt"),
-        ("retranslate", "02-retranslate.txt"),
-        ("correction", "03-correction.txt"),
-        ("summary", "04-summary.txt"),
-        ("relationships", "05-relationships.txt"),
-        ("glossary", "06-glossary.txt"),
+        ("main", "main_prompt.txt"),
+        ("retranslate", "retranslate_prompt.txt"),
+        ("correction", "correction_prompt.txt"),
+        ("summary", "summary_prompt.txt"),
+        ("relationships", "relationship_prompt.txt"),
+        ("glossary", "glossary_prompt.txt"),
     ]:
         filepath = prompts_dir / filename
         with open(filepath, "w", encoding="utf-8") as f:
@@ -327,12 +327,11 @@ def ensure_default_project():
     from datetime import datetime
 
     pdir.mkdir(parents=True, exist_ok=True)
-    for sub in ["sources", "translated", "prompt", "profile", "output"]:
+    for sub in ["sources", "translated", "prompt", "assets", "output"]:
         (pdir / sub).mkdir(parents=True, exist_ok=True)
-    (pdir / "profile" / "translation_memory").mkdir(exist_ok=True)
 
-    prompts_root = Path("prompts")
-    for fname in ["01-main.txt", "02-retranslate.txt", "03-correction.txt"]:
+    prompts_root = Path("workspace/prompts/default")
+    for fname in ["main_prompt.txt", "retranslate_prompt.txt", "correction_prompt.txt"]:
         src = prompts_root / fname
         if src.exists():
             shutil.copy2(src, pdir / "prompt" / fname)
@@ -352,14 +351,18 @@ def ensure_default_project():
     for fname, content in [
         ("glossary.txt", "# Bảng thuật ngữ\n# Format: thuật ngữ gốc | thuật ngữ dịch | ghi chú\n"),
         (
-            "characters.txt",
+            "relationship.txt",
             "# Bảng nhân vật & quan hệ\n# Format: tên gốc | tên dịch | vai trò | quan hệ\n",
         ),
         (
             "style_guide.txt",
             "# Hướng dẫn phong cách dịch\n# Mô tả tone, style, và các quy tắc dịch\n",
         ),
+        (
+            "summary.txt",
+            "# Tóm tắt cốt truyện\n# Ghi chú diến biến chính\n",
+        ),
     ]:
-        fp = pdir / "profile" / fname
+        fp = pdir / "assets" / fname
         if not fp.exists():
             fp.write_text(content, encoding="utf-8")

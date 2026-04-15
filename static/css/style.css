@@ -28,6 +28,11 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-tab-content { flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; display: none; }
 .nt-tab-content.active { display: flex !important; }
 
+/* Project Sub-Tabs (ptab) Handling */
+.nt-ptab-content { flex-direction: column; }
+.nt-ptab-content.active-ptab { display: flex !important; }
+.nt-ptab-content.dn { display: none !important; }
+
 /* Workspace Layout */
 .workspace-wrapper { display: flex; flex: 1; min-height: 0; padding: 1.5rem; gap: 1.5rem; width: 100%; box-sizing: border-box; }
 .sidebar { width: 320px; display: flex; flex-direction: column; flex-shrink: 0; }

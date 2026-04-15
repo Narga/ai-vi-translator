@@ -4,6 +4,25 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.5.0] - 2026-04-15 - Unified 7-Tab UI & Integrated Project Assets
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Unified 7-Tab System**: Tái cấu trúc hoàn toàn giao diện làm việc thành 7 thẻ chức năng: *Nội dung gốc, Bản dịch, Chỉ dẫn, Mối quan hệ, Thuật ngữ, Prompt, Tóm tắt*.
+- **Robust Flexbox Layout**: Giải quyết triệt để lỗi chồng lấn layout, đảm bảo hiển thị ổn định trên mọi kích thước màn hình.
+- **Enhanced Editors**: Khôi phục độ cao tối ưu (500px) cho các vùng nhập liệu đối chiếu, giúp thao tác thuận tiện hơn.
+- **AI Integration**: Nút **✨ AI Generate** được tích hợp trực tiếp vào các thẻ Chỉ dẫn, Mối quan hệ, Thuật ngữ và Tóm tắt với khả năng chọn Model linh hoạt.
+
+### 📂 Quản lý Dữ liệu (Dữ liệu & Assets)
+- **Project-specific Assets**: Di chuyển toàn bộ dữ liệu hướng dẫn, thuật ngữ và quan hệ nhân vật vào thư mục `assets/` riêng của từng dự án.
+- **Guideline Migration**: Hệ thống tự động di chuyển dữ liệu cũ sang cấu trúc mới (`style_guide.txt`, `relationship.txt`, `glossary.txt`, `summary.txt`).
+- **Prompt Library Integration**: Hỗ trợ nạp bộ prompt từ thư viện chung và cho phép tùy chỉnh prompt riêng biệt cho mỗi dự án.
+
+### ⚙️ Hệ thống & Backend
+- **Safe Tab Switching**: Cơ chế chuyển thẻ mới với Error Handling, đảm bảo ứng dụng không bị treo khi gặp lỗi nạp dữ liệu cục bộ.
+- **Backend Refactoring**: Cập nhật API và Helper để hỗ trợ cấu trúc lưu trữ Assets mới.
+
+---
+
 ## [6.3.0] - 2026-04-13 - Project Workspace & Translation Modal Refinements
 
 ### 📂 Quản lý Dự án (Project Management)
