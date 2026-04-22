@@ -10,6 +10,7 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - **ACMS Migration**: Nâng cấp hệ thống AI Context Management sang kiến trúc Database-centric (SQLite). 
 - **Storage Centralization**: Di chuyển dữ liệu context từ `.antigravity/` và `memory.md` sang thư mục `.acms/` và database `context.db`.
 - **Command Suite**: Tích hợp các công cụ mới: `/context-checkpoint`, `/context-restore`, `/context-status`, `/context-upgrade`.
+- **WebUI Consolidation**: Tái cấu trúc mã nguồn, di chuyển `static/` và `templates/` vào trong package `webui/` để tăng tính module hóa.
 
 ### 🎨 Giao diện & Trải nghiệm (UI/UX)
 - **Project Info Modal**: Hợp nhất việc chỉnh sửa thông tin dự án (Tên, Mô tả) và các thao tác quản trị (Lưu trữ, Xóa) vào một Modal duy nhất.
