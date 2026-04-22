@@ -68,6 +68,8 @@ Desktop.ini
 .env.*
 *.pem
 *.key
-.antigravity/media/
+.antigravity/
 .agent/*
 .gitnexus
+.acms/
+uv.lock

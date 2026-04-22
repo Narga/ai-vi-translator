@@ -4,6 +4,21 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.6.0] - 2026-04-22 - ACMS Upgrade & UI/UX Refinement
+
+### 🧠 Hệ thống & Kiến trúc (ACMS Upgrade)
+- **ACMS Migration**: Nâng cấp hệ thống AI Context Management sang kiến trúc Database-centric (SQLite). 
+- **Storage Centralization**: Di chuyển dữ liệu context từ `.antigravity/` và `memory.md` sang thư mục `.acms/` và database `context.db`.
+- **Command Suite**: Tích hợp các công cụ mới: `/context-checkpoint`, `/context-restore`, `/context-status`, `/context-upgrade`.
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Project Info Modal**: Hợp nhất việc chỉnh sửa thông tin dự án (Tên, Mô tả) và các thao tác quản trị (Lưu trữ, Xóa) vào một Modal duy nhất.
+- **Improved Workspace Editor**: 
+    - Khắc phục triệt để lỗi không cuộn được trong trình soạn thảo song ngữ.
+    - Sửa lỗi mô tả dự án bị cắt ngắn (truncate) trong header.
+    - Tối ưu hóa layout `flexbox` để thanh công cụ (Copy, Download, Dịch lại) luôn khả dụng.
+- **Smart Cleanup**: Loại bỏ các nút chức năng dư thừa ở Header để làm gọn giao diện làm việc.
+
 ## [6.5.0] - 2026-04-15 - Unified 7-Tab UI & Integrated Project Assets
 
 ### 🎨 Giao diện & Trải nghiệm (UI/UX)
