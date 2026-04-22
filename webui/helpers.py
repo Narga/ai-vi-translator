@@ -85,23 +85,62 @@ def get_active_provider():
 
 
 def load_openai_key():
-    """Load OpenAI/OpenRouter API key từ .env hoặc config."""
+    """Load OpenAI/OpenRouter API key từ config/API.txt [OPENAI] section."""
+    try:
+        api_file = Path("config/API.txt")
+        if api_file.exists():
+            sections = _parse_api_file(api_file)
+            keys = sections.get("OPENAI", [])
+            if keys:
+                return keys[0]
+    except Exception as e:
+        logger.debug(f"load_openai_key error: {e}")
+
+    # Fallback: đọc từ .env (legacy support)
     try:
         from dotenv import load_dotenv
-
         load_dotenv()
         key = os.environ.get("OPENAI_API_KEY", "")
         if key:
             return key.strip()
-    except ImportError:
+    except Exception:
         pass
 
-    # Fallback: đọc từ config/app.ini [OPENAI] section
+    # Fallback 2: đọc từ config/app.ini [OPENAI] section
     config = load_config()
     try:
         return config.get("OPENAI", "API_KEY", fallback="").strip()
     except Exception:
         return ""
+
+
+def _parse_api_file(filepath):
+    """Helper để parse file API.txt theo nhóm [SECTION]."""
+    sections = {}
+    current_section = "GEMINI"  # Default for legacy files without sections
+    
+    if not filepath.exists():
+        return sections
+        
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if line.startswith("[") and line.endswith("]"):
+                    current_section = line[1:-1].upper()
+                    if current_section not in sections:
+                        sections[current_section] = []
+                    continue
+                
+                if current_section not in sections:
+                    sections[current_section] = []
+                sections[current_section].append(line)
+    except Exception as e:
+        logger.error(f"Error parsing {filepath}: {e}")
+        
+    return sections
 
 
 def get_openai_base_url():
@@ -188,32 +227,51 @@ def get_available_openai_models():
 
 
 def load_api_keys():
-    """Load API keys từ .env hoặc config."""
+    """Load Gemini API keys từ config/API.txt [GEMINI] section."""
+    api_file = Path("config/API.txt")
+    if api_file.exists():
+        sections = _parse_api_file(api_file)
+        keys = sections.get("GEMINI", [])
+        if keys:
+            return keys
+
+    # Fallback: đọc từ .env
     try:
         from dotenv import load_dotenv
-
         load_dotenv()
         env_value = os.environ.get("GEMINI_API_KEYS", "")
         if env_value:
             return [k.strip() for k in env_value.split(",") if k.strip()]
-    except ImportError:
+    except Exception:
         pass
 
-    api_file = Path("config/API.txt")
-    if api_file.exists():
-        with open(api_file, "r") as f:
-            return [line.strip() for line in f if line.strip() and not line.startswith("#")]
     return []
 
 
-def save_api_keys(keys_text):
-    """Lưu API keys vào file config/API.txt."""
-    api_dir = Path("config")
-    api_dir.mkdir(parents=True, exist_ok=True)
-    api_file = api_dir / "API.txt"
-    with open(api_file, "w", encoding="utf-8") as f:
-        f.write(keys_text)
-    return True
+def save_api_keys(keys_text, section="GEMINI"):
+    """Lưu API keys vào file config/API.txt theo nhóm."""
+    api_file = Path("config/API.txt")
+    api_file.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Đọc dữ liệu hiện tại
+    sections = _parse_api_file(api_file)
+    
+    # Cập nhật section chỉ định
+    new_keys = [k.strip() for k in keys_text.splitlines() if k.strip()]
+    sections[section.upper()] = new_keys
+    
+    # Ghi lại toàn bộ file
+    try:
+        with open(api_file, "w", encoding="utf-8") as f:
+            for sec, keys in sections.items():
+                f.write(f"[{sec}]\n")
+                for k in keys:
+                    f.write(f"{k}\n")
+                f.write("\n")
+        return True
+    except Exception as e:
+        logger.error(f"save_api_keys error: {e}")
+        return False
 
 
 def calculate_stats():

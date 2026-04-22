@@ -4,13 +4,20 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
-## [6.6.0] - 2026-04-22 - ACMS Upgrade & UI/UX Refinement
+## [6.6.2] - 2026-04-22
+### Added
+- **Premium Tooltips (ⓘ)**: Thêm các biểu tượng trợ giúp cạnh các tùy chọn cấu hình trong tab Cấu hình để giải thích các thông số kỹ thuật (RPM, TPM, Temperature, v.v.).
+- **Hover Information**: Logic hiển thị thông tin chi tiết khi người dùng di chuột vào các icon trợ giúp với hiệu ứng glassmorphism mượt mà.
 
-### 🧠 Hệ thống & Kiến trúc (ACMS Upgrade)
-- **ACMS Migration**: Nâng cấp hệ thống AI Context Management sang kiến trúc Database-centric (SQLite). 
-- **Storage Centralization**: Di chuyển dữ liệu context từ `.antigravity/` và `memory.md` sang thư mục `.acms/` và database `context.db`.
-- **Command Suite**: Tích hợp các công cụ mới: `/context-checkpoint`, `/context-restore`, `/context-status`, `/context-upgrade`.
-- **WebUI Consolidation**: Tái cấu trúc mã nguồn, di chuyển `static/` và `templates/` vào trong package `webui/` để tăng tính module hóa.
+### Changed
+- **Unified Configuration**: Hợp nhất toàn bộ API Keys từ `.env` và `API.txt` cũ vào duy nhất `config/API.txt` với cấu trúc phân nhóm `[GEMINI]`, `[OPENAI]`.
+- **Backend Refactoring**: Cập nhật logic load/save API keys để hỗ trợ cấu trúc phân nhóm mới, loại bỏ phụ thuộc vào file `.env`.
+- **Documentation**: Cập nhật `config/API.txt.example` và xóa bỏ các file cấu hình thừa (`.env`, `.env.example`).
+
+## [6.6.1] - 2026-04-22
+### Changed
+- **WebUI Consolidation**: Di chuyển toàn bộ thư mục `static/` và `templates/` vào trong package `webui/` để tăng tính module hóa.
+- **Flask App Factory**: Đơn giản hóa việc khởi tạo Flask app, tự động nhận diện tài nguyên trong package.
 
 ### 🎨 Giao diện & Trải nghiệm (UI/UX)
 - **Project Info Modal**: Hợp nhất việc chỉnh sửa thông tin dự án (Tên, Mô tả) và các thao tác quản trị (Lưu trữ, Xóa) vào một Modal duy nhất.

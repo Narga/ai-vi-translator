@@ -142,31 +142,39 @@ def get_openai_models():
 
 @settings_bp.route("/api/openai/config", methods=["POST"])
 def save_openai_config():
-    """Lưu cấu hình OpenAI (API key, base URL, model)."""
+    """Lưu cấu hình OpenAI (API key, base URL, model) vào app.ini và API.txt."""
     try:
         data = request.json
         api_key = data.get("api_key", "").strip()
         base_url = data.get("base_url", "").strip()
         model = data.get("model", "gpt-4o-mini").strip()
 
-        # Lưu api_key vào .env
+        # Lưu api_key vào config/API.txt [OPENAI]
         if api_key:
-            env_path = Path(".env")
-            env_lines = []
-            if env_path.exists():
-                env_lines = env_path.read_text(encoding="utf-8").splitlines()
+            from webui.helpers import save_api_keys
+            save_api_keys(api_key, section="OPENAI")
 
-            # Update or add OPENAI_API_KEY
-            found = False
-            for i, line in enumerate(env_lines):
-                if line.startswith("OPENAI_API_KEY"):
-                    env_lines[i] = f"OPENAI_API_KEY={api_key}"
-                    found = True
-                    break
-            if not found:
-                env_lines.append(f"OPENAI_API_KEY={api_key}")
+        # Lưu base_url và model vào app.ini
+        config_path = Path("config/app.ini")
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        if config_path.exists():
+            config.read(config_path)
 
-            env_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
+        if not config.has_section("OPENAI"):
+            config.add_section("OPENAI")
+        if base_url:
+            config.set("OPENAI", "BASE_URL", base_url)
+        if model:
+            config.set("OPENAI", "MODEL", model)
+
+        with open(config_path, "w", encoding="utf-8") as f:
+            config.write(f)
+
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Error saving OpenAI config: {e}")
+        return jsonify({"error": str(e)}), 500
 
         # Lưu base_url và model vào app.ini
         config_path = Path("config/app.ini")
@@ -382,14 +390,17 @@ def restart_server():
 
 @settings_bp.route("/api/keys", methods=["GET", "POST"])
 def manage_api_keys():
-    """Lấy hoặc lưu danh sách API keys."""
+    """Lấy hoặc lưu danh sách API keys theo nhóm (mặc định: GEMINI)."""
+    section = request.args.get("section", "GEMINI").upper()
+    
     if request.method == "GET":
         try:
             api_file = Path("config/API.txt")
             if api_file.exists():
-                with open(api_file, "r", encoding="utf-8") as f:
-                    content = f.read()
-                return jsonify({"content": content})
+                from webui.helpers import _parse_api_file
+                sections = _parse_api_file(api_file)
+                keys = sections.get(section, [])
+                return jsonify({"content": "\n".join(keys)})
             return jsonify({"content": ""})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
@@ -398,8 +409,10 @@ def manage_api_keys():
     try:
         data = request.json
         keys_text = data.get("content", "")
-        save_api_keys(keys_text)
-        return jsonify({"success": True})
+        from webui.helpers import save_api_keys
+        if save_api_keys(keys_text, section=section):
+            return jsonify({"success": True})
+        return jsonify({"error": "Không thể lưu file"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

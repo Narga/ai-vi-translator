@@ -85,11 +85,21 @@
                             <h4 class="f5 fw6 mt0 mb3 dark-gray">Thiết lập Hệ thống</h4>
                             <div class="flex flex-wrap mhn2 pb2">
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">QA Model</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        QA Model
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Model phụ trách kiểm soát chất lượng và rà soát lỗi sau khi dịch.">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0"></select>
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Thinking Level</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        Thinking Level
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Mức độ phân tích logic của AI. Cao hơn sẽ tốn token hơn nhưng thông minh hơn.">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <select id="cfg-thinking" name="MODEL.THINKING_LEVEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
                                         <option value="LOW">LOW</option>
                                         <option value="MEDIUM" selected>MEDIUM</option>
@@ -100,23 +110,48 @@
 
                             <div class="flex flex-wrap mhn2 pt2">
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Chunk Size</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        Chunk Size
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Context Radius</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        Context Radius
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Số ký tự bao quanh đoạn đang dịch để AI hiểu ngữ cảnh (trước/sau).">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
                                 </div>
                                 <div class="w-100 ph2 mb3">
-                                    <label class="db f7 fw6 gray mb2 uppercase tracked">Temperature (<span id="temp-value" class="blue fw6">0.7</span>)</label>
+                                    <label class="db f7 fw6 gray mb2 uppercase tracked">
+                                        Temperature (<span id="temp-value" class="blue fw6">0.7</span>)
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Độ sáng tạo: 0.0 là máy móc, 1.0+ là bay bổng (có thể sai lệch).">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer">
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Delay (giây)</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        API Delay (giây)
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Thời gian nghỉ giữa các yêu cầu để tránh bị khóa API (Rate Limit).">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Độ trễ bù trừ (Antilag)</label>
+                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                        Độ trễ bù trừ (Antilag)
+                                        <span class="nt-tooltip-container">
+                                            <span class="nt-help-icon" data-tooltip="Bù trừ độ trễ mạng để tối ưu hóa tốc độ gửi yêu cầu.">ⓘ</span>
+                                        </span>
+                                    </label>
                                     <input type="text" class="ba b--black-10 br2 pa2 w-100 f7 bg-near-white outline-0 silver" value="10ms" readonly>
                                 </div>
                                 <div class="w-100 ph2 mt2">
