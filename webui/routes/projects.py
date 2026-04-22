@@ -114,7 +114,7 @@ def create_project():
     (pdir / "assets" / "translation_memory").mkdir(exist_ok=True)
 
     prompts_root = Path("workspace/prompts/default")
-    for fname in ["main_prompt.txt", "retranslate_prompt.txt", "correction_prompt.txt"]:
+    for fname in ["main_prompt.txt"]:
         src = prompts_root / fname
         if src.exists():
             shutil.copy2(src, pdir / "prompt" / fname)
@@ -654,7 +654,7 @@ def project_move_back(slug):
 def get_project_prompts(slug):
     """Load prompt dự án (fallback global)."""
     pdir = _get_project_dir(slug)
-    prompts = {"main": "", "retranslate": "", "correction": ""}
+    prompts = {"main": ""}
 
     global_prompts = load_prompts()
     prompts.update(global_prompts)
@@ -663,8 +663,6 @@ def get_project_prompts(slug):
     if prompt_dir.exists():
         for key, fname in [
             ("main", "main_prompt.txt"),
-            ("retranslate", "retranslate_prompt.txt"),
-            ("correction", "correction_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():
@@ -685,8 +683,6 @@ def save_project_prompts(slug):
     data = request.json
     for key, fname in [
         ("main", "main_prompt.txt"),
-        ("retranslate", "retranslate_prompt.txt"),
-        ("correction", "correction_prompt.txt"),
     ]:
         if key in data:
             (prompt_dir / fname).write_text(data[key], encoding="utf-8")
@@ -755,18 +751,63 @@ def save_project_guidelines(slug):
 
 @projects_bp.route("/api/projects/<slug>/summarize", methods=["POST"])
 def summarize_project(slug):
-    """AI tóm tắt nội dung sách từ file nguồn."""
+    """AI tạo nội dung theo loại (summary, glossary, relationship, style_guide)."""
     pdir = _get_project_dir(slug)
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     data = request.json
     source_file = data.get("source_file", "")
+    content_type = data.get("content_type", "summary")
+
+    # Map content_type -> (prompt_filename, asset_filename, fallback_prompt)
+    CONTENT_MAP = {
+        "summary": (
+            "summary_prompt.txt",
+            "summary.txt",
+            (
+                "Đọc nội dung sau và viết bản TÓM TẮT NGẮN GỌN bằng tiếng Việt, "
+                "bao gồm: thể loại, bối cảnh, nhân vật chính, cốt truyện chính (3-5 câu), tone văn.\n\n"
+                "--- NỘI DUNG ---\n"
+            ),
+        ),
+        "relationship": (
+            "relationship_prompt.txt",
+            "relationship.txt",
+            (
+                "Đọc nội dung sau và liệt kê các NHÂN VẬT quan trọng theo định dạng:\n"
+                "tên_gốc | tên_tiếng_việt | vai_trò | quan_hệ\n\n"
+                "--- NỘI DUNG ---\n"
+            ),
+        ),
+        "glossary": (
+            "glossary_prompt.txt",
+            "glossary.txt",
+            (
+                "Đọc nội dung sau và trích xuất THUẬT NGỮ quan trọng theo định dạng:\n"
+                "thuật_ngữ_gốc | thuật_ngữ_tiếng_việt | ghi_chú\n\n"
+                "--- NỘI DUNG ---\n"
+            ),
+        ),
+        "style_guide": (
+            "style_guide_prompt.txt",
+            "style_guide.txt",
+            (
+                "Đọc nội dung sau và tạo CHỈ DẪN PHONG CÁCH DỊCH bao gồm: "
+                "tone văn, cách xưng hô, quy tắc dịch tên riêng, các lưu ý văn phong.\n\n"
+                "--- NỘI DUNG ---\n"
+            ),
+        ),
+    }
+
+    if content_type not in CONTENT_MAP:
+        return jsonify({"error": f"Loại nội dung không hợp lệ: {content_type}"}), 400
+
+    prompt_filename, asset_filename, fallback_prompt = CONTENT_MAP[content_type]
 
     # Tìm file nguồn
     src_path = pdir / "sources" / source_file
     if not src_path.is_file():
-        # Nếu không có file cụ thể hoặc path là thư mục, nối tất cả file nguồn
         src_dir = pdir / "sources"
         all_text = []
         if src_dir.exists():
@@ -779,43 +820,55 @@ def summarize_project(slug):
         content = src_path.read_text(encoding="utf-8", errors="ignore")
 
     if not content.strip():
-        return jsonify({"error": "Không có nội dung nguồn để tóm tắt"}), 400
+        return jsonify({"error": "Không có nội dung nguồn để phân tích"}), 400
 
-    # Giới hạn nội dung (lấy 50K ký tự đầu để tránh vượt context)
+    # Giới hạn nội dung
     max_chars = 50000
     if len(content) > max_chars:
         content = content[:max_chars] + "\n\n[... nội dung tiếp theo bị cắt ...]"
 
-    summarize_prompt = (
-        "Bạn là chuyên gia phân tích văn học. Đọc đoạn trích sau và viết bản TÓM TẮT NGẮN GỌN bằng tiếng Việt "
-        "bao gồm:\n"
-        "1. Thể loại và bối cảnh câu chuyện\n"
-        "2. Nhân vật chính và mối quan hệ\n"
-        "3. Tóm tắt cốt truyện (3-5 câu)\n"
-        "4. Phong cách viết và tone\n\n"
-        "--- NỘI DUNG ---\n"
-        f"{content}"
-    )
+    # Nạp prompt chuyên biệt từ thư viện
+    PROMPTS_DIR = Path("workspace/prompts")
+    meta = _load_project_meta(slug) or {}
+    genre = (meta.get("genre") or "").strip()
+
+    prompt_text = ""
+    # Thử tìm prompt theo thể loại dự án trước
+    if genre:
+        genre_prompt = PROMPTS_DIR / genre / prompt_filename
+        if genre_prompt.exists():
+            prompt_text = genre_prompt.read_text(encoding="utf-8")
+
+    # Fallback về bộ default
+    if not prompt_text:
+        default_prompt = PROMPTS_DIR / "default" / prompt_filename
+        if default_prompt.exists():
+            prompt_text = default_prompt.read_text(encoding="utf-8")
+
+    # Fallback hardcoded nếu không có file prompt nào
+    if not prompt_text:
+        prompt_text = fallback_prompt
+
+    # Ghép prompt + nội dung
+    full_prompt = f"{prompt_text}\n{content}"
 
     try:
         from webui.helpers import get_active_provider
 
         provider = get_active_provider()
-
-        # Use model from request or fall back to default
         requested_model = data.get("model", "")
 
         if provider == "gemini":
-            from webui.helpers import load_api_keys, get_model
+            from webui.helpers import load_api_keys, get_default_model
 
             keys = load_api_keys()
-            model = requested_model or get_model()
+            model = requested_model or get_default_model()
             if not keys:
                 return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
             from services.genai_client import GenAIClient
 
             client = GenAIClient(api_key=keys[0])
-            result, status = client.generate_content(summarize_prompt, model=model)
+            result, status = client.generate_content(full_prompt, model=model)
         else:
             from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
 
@@ -829,25 +882,25 @@ def summarize_project(slug):
                 base_url=get_openai_base_url(),
                 default_model=requested_model or get_openai_model(),
             )
-            result, status = client.generate_content(summarize_prompt)
+            result, status = client.generate_content(full_prompt)
 
         if status == "success" and result:
-            # Auto-save to assets
+            # Lưu vào đúng file asset tương ứng với content_type
             assets_dir = pdir / "assets"
             assets_dir.mkdir(parents=True, exist_ok=True)
-            (assets_dir / "summary.txt").write_text(result, encoding="utf-8")
+            (assets_dir / asset_filename).write_text(result, encoding="utf-8")
             return jsonify({"success": True, "summary": result})
         else:
             return jsonify({"error": f"AI trả về lỗi: {result or status}"}), 500
 
     except Exception as e:
-        import logging
-
-        logging.getLogger(__name__).error(f"Summarize error: {e}")
+        logging.getLogger(__name__).error(f"AI Generate error [{content_type}]: {e}")
         return jsonify({"error": str(e)}), 500
 
 
+
 # ============================================================
+
 # Project Translation API
 # ============================================================
 
@@ -870,15 +923,13 @@ def translate_project_file(slug):
         return jsonify({"error": "Không có file nào được chọn"}), 400
 
     # Load project prompts
-    prompts = {"main": "", "retranslate": "", "correction": ""}
+    prompts = {"main": ""}
     global_prompts = load_prompts()
     prompts.update(global_prompts)
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
         for key, fname in [
             ("main", "main_prompt.txt"),
-            ("retranslate", "retranslate_prompt.txt"),
-            ("correction", "correction_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():

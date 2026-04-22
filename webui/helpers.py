@@ -273,8 +273,6 @@ def load_prompts():
     prompts_dir = Path("workspace/prompts/default")
     prompts = {
         "main": "",
-        "retranslate": "",
-        "correction": "",
         "summary": "",
         "relationships": "",
         "glossary": "",
@@ -282,8 +280,6 @@ def load_prompts():
 
     for key, filename in [
         ("main", "main_prompt.txt"),
-        ("retranslate", "retranslate_prompt.txt"),
-        ("correction", "correction_prompt.txt"),
         ("summary", "summary_prompt.txt"),
         ("relationships", "relationship_prompt.txt"),
         ("glossary", "glossary_prompt.txt"),
@@ -303,8 +299,6 @@ def save_prompts(prompts):
 
     for key, filename in [
         ("main", "main_prompt.txt"),
-        ("retranslate", "retranslate_prompt.txt"),
-        ("correction", "correction_prompt.txt"),
         ("summary", "summary_prompt.txt"),
         ("relationships", "relationship_prompt.txt"),
         ("glossary", "glossary_prompt.txt"),
@@ -331,7 +325,7 @@ def ensure_default_project():
         (pdir / sub).mkdir(parents=True, exist_ok=True)
 
     prompts_root = Path("workspace/prompts/default")
-    for fname in ["main_prompt.txt", "retranslate_prompt.txt", "correction_prompt.txt"]:
+    for fname in ["main_prompt.txt"]:
         src = prompts_root / fname
         if src.exists():
             shutil.copy2(src, pdir / "prompt" / fname)

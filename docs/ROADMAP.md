@@ -20,7 +20,18 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] Hover tooltips mô tả các chỉ số.
 - [x] Cải thiện tốc độ render bảng file lớn.
 
-### 💾 6.2 Bảo toàn cấu trúc & Định dạng (In Progress)
+### 🏗️ 6.5 Refactoring & Assets (v6.5 - DONE)
+- [x] Hệ thống 7-Tab UI (Nguồn, Dịch, Chỉ dẫn, Mối quan hệ, Thuật ngữ, Prompt, Tóm tắt).
+- [x] Di chuyển dữ liệu vào thư mục `assets/` từng dự án.
+- [x] Tinh gọn hệ thống Prompt (1 prompt chính cho dự án).
+
+### ⚙️ 6.6 UI/UX Polish & ACMS (v6.6 - CURRENT)
+- [x] **Consolidated Project Modal**: Quản lý thông tin dự án tập trung qua modal.
+- [x] **Scroll Fix**: Sửa lỗi layout cuộn ở Workspace & Translated tabs.
+- [x] **ACMS Integration**: Nâng cấp hệ thống quản lý ngữ cảnh sang SQLite.
+- [ ] **Help & Tooltips**: Thêm icon `ⓘ` và thông tin giải thích (hover info) cho các tùy chọn trong tab Cấu hình.
+
+### 💾 6.x Bảo toàn cấu trúc & Định dạng (Next)
 - [ ] **HTML/Markdown Preservation**: Thuật toán bảo toàn thẻ tag khi dịch nội dung phức tạp.
 - [ ] **EPUB/MOBI Output**: Hoàn thiện tích hợp xuất bản tài liệu sau dịch.
 - [ ] **OCR Improvement**: Tích hợp các engine OCR mạnh mẽ hơn cho PDF/Image.

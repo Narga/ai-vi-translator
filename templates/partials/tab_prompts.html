@@ -32,23 +32,19 @@
                                 <div class="flex gap-2">
                                     <button id="btn-delete-genre" class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red">🗑️ Xóa</button>
                                     <button id="btn-clone-genre" class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white gray">📄 Nhân bản</button>
+                                    <button id="btn-use-genre" class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 dn">⚡ Sử dụng ngay</button>
                                     <button id="btn-save-genre" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6">💾 Lưu Prompt</button>
-                                    <button id="btn-activate-genre" class="pointer ph3 pv1 f7 bn white bg-orange br2 shadow-1 hover-bg-dark-orange fw6 transition-all">⚡ Nạp vào Dịch ngay</button>
                                 </div>
                             </div>
 
                             <div class="pa3 flex-auto flex flex-column">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-main" checked>
-                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-retranslate">
-                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-correction">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-summary">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-relationships">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-glossary">
 
                                 <div class="nt-tab-nav flex bb b--black-10 mb3 flex-wrap" role="tablist" aria-label="Prompt hệ thống">
-                                    <label for="system-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-main">Dịch thô</label>
-                                    <label for="system-tab-retranslate" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-retranslate">Dịch lại</label>
-                                    <label for="system-tab-correction" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-correction">Sửa lỗi</label>
+                                    <label for="system-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-main">Dịch thuật</label>
                                     <label for="system-tab-summary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-summary">Tóm tắt</label>
                                     <label for="system-tab-relationships" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-relationships">Mối quan hệ</label>
                                     <label for="system-tab-glossary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-glossary">Thuật ngữ</label>
@@ -56,22 +52,16 @@
 
                                 <div class="nt-tab-panels flex-auto">
                                     <section id="system-panel-main" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-main">
-                                        <textarea id="genre-main-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Main prompt..."></textarea>
-                                    </section>
-                                    <section id="system-panel-retranslate" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-retranslate">
-                                        <textarea id="genre-retranslate-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Retranslate prompt..."></textarea>
-                                    </section>
-                                    <section id="system-panel-correction" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-correction">
-                                        <textarea id="genre-correction-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Correction prompt..."></textarea>
+                                        <textarea id="genre-main-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt dịch thuật chính..."></textarea>
                                     </section>
                                     <section id="system-panel-summary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-summary">
-                                        <textarea id="genre-summary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Tóm tắt..."></textarea>
+                                        <textarea id="genre-summary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt tóm tắt..."></textarea>
                                     </section>
                                     <section id="system-panel-relationships" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-relationships">
-                                        <textarea id="genre-relationships-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Mối quan hệ..."></textarea>
+                                        <textarea id="genre-relationships-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt mối quan hệ..."></textarea>
                                     </section>
                                     <section id="system-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-glossary">
-                                        <textarea id="genre-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Thuật ngữ..."></textarea>
+                                        <textarea id="genre-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt thuật ngữ..."></textarea>
                                     </section>
                                 </div>
                             </div>

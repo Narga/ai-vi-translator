@@ -23,8 +23,6 @@ from services.cache_service import TranslationCache
 # Import emergency stop module
 from services.emergency_stop import check_emergency_stop, EmergencyStopError
 
-# Regex phát hiện Hán tự (CJK Unified Ideographs)
-CHINESE_CHAR_REGEX = re.compile(r"[\u4e00-\u9fff]")
 
 # Cache GenAI clients theo API key để tránh khởi tạo lại
 _client_cache: Dict[str, GenAIClient] = {}
@@ -158,84 +156,6 @@ def _call_api(
     return None, last_error_msg, "unknown"
 
 
-def _call_api_with_original_context(
-    translated_text: str,
-    original_chunk: str,
-    prompt_template: str,
-    api_manager: ApiManager,
-    config: Dict[str, Any],
-    model_override: Optional[str] = None,
-) -> Tuple[Optional[str], str, str]:
-    """
-    Gọi API với prompt correction song song (Parallel Context Correction):
-    gửi cả bản gốc (Trung) và bản dịch (Việt có lỗi) để AI đối chiếu và chỉ sửa phần lỗi.
-
-    Args:
-        translated_text (str): Bản dịch có lỗi (chứa ký tự Trung)
-        original_chunk (str): Chunk gốc tiếng Trung
-        prompt_template (str): Template correction prompt (chứa {original_chunk}, {contextual_snippet})
-        api_manager (ApiManager): Quản lý API keys
-        config (Dict[str, Any]): Cấu hình
-        model_override (Optional[str]): Model ghi đè (thường dùng QA model)
-
-    Returns:
-        Tuple[Optional[str], str, str]: (kết_quả_text, status, api_key_dùng)
-    """
-    prompt_filled = prompt_template.replace("{original_chunk}", original_chunk)
-    prompt_filled = prompt_filled.replace("{contextual_snippet}", translated_text)
-
-    max_attempts_total = max(3, len(api_manager._key_list) * 3)
-    last_error_msg = "api_error"
-
-    for _ in range(max_attempts_total):
-        api_key = api_manager.get_next_available_key()
-        if not api_key:
-            if api_manager.all_keys_exhausted():
-                logging.critical("🚨 Tất cả API keys đã hết quota hoặc trong cooldown.")
-                return None, "all_keys_exhausted", "unknown"
-            logging.warning("Không có key khả dụng, đợi 10s...")
-            time.sleep(10.0)
-            continue
-
-        try:
-            delay = float(config.get("request_delay", 0.0))
-            if delay > 0:
-                time.sleep(delay)
-
-            client = _get_client(api_key, config)
-            model_name = model_override or config.get(
-                "model_name", "gemini-3-flash-preview"
-            )
-            temperature = float(config.get("temperature", 0.7))
-
-            result_text, status = client.generate_content(
-                prompt=prompt_filled,
-                model=model_name,
-                temperature=temperature,
-            )
-
-            if status == "success" and result_text:
-                api_manager.mark_success(api_key)
-                return result_text.strip(), "success", api_key
-            else:
-                logging.warning(f"Empty response từ API (parallel correction)")
-                continue
-
-        except Exception as e:
-            error_msg = str(e)
-            last_error_msg = f"Lỗi: {error_msg}"
-            logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
-            should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
-            if should_retry:
-                logging.info(f"Đợi {delay:.1f}s trước khi thử lại...")
-                if delay > 0:
-                    time.sleep(delay)
-            else:
-                continue
-
-    return None, last_error_msg, "unknown"
-
-
 def robust_translate(
     original_chunk: str,
     api_manager: ApiManager,
@@ -246,23 +166,21 @@ def robust_translate(
     normalizer: Any = None,
 ) -> Tuple[str, str, str]:
     """
-    Quy trình dịch chuẩn cho mỗi chunk (v2.8.2):
+    Quy trình dịch chuẩn cho mỗi chunk (v6.5.0 - Single Pass):
 
     1) Cache (khóa theo thành phần đầy đủ)
-    2) Dịch lần đầu (Preventive Translation đã tích hợp trong prompt)
-    3) Kiểm tra độ dài → dịch lại bằng QA model nếu lệch
-    4) Sửa ký tự Trung còn sót:
-       - Nếu correction_mode=parallel: gọi _call_api_with_original_context (gửi song song gốc+dịch)
-       - Nếu correction_mode=legacy: gọi _call_api (chỉ gửi dịch lỗi)
-    5) Chuẩn hóa văn bản
-    6) Lưu cache & trả kết quả
+    2) Dịch 1 lần duy nhất bằng main prompt
+    3) Chuẩn hóa văn bản
+    4) Lưu cache & trả kết quả
+
+    Không còn bước dịch lại tự động hay sửa lỗi ký tự — người dùng tự kiểm tra và dịch lại thủ công nếu cần.
 
     Args:
         original_chunk (str): Nội dung chunk gốc cần dịch
         api_manager (ApiManager): Quản lý API keys
         cache (TranslationCache): Quản lý cache
         prompts (Dict[str, str]): Dictionary chứa các prompt
-        config_params (Dict[str, Any]): Cấu hình (model, temp, correction_mode,...)
+        config_params (Dict[str, Any]): Cấu hình (model, temp,...)
         previous_chunk_context (str): Ngữ cảnh chunk trước
         normalizer (Any): TextNormalizer để chuẩn hóa văn bản
 
@@ -286,110 +204,16 @@ def robust_translate(
 
     logging.info("Bắt đầu dịch chunk...")
 
-    # Bước 1: Dịch lần đầu (Preventive Translation đã được tích hợp trong prompt)
+    # Dịch 1 lần duy nhất
     translated_text, status, api_key_used = _call_api(
         original_chunk, main_prompt, api_manager, config_params
     )
 
     if status != "success" or not translated_text:
-        logging.error("Dịch lần đầu thất bại.")
+        logging.error("Dịch chunk thất bại.")
         return "Dịch chunk thất bại.", status, api_key_used
 
-    # Bước 2: Kiểm tra độ dài (chống cắt ngắn hoặc quá lệch)
-    original_len = len(original_chunk)
-    translated_len = len(translated_text)
-    min_ratio = float(config_params.get("min_length_ratio", 0.5))
-    max_ratio = float(config_params.get("max_length_ratio", 2.0))
-
-    if original_len > 200 and not (
-        min_ratio * original_len <= translated_len <= max_ratio * original_len
-    ):
-        logging.warning(
-            f"Phát hiện độ dài không hợp lệ ({translated_len}/{original_len}). Dịch lại để chống cắt ngắn..."
-        )
-        retranslate_prompt_template = prompts.get("retranslate", main_prompt)
-        retranslate_prompt = retranslate_prompt_template.replace(
-            "{previous_chunk_context}", previous_chunk_context
-        )
-
-        translated_text, status, api_key_used = _call_api(
-            original_chunk,
-            retranslate_prompt,
-            api_manager,
-            config_params,
-            model_override=config_params.get("qa_model"),
-        )
-
-        if status != "success" or not translated_text:
-            logging.error("Dịch lại để chống cắt ngắn thất bại.")
-            return "Dịch chunk thất bại.", status, api_key_used
-
-    # Bước 3: Sửa ký tự gốc còn sót (chỉ khi INPUT_LANG được cấu hình)
-    input_lang = str(config_params.get("input_lang", "CN")).upper()
-    correction_mode = str(config_params.get("correction_mode", "parallel")).lower()
-
-    # Language-specific character detection
-    import re
-
-    LANGUAGE_REGEX = {
-        "CN": re.compile(r"[\u4e00-\u9fff]"),  # Chinese
-        "JP": re.compile(r"[\u3040-\u309f\u30a0-\u30ff]"),  # Japanese Hiragana/Katakana
-        "KR": re.compile(r"[\uac00-\ud7af]"),  # Korean Hangul
-    }
-
-    # Get regex pattern for current language
-    lang_regex = LANGUAGE_REGEX.get(
-        input_lang, LANGUAGE_REGEX.get("CN", CHINESE_CHAR_REGEX)
-    )
-    lang_name = {"CN": "Trung", "JP": "Nhật", "KR": "Hàn"}.get(input_lang, input_lang)
-
-    if input_lang in LANGUAGE_REGEX:
-        refinement_count = 0
-        correction_prompt_template = prompts.get("correction", "")
-        max_refine = int(config_params.get("max_refinement_attempts", 2))
-
-        while (
-            CHINESE_CHAR_REGEX.search(translated_text) and refinement_count < max_refine
-        ):
-            refinement_count += 1
-
-            if correction_mode == "parallel":
-                # Parallel Context Correction (Phương án 2): gửi song song gốc + dịch lỗi
-                logging.warning(
-                    f"Phát hiện ký tự Trung. Parallel Correction lần {refinement_count}..."
-                )
-                corrected_text, status, api_key_used = _call_api_with_original_context(
-                    translated_text=translated_text,
-                    original_chunk=original_chunk,
-                    prompt_template=correction_prompt_template,
-                    api_manager=api_manager,
-                    config=config_params,
-                    model_override=config_params.get("qa_model"),
-                )
-            else:
-                # Legacy mode: chỉ gửi dịch lỗi
-                logging.warning(
-                    f"Phát hiện ký tự Trung. Sửa lỗi (legacy) lần {refinement_count}..."
-                )
-                corrected_text, status, api_key_used = _call_api(
-                    translated_text,
-                    correction_prompt_template,
-                    api_manager,
-                    config_params,
-                    model_override=config_params.get("qa_model"),
-                )
-
-            if status == "success" and corrected_text:
-                translated_text = corrected_text
-            else:
-                logging.error(f"Sửa lỗi lần {refinement_count} thất bại.")
-
-        if CHINESE_CHAR_REGEX.search(translated_text):
-            logging.error(
-                f"Không thể loại bỏ hết ký tự Trung sau {max_refine} lần thử (mode: {correction_mode})."
-            )
-
-    # Bước 4: Chuẩn hóa văn bản
+    # Chuẩn hóa văn bản
     if normalizer:
         try:
             translated_text = normalizer.normalize(translated_text)
@@ -397,7 +221,7 @@ def robust_translate(
         except Exception as e:
             logging.warning(f"⚠️ Lỗi khi chuẩn hóa văn bản: {e}")
 
-    logging.info("✅ Chunk được dịch và xử lý thành công!")
+    logging.info("✅ Chunk được dịch thành công!")
 
     cache.set_by_components(
         original_chunk, prompts, config_params, previous_chunk_context, translated_text

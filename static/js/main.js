@@ -26,6 +26,14 @@ document.addEventListener('DOMContentLoaded', function () {
     initProvider();  // Load active AI provider state
     initProjectDialog();  // Wire project creation modal
 
+    // Click-outside to close Project Info Modal
+    const projInfoModal = document.getElementById('project-info-modal');
+    if (projInfoModal) {
+        projInfoModal.addEventListener('click', function(e) {
+            if (e.target === projInfoModal) hideProjectInfoModal();
+        });
+    }
+
     setInterval(loadStats, 30000);
 
     // Temperature slider
@@ -91,9 +99,9 @@ document.addEventListener('DOMContentLoaded', function () {
     
     const btnSaveGenre = document.getElementById('btn-save-genre');
     if (btnSaveGenre) btnSaveGenre.addEventListener('click', saveGenre);
-    
-    const btnActGenre = document.getElementById('btn-activate-genre');
-    if (btnActGenre) btnActGenre.addEventListener('click', activateGenre);
+
+    const btnUseGenre = document.getElementById('btn-use-genre');
+    if (btnUseGenre) btnUseGenre.addEventListener('click', useGenre);
 
 });
 
@@ -1497,8 +1505,87 @@ function archiveProject() {
 }
 
 // ============================================================
-// Archive Management
+// Project Info Modal
 // ============================================================
+
+function showProjectInfoModal() {
+    if (!currentProject) return;
+    const p = currentProject;
+
+    // Populate fields
+    const nameEl = document.getElementById('proj-info-name');
+    const descEl = document.getElementById('proj-info-desc');
+    const genreEl = document.getElementById('proj-info-genre');
+    const srcEl = document.getElementById('proj-info-src-count');
+    const trEl = document.getElementById('proj-info-tr-count');
+    const createdEl = document.getElementById('proj-info-created');
+
+    if (nameEl) nameEl.value = p.name || '';
+    if (descEl) descEl.value = p.description || '';
+    if (genreEl) genreEl.value = p.slug || '';
+    if (srcEl) srcEl.textContent = p.source_count ?? '—';
+    if (trEl) trEl.textContent = p.translated_count ?? '—';
+    if (createdEl) {
+        const d = p.created_at ? new Date(p.created_at).toLocaleString('vi-VN') : '—';
+        createdEl.textContent = d;
+    }
+
+    const modal = document.getElementById('project-info-modal');
+    if (modal) {
+        modal.classList.remove('dn');
+        modal.style.display = 'flex';
+    }
+}
+
+function hideProjectInfoModal() {
+    const modal = document.getElementById('project-info-modal');
+    if (modal) {
+        modal.classList.add('dn');
+        modal.style.display = '';
+    }
+}
+
+function saveProjectInfo() {
+    if (!currentProject) return;
+    const name = document.getElementById('proj-info-name').value.trim();
+    const description = document.getElementById('proj-info-desc').value.trim();
+
+    if (!name) { showToast('Tên dự án không được trống!', 'error'); return; }
+
+    fetch('/api/projects/' + currentProject.slug, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        // Update in-memory state
+        currentProject.name = name;
+        currentProject.description = description;
+        // Update header display immediately
+        const titleEl = document.getElementById('project-title');
+        const descEl = document.getElementById('project-desc');
+        if (titleEl) titleEl.textContent = name;
+        if (descEl) descEl.textContent = description || 'Dự án không có mô tả';
+        // Refresh sidebar
+        loadProjects();
+        hideProjectInfoModal();
+        showToast('Đã cập nhật thông tin dự án!', 'success');
+    })
+    .catch(err => showToast('Lỗi cập nhật: ' + err.message, 'error'));
+}
+
+function archiveProjectFromModal() {
+    hideProjectInfoModal();
+    archiveProject();
+}
+
+function deleteProjectFromModal() {
+    hideProjectInfoModal();
+    deleteCurrentProject();
+}
+
 
 function loadArchiveList() {
     const tbody = document.getElementById('archive-list-body');
@@ -2135,14 +2222,16 @@ function selectGenre(slug) {
     // Không cho xóa hoặc nạp với bộ Mặc định gốc
     const isDefault = (slug === 'default');
     document.getElementById('btn-delete-genre').disabled = isDefault || !slug;
-    document.getElementById('btn-activate-genre').disabled = isDefault || !slug;
+    // Ẩn nút "Sử dụng ngay" nếu đang ở default
+    const btnUse = document.getElementById('btn-use-genre');
+    if (btnUse) {
+        btnUse.classList.toggle('dn', isDefault);
+    }
 
     if (isDefault) {
         document.getElementById('btn-delete-genre').title = 'Không thể xóa bộ mặc định';
-        document.getElementById('btn-activate-genre').title = 'Đã là hệ thống mặc định';
     } else {
         document.getElementById('btn-delete-genre').title = '';
-        document.getElementById('btn-activate-genre').title = '';
     }
 
     document.getElementById('genre-editor').classList.remove('dn');
@@ -2154,12 +2243,31 @@ function selectGenre(slug) {
             document.getElementById('genre-editor-title').innerHTML = '<span class="mr2">📝</span> ' + (data.meta.name || slug);
             document.getElementById('genre-editor-desc').textContent = data.meta.description || '';
             document.getElementById('genre-main-text').value = data.prompts.main || '';
-            document.getElementById('genre-retranslate-text').value = data.prompts.retranslate || '';
-            document.getElementById('genre-correction-text').value = data.prompts.correction || '';
             document.getElementById('genre-summary-text').value = data.prompts.summary || '';
             document.getElementById('genre-relationships-text').value = data.prompts.relationships || '';
             document.getElementById('genre-glossary-text').value = data.prompts.glossary || '';
             loadGenres(); // Refresh active state in list
+        });
+}
+
+function useGenre() {
+    if (!currentGenre || currentGenre === 'default') return;
+    if (!confirm(`Sử dụng bộ prompt "${currentGenre}" làm mặc định cho dịch thuật?`)) return;
+
+    fetch('/api/prompt-sets/' + currentGenre + '/use', { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Đã kích hoạt bộ prompt cho dịch thuật!', 'success');
+                // Reload prompts toàn cục
+                fetch('/api/prompt-sets/default')
+                    .then(r => r.json())
+                    .then(d => {
+                        prompts = d.prompts || {};
+                    });
+            } else {
+                showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
+            }
         });
 }
 
@@ -2185,12 +2293,10 @@ function createGenre(e) {
 
     const promptsData = window.isCloning ? {
         main: document.getElementById('genre-main-text').value,
-        retranslate: document.getElementById('genre-retranslate-text').value,
-        correction: document.getElementById('genre-correction-text').value,
         summary: document.getElementById('genre-summary-text').value,
         relationships: document.getElementById('genre-relationships-text').value,
         glossary: document.getElementById('genre-glossary-text').value,
-    } : { main: '', retranslate: '', correction: '', summary: '', relationships: '', glossary: '' };
+    } : { main: '', summary: '', relationships: '', glossary: '' };
     window.isCloning = false;
 
     fetch('/api/prompt-sets', {
@@ -2203,7 +2309,7 @@ function createGenre(e) {
             document.getElementById('new-genre-desc').value = '';
             loadGenres();
             selectGenre(data.slug);
-            showGenreAlert(`Đã tạo Profile: ${name}`, 'success');
+            showToast(`Đã tạo bộ prompt: ${name}`, 'success');
         } else {
             showToast('Lỗi khởi tạo: ' + (data.error || 'Unknown Error'), 'error');
         }
@@ -2221,8 +2327,6 @@ function saveGenre() {
         body: JSON.stringify({
             prompts: {
                 main: document.getElementById('genre-main-text').value,
-                retranslate: document.getElementById('genre-retranslate-text').value,
-                correction: document.getElementById('genre-correction-text').value,
                 summary: document.getElementById('genre-summary-text').value,
                 relationships: document.getElementById('genre-relationships-text').value,
                 glossary: document.getElementById('genre-glossary-text').value,
@@ -2230,32 +2334,15 @@ function saveGenre() {
         })
     }).then(r => r.json()).then(data => {
         if (data.success) {
-            showGenreAlert('Lưu cấu trúc Prompt hoàn tất!', 'success');
+            showToast('Lưu prompt hoàn tất!', 'success');
+            btn.textContent = '💾 Lưu Prompt';
+            btn.disabled = false;
+        } else {
+            showToast('Lỗi lưu: ' + (data.error || 'Unknown'), 'error');
             btn.textContent = '💾 Lưu Prompt';
             btn.disabled = false;
         }
     });
-}
-
-function activateGenre() {
-    if (!currentGenre) return;
-    if (!confirm('Xác nhận NẠP BỘ PROMPT NÀY vào bộ máy dịch thuật chính?')) return;
-
-    fetch('/api/prompt-sets/' + currentGenre + '/activate', { method: 'POST' })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                prompts = {
-                    main: document.getElementById('genre-main-text').value,
-                    retranslate: document.getElementById('genre-retranslate-text').value,
-                    correction: document.getElementById('genre-correction-text').value,
-                    summary: document.getElementById('genre-summary-text').value,
-                    relationships: document.getElementById('genre-relationships-text').value,
-                    glossary: document.getElementById('genre-glossary-text').value,
-                };
-                showGenreAlert('Nạp thông tin AI vào bộ xử lý Thành Công 🚀', 'success');
-            }
-        });
 }
 
 function deleteGenre() {
@@ -2270,29 +2357,9 @@ function deleteGenre() {
                 document.getElementById('genre-editor').classList.add('dn');
                 document.getElementById('genre-editor').classList.remove('flex');
                 document.getElementById('btn-delete-genre').disabled = true;
-                document.getElementById('btn-activate-genre').disabled = true;
                 loadGenres();
             }
         });
-}
-
-function showGenreAlert(msg, type) {
-    const el = document.getElementById('genre-alert');
-    const icon = document.getElementById('genre-alert-icon');
-    const text = document.getElementById('genre-alert-text');
-
-    el.classList.remove('dn', 'bg-dark-red', 'bg-green');
-
-    if (type === 'success') {
-        el.classList.add('bg-green');
-        icon.textContent = '✅';
-    } else {
-        el.classList.add('bg-dark-red');
-        icon.textContent = '⚠️';
-    }
-
-    text.textContent = msg;
-    setTimeout(() => { el.classList.add('dn'); }, 4000);
 }
 
 

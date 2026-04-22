@@ -143,3 +143,7 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 
 
 /* Layout complete */
+
+/* Missing Tachyons utilities */
+.overflow-y-auto { overflow-y: auto !important; }
+.lh-solid { line-height: 1; }

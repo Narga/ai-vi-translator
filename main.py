@@ -75,26 +75,22 @@ def load_api_keys(path: str = "config/API.txt") -> List[str]:
 
 def load_prompts(project_dir: Path = None) -> Dict[str, str]:
     prompts = {}
-    
+
     # Ưu tiên load từ project
     if project_dir:
         prompt_dir = project_dir / "prompt"
         if prompt_dir.exists():
             for key, filename in [
-                ("main", "01-main.txt"),
-                ("retranslate", "02-retranslate.txt"),
-                ("correction", "03-correction.txt"),
+                ("main", "main_prompt.txt"),
             ]:
                 fp = prompt_dir / filename
                 if fp.exists():
                     prompts[key] = fp.read_text(encoding="utf-8").strip()
 
     # Fallback/Update với global prompts
-    prompts_root = Path("prompts")
+    prompts_root = Path("workspace/prompts/default")
     for key, filename in [
-        ("main", "01-main.txt"),
-        ("retranslate", "02-retranslate.txt"),
-        ("correction", "03-correction.txt"),
+        ("main", "main_prompt.txt"),
     ]:
         if key not in prompts:
             filepath = prompts_root / filename

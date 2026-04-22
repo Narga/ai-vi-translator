@@ -68,3 +68,62 @@
         </div>
     </div>
 </div>
+
+<!-- Project Info Modal -->
+<div id="project-info-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 9998;">
+    <div class="bg-white br3 shadow-5 w-100 mw6 overflow-hidden animate-pop">
+        <!-- Header -->
+        <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="f4">⚙️</span>
+                <h3 class="f5 ma0 dark-gray fw6">Thông tin Dự án</h3>
+            </div>
+            <button class="pointer bg-transparent bn f4 gray hover-dark-gray lh-solid" onclick="hideProjectInfoModal()" title="Đóng">&times;</button>
+        </div>
+
+        <!-- Body -->
+        <div class="pa4">
+            <div class="mb3">
+                <label class="db f7 gray mb1 fw6 uppercase tracked">Tên dự án</label>
+                <input type="text" id="proj-info-name" class="w-100 pa2 ba b--black-10 br2 f6 outline-0" placeholder="Tên dự án...">
+            </div>
+            <div class="mb3">
+                <label class="db f7 gray mb1 fw6 uppercase tracked">Mô tả</label>
+                <textarea id="proj-info-desc" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 lh-copy" rows="5" placeholder="Mô tả chi tiết về dự án, thể loại, nội dung..."></textarea>
+            </div>
+            <div class="mb3">
+                <label class="db f7 gray mb1 fw6 uppercase tracked">Thể loại / Slug</label>
+                <input type="text" id="proj-info-genre" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 gray" placeholder="e.g. fantasy, romance..." readonly>
+            </div>
+            <!-- Stats -->
+            <div class="flex gap-3 mb1">
+                <div class="flex-auto ba b--black-05 br2 pa2 bg-near-white tc">
+                    <div class="f7 gray mb1">Tệp nguồn</div>
+                    <div id="proj-info-src-count" class="f4 fw6 blue">—</div>
+                </div>
+                <div class="flex-auto ba b--black-05 br2 pa2 bg-near-white tc">
+                    <div class="f7 gray mb1">Đã dịch</div>
+                    <div id="proj-info-tr-count" class="f4 fw6 dark-green">—</div>
+                </div>
+                <div class="flex-auto ba b--black-05 br2 pa2 bg-near-white tc">
+                    <div class="f7 gray mb1">Tạo lúc</div>
+                    <div id="proj-info-created" class="dark-gray" style="font-size: 0.65rem;">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="pa3 bt b--black-10 flex justify-between items-center gap-2">
+            <!-- Destructive actions (left) -->
+            <div class="flex gap-2">
+                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="archiveProjectFromModal()" title="Nén và lưu trữ dự án">📦 Lưu trữ</button>
+                <button class="pointer ph3 pv2 f7 ba b--red red bg-white br2 hover-bg-washed-red fw6" onclick="deleteProjectFromModal()" title="Xóa vĩnh viễn dự án">🗑️ Xóa</button>
+            </div>
+            <!-- Primary actions (right) -->
+            <div class="flex gap-2">
+                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white" onclick="hideProjectInfoModal()">Hủy</button>
+                <button class="pointer ph4 pv2 f7 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveProjectInfo()">💾 Cập nhật</button>
+            </div>
+        </div>
+    </div>
+</div>

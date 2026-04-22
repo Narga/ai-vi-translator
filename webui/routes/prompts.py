@@ -1,4 +1,4 @@
-# webui/routes/prompts.py - v5.0.0
+# webui/routes/prompts.py - v6.5.0
 # Blueprint: Prompt Sets (Genre-based Prompt Management)
 
 import json
@@ -9,42 +9,38 @@ from flask import Blueprint, request, jsonify
 
 prompts_bp = Blueprint("prompts", __name__)
 
-GENRES_DIR = Path("prompts/genres")
-PROMPT_MAPPING = [
-    ("main", "01-main.txt", "main.txt"),
-    ("retranslate", "02-retranslate.txt", "retranslate.txt"),
-    ("correction", "03-correction.txt", "correction.txt"),
-    ("summary", "04-summary.txt", "summary.txt"),
-    ("relationships", "05-relationships.txt", "relationships.txt"),
-    ("glossary", "06-glossary.txt", "glossary.txt"),
-]
+# Thống nhất: tất cả bộ prompt lưu tại workspace/prompts/
+GENRES_DIR = Path("workspace/prompts")
+
+# Chỉ giữ 1 prompt chính (main) - loại bỏ retranslate/correction theo yêu cầu v6.5.0
+PROMPT_KEYS = ["main", "summary", "relationships", "glossary"]
 
 
 @prompts_bp.route("/api/prompt-sets")
 def list_prompt_sets():
-    """Liệt kê tất cả bộ prompt theo thể loại."""
+    """Liệt kê tất cả bộ prompt."""
     GENRES_DIR.mkdir(parents=True, exist_ok=True)
     sets = []
 
     # Inject Default System Prompts
-    prompts_root = Path("prompts")
+    default_dir = GENRES_DIR / "default"
     sets.append(
         {
             "name": "Mặc định (Hệ thống)",
             "slug": "default",
             "order": -1,
-            "description": "Bộ prompt gốc nằm ở thư mục prompts, dùng chung cho mọi văn bản",
-            "has_main": (prompts_root / "01-main.txt").exists(),
-            "has_retranslate": (prompts_root / "02-retranslate.txt").exists(),
-            "has_correction": (prompts_root / "03-correction.txt").exists(),
-            "has_summary": (prompts_root / "04-summary.txt").exists(),
-            "has_relationships": (prompts_root / "05-relationships.txt").exists(),
-            "has_glossary": (prompts_root / "06-glossary.txt").exists(),
+            "description": "Bộ prompt mặc định dùng cho dịch thuật và tạo nội dung",
+            "has_main": (default_dir / "main_prompt.txt").exists(),
+            "has_retranslate": False,
+            "has_correction": False,
+            "has_summary": (default_dir / "summary_prompt.txt").exists(),
+            "has_relationships": (default_dir / "relationship_prompt.txt").exists(),
+            "has_glossary": (default_dir / "glossary_prompt.txt").exists(),
         }
     )
 
     for genre_dir in sorted(GENRES_DIR.iterdir()):
-        if not genre_dir.is_dir():
+        if not genre_dir.is_dir() or genre_dir.name == "default":
             continue
         meta_file = genre_dir / "meta.json"
         if meta_file.exists():
@@ -53,12 +49,12 @@ def list_prompt_sets():
         else:
             meta = {"name": genre_dir.name, "slug": genre_dir.name, "order": 99}
         meta["slug"] = genre_dir.name
-        meta["has_main"] = (genre_dir / "main.txt").exists()
-        meta["has_retranslate"] = (genre_dir / "retranslate.txt").exists()
-        meta["has_correction"] = (genre_dir / "correction.txt").exists()
-        meta["has_summary"] = (genre_dir / "summary.txt").exists()
-        meta["has_relationships"] = (genre_dir / "relationships.txt").exists()
-        meta["has_glossary"] = (genre_dir / "glossary.txt").exists()
+        meta["has_main"] = (genre_dir / "main_prompt.txt").exists()
+        meta["has_retranslate"] = False
+        meta["has_correction"] = False
+        meta["has_summary"] = (genre_dir / "summary_prompt.txt").exists()
+        meta["has_relationships"] = (genre_dir / "relationship_prompt.txt").exists()
+        meta["has_glossary"] = (genre_dir / "glossary_prompt.txt").exists()
         sets.append(meta)
     sets.sort(key=lambda x: x.get("order", 99))
     return jsonify(sets)
@@ -66,22 +62,25 @@ def list_prompt_sets():
 
 @prompts_bp.route("/api/prompt-sets/<genre>")
 def get_prompt_set(genre):
-    """Lấy nội dung 1 bộ prompt theo thể loại."""
+    """Lấy nội dung 1 bộ prompt."""
     if genre == "default":
-        prompts_root = Path("prompts")
+        default_dir = GENRES_DIR / "default"
         meta = {
             "name": "Mặc định (Hệ thống)",
             "slug": "default",
-            "description": "Bộ prompt gốc dùng chung cho mọi văn bản",
+            "description": "Bộ prompt mặc định dùng cho dịch thuật và tạo nội dung",
         }
         prompts = {}
-        for key, fname, _ in PROMPT_MAPPING:
-            fpath = prompts_root / fname
+        for key in PROMPT_KEYS:
+            fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
+            fpath = default_dir / fname
             if fpath.exists():
-                with open(fpath, "r", encoding="utf-8") as f:
-                    prompts[key] = f.read()
+                prompts[key] = fpath.read_text(encoding="utf-8")
             else:
                 prompts[key] = ""
+        # Giữ backward compat: retranslate/correction rỗng
+        prompts.setdefault("retranslate", "")
+        prompts.setdefault("correction", "")
         return jsonify({"meta": meta, "prompts": prompts})
 
     genre_dir = GENRES_DIR / genre
@@ -95,13 +94,15 @@ def get_prompt_set(genre):
             meta = json.load(f)
 
     prompts = {}
-    for key, _, fname in PROMPT_MAPPING:
+    for key in PROMPT_KEYS:
+        fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
         fpath = genre_dir / fname
         if fpath.exists():
-            with open(fpath, "r", encoding="utf-8") as f:
-                prompts[key] = f.read()
+            prompts[key] = fpath.read_text(encoding="utf-8")
         else:
             prompts[key] = ""
+    prompts.setdefault("retranslate", "")
+    prompts.setdefault("correction", "")
 
     return jsonify({"meta": meta, "prompts": prompts})
 
@@ -131,10 +132,10 @@ def create_prompt_set():
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
     prompts = data.get("prompts", {})
-    for key, _, fname in PROMPT_MAPPING:
+    for key in PROMPT_KEYS:
+        fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
         content = prompts.get(key, "")
-        with open(genre_dir / fname, "w", encoding="utf-8") as f:
-            f.write(content)
+        (genre_dir / fname).write_text(content, encoding="utf-8")
 
     return jsonify({"success": True, "slug": slug})
 
@@ -146,11 +147,12 @@ def update_prompt_set(genre):
     prompts = data.get("prompts", {})
 
     if genre == "default":
-        prompts_root = Path("prompts")
-        for key, fname, _ in PROMPT_MAPPING:
+        default_dir = GENRES_DIR / "default"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        for key in PROMPT_KEYS:
             if key in prompts:
-                with open(prompts_root / fname, "w", encoding="utf-8") as f:
-                    f.write(prompts[key])
+                fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
+                (default_dir / fname).write_text(prompts[key], encoding="utf-8")
         return jsonify({"success": True})
 
     genre_dir = GENRES_DIR / genre
@@ -168,10 +170,10 @@ def update_prompt_set(genre):
         with open(meta_file, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    for key, _, fname in PROMPT_MAPPING:
+    for key in PROMPT_KEYS:
         if key in prompts:
-            with open(genre_dir / fname, "w", encoding="utf-8") as f:
-                f.write(prompts[key])
+            fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
+            (genre_dir / fname).write_text(prompts[key], encoding="utf-8")
 
     return jsonify({"success": True})
 
@@ -190,20 +192,24 @@ def delete_prompt_set(genre):
     return jsonify({"success": True})
 
 
-@prompts_bp.route("/api/prompt-sets/<genre>/activate", methods=["POST"])
-def activate_prompt_set(genre):
-    """Nạp bộ prompt vào hệ thống đang chạy (copy vào prompts/ gốc)."""
+@prompts_bp.route("/api/prompt-sets/<genre>/use", methods=["POST"])
+def use_prompt_set(genre):
+    """Sử dụng bộ prompt này làm mặc định cho dịch thuật (copy vào default)."""
     if genre == "default":
-        return jsonify({"error": "Bộ prompt này đã là mặc định gốc, không cần nạp chép đè"}), 400
+        return jsonify({"success": True, "message": "Đã là bộ prompt mặc định"})
 
     genre_dir = GENRES_DIR / genre
     if not genre_dir.exists():
         return jsonify({"error": "Thể loại không tồn tại"}), 404
 
-    prompts_root = Path("prompts")
-    for _, dest_name, src_name in PROMPT_MAPPING:
-        src = genre_dir / src_name
-        if src.exists():
-            shutil.copy2(src, prompts_root / dest_name)
+    default_dir = GENRES_DIR / "default"
+    default_dir.mkdir(parents=True, exist_ok=True)
 
-    return jsonify({"success": True, "message": f"Đã nạp bộ prompt '{genre}' vào hệ thống"})
+    # Copy tất cả prompt từ genre vào default
+    for key in PROMPT_KEYS:
+        fname = f"{key}_prompt.txt" if key != "relationships" else "relationship_prompt.txt"
+        src = genre_dir / fname
+        if src.exists():
+            (default_dir / fname).write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+    return jsonify({"success": True, "message": f"Đã kích hoạt bộ prompt: {genre}"})

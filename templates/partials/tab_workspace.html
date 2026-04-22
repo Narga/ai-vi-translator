@@ -21,14 +21,13 @@
                     <div id="project-active-content" class="flex-auto flex flex-column">
                         
                         <!-- Project Header Block -->
-                        <div class="ba b--black-10 br2 bg-white pa3 mb3 flex justify-between items-center shadow-1">
-                            <div class="truncate pr3">
-                                <h2 id="project-title" class="f4 ma0 dark-gray truncate fw6">Tên dự án</h2>
-                                <p id="project-desc" class="f7 gray ma0 mt1 truncate">Mô tả dự án...</p>
+                        <div class="ba b--black-10 br2 bg-white pa3 mb3 flex justify-between items-start shadow-1">
+                            <div class="flex-auto pr3" style="min-width: 0;">
+                                <h2 id="project-title" class="f4 ma0 dark-gray fw6">Tên dự án</h2>
+                                <p id="project-desc" class="f7 gray ma0 mt1" style="word-break: break-word; white-space: pre-wrap;">Mô tả dự án...</p>
                             </div>
-                            <div class="flex gap-2 no-shrink">
-                                <button class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white" onclick="archiveProject()" title="Nén và tải về">📦 Lưu trữ</button>
-                                <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="deleteCurrentProject()" title="Xóa dự án">🗑️ Xóa</button>
+                            <div class="flex gap-2 flex-shrink-0">
+                                <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="showProjectInfoModal()" title="Thông tin & quản lý dự án">⚙️ Thông tin</button>
                             </div>
                         </div>
 
@@ -45,7 +44,7 @@
                              </div>
 
                             <!-- Workspace Content Section -->
-                             <div id="ptab-workspace" class="nt-ptab-content flex-auto flex flex-column overflow-hidden pa3">
+                             <div id="ptab-workspace" class="nt-ptab-content flex-auto flex flex-column overflow-y-auto pa3">
                                 
                                 <!-- Source Table Block -->
                                 <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
@@ -74,8 +73,8 @@
                                 </div>
 
                                 <!-- Integrated Editor Block (Side-by-Side) -->
-                                <div id="workspace-editor" class="pv2">
-                                    <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
+                                <div id="workspace-editor" class="pv2 flex flex-column">
+                                    <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
@@ -106,7 +105,7 @@
                                 </div>
                             </div>
 
-                            <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                            <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
                                 <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                         <span class="f6 fw6 dark-gray">Tệp đã dịch (<span id="proj-translated-count" class="blue fw7">0</span>)</span>
@@ -126,8 +125,8 @@
                                     </div>
                                 </div>
 
-                                <div id="translated-editor" class="pv2">
-                                    <div class="editor-container mb3 flex gap-3" style="min-height: 500px;">
+                                <div id="translated-editor" class="pv2 flex flex-column">
+                                    <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
