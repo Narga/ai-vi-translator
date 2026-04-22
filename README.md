@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.5.0)
+# 📚 Content Translator (v6.6.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -54,22 +54,18 @@ python cli.py translate -i input/novel.txt  # CLI mode
 | [🛠️ DEVELOPMENT.md](DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
 | [📋 CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
 | [📊 REPORTS.md](REPORTS.md) | Tổng hợp các báo cáo tối ưu hóa và fix lỗi |
-| [🧠 memory.md](memory.md) | "Bộ nhớ" dự án, context cho AI |
 
 ---
 
-## 🏗️ Kiến Trúc (v6.5.0)
+## 🏗️ Kiến Trúc (v6.6.0)
 
 ```
-webui.py ──→ webui/          # Flask App (Blueprints)
+webui.py ──→ webui/          # Flask App (Blueprints, Static, Templates)
+               ├── static/
+               ├── templates/
 main.py  ──→ core/           # Dispatcher / Functional Pipeline
              services/       # AI Provider, Cache, Translation Memory
-               ├── ai_provider.py    # Multi-provider adapter
-               ├── openai_client.py  # OpenAI/OpenRouter wrapper
-               └── genai_client.py   # Google Gemini wrapper
              plugins/        # Translation, EPUB, OCR
-             templates/
-               └── partials/  # Modular Tachyons templates
 ```
 
 ---
@@ -80,5 +76,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.5.0  
-**Ngày:** 15/04/2026
+**Phiên bản:** 6.6.0  
+**Ngày:** 22/04/2026

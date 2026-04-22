@@ -45,11 +45,7 @@ except Exception as e:
 
 def create_app():
     """Flask Application Factory."""
-    app = Flask(
-        __name__,
-        template_folder="../templates",
-        static_folder="../static",
-    )
+    app = Flask(__name__)
     app.config["SECRET_KEY"] = os.urandom(24)
 
     # Register blueprints
