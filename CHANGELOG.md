@@ -4,6 +4,21 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.7.0] - 2026-04-24
+### 🛡️ Hệ thống & Độ ổn định (System & Stability)
+- **API Resilience Overhaul**: Tái cấu trúc toàn bộ `ApiService` để chống lỗi rate limit và quota từ API.
+    - **`AdaptiveRateLimiter`**: Thêm cơ chế tự động xử lý lỗi `429 (rate limit)` với "progressive backoff" (thời gian chờ tăng dần) và đưa các key lỗi vào cooldown thông minh.
+    - **`GlobalRPMRateLimiter`**: Giới hạn tổng RPM trên toàn hệ thống để tránh bị block IP khi dùng nhiều key.
+    - **`TokenBudgetLimiter`**: Quản lý và giới hạn tổng số token mỗi phút (TPM).
+- **"Least Used" Key Strategy**: Thay đổi chiến lược chọn key từ xoay vòng (round-robin) sang "ít được sử dụng nhất", giúp phân bổ tải đều trên tất cả các API key và tối đa hóa RPD.
+- **Backend Delegation**: `translator.py` được đơn giản hóa, ủy thác toàn bộ logic retry và xử lý lỗi cho `ApiManager`.
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX)
+- **Multi-Prompt Management UI**: Tái cấu trúc giao diện "Chỉ dẫn" trong Project Workspace.
+    - Chuyển từ một textarea duy nhất sang giao diện dạng tab, cho phép quản lý riêng biệt 5 loại prompt: `Dịch thuật`, `Tóm tắt`, `Quan hệ`, `Thuật ngữ`, và `Chính tả`.
+    - Cập nhật backend và frontend để hỗ trợ load và lưu đồng bộ 5 loại prompt này.
+- **Spell-check Refactoring**: Tái cấu trúc lớn và tạm thời loại bỏ một phần logic spell-check và translation memory khỏi `projects.py` để chuẩn bị cho một phiên bản mới tốt hơn.
+
 ## [6.6.2] - 2026-04-22
 ### Added
 - **Premium Tooltips (ⓘ)**: Thêm các biểu tượng trợ giúp cạnh các tùy chọn cấu hình trong tab Cấu hình để giải thích các thông số kỹ thuật (RPM, TPM, Temperature, v.v.).

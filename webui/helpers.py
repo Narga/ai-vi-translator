@@ -296,9 +296,9 @@ def calculate_stats():
                 src = p / "sources"
                 tr = p / "translated"
                 if src.exists():
-                    total_sources += len(list(src.glob("*.txt")))
+                    total_sources += len([f for f in src.rglob("*") if f.is_file() and not f.name.startswith(".")])
                 if tr.exists():
-                    total_translated += len(list(tr.glob("*.txt")))
+                    total_translated += len([f for f in tr.rglob("*") if f.is_file() and not f.name.startswith(".")])
 
     # Count archives
     archive_dir = Path("workspace/archive")
@@ -329,23 +329,22 @@ def calculate_stats():
 def load_prompts():
     """Load prompts từ thư mục workspace/prompts/default/."""
     prompts_dir = Path("workspace/prompts/default")
-    prompts = {
-        "main": "",
-        "summary": "",
-        "relationships": "",
-        "glossary": "",
-    }
-
+    prompts_dir.mkdir(parents=True, exist_ok=True)
+    
+    prompts = {}
     for key, filename in [
         ("main", "main_prompt.txt"),
         ("summary", "summary_prompt.txt"),
         ("relationships", "relationship_prompt.txt"),
         ("glossary", "glossary_prompt.txt"),
+        ("chinh_ta", "chinh_ta_prompt.txt"),
     ]:
         filepath = prompts_dir / filename
         if filepath.exists():
-            with open(filepath, "r", encoding="utf-8") as f:
-                prompts[key] = f.read()
+            content = filepath.read_text(encoding="utf-8").strip()
+            prompts[key] = content
+        else:
+            prompts[key] = ""
 
     return prompts
 
@@ -360,10 +359,12 @@ def save_prompts(prompts):
         ("summary", "summary_prompt.txt"),
         ("relationships", "relationship_prompt.txt"),
         ("glossary", "glossary_prompt.txt"),
+        ("chinh_ta", "chinh_ta_prompt.txt"),
     ]:
-        filepath = prompts_dir / filename
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(prompts.get(key, ""))
+        if key in prompts:
+            filepath = prompts_dir / filename
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(prompts.get(key, ""))
 
 
 def ensure_default_project():

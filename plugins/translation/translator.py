@@ -111,10 +111,8 @@ def _call_api(
             # Lấy client từ cache
             client = _get_client(api_key, config)
 
-            # Build prompt đầy đủ
-            full_prompt = (
-                f"{prompt}\n\n--- VĂN BẢN GỐC CẦN DỊCH ---\n\n{text_to_process}"
-            )
+            # Build prompt đầy đủ (Không thêm header ẩn theo yêu cầu người dùng)
+            full_prompt = f"{prompt}\n\n{text_to_process}"
 
             # Gọi API
             model_name = model_override or config.get(

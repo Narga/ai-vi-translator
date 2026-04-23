@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Spell-check tab buttons
     const btnCopySpell = document.getElementById('btn-copy-spellcheck');
-    if (btnCopySpell) btnCopySpell.addEventListener('click', copySpellCheckResult);
+    if (btnCopySpell) btnCopySpell.addEventListener('click', copySpellcheckResult);
     const btnDownSpell = document.getElementById('download-spellcheck-btn');
     if (btnDownSpell) btnDownSpell.addEventListener('click', downloadSpellCheckResult);
     const btnRunSpell = document.getElementById('spellcheck-btn');
@@ -1124,7 +1124,7 @@ function toggleProjectFile(name, checked) {
 
 function updateSelectAllButton() {
     const btn = document.getElementById('btn-select-all');
-    const chk = document.querySelector('#workspace-sources thead input[type="checkbox"]');
+    const chks = document.querySelectorAll('#chk-select-all-sources, #chk-select-all-spellcheck');
     
     if (btn) {
         if (selectedFiles.size > 0) {
@@ -1138,9 +1138,13 @@ function updateSelectAllButton() {
         }
     }
     
-    if (chk && currentProject && currentProject.sources) {
-        chk.checked = (selectedFiles.size > 0 && selectedFiles.size === currentProject.sources.length);
-        chk.indeterminate = (selectedFiles.size > 0 && selectedFiles.size < currentProject.sources.length);
+    if (chks.length > 0 && currentProject && currentProject.sources) {
+        const isAllSelected = (selectedFiles.size > 0 && selectedFiles.size === currentProject.sources.length);
+        const isIndeterminate = (selectedFiles.size > 0 && selectedFiles.size < currentProject.sources.length);
+        chks.forEach(chk => {
+            chk.checked = isAllSelected;
+            chk.indeterminate = isIndeterminate;
+        });
     }
 }
 
@@ -1154,6 +1158,7 @@ function selectAllProjectFiles() {
     }
     updateSelectAllButton();
     renderProjectSources(allSources);
+    renderProjectSpellcheckSources(allSources);
 }
 
 function translateFileInProject(filename) {
@@ -1296,6 +1301,8 @@ function runSpellcheck() {
 
 function renderProjectSpellcheckSources(sources) {
     const el = document.getElementById('project-spellcheck-table-body');
+    const countEl = document.getElementById('proj-spellcheck-count');
+    if (countEl) countEl.textContent = sources.length;
     if (!el) return;
     if (!sources.length) { 
         el.innerHTML = '<tr><td colspan="5" class="pa3 tc silver i">Chưa có file nguồn</td></tr>'; 
@@ -1329,21 +1336,30 @@ function renderProjectSpellcheckSources(sources) {
 
 function loadProjectPrompts() {
     if (!currentProject) return;
-    fetch(`/api/projects/${currentProject.slug}/prompts`).then(r => r.json()).then(data => {
-        const el = document.getElementById('proj-prompt-main');
-        if (el) el.value = data.main || '';
-    });
+    const slug = currentProject.slug;
+    fetch(`/api/projects/${slug}/prompts`)
+        .then(r => r.json())
+        .then(data => {
+            const fields = {
+                'proj-prompt-main': data.main,
+                'proj-prompt-summary': data.summary,
+                'proj-prompt-relationships': data.relationships,
+                'proj-prompt-glossary': data.glossary,
+                'proj-prompt-chinh-ta': data.chinh_ta
+            };
+            for (const [id, val] of Object.entries(fields)) {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            }
+        })
+        .catch(err => console.error('Error loading project prompts:', err));
+
     const sel = document.getElementById('prompt-library-select');
     if (sel) {
         fetch('/api/prompt-sets').then(r => r.json()).then(data => {
-            // API returns a list, filter out default to avoid duplication
             const genres = (data || []).filter(g => g.slug !== 'default');
             let opts = '<option value="">— Nạp từ thư viện —</option>';
-            // Add project prompts option - will load if project has any
-            if (currentProject) {
-                opts += '<option value="__project__">📂 Prompts của dự án này</option>';
-            }
-            // Add system default explicitly with clear name
+            opts += '<option value="__project__">📂 Prompts của dự án này</option>';
             opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
             genres.forEach(g => {
                 opts += `<option value="${g.slug}">📁 ${g.name}</option>`;
@@ -1354,18 +1370,52 @@ function loadProjectPrompts() {
 }
 
 function saveProjectPrompts() {
-    if (!currentProject) return;
-    const mainEl = document.getElementById('proj-prompt-main');
+    if (!currentProject) {
+        showToast('Không tìm thấy thông tin dự án hiện tại!', 'error');
+        return;
+    }
+    const fields = {
+        main: document.getElementById('proj-prompt-main'),
+        summary: document.getElementById('proj-prompt-summary'),
+        relationships: document.getElementById('proj-prompt-relationships'),
+        glossary: document.getElementById('proj-prompt-glossary'),
+        chinh_ta: document.getElementById('proj-prompt-chinh-ta')
+    };
+    
+    const payload = {};
+    for (const [key, el] of Object.entries(fields)) {
+        payload[key] = el ? el.value : '';
+    }
+
+    const btn = document.getElementById('btn-save-project-prompts');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '...Đang lưu...';
+    }
+
     fetch(`/api/projects/${currentProject.slug}/prompts`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            main: mainEl ? mainEl.value : '',
-        })
-    }).then(r => r.json()).then(data => {
+        body: JSON.stringify(payload)
+    })
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+        return r.json();
+    })
+    .then(data => {
         if (data.success) {
             showToast('Đã lưu Chỉ dẫn của dự án!', 'success');
         } else {
             showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
+        }
+    })
+    .catch(err => {
+        console.error('saveProjectPrompts error:', err);
+        showToast('Lỗi kết nối server khi lưu prompts!', 'error');
+    })
+    .finally(() => {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '💾 Lưu Chỉ dẫn';
         }
     });
 }
@@ -1375,27 +1425,36 @@ function loadFromPromptLibrary() {
     const slug = sel ? sel.value : '';
     if (!slug) { showToast('Chọn bộ prompt từ dropdown trước!', 'error'); return; }
 
-    // Handle special cases
+    const fieldsMap = {
+        'main': 'proj-prompt-main',
+        'summary': 'proj-prompt-summary',
+        'relationships': 'proj-prompt-relationships',
+        'glossary': 'proj-prompt-glossary',
+        'chinh_ta': 'proj-prompt-chinh-ta'
+    };
+
     if (slug === '__project__') {
-        // Load project's own prompts
         fetch(`/api/projects/${currentProject.slug}/prompts`)
             .then(r => r.json())
             .then(data => {
-                const el = document.getElementById('proj-prompt-main');
-                if (el) el.value = data.main || '';
+                for (const [key, elId] of Object.entries(fieldsMap)) {
+                    const el = document.getElementById(elId);
+                    if (el) el.value = data[key] || '';
+                }
                 showToast('Đã nạp prompts của dự án', 'success');
             });
         return;
     }
 
     const url = '/api/prompt-sets/' + slug;
-
     fetch(url)
         .then(r => r.json())
         .then(data => {
             const prompts = data.prompts || {};
-            const el = document.getElementById('proj-prompt-main');
-            if (el) el.value = prompts.main || '';
+            for (const [key, elId] of Object.entries(fieldsMap)) {
+                const el = document.getElementById(elId);
+                if (el) el.value = prompts[key] || '';
+            }
             const displayName = slug === 'default' ? 'Mặc định (Hệ thống)' : slug;
             showToast(`Đã nạp bộ prompt "${displayName}"`, 'success');
         })
@@ -2486,32 +2545,47 @@ function createGenre(e) {
 }
 
 function saveGenre() {
-    if (!currentGenre) return;
+    if (!currentGenre) {
+        showToast('Vui lòng chọn một bộ prompt trước khi lưu!', 'error');
+        return;
+    }
     const btn = document.getElementById('btn-save-genre');
+    const originalText = btn.textContent;
     btn.textContent = '...Đang lưu...';
     btn.disabled = true;
 
+    const payload = {
+        prompts: {
+            main: document.getElementById('genre-main-text').value,
+            summary: document.getElementById('genre-summary-text').value,
+            relationships: document.getElementById('genre-relationships-text').value,
+            glossary: document.getElementById('genre-glossary-text').value,
+            chinh_ta: document.getElementById('genre-chinh-ta-text').value,
+        }
+    };
+
     fetch('/api/prompt-sets/' + currentGenre, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            prompts: {
-                main: document.getElementById('genre-main-text').value,
-                summary: document.getElementById('genre-summary-text').value,
-                relationships: document.getElementById('genre-relationships-text').value,
-                glossary: document.getElementById('genre-glossary-text').value,
-                chinh_ta: document.getElementById('genre-chinh-ta-text').value,
-            }
-        })
-    }).then(r => r.json()).then(data => {
+        body: JSON.stringify(payload)
+    })
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`);
+        return r.json();
+    })
+    .then(data => {
         if (data.success) {
             showToast('Lưu prompt hoàn tất!', 'success');
-            btn.textContent = '💾 Lưu Prompt';
-            btn.disabled = false;
         } else {
             showToast('Lỗi lưu: ' + (data.error || 'Unknown'), 'error');
-            btn.textContent = '💾 Lưu Prompt';
-            btn.disabled = false;
         }
+    })
+    .catch(err => {
+        console.error('saveGenre error:', err);
+        showToast('Lỗi kết nối server khi lưu prompt!', 'error');
+    })
+    .finally(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
     });
 }
 
