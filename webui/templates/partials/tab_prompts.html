@@ -42,12 +42,14 @@
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-summary">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-relationships">
                                 <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-glossary">
+                                <input class="nt-tab-radio" type="radio" name="system-prompt-tabs" id="system-tab-chinh-ta">
 
                                 <div class="nt-tab-nav flex bb b--black-10 mb3 flex-wrap" role="tablist" aria-label="Prompt hệ thống">
                                     <label for="system-tab-main" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-main">Dịch thuật</label>
                                     <label for="system-tab-summary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-summary">Tóm tắt</label>
                                     <label for="system-tab-relationships" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-relationships">Mối quan hệ</label>
                                     <label for="system-tab-glossary" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-glossary">Thuật ngữ</label>
+                                    <label for="system-tab-chinh-ta" class="nt-tab-label dib ph3 pv2 gray f7 fw6 tracked uppercase" role="tab" aria-controls="system-panel-chinh-ta">🔤 Chính tả</label>
                                 </div>
 
                                 <div class="nt-tab-panels flex-auto">
@@ -62,6 +64,9 @@
                                     </section>
                                     <section id="system-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-glossary">
                                         <textarea id="genre-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt thuật ngữ..."></textarea>
+                                    </section>
+                                    <section id="system-panel-chinh-ta" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-chinh-ta">
+                                        <textarea id="genre-chinh-ta-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0" style="min-height:340px; resize:none;" placeholder="Prompt kiểm tra chính tả..."></textarea>
                                     </section>
                                 </div>
                             </div>

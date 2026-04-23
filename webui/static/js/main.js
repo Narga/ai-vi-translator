@@ -34,6 +34,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Spell-check tab buttons
+    const btnCopySpell = document.getElementById('btn-copy-spellcheck');
+    if (btnCopySpell) btnCopySpell.addEventListener('click', copySpellCheckResult);
+    const btnDownSpell = document.getElementById('download-spellcheck-btn');
+    if (btnDownSpell) btnDownSpell.addEventListener('click', downloadSpellCheckResult);
+    const btnRunSpell = document.getElementById('spellcheck-btn');
+    if (btnRunSpell) btnRunSpell.addEventListener('click', runSpellcheck);
+
     setInterval(loadStats, 30000);
 
     // Temperature slider
@@ -852,6 +860,8 @@ function switchProjectTab(tab) {
                 loadProjectPrompts();
             } else if (['style-guide', 'relationship', 'glossary', 'summary'].includes(tab)) {
                 loadGuidelineTab(tab);
+            } else if (tab === 'spellcheck') {
+                renderProjectSpellcheckSources(currentProject.sources || []);
             }
         }
     } catch (e) {
@@ -1179,23 +1189,165 @@ function moveBackInProject(filename) {
     }).then(r => r.json()).then(() => selectProject(currentProject.slug));
 }
 
+// ============================================================
+// Spell-check Functions
+// ============================================================
+function loadSpellcheckFile(filename) {
+    if (!currentProject) return;
+    const slug = currentProject.slug;
+    fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
+        document.getElementById('spell-result-text').value = data.content || '';
+        currentProjectFile = { name: filename, section: 'spelling' };
+        const infoName = filename.replace(/\.(txt|md)$/, '') + '_info.txt';
+        fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
+            document.getElementById('spell-info-text').value = infoData.content || '';
+        }).catch(() => {
+            document.getElementById('spell-info-text').value = '';
+        });
+    }).catch(() => {
+        document.getElementById('spell-result-text').value = '';
+        document.getElementById('spell-info-text').value = '';
+    });
+    fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sourceData => {
+        document.getElementById('spell-source-text').value = sourceData.content || '';
+    }).catch(() => {
+        document.getElementById('spell-source-text').value = '';
+    });
+}
+
+function saveSpellcheckResult() {
+    if (!currentProject || !currentProjectFile) {
+        showToast('Không xác định được dự án hoặc file.', 'error');
+        return;
+    }
+    const slug = currentProject.slug;
+    const filename = currentProjectFile.name;
+    const content = document.getElementById('spell-result-text').value;
+    if (!content.trim()) {
+        showToast('Nội dung trống.', 'warning');
+        return;
+    }
+    const btn = document.getElementById('btn-save-spellcheck');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳...';
+    btn.disabled = true;
+    fetch(`/api/projects/${slug}/file/spelling/${filename}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    }).then(r => r.json()).then(res => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        if (res.success) {
+            showToast('Đã lưu.', 'success');
+        } else {
+            showToast('Lỗi: ' + (res.error || 'Unknown'), 'error');
+        }
+    }).catch(e => {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        showToast('Lỗi: ' + e.message, 'error');
+    });
+}
+
+function spellcheckSelectedInProject() {
+    if (!currentProject || selectedFiles.size === 0) { showToast('Chưa chọn file!', 'error'); return; }
+    const files = Array.from(selectedFiles);
+    fetch(`/api/projects/${currentProject.slug}/spellcheck`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files })
+    }).then(r => r.json()).then(data => {
+        if (data.status === 'started') connectToProgress(document.getElementById('btn-spellcheck-selected'), true);
+        else showToast(data.error || 'Lỗi', 'error');
+    });
+}
+
+function spellcheckFileInProject(filename) {
+    if (!currentProject) return;
+    fetch(`/api/projects/${currentProject.slug}/spellcheck`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ files: [filename] })
+    }).then(r => r.json()).then(data => {
+        if (data.status === 'started') {
+            switchProjectTab('spellcheck');
+            connectToProgress();
+        } else showToast(data.error || 'Lỗi', 'error');
+    });
+}
+
+function copySpellcheckResult() {
+    const el = document.getElementById('spell-result-text');
+    el.select();
+    document.execCommand('copy');
+    showToast('Đã sao chép.', 'success');
+}
+
+function downloadSpellCheckResult() {
+    if (!currentProject || !currentProjectFile) { showToast('Chưa chọn file!', 'error'); return; }
+    window.location.href = `/api/projects/${currentProject.slug}/file/spelling/${currentProjectFile.name}`;
+}
+
+function runSpellcheck() {
+    if (!currentProject || !currentProjectFile) { showToast('Chưa chọn file!', 'error'); return; }
+    selectedFiles.clear();
+    selectedFiles.add(currentProjectFile.name);
+    spellcheckSelectedInProject();
+}
+
+function renderProjectSpellcheckSources(sources) {
+    const el = document.getElementById('project-spellcheck-table-body');
+    if (!el) return;
+    if (!sources.length) { 
+        el.innerHTML = '<tr><td colspan="5" class="pa3 tc silver i">Chưa có file nguồn</td></tr>'; 
+        return; 
+    }
+    try {
+        el.innerHTML = sources.map(f => {
+            const esc = f.name.replace(/'/g, "\\'");
+            const checked = selectedFiles.has(f.name) ? 'checked' : '';
+            const statusText = f.has_translation ? 'Xong' : 'Chưa';
+            const statusColor = f.has_translation ? 'green' : 'orange';
+            return `<tr>
+                <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
+                <td><div class="fw6 blue pointer underline-hover" onclick="loadSpellcheckFile('${esc}')">${f.name}</div></td>
+                <td class="f7 gray">${f.size_display}</td>
+                <td><span class="f7 ${statusColor} fw6">${f.has_translation ? '✅' : '⏳'} ${statusText}</span></td>
+                <td class="tr">
+                    <div class="flex justify-end gap-1">
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();spellcheckFileInProject('${esc}')">🔤</button>
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','sources')">✏️</button>
+                        <button class="ph2 pv1 f7 ba b--red red bg-white pointer hover-bg-washed-red br1" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    } catch (err) {
+        console.error('Error:', err);
+        el.innerHTML = '<tr><td colspan="5" class="pa3 tc red">Lỗi</td></tr>';
+    }
+}
+
 function loadProjectPrompts() {
     if (!currentProject) return;
     fetch(`/api/projects/${currentProject.slug}/prompts`).then(r => r.json()).then(data => {
         const el = document.getElementById('proj-prompt-main');
         if (el) el.value = data.main || '';
     });
-    // Populate prompt library dropdown
     const sel = document.getElementById('prompt-library-select');
     if (sel) {
         fetch('/api/prompt-sets').then(r => r.json()).then(data => {
+            // API returns a list, filter out default to avoid duplication
+            const genres = (data || []).filter(g => g.slug !== 'default');
             let opts = '<option value="">— Nạp từ thư viện —</option>';
-            opts += '<option value="__default__">📌 Mặc định (System)</option>';
-            if (data.genres) {
-                data.genres.forEach(g => {
-                    opts += `<option value="${g.slug}">📁 ${g.name}</option>`;
-                });
+            // Add project prompts option - will load if project has any
+            if (currentProject) {
+                opts += '<option value="__project__">📂 Prompts của dự án này</option>';
             }
+            // Add system default explicitly with clear name
+            opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
+            genres.forEach(g => {
+                opts += `<option value="${g.slug}">📁 ${g.name}</option>`;
+            });
             sel.innerHTML = opts;
         }).catch(() => {});
     }
@@ -1210,7 +1362,11 @@ function saveProjectPrompts() {
             main: mainEl ? mainEl.value : '',
         })
     }).then(r => r.json()).then(data => {
-        if (data.success) showToast('Đã lưu prompt dự án!', 'success');
+        if (data.success) {
+            showToast('Đã lưu Chỉ dẫn của dự án!', 'success');
+        } else {
+            showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
+        }
     });
 }
 
@@ -1219,18 +1375,29 @@ function loadFromPromptLibrary() {
     const slug = sel ? sel.value : '';
     if (!slug) { showToast('Chọn bộ prompt từ dropdown trước!', 'error'); return; }
 
-    const url = slug === '__default__'
-        ? '/api/prompt-sets/default'
-        : `/api/prompt-sets/${slug}`;
+    // Handle special cases
+    if (slug === '__project__') {
+        // Load project's own prompts
+        fetch(`/api/projects/${currentProject.slug}/prompts`)
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById('proj-prompt-main');
+                if (el) el.value = data.main || '';
+                showToast('Đã nạp prompts của dự án', 'success');
+            });
+        return;
+    }
+
+    const url = '/api/prompt-sets/' + slug;
 
     fetch(url)
         .then(r => r.json())
         .then(data => {
-            if (data.main) {
-                const el = document.getElementById('proj-prompt-main');
-                if (el) el.value = data.main;
-            }
-            showToast(`Đã nạp bộ prompt "${slug === '__default__' ? 'Mặc định' : slug}"`, 'success');
+            const prompts = data.prompts || {};
+            const el = document.getElementById('proj-prompt-main');
+            if (el) el.value = prompts.main || '';
+            const displayName = slug === 'default' ? 'Mặc định (Hệ thống)' : slug;
+            showToast(`Đã nạp bộ prompt "${displayName}"`, 'success');
         })
         .catch(e => showToast(e.message, 'error'));
 }
@@ -2246,6 +2413,7 @@ function selectGenre(slug) {
             document.getElementById('genre-summary-text').value = data.prompts.summary || '';
             document.getElementById('genre-relationships-text').value = data.prompts.relationships || '';
             document.getElementById('genre-glossary-text').value = data.prompts.glossary || '';
+            document.getElementById('genre-chinh-ta-text').value = data.prompts.chinh_ta || '';
             loadGenres(); // Refresh active state in list
         });
 }
@@ -2296,7 +2464,8 @@ function createGenre(e) {
         summary: document.getElementById('genre-summary-text').value,
         relationships: document.getElementById('genre-relationships-text').value,
         glossary: document.getElementById('genre-glossary-text').value,
-    } : { main: '', summary: '', relationships: '', glossary: '' };
+        chinh_ta: document.getElementById('genre-chinh-ta-text').value,
+    } : { main: '', summary: '', relationships: '', glossary: '', chinh_ta: '' };
     window.isCloning = false;
 
     fetch('/api/prompt-sets', {
@@ -2330,6 +2499,7 @@ function saveGenre() {
                 summary: document.getElementById('genre-summary-text').value,
                 relationships: document.getElementById('genre-relationships-text').value,
                 glossary: document.getElementById('genre-glossary-text').value,
+                chinh_ta: document.getElementById('genre-chinh-ta-text').value,
             }
         })
     }).then(r => r.json()).then(data => {

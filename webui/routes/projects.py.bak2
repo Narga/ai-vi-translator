@@ -490,7 +490,10 @@ def upload_project_file(slug):
     if not f.filename:
         return jsonify({"error": "Tên file rỗng"}), 400
 
-    # Cho phép mọi định dạng
+    # Chỉ cho phép .txt và .md
+    if not (f.filename.lower().endswith(".txt") or f.filename.lower().endswith(".md")):
+        return jsonify({"error": "Chỉ hỗ trợ file .txt và .md"}), 400
+
     safe_name = Path(f.filename).name  # sanitize
     src_dir = pdir / "sources"
     src_dir.mkdir(parents=True, exist_ok=True)
@@ -651,7 +654,7 @@ def project_move_back(slug):
 def get_project_prompts(slug):
     """Load prompt dự án (fallback global)."""
     pdir = _get_project_dir(slug)
-    prompts = {"main": "", "chinh_ta": ""}
+    prompts = {"main": ""}
 
     global_prompts = load_prompts()
     prompts.update(global_prompts)
@@ -660,17 +663,12 @@ def get_project_prompts(slug):
     if prompt_dir.exists():
         for key, fname in [
             ("main", "main_prompt.txt"),
-            ("chinh_ta", "chinh_ta_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():
                 content = fp.read_text(encoding="utf-8").strip()
                 if content:
                     prompts[key] = content
-            elif key == "chinh_ta":
-                default_fp = Path("workspace/prompts/default") / fname
-                if default_fp.exists():
-                    prompts[key] = default_fp.read_text(encoding="utf-8").strip()
 
     return jsonify(prompts)
 
@@ -683,16 +681,11 @@ def save_project_prompts(slug):
     prompt_dir.mkdir(parents=True, exist_ok=True)
 
     data = request.json
-    # Save only keys that are in the request
-    key_fname_map = {
-        "main": "main_prompt.txt",
-        "chinh_ta": "chinh_ta_prompt.txt",
-    }
-    for key, fname in key_fname_map.items():
-        if key in data and data[key] is not None:
-            fp = prompt_dir / fname
-            with open(fp, "w", encoding="utf-8") as f:
-                f.write(str(data[key]))
+    for key, fname in [
+        ("main", "main_prompt.txt"),
+    ]:
+        if key in data:
+            (prompt_dir / fname).write_text(data[key], encoding="utf-8")
 
     return jsonify({"success": True})
 
@@ -1035,30 +1028,30 @@ def translate_project_file(slug):
                         if idx < total_files:
                             data["type"] = "file_complete"
 
-                    progress_queue.put(data)
+                     progress_queue.put(data)
 
-                executor.translate_text(
-                    text=text,
-                    output_filename=filename,
-                    output_file_path=pdir / "translated" / filename,
-                    progress_callback=cb,
-                    translation_memory=project_tm,
-                )
+                 executor.translate_text(
+                     text=text,
+                     output_filename=filename,
+                     output_file_path=pdir / "translated" / filename,
+                     progress_callback=cb,
+                     translation_memory=project_tm,
+                 )
 
-            # Gửi thông báo hoàn tất tất cả sau khi loop xong
-            meta["updated_at"] = datetime.now().isoformat()
-            _save_project_meta(slug, meta)
-            calculate_stats()
-            progress_queue.put(
-                {"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"}
-            )
+             # Gửi thông báo hoàn tất tất cả sau khi loop xong
+             meta["updated_at"] = datetime.now().isoformat()
+             _save_project_meta(slug, meta)
+             calculate_stats()
+             progress_queue.put(
+                 {"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"}
+             )
 
-        except Exception as e:
-            progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
-
-    thread = Thread(target=_project_translate_worker, daemon=True)
-    thread.start()
-    return jsonify({"status": "started", "files_count": len(filenames)})
+         except Exception as e:
+             progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+     
+     thread = Thread(target=_project_translate_worker, daemon=True)
+     thread.start()
+     return jsonify({"status": "started", "files_count": len(filenames)})
 
 
 # ============================================================
@@ -1083,24 +1076,19 @@ def spellcheck_project_file(slug):
         return jsonify({"error": "Không có file nào được chọn"}), 400
 
     # Load spell-check prompt
-    prompts = {"main": "", "chinh_ta": ""}
+    prompts = {"main": ""}
     global_prompts = load_prompts()
     prompts.update(global_prompts)
     prompt_dir = pdir / "prompt"
     if prompt_dir.exists():
         for key, fname in [
-            ("chinh_ta", "chinh_ta_prompt.txt"),
+            ("main", "chinh_ta_prompt.txt"),
         ]:
             fp = prompt_dir / fname
             if fp.exists():
                 content = fp.read_text(encoding="utf-8").strip()
                 if content:
                     prompts[key] = content
-            elif key == "chinh_ta":
-                # Fallback to system default
-                default_fp = Path("workspace/prompts/default") / fname
-                if default_fp.exists():
-                    prompts[key] = default_fp.read_text(encoding="utf-8").strip()
 
     # Glossary paths (Dynamic terms)
     glossary_filenames = ["glossary.txt", "relationship.txt"]

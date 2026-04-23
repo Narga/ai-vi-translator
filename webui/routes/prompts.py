@@ -13,7 +13,7 @@ prompts_bp = Blueprint("prompts", __name__)
 GENRES_DIR = Path("workspace/prompts")
 
 # Chỉ giữ 1 prompt chính (main) - loại bỏ retranslate/correction theo yêu cầu v6.5.0
-PROMPT_KEYS = ["main", "summary", "relationships", "glossary"]
+PROMPT_KEYS = ["main", "summary", "relationships", "glossary", "chinh_ta"]
 
 
 @prompts_bp.route("/api/prompt-sets")

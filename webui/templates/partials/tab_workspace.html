@@ -39,8 +39,9 @@
                                  <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="style-guide" onclick="switchProjectTab('style-guide')">🖊️ Chỉ dẫn</button>
                                  <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="relationship" onclick="switchProjectTab('relationship')">👥 Mối quan hệ</button>
                                  <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="glossary" onclick="switchProjectTab('glossary')">📖 Thuật ngữ</button>
-                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="prompt" onclick="switchProjectTab('prompt')">📝 Prompt</button>
-                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="summary" onclick="switchProjectTab('summary')">📋 Tóm tắt</button>
+                                 <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="prompt" onclick="switchProjectTab('prompt')">🖊️ Chỉ dẫn</button>
+                                  <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="summary" onclick="switchProjectTab('summary')">📋 Tóm tắt</button>
+                                  <button class="tab-btn ph3 pv3 pointer f7 fw6 tracked uppercase bg-transparent bn gray bb b--transparent nowrap" data-ptab="spellcheck" onclick="switchProjectTab('spellcheck')">🔤 Chính tả</button>
                              </div>
 
                             <!-- Workspace Content Section -->
@@ -51,6 +52,8 @@
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                          <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-source-count" class="blue fw7">0</span>)</span>
                                          <div class="flex gap-2">
+                                             <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
+                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="document.getElementById('upload-source-file').click()">📤 Tải lên</button>
                                              <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch được chọn</button>
                                          </div>
                                     </div>
@@ -211,18 +214,87 @@
                                   <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Nhập prompt chính cho dịch thuật..."></textarea>
                               </div>
 
-                              <!-- Tóm tắt Section -->
-                              <div id="ptab-summary" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
-                                  <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
-                                      <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
-                                      <select id="summary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
-                                          <option value="">— Chọn Model —</option>
-                                      </select>
-                                      <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('summary')">✨ Generate</button>
-                                      <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('summary')">💾 Lưu</button>
-                                  </div>
-                                  <textarea id="guide-summary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="AI Generate hoặc viết tóm tắt cốt truyện tại đây..."></textarea>
-                              </div>
+                               <!-- Tóm tắt Section -->
+                               <div id="ptab-summary" class="nt-ptab-content dn flex-auto flex flex-column overflow-hidden pa3">
+                                   <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
+                                       <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
+                                       <select id="summary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                           <option value="">— Chọn Model —</option>
+                                       </select>
+                                       <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('summary')">✨ Generate</button>
+                                       <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('summary')">💾 Lưu</button>
+                                   </div>
+                                   <textarea id="guide-summary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="AI Generate hoặc viết tóm tắt cốt truyện tại đây..."></textarea>
+                               </div>
+
+                               <!-- Kiểm tra chính tả Section -->
+                               <div id="ptab-spellcheck" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
+                                   <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                       <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                           <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-spellcheck-count" class="blue fw7">0</span>)</span>
+                                           <div class="flex gap-2">
+                                               <button id="btn-spellcheck-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="spellcheckSelectedInProject()">🔤 Soát được chọn</button>
+                                           </div>
+                                       </div>
+                                       <div class="overflow-x-auto">
+                                           <table class="minimal-table w-100 collapse f7">
+                                               <thead>
+                                                   <tr class="bg-near-white silver tc tracked uppercase">
+                                                       <th class="pa2 bb b--black-05" style="width: 40px"><input type="checkbox" onclick="selectAllProjectFiles()"></th>
+                                                       <th class="pa2 tl bb b--black-05">Tên tệp</th>
+                                                       <th class="pa2 tl bb b--black-05">Size</th>
+                                                       <th class="pa2 tl bb b--black-05">Status</th>
+                                                       <th class="pa2 tr bb b--black-05">Hành động</th>
+                                                   </tr>
+                                               </thead>
+                                               <tbody id="project-spellcheck-table-body">
+                                                   <!-- Rows injected by JS -->
+                                               </tbody>
+                                           </table>
+                                       </div>
+                                   </div>
+
+                                   <!-- Integrated Editor Block (Side-by-Side with Info) -->
+                                   <div id="spellcheck-editor" class="pv2 flex flex-column">
+                                       <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
+                                           <!-- Source Textarea -->
+                                           <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
+                                               <div class="pa2 bb b--black-10 flex items-center bg-near-white">
+                                                   <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
+                                               </div>
+                                               <textarea id="spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateSpellcheckTokenEstimate()" style="resize:none"></textarea>
+                                           </div>
+                                           <!-- Result Textarea -->
+                                           <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
+                                               <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
+                                                   <button id="btn-save-spellcheck" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveSpellcheckResult()">💾 Lưu</button>
+                                                   <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
+                                               </div>
+                                               <textarea id="spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung sau khi kiểm tra chính tả sẽ hiển thị tại đây..." style="resize:none"></textarea>
+                                           </div>
+                                       </div>
+
+                                       <!-- Info Textarea (full width) -->
+                                       <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm" style="margin-top: 1rem;">
+                                           <div class="pa2 bb b--black-10 flex items-center bg-near-white">
+                                               <span class="f7 fw6 gray uppercase tracked">Thông tin chi tiết</span>
+                                           </div>
+                                           <textarea id="spell-info-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bảng liệt kê vị trí và danh sách các từ đã sửa..." style="resize:none;"></textarea>
+                                       </div>
+
+                                       <!-- Token & Quick Actions -->
+                                       <div class="flex justify-between items-center pa2 ba b--black-10 br2 bg-near-white flex-wrap gap-2 flex-shrink-0">
+                                           <div id="spell-token-estimate-mini" class="dn f7 gray">
+                                               📊 <span id="spell-token-char-count">0</span> chars | <strong id="spell-token-estimate" class="blue">0</strong> tokens
+                                           </div>
+                                           <div class="ml-auto flex gap-2">
+                                               <button id="btn-copy-spellcheck" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="copySpellcheckResult()">📋 Copy</button>
+                                               <button id="download-spellcheck-btn" class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="downloadSpellcheckResult()">📥 Tải về</button>
+                                               <button id="spellcheck-btn" class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="runSpellcheck()">Soát lại</button>
+                                           </div>
+                                       </div>
+                                   </div>
+                               </div>
 
                         </div>
                     </div>
