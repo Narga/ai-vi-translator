@@ -587,13 +587,17 @@ function updateTokenEstimate() {
 function _doTokenEstimate() {
     const text = document.getElementById('source-text').value || '';
     const charCount = text.length;
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
     const charCountEl = document.getElementById('token-char-count');
-    if (charCountEl) charCountEl.textContent = charCount.toLocaleString();
+    if (charCountEl) charCountEl.innerHTML = `<strong>${charCount.toLocaleString()}</strong>`;
+    
+    const wordCountEl = document.getElementById('token-word-count');
+    if (wordCountEl) wordCountEl.innerHTML = `<strong>${wordCount.toLocaleString()}</strong>`;
 
     if (charCount === 0) {
         const estEl = document.getElementById('token-estimate');
-        if (estEl) estEl.textContent = '~0';
+        if (estEl) estEl.innerHTML = '<strong>~0</strong>';
         const fitEl = document.getElementById('token-model-fit');
         if (fitEl) fitEl.textContent = '';
         return;
@@ -614,19 +618,20 @@ function _doTokenEstimate() {
     const totalInput = estimatedTokens + promptOverhead;
 
     const tokenEstEl = document.getElementById('token-estimate');
-    if (tokenEstEl) tokenEstEl.textContent = '~' + estimatedTokens.toLocaleString();
+    if (tokenEstEl) tokenEstEl.innerHTML = '<strong>~' + estimatedTokens.toLocaleString() + '</strong>';
 
     // Check against model limits
     const fitEl = document.getElementById('token-model-fit');
     if (currentModelInfo && currentModelInfo.input_token_limit) {
         const limit = currentModelInfo.input_token_limit;
         const ratio = totalInput / limit;
+        const ratioText = `<strong>${Math.round(ratio * 100)}%</strong>`;
         if (ratio > 0.9) {
-            fitEl.innerHTML = '<span class="red fw6">⚠️ Gần/vượt limit!</span>';
+            fitEl.innerHTML = `<span class="red fw6">⚠️ Gần/vượt giới hạn!</span>`;
         } else if (ratio > 0.5) {
-            fitEl.innerHTML = '<span class="orange">⚡ ' + Math.round(ratio * 100) + '% input limit</span>';
+            fitEl.innerHTML = `<span class="orange">⚡ ${ratioText} giới hạn</span>`;
         } else {
-            fitEl.innerHTML = '<span class="green">✅ OK (' + Math.round(ratio * 100) + '% limit)</span>';
+            fitEl.innerHTML = `<span class="green">✅ OK (${ratioText} giới hạn)</span>`;
         }
     } else {
         fitEl.textContent = '';
@@ -736,12 +741,6 @@ function selectProject(slug, keepSelection = false) {
         const descEl = document.getElementById('project-desc');
         if (titleEl) titleEl.textContent = data.name;
         if (descEl) descEl.textContent = data.description || 'Dự án không có mô tả';
-        
-        // Stats in Header & Table
-        const srcCount = document.getElementById('proj-source-count');
-        const trCount = document.getElementById('proj-translated-count');
-        if (srcCount) srcCount.textContent = data.source_count || 0;
-        if (trCount) trCount.textContent = data.translated_count || 0;
 
         // 3. Render Files
         renderProjectSources(data.sources || []);
@@ -779,8 +778,9 @@ function renderProjectSources(sources) {
         el.innerHTML = sources.map(f => {
             const esc = f.name.replace(/'/g, "\\'");
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
-            const statusText = f.has_translation ? 'Xong' : 'Chưa';
-            const statusColor = f.has_translation ? 'green' : 'orange';
+            const statusHtml = f.has_translation 
+                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✅ Xong</span>`
+                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
             
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
@@ -789,9 +789,7 @@ function renderProjectSources(sources) {
                 </td>
                 <td class="f7 gray">${f.size_display}</td>
                 <td>
-                    <span class="f7 ${statusColor} fw6">
-                        ${f.has_translation ? '✅' : '⏳'} ${statusText}
-                    </span>
+                    ${statusHtml}
                 </td>
                 <td class="tr">
                     <div class="flex justify-end gap-1">
@@ -811,8 +809,6 @@ function renderProjectSources(sources) {
 
 function renderProjectTranslated(translated) {
     const el = document.getElementById('project-translated-table-body');
-    const countEl = document.getElementById('proj-translated-count');
-    if (countEl) countEl.textContent = translated.length;
     if (!el) return;
 
     if (!translated.length) {
@@ -1312,13 +1308,14 @@ function renderProjectSpellcheckSources(sources) {
         el.innerHTML = sources.map(f => {
             const esc = f.name.replace(/'/g, "\\'");
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
-            const statusText = f.has_translation ? 'Xong' : 'Chưa';
-            const statusColor = f.has_translation ? 'green' : 'orange';
+            const statusHtml = f.has_translation 
+                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✅ Xong</span>`
+                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
                 <td><div class="fw6 blue pointer underline-hover" onclick="loadSpellcheckFile('${esc}')">${f.name}</div></td>
                 <td class="f7 gray">${f.size_display}</td>
-                <td><span class="f7 ${statusColor} fw6">${f.has_translation ? '✅' : '⏳'} ${statusText}</span></td>
+                <td>${statusHtml}</td>
                 <td class="tr">
                     <div class="flex justify-end gap-1">
                         <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();spellcheckFileInProject('${esc}')">🔤</button>
@@ -1351,6 +1348,7 @@ function loadProjectPrompts() {
                 const el = document.getElementById(id);
                 if (el) el.value = val || '';
             }
+            _updatePromptStatusBadge(data.is_custom || false);
         })
         .catch(err => console.error('Error loading project prompts:', err));
 
@@ -1358,8 +1356,7 @@ function loadProjectPrompts() {
     if (sel) {
         fetch('/api/prompt-sets').then(r => r.json()).then(data => {
             const genres = (data || []).filter(g => g.slug !== 'default');
-            let opts = '<option value="">— Nạp từ thư viện —</option>';
-            opts += '<option value="__project__">📂 Prompts của dự án này</option>';
+            let opts = '<option value="">— Chọn bộ prompt —</option>';
             opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
             genres.forEach(g => {
                 opts += `<option value="${g.slug}">📁 ${g.name}</option>`;
@@ -1404,6 +1401,7 @@ function saveProjectPrompts() {
     .then(data => {
         if (data.success) {
             showToast('Đã lưu Chỉ dẫn của dự án!', 'success');
+            _updatePromptStatusBadge(true);
         } else {
             showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
         }
@@ -1415,50 +1413,67 @@ function saveProjectPrompts() {
     .finally(() => {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = '💾 Lưu Chỉ dẫn';
+            btn.innerHTML = '💾 Lưu chỉ dẫn dự án';
         }
     });
 }
 
-function loadFromPromptLibrary() {
+function importPromptFromLibrary() {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
     const sel = document.getElementById('prompt-library-select');
-    const slug = sel ? sel.value : '';
-    if (!slug) { showToast('Chọn bộ prompt từ dropdown trước!', 'error'); return; }
+    const genre = sel ? sel.value : '';
+    if (!genre) { showToast('Chọn bộ prompt từ thư viện trước!', 'error'); return; }
 
-    const fieldsMap = {
-        'main': 'proj-prompt-main',
-        'summary': 'proj-prompt-summary',
-        'relationships': 'proj-prompt-relationships',
-        'glossary': 'proj-prompt-glossary',
-        'chinh_ta': 'proj-prompt-chinh-ta'
-    };
+    const displayName = sel.options[sel.selectedIndex]?.text || genre;
+    if (!confirm(`Áp dụng bộ "${displayName}" vào dự án?\nHành động này sẽ ghi đè chỉ dẫn hiện tại của dự án.`)) return;
 
-    if (slug === '__project__') {
-        fetch(`/api/projects/${currentProject.slug}/prompts`)
-            .then(r => r.json())
-            .then(data => {
-                for (const [key, elId] of Object.entries(fieldsMap)) {
-                    const el = document.getElementById(elId);
-                    if (el) el.value = data[key] || '';
-                }
-                showToast('Đã nạp prompts của dự án', 'success');
-            });
-        return;
+    fetch(`/api/projects/${currentProject.slug}/prompts/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ genre })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            loadProjectPrompts(); // Reload để hiển thị nội dung mới
+        } else {
+            showToast(data.error || 'Lỗi khi nạp prompt', 'error');
+        }
+    })
+    .catch(err => showToast('Lỗi kết nối: ' + err.message, 'error'));
+}
+
+function resetProjectPrompts() {
+    if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
+    if (!confirm('Xóa toàn bộ chỉ dẫn riêng của dự án?\nDự án sẽ quay về dùng chỉ dẫn mặc định hệ thống.')) return;
+
+    fetch(`/api/projects/${currentProject.slug}/prompts`, { method: 'DELETE' })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            loadProjectPrompts(); // Reload để hiển thị prompt hệ thống
+        } else {
+            showToast(data.error || 'Lỗi khi xóa chỉ dẫn', 'error');
+        }
+    })
+    .catch(err => showToast('Lỗi kết nối: ' + err.message, 'error'));
+}
+
+function _updatePromptStatusBadge(isCustom) {
+    const badge = document.getElementById('prompt-status-badge');
+    const resetBtn = document.getElementById('btn-reset-project-prompts');
+    if (!badge) return;
+    if (isCustom) {
+        badge.innerHTML = '✏️ Chỉ dẫn Dự án';
+        badge.className = 'f7 fw6 blue ba b--blue pa1 br2 bg-washed-blue';
+        if (resetBtn) resetBtn.style.display = '';
+    } else {
+        badge.innerHTML = '📌 Chỉ dẫn Hệ thống';
+        badge.className = 'f7 fw6 silver ba b--black-10 pa1 br2';
+        if (resetBtn) resetBtn.style.display = 'none';
     }
-
-    const url = '/api/prompt-sets/' + slug;
-    fetch(url)
-        .then(r => r.json())
-        .then(data => {
-            const prompts = data.prompts || {};
-            for (const [key, elId] of Object.entries(fieldsMap)) {
-                const el = document.getElementById(elId);
-                if (el) el.value = prompts[key] || '';
-            }
-            const displayName = slug === 'default' ? 'Mặc định (Hệ thống)' : slug;
-            showToast(`Đã nạp bộ prompt "${displayName}"`, 'success');
-        })
-        .catch(e => showToast(e.message, 'error'));
 }
 
 // Tab-to-field mapping for guideline tabs
@@ -2292,13 +2307,17 @@ function retranslateFile() {
 function updateTranslatedTokenEstimate() {
     const text = document.getElementById('translated-result-text').value || '';
     const charCount = text.length;
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
 
     const charCountEl = document.getElementById('translated-token-char-count');
-    if (charCountEl) charCountEl.textContent = charCount.toLocaleString();
+    if (charCountEl) charCountEl.innerHTML = `<strong>${charCount.toLocaleString()}</strong>`;
+
+    const wordCountEl = document.getElementById('translated-token-word-count');
+    if (wordCountEl) wordCountEl.innerHTML = `<strong>${wordCount.toLocaleString()}</strong>`;
 
     if (charCount === 0) {
         const estEl = document.getElementById('translated-token-count');
-        if (estEl) estEl.textContent = '~0';
+        if (estEl) estEl.innerHTML = '<strong>~0</strong>';
         const fitEl = document.getElementById('translated-token-model-fit');
         if (fitEl) fitEl.textContent = '';
         return;
@@ -2318,22 +2337,51 @@ function updateTranslatedTokenEstimate() {
     const totalInput = estimatedTokens + promptOverhead;
 
     const tokenEstEl = document.getElementById('translated-token-count');
-    if (tokenEstEl) tokenEstEl.textContent = '~' + estimatedTokens.toLocaleString();
+    if (tokenEstEl) tokenEstEl.innerHTML = '<strong>~' + estimatedTokens.toLocaleString() + '</strong>';
 
     const fitEl = document.getElementById('translated-token-model-fit');
     if (currentModelInfo && currentModelInfo.input_token_limit) {
         const limit = currentModelInfo.input_token_limit;
         const ratio = totalInput / limit;
+        const ratioText = `<strong>${Math.round(ratio * 100)}%</strong>`;
         if (ratio > 0.9) {
-            fitEl.innerHTML = '<span class="red fw6">⚠️ Gần/vượt limit!</span>';
+            fitEl.innerHTML = `<span class="red fw6">⚠️ Gần/vượt giới hạn!</span>`;
         } else if (ratio > 0.5) {
-            fitEl.innerHTML = '<span class="orange">⚡ ' + Math.round(ratio * 100) + '% input limit</span>';
+            fitEl.innerHTML = `<span class="orange">⚡ ${ratioText} giới hạn</span>`;
         } else {
-            fitEl.innerHTML = '<span class="green">✅ OK (' + Math.round(ratio * 100) + '% limit)</span>';
+            fitEl.innerHTML = `<span class="green">✅ OK (${ratioText} giới hạn)</span>`;
         }
     } else {
         fitEl.textContent = '';
     }
+}
+
+function updateSpellcheckTokenEstimate() {
+    const text = document.getElementById('spell-source-text').value || '';
+    const charCount = text.length;
+    const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+
+    const charCountEl = document.getElementById('spell-token-char-count');
+    if (charCountEl) charCountEl.innerHTML = `<strong>${charCount.toLocaleString()}</strong>`;
+
+    const wordCountEl = document.getElementById('spell-token-word-count');
+    if (wordCountEl) wordCountEl.innerHTML = `<strong>${wordCount.toLocaleString()}</strong>`;
+
+    if (charCount === 0) {
+        const estEl = document.getElementById('spell-token-estimate');
+        if (estEl) estEl.innerHTML = '<strong>~0</strong>';
+        const miniEl = document.getElementById('spell-token-estimate-mini');
+        if (miniEl) miniEl.classList.add('dn');
+        return;
+    }
+
+    const miniEl = document.getElementById('spell-token-estimate-mini');
+    if (miniEl) miniEl.classList.remove('dn');
+
+    const estimatedTokens = Math.round(charCount / 2.5); // Simple estimate for spellcheck
+
+    const tokenEstEl = document.getElementById('spell-token-estimate');
+    if (tokenEstEl) tokenEstEl.innerHTML = '<strong>~' + estimatedTokens.toLocaleString() + '</strong>';
 }
 
 // ============================================================

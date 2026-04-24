@@ -672,20 +672,23 @@ def project_move_back(slug):
 
 @projects_bp.route("/api/projects/<slug>/prompts")
 def get_project_prompts(slug):
-    """Load prompt dự án (fallback global)."""
+    """Load prompt dự án (fallback global). Trả về is_custom=True nếu dự án có prompt riêng."""
     pdir = _get_project_dir(slug)
     prompts = {
         "main": "",
         "summary": "",
         "relationships": "",
         "glossary": "",
-        "chinh_ta": ""
+        "chinh_ta": "",
+        "is_custom": False,
     }
 
     global_prompts = load_prompts()
     prompts.update(global_prompts)
+    prompts["is_custom"] = False  # reset after update
 
     prompt_dir = pdir / "prompt"
+    has_any_custom = False
     if prompt_dir.exists():
         for key, fname in [
             ("main", "main_prompt.txt"),
@@ -699,7 +702,9 @@ def get_project_prompts(slug):
                 content = fp.read_text(encoding="utf-8").strip()
                 if content:
                     prompts[key] = content
-    
+                    has_any_custom = True
+
+    prompts["is_custom"] = has_any_custom
     return jsonify(prompts)
 
 
@@ -711,7 +716,7 @@ def save_project_prompts(slug):
     prompt_dir.mkdir(parents=True, exist_ok=True)
 
     data = request.json
-    
+
     key_fname_map = {
         "main": "main_prompt.txt",
         "summary": "summary_prompt.txt",
@@ -719,7 +724,7 @@ def save_project_prompts(slug):
         "glossary": "glossary_prompt.txt",
         "chinh_ta": "chinh_ta_prompt.txt",
     }
-    
+
     for key, fname in key_fname_map.items():
         if key in data and data[key] is not None:
             fp = prompt_dir / fname
@@ -727,6 +732,58 @@ def save_project_prompts(slug):
                 f.write(str(data[key]))
 
     return jsonify({"success": True})
+
+
+@projects_bp.route("/api/projects/<slug>/prompts", methods=["DELETE"])
+def reset_project_prompts(slug):
+    """Xóa tất cả prompt tùy chỉnh của dự án, khôi phục về mặc định hệ thống."""
+    import shutil as _shutil
+    pdir = _get_project_dir(slug)
+    prompt_dir = pdir / "prompt"
+    if prompt_dir.exists():
+        _shutil.rmtree(prompt_dir)
+    return jsonify({"success": True, "message": "Đã khôi phục chỉ dẫn hệ thống"})
+
+
+@projects_bp.route("/api/projects/<slug>/prompts/import", methods=["POST"])
+def import_project_prompts(slug):
+    """Copy bộ prompt từ thư viện hệ thống vào thư mục riêng của dự án."""
+    import shutil as _shutil
+    data = request.json or {}
+    genre_slug = data.get("genre", "default")
+
+    pdir = _get_project_dir(slug)
+    dest_dir = pdir / "prompt"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    # Xác định nguồn prompt
+    src_dir = Path("workspace/prompts") / genre_slug
+    if not src_dir.exists():
+        src_dir = Path("workspace/prompts/default")
+
+    if not src_dir.exists():
+        # Fallback: ghi từ load_prompts() DEFAULTS
+        global_prompts = load_prompts()
+        key_fname_map = {
+            "main": "main_prompt.txt",
+            "summary": "summary_prompt.txt",
+            "relationships": "relationship_prompt.txt",
+            "glossary": "glossary_prompt.txt",
+            "chinh_ta": "chinh_ta_prompt.txt",
+        }
+        for key, fname in key_fname_map.items():
+            if key in global_prompts and global_prompts[key]:
+                (dest_dir / fname).write_text(global_prompts[key], encoding="utf-8")
+        return jsonify({"success": True, "message": f"Đã nạp chỉ dẫn mặc định hệ thống"})
+
+    # Copy tất cả file .txt từ thư viện vào dự án
+    copied = 0
+    for f in src_dir.glob("*.txt"):
+        _shutil.copy2(f, dest_dir / f.name)
+        copied += 1
+
+    display_name = genre_slug if genre_slug != "default" else "Mặc định (Hệ thống)"
+    return jsonify({"success": True, "message": f"Đã nạp chỉ dẫn \"{display_name}\" ({copied} file)", "count": copied})
 
 
 # ============================================================

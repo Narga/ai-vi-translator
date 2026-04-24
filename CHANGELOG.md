@@ -16,8 +16,12 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 ### 🎨 Giao diện & Trải nghiệm (UI/UX)
 - **Multi-Prompt Management UI**: Tái cấu trúc giao diện "Chỉ dẫn" trong Project Workspace.
     - Chuyển từ một textarea duy nhất sang giao diện dạng tab, cho phép quản lý riêng biệt 5 loại prompt: `Dịch thuật`, `Tóm tắt`, `Quan hệ`, `Thuật ngữ`, và `Chính tả`.
-    - Cập nhật backend và frontend để hỗ trợ load và lưu đồng bộ 5 loại prompt này.
-- **Spell-check Refactoring**: Tái cấu trúc lớn và tạm thời loại bỏ một phần logic spell-check và translation memory khỏi `projects.py` để chuẩn bị cho một phiên bản mới tốt hơn.
+    - **Project Prompt Isolation**: Hiện thực hóa cơ chế biệt lập prompt cho từng dự án. Dự án có thể dùng prompt hệ thống hoặc có bộ prompt riêng.
+    - **Prompt Library Tools**: Thêm nút "Áp dụng vào dự án" (Import) và "Xóa chỉ dẫn riêng" (Reset) để quản lý cấu hình mượt mà.
+    - **Visual Indicators**: Thêm Badge trạng thái trực quan giúp người dùng biết mình đang dùng prompt Hệ thống hay đã tùy chỉnh riêng cho Dự án.
+- **Spell-check Refactoring**: Tái cấu trúc lớn và tách biệt hoàn toàn logic soát lỗi (`SpellcheckExecutor`) khỏi dịch thuật để đảm bảo tính độc lập tuyệt đối.
+- **UI Localization**: Việt hóa toàn bộ các nút bấm và nhãn trong workspace (Kích thước, Trạng thái, Dịch đã chọn, Soát đã chọn...).
+- **Statistics Bar Upgrades**: Tô đậm và bổ sung bộ đếm từ (Word Count) cho tất cả các editor, giúp theo dõi dung lượng văn bản chuyên nghiệp hơn.
 
 ## [6.6.2] - 2026-04-22
 ### Added

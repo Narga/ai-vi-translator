@@ -106,12 +106,27 @@ Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét:
 
 ---
 
-## 6. Giải Quyết Sự Cố (Troubleshooting)
+## 6. Quản Lý Chỉ Dẫn (Prompt Management)
 
-- **Lỗi 429 (Rate Limit):** Đừng lo lắng, hệ thống sẽ tự động chờ hoặc chuyển sang API Key khác.
+Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập chỉ dẫn (Prompt) cực kỳ mạnh mẽ cho từng dự án:
+
+### Phân loại Trạng thái
+- **📌 Chỉ dẫn Hệ thống (Mặc định)**: Dự án sử dụng chung bộ luật lệ mặc định của hệ thống. Bất kỳ thay đổi nào tại đây (nếu lưu vào hệ thống) sẽ ảnh hưởng đến các dự án mới khác.
+- **✏️ Chỉ dẫn Dự án (Tùy chỉnh)**: Dự án có một bản sao prompt riêng nằm trong thư mục `prompt/` của dự án đó. Bạn có thể tự do chỉnh sửa prompt dịch thuật, tóm tắt... cho dự án này mà không sợ ảnh hưởng đến dự án khác hay cài đặt chung của hệ thống.
+
+### Các thao tác Quản lý
+1. **💾 Lưu chỉ dẫn dự án**: Khi bạn chỉnh sửa nội dung prompt và nhấn nút này, hệ thống sẽ tự động tạo một bản sao riêng cho dự án và lưu lại. Trạng thái sẽ chuyển từ "Hệ thống" sang "Dự án".
+2. **📥 Áp dụng vào dự án (Import)**: Chọn một thể loại truyện từ Thư viện (ví dụ: Tiên Hiệp) và nhấn nút này. Toàn bộ các prompt mẫu tối ưu cho thể loại đó sẽ được chép vào dự án của bạn.
+3. **🗑️ Xóa chỉ dẫn riêng (Reset)**: Nếu bạn muốn dự án quay về sử dụng các quy tắc mặc định ban đầu, hãy nhấn nút này. Hệ thống sẽ xóa bản sao riêng và khôi phục trạng thái "Hệ thống".
+
+---
+
+## 7. Giải Quyết Sự Cố (Troubleshooting)
+
+- **Lỗi 429 (Rate Limit):** Đừng lo lắng, hệ thống sẽ tự động chờ hoặc chuyển sang API Key khác nhờ cơ chế `AdaptiveRateLimiter`.
 - **Bản dịch bị cắt dòng:** Kiểm tra lại tham số `chunk_size` hoặc dùng model mạnh hơn.
 - **Lỗi Encoding:** Luôn đảm bảo file đầu vào định dạng UTF-8.
 - **Port bị chiếm:** Dùng `python webui.py --port 8080` để đổi port.
 
 ---
-*Phiên bản tài liệu: 2.0 - Ngày cập nhật: 01/03/2026*
+*Phiên bản tài liệu: 2.1 - Ngày cập nhật: 24/04/2026*
