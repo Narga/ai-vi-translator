@@ -695,7 +695,7 @@ function loadProjects() {
         el.innerHTML = projects.map(p => {
             const active = (currentProject && currentProject.slug === p.slug) ? 'active shadow-1' : '';
             const isDone = p.source_count > 0 && p.translated_count >= p.source_count;
-            const doneCheck = isDone ? '<span class="green ml1">✅</span>' : '';
+            const doneCheck = isDone ? '<span class="green ml1">🟢</span>' : '';
             return `<div class="sidebar-item ${active} flex flex-column gap-1" onclick="selectProject('${p.slug}')">
                 <div class="flex justify-between items-center">
                     <span class="fw6 f5 dark-gray truncate">${p.name}${doneCheck}</span>
@@ -779,7 +779,7 @@ function renderProjectSources(sources) {
             const esc = f.name.replace(/'/g, "\\'");
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
-                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✅ Xong</span>`
+                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
                 : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
             
             return `<tr>
@@ -1297,8 +1297,7 @@ function runSpellcheck() {
 
 function renderProjectSpellcheckSources(sources) {
     const el = document.getElementById('project-spellcheck-table-body');
-    const countEl = document.getElementById('proj-spellcheck-count');
-    if (countEl) countEl.textContent = sources.length;
+
     if (!el) return;
     if (!sources.length) { 
         el.innerHTML = '<tr><td colspan="5" class="pa3 tc silver i">Chưa có file nguồn</td></tr>'; 
@@ -1309,7 +1308,7 @@ function renderProjectSpellcheckSources(sources) {
             const esc = f.name.replace(/'/g, "\\'");
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
-                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✅ Xong</span>`
+                ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
                 : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
@@ -2479,7 +2478,7 @@ function loadGenres() {
                         <div class="fw6 dark-gray">${s.name}</div>
                         <div class="f7 silver mt1">${s.description || 'Không mô tả'}</div>
                     </div>
-                    <span class="f7 fw6 br2 ph2 pv1 ${s.has_main ? 'bg-green white' : 'bg-light-gray silver'}">${s.has_main ? 'Đã có' : 'Trống'}</span>
+                    <span class="f7 fw6 br2 ph2 pv1 ${s.has_main ? '' : 'bg-light-gray silver'}">${s.has_main ? '🟢' : 'Trống'}</span>
                 </div>`
             ).join('');
 

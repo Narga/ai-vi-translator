@@ -36,13 +36,13 @@
         </nav>
 
         <!-- Stats (Right) -->
-        <div class="header-right gray">
-            <div class="flex items-center gap-3 ba b--near-white bg-near-white br-pill ph3 pv1 shadow-sm f7">
-                <span title="API Keys">🔑 <strong id="api-keys-count" class="blue">--</strong></span>
+        <div class="header-right">
+            <div class="flex items-center gap-3 bg-near-white br-pill ph3 pv1 shadow-sm f7">
+                <span title="API Keys" class="flex items-center gap-1"><strong id="api-keys-count" class="blue">--</strong> 🔑</span>
                 <span class="silver">|</span>
-                <span title="Bộ nhớ đệm (Dung lượng và số tệp)">📦 <strong id="cache-size" class="green">--</strong>MB <small class="silver">(<span id="cache-count">--</span>)</small></span>
+                <span title="Bộ nhớ đệm (Dung lượng và số tệp)" class="flex items-center gap-1">📦 <strong id="cache-size" class="green">--</strong>MB <small class="silver">(<span id="cache-count">--</span>)</small></span>
                 <span class="silver">|</span>
-                <span title="Dự án (Hoạt động và Lưu trữ)">📁 <strong id="project-count" class="orange">--</strong> <small class="silver">(<span id="archive-count" class="orange">--</span>)</small></span>
+                <span title="Dự án (Hoạt động và Lưu trữ)" class="flex items-center gap-1">💬 <strong id="project-count" class="orange">--</strong> <small class="silver">(<span id="archive-count">--</span>)</small></span>
                 <button class="ml2 pointer bn bg-transparent hover-gray" onclick="restartServer()" title="Khởi động lại Server">🔄</button>
             </div>
         </div>

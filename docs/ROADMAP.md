@@ -25,13 +25,20 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] Di chuyển dữ liệu vào thư mục `assets/` từng dự án.
 - [x] Tinh gọn hệ thống Prompt (1 prompt chính cho dự án).
 
-### ⚙️ 6.6 UI/UX Polish & ACMS (v6.6 - CURRENT)
+### ⚙️ 6.6 - 6.8 UI/UX Polish & AI Resilience (v6.8 - DONE)
 - [x] **Consolidated Project Modal**: Quản lý thông tin dự án tập trung qua modal.
 - [x] **Scroll Fix**: Sửa lỗi layout cuộn ở Workspace & Translated tabs.
-- [x] **ACMS Integration**: Nâng cấp hệ thống quản lý ngữ cảnh sang SQLite.
-- [ ] **Help & Tooltips**: Thêm icon `ⓘ` và thông tin giải thích (hover info) cho các tùy chọn trong tab Cấu hình.
+- [x] **API Resilience Overhaul**: Tái cấu trúc bộ xử lý lỗi API (Retry, Backoff, Cooldown).
+- [x] **Multi-Prompt System**: Quản lý riêng biệt 5 loại prompt cho dự án.
+- [x] **Real-time Progress Logs**: Đẩy log hệ thống trực tiếp lên UI modal.
+- [x] **UI Polish**: Chuẩn hóa icon, căn chỉnh nút và tối ưu khối thông tin.
 
-### 💾 6.x Bảo toàn cấu trúc & Định dạng (Next)
+### 💾 6.9 Future Readiness (Current)
+- [ ] **Progressive Batch Translation**: Hỗ trợ hàng đợi dịch nhiều file với thanh tiến độ tổng thể.
+- [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án để khôi phục khi cần.
+- [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor và cho phép áp dụng nhanh.
+
+### 🛠️ 6.x Bảo toàn cấu trúc & Định dạng (Next)
 - [ ] **HTML/Markdown Preservation**: Thuật toán bảo toàn thẻ tag khi dịch nội dung phức tạp.
 - [ ] **EPUB/MOBI Output**: Hoàn thiện tích hợp xuất bản tài liệu sau dịch.
 - [ ] **OCR Improvement**: Tích hợp các engine OCR mạnh mẽ hơn cho PDF/Image.
@@ -51,4 +58,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [ ] Hỗ trợ các cặp ngôn ngữ khác ngoài Trung-Việt (Anh-Việt, Nhật-Việt) với bộ prompt tối ưu riêng.
 
 ---
-*Cập nhật lần cuối: 2026-04-11*
+*Cập nhật lần cuối: 2026-04-25*

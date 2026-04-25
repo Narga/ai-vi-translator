@@ -27,6 +27,24 @@ def _try_calculate_stats() -> None:
         pass
 
 
+class ProgressLogHandler(logging.Handler):
+    """Handler chuyển hướng logs vào progress emitter của UI."""
+    def __init__(self, emit_func: Callable):
+        super().__init__()
+        self.emit_func = emit_func
+        self.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%H:%M:%S"))
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Chỉ gửi log từ INFO trở lên vào UI
+            if record.levelno >= logging.INFO:
+                # Bỏ qua các log mang tính hệ thống quá mức nếu cần
+                self.emit_func("info", message=record.getMessage())
+        except Exception:
+            self.handleError(record)
+
+
 class TranslationExecutor:
     """
     Lõi thực thi dịch thuật duy nhất cho cả hệ thống.
@@ -93,13 +111,19 @@ class TranslationExecutor:
             if progress_callback:
                 progress_callback({"type": event_type, **kwargs})
 
+        # Đăng ký handler để chuyển hướng log vào UI
+        ui_log_handler = ProgressLogHandler(emit)
+        logging.root.addHandler(ui_log_handler)
+
         try:
             # 1. Chunking
+            emit("progress", percent=5, message="Đang chia nhỏ văn bản...")
             chunk_size = self.config.get("chunk_size", 22000)
             chunks = process_text_for_chunking(
                 text, min_chars=chunk_size - 2000, max_chars=chunk_size
             )
             emit("info", message=f"Đã chia thành {len(chunks)} chunks")
+            emit("progress", percent=10, message=f"Đã chia thành {len(chunks)} chunks")
 
             # 2. Checkpoint Resume
             translated_chunks: Dict[int, str] = {}
@@ -111,6 +135,7 @@ class TranslationExecutor:
                 translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
                 start_index = resume_info.get("next_chunk_index", 0)
                 emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
+                emit("progress", percent=15, message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
 
                 # Lấy context từ chunk dịch trước đó
                 if start_index > 0 and (start_index - 1) in translated_chunks:
@@ -127,13 +152,24 @@ class TranslationExecutor:
 
             for i in range(start_index, len(chunks)):
                 chunk = chunks[i]
+                
+                # Granular progress within a chunk
+                base_percent = 10 + int((i / len(chunks)) * 90)
+                
+                emit(
+                    "progress",
+                    current=i + 1,
+                    total=len(chunks),
+                    percent=base_percent + 2,
+                    message=f"Đang chuẩn bị chunk {i + 1}/{len(chunks)}...",
+                )
 
                 emit(
                     "progress",
                     current=i + 1,
                     total=len(chunks),
-                    percent=int((i + 1) / len(chunks) * 100),
-                    message=f"Đang dịch chunk {i + 1}/{len(chunks)}...",
+                    percent=base_percent + 5,
+                    message=f"Đang gửi chunk {i + 1} đến AI...",
                 )
 
                 result = self._translate_single_chunk(
@@ -148,6 +184,14 @@ class TranslationExecutor:
 
                 if result is None:
                     return None  # Đã emit error bên trong _translate_single_chunk
+
+                emit(
+                    "progress",
+                    current=i + 1,
+                    total=len(chunks),
+                    percent=int(((i + 1) / len(chunks)) * 90 + 10),
+                    message=f"✅ Chunk {i + 1}/{len(chunks)} thành công!",
+                )
 
                 translated_chunks[i] = result
                 prev_context = self._tail_context(result)
@@ -188,6 +232,9 @@ class TranslationExecutor:
             logger.error(f"Translation execution error: {e}", exc_info=True)
             emit("error", message=f"Lỗi: {e}")
             return None
+        finally:
+            # Luôn gỡ handler sau khi xong
+            logging.root.removeHandler(ui_log_handler)
 
     def translate_file(
         self,

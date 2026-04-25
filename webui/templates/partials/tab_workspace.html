@@ -50,11 +50,11 @@
                                 <!-- Source Table Block -->
                                 <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
-                                         <div class="flex gap-2">
+                                         <div>
                                              <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
                                              <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="document.getElementById('upload-source-file').click()">📤 Tải lên</button>
-                                             <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch đã chọn</button>
                                          </div>
+                                         <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch đã chọn</button>
                                     </div>
                                     <div class="overflow-x-auto">
                                         <table class="minimal-table w-100 collapse f7">
@@ -109,7 +109,7 @@
 
                             <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
                                 <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
-                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                    <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                         <button id="btn-merge-translated" class="pointer ph3 pv1 f7 bn white bg-dark-green br2 shadow-1 hover-bg-green fw6" onclick="mergeTranslatedFiles()">🧩 Ghép tập tin</button>
                                     </div>
                                     <div class="overflow-x-auto">
@@ -256,6 +256,17 @@
                                               <textarea id="proj-prompt-chinh-ta" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt soát lỗi dự án..."></textarea>
                                           </section>
                                       </div>
+                                      <div class="prompt-help-block">
+                                          <h3>💡 Thông tin</h3>
+                                          <div class="placeholder-grid">
+                                              <div class="placeholder-item"><span class="placeholder-tag">{source_text}</span> Văn bản gốc cần xử lý hiện tại.</div>
+                                              <div class="placeholder-item"><span class="placeholder-tag">{translation_guidelines}</span> Chỉ dẫn phong cách, bối cảnh và ghi chú dự án.</div>
+                                              <div class="placeholder-item"><span class="placeholder-tag">{previous_chunk_context}</span> Tóm tắt và đoạn kết của phần đã dịch trước.</div>
+                                              <div class="placeholder-item"><span class="placeholder-tag">{glossary}</span> Các thuật ngữ phù hợp tìm thấy trong bộ từ điển.</div>
+                                              <div class="placeholder-item"><span class="placeholder-tag">{relationships}</span> Thông tin nhân vật và các mối quan hệ liên quan.</div>
+                                              <div class="placeholder-item"><span class="placeholder-tag">{summary}</span> Bản tóm tắt tổng thể toàn bộ dự án.</div>
+                                          </div>
+                                      </div>
                                   </div>
                               </div>
 
@@ -275,11 +286,8 @@
                                <!-- Kiểm tra chính tả Section -->
                                <div id="ptab-spellcheck" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
                                    <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
-                                       <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
-                                           <span class="f6 fw6 dark-gray">Tệp nguồn (<span id="proj-spellcheck-count" class="blue fw7">0</span>)</span>
-                                           <div class="flex gap-2">
-                                               <button id="btn-spellcheck-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="spellcheckSelectedInProject()">🔤 Soát được chọn</button>
-                                           </div>
+                                       <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                           <button id="btn-spellcheck-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="spellcheckSelectedInProject()">🔤 Soát được chọn</button>
                                        </div>
                                        <div class="overflow-x-auto">
                                            <table class="minimal-table w-100 collapse f7">
@@ -287,8 +295,8 @@
                                                    <tr class="bg-near-white silver tc tracked uppercase">
                                                        <th class="pa2 bb b--black-05" style="width: 40px"><input type="checkbox" onclick="selectAllProjectFiles()" id="chk-select-all-spellcheck"></th>
                                                        <th class="pa2 tl bb b--black-05">Tên tệp</th>
-                                                       <th class="pa2 tl bb b--black-05">Size</th>
-                                                       <th class="pa2 tl bb b--black-05">Status</th>
+                                                       <th class="pa2 tl bb b--black-05">Kích thước</th>
+                                                       <th class="pa2 tl bb b--black-05">Trạng thái</th>
                                                        <th class="pa2 tr bb b--black-05">Hành động</th>
                                                    </tr>
                                                </thead>

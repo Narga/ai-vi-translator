@@ -1,9 +1,9 @@
-# core/__init__.py - v6.2.0
+# core/__init__.py - v6.8.0
 # Core package initialization
 
 from .executor import TranslationExecutor
 
-__version__ = "5.0.0"
+__version__ = "6.8.0"
 __all__ = [
     'TranslationExecutor',
 ]

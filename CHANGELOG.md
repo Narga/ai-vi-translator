@@ -4,6 +4,25 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.8.0] - 2026-04-25
+### 📊 Theo dõi tiến độ & Nhật ký Real-time (Progress & Logs)
+- **Granular Progress Reporting**: Cải tiến cơ chế báo cáo tiến độ theo từng bước thực hiện (Chia nhỏ -> Gửi AI -> Lưu kết quả -> Hoàn tất) thay vì nhảy vọt lên 100% ngay lập tức.
+- **Real-time Log Streaming**: Tích hợp `ProgressLogHandler` cho phép đẩy toàn bộ log chi tiết (AI responses, checkpoint cleanup, errors) trực tiếp lên Modal tiến trình trên WebUI. Người dùng có thể theo dõi chính xác AI đang làm gì.
+- **Standardized Logging**: Đồng bộ hóa cách đặt tên file log với cơ chế của `main.py`. Log WebUI giờ đây được lưu dưới dạng timestamp (vd: `2026-04-25_17-00_webui.log`) trong thư mục `workspace/logs`.
+
+### 🎨 Giao diện & Trải nghiệm (UI/UX Refinements)
+- **AI Prompts Info Re-layout**: Tái cấu trúc khối **💡 Thông tin** trong trang Chỉ dẫn AI, đưa vào bên trong Editor để tối ưu không gian và đồng nhất với giao diện Dự án.
+- **Icon Standardization**: Đổi toàn bộ icon trạng thái hoàn thành từ `✅` (hoặc `☑️`) thành `✔️` trong danh sách tập tin.
+- **Visual Polish**: 
+    - Loại bỏ các góc bo tròn (border-radius) ở các thẻ tab và border dưới để tạo cảm giác chuyên nghiệp, sắc nét hơn.
+    - Căn chỉnh lại các nút điều hướng (Nút Tải lên bên trái, các nút Dịch/Soát đã chọn bên phải).
+    - Loại bỏ số lượng file `(n)` dư thừa trong tab Chính tả để làm gọn giao diện.
+- **Nav Menu Fixes**: Loại bỏ icon người dùng trước bộ đếm API Keys và làm sáng vùng thông tin để text nổi bật, dễ đọc hơn. Sửa lỗi đếm sai API keys trên menu.
+
+### 🛡️ Sửa lỗi & Kỹ thuật (Fixes)
+- **Executor Stability**: Sửa lỗi logic khiến nhật ký modal không cập nhật sau bước chia nhỏ văn bản.
+- **Code Integrity**: Khắc phục lỗi thiếu import `Path` trong `webui/__init__.py` và lỗi cú pháp trong `spellcheck_executor.py`.
+
 ## [6.7.0] - 2026-04-24
 ### 🛡️ Hệ thống & Độ ổn định (System & Stability)
 - **API Resilience Overhaul**: Tái cấu trúc toàn bộ `ApiService` để chống lỗi rate limit và quota từ API.

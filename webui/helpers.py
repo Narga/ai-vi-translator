@@ -36,7 +36,7 @@ def get_app_version():
         logger.debug(f"Could not extract version from CHANGELOG.md: {e}")
 
     # Fallback
-    return "6.3.0"
+    return "6.8.0"
 
 
 # Available OpenAI-compatible models (fallback list)
@@ -177,7 +177,7 @@ def get_available_gemini_models():
     models = AVAILABLE_GEMINI_MODELS.copy()
 
     try:
-        api_keys = load_api_keys()
+        api_keys = load_api_keys("GEMINI")
         if api_keys:
             first_key = api_keys[0]
             try:
@@ -226,14 +226,19 @@ def get_available_openai_models():
     return list(dict.fromkeys(models))
 
 
-def load_api_keys():
-    """Load Gemini API keys từ config/API.txt [GEMINI] section."""
+def load_api_keys(section=None):
+    """Load API keys từ config/API.txt. Nếu section=None, load tất cả các keys từ mọi nhóm."""
     api_file = Path("config/API.txt")
     if api_file.exists():
         sections = _parse_api_file(api_file)
-        keys = sections.get("GEMINI", [])
-        if keys:
-            return keys
+        if section:
+            return sections.get(section.upper(), [])
+        else:
+            # Flatten all keys from all sections
+            all_keys = []
+            for keys in sections.values():
+                all_keys.extend(keys)
+            return all_keys
 
     # Fallback: đọc từ .env
     try:
@@ -282,7 +287,7 @@ def calculate_stats():
     cache_files = list(cache_dir.glob("*.pkl*")) if cache_dir.exists() else []
     cache_size = sum(f.stat().st_size for f in cache_files) if cache_files else 0
 
-    api_keys = load_api_keys()
+    api_keys = load_api_keys()  # Load all keys for stats count
 
     # Count projects
     projects_dir = Path("workspace/projects")

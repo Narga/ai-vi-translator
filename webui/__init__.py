@@ -1,4 +1,4 @@
-# webui/__init__.py - v5.0.0
+# webui/__init__.py - v6.8.0
 # Flask App Factory cho Novel Translator Web UI
 
 import os
@@ -8,7 +8,21 @@ from queue import Queue
 from flask import Flask
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+from datetime import datetime
+from pathlib import Path
+
+log_dir = Path("workspace/logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+log_file = log_dir / (datetime.now().strftime("%Y-%m-%d_%H-%M") + "_webui.log")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file, encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # ============================================================

@@ -672,7 +672,7 @@ def project_move_back(slug):
 
 @projects_bp.route("/api/projects/<slug>/prompts")
 def get_project_prompts(slug):
-    """Load prompt dự án (fallback global). Trả về is_custom=True nếu dự án có prompt riêng."""
+    """Load prompt dự án. CHỈ trả về nếu có prompt riêng của dự án, không nạp mặc định hệ thống vào form."""
     pdir = _get_project_dir(slug)
     prompts = {
         "main": "",
@@ -682,10 +682,6 @@ def get_project_prompts(slug):
         "chinh_ta": "",
         "is_custom": False,
     }
-
-    global_prompts = load_prompts()
-    prompts.update(global_prompts)
-    prompts["is_custom"] = False  # reset after update
 
     prompt_dir = pdir / "prompt"
     has_any_custom = False

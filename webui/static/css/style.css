@@ -14,19 +14,25 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-main-bg { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
 
 /* Header Tripartite Layout */
-.header-container { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; border-bottom: 1px solid var(--border); min-height: 60px; background: #fff; z-index: 100; flex-shrink: 0; }
+.header-container { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; border-bottom: none; min-height: 60px; background: #0b3d59; z-index: 100; flex-shrink: 0; color: white; }
 .header-left { display: flex; align-items: center; min-width: 250px; }
+.header-left span.dark-gray { color: white !important; }
+.header-left span.silver { color: rgba(255, 255, 255, 0.6) !important; }
 .header-center { flex: 1; display: flex; justify-content: center; }
-.header-right { display: flex; align-items: center; min-width: 250px; justify-content: flex-end; }
+.header-right { display: flex; align-items: center; min-width: 320px; justify-content: flex-end; }
 
 /* Navigation */
-.nav-link { padding: 1.25rem 1rem; text-decoration: none; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.2s; }
-.nav-link:hover { color: var(--text-main); }
-.nav-link.active { border-bottom-color: var(--primary); color: var(--primary); }
+.nav-link { padding: 1.25rem 1rem; text-decoration: none; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; border-radius: 0 !important; }
+.nav-link:hover { color: white; }
+.nav-link.active { border-bottom-color: white; color: white; }
 
 /* Tabs Layout Handling */
 .nt-tab-content { flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; display: none; }
 .nt-tab-content.active { display: flex !important; }
+
+/* Main Project Tabs Border */
+.tab-btn { border-bottom: 2px solid transparent !important; border-radius: 0 !important; }
+.tab-btn.active { border-bottom-color: #357edd !important; color: #357edd !important; }
 
 /* Project Sub-Tabs (ptab) Handling */
 .nt-ptab-content { flex-direction: column; }
@@ -87,16 +93,20 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-tab-panel { display: none; }
 
 #project-tab-main:checked ~ .nt-tab-nav label[for="project-tab-main"],
-#project-tab-retranslate:checked ~ .nt-tab-nav label[for="project-tab-retranslate"],
-#project-tab-correction:checked ~ .nt-tab-nav label[for="project-tab-correction"] {
+#project-tab-summary:checked ~ .nt-tab-nav label[for="project-tab-summary"],
+#project-tab-relationships:checked ~ .nt-tab-nav label[for="project-tab-relationships"],
+#project-tab-glossary:checked ~ .nt-tab-nav label[for="project-tab-glossary"],
+#project-tab-chinh-ta:checked ~ .nt-tab-nav label[for="project-tab-chinh-ta"] {
   color: #111;
   border-bottom: 2px solid #357edd;
   font-weight: 600;
 }
 
 #project-tab-main:checked ~ .nt-tab-panels #project-panel-main,
-#project-tab-retranslate:checked ~ .nt-tab-panels #project-panel-retranslate,
-#project-tab-correction:checked ~ .nt-tab-panels #project-panel-correction {
+#project-tab-summary:checked ~ .nt-tab-panels #project-panel-summary,
+#project-tab-relationships:checked ~ .nt-tab-panels #project-panel-relationships,
+#project-tab-glossary:checked ~ .nt-tab-panels #project-panel-glossary,
+#project-tab-chinh-ta:checked ~ .nt-tab-panels #project-panel-chinh-ta {
   display: block;
 }
 
@@ -115,11 +125,10 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 }
 
 #system-tab-main:checked ~ .nt-tab-nav label[for="system-tab-main"],
-#system-tab-retranslate:checked ~ .nt-tab-nav label[for="system-tab-retranslate"],
-#system-tab-correction:checked ~ .nt-tab-nav label[for="system-tab-correction"],
 #system-tab-summary:checked ~ .nt-tab-nav label[for="system-tab-summary"],
 #system-tab-relationships:checked ~ .nt-tab-nav label[for="system-tab-relationships"],
-#system-tab-glossary:checked ~ .nt-tab-nav label[for="system-tab-glossary"] {
+#system-tab-glossary:checked ~ .nt-tab-nav label[for="system-tab-glossary"],
+#system-tab-chinh-ta:checked ~ .nt-tab-nav label[for="system-tab-chinh-ta"] {
   color: #111;
   border-bottom: 2px solid #357edd;
   font-weight: 600;
@@ -142,12 +151,97 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 }
 .animate-pop { animation: pop-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
+/* Buttons Design Restoration */
+button, .btn {
+    border-radius: 6px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+/* Primary/Blue (e.g. Save) */
+button.bg-blue, .bg-blue {
+    background-color: #3b82f6 !important;
+    color: white !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+button.bg-blue:hover, .bg-blue:hover {
+    background-color: #2563eb !important;
+}
+
+/* Secondary/White/Silver (e.g. Clone/Cancel) */
+button.bg-white, button.b--silver, .bg-white.ba.b--silver {
+    background-color: white !important;
+    color: #475569 !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+button.bg-white:hover, button.b--silver:hover {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* Danger/Red (e.g. Delete) */
+button.b--red, button.bg-red, .btn-danger {
+    background-color: #fff1f2 !important;
+    color: #e11d48 !important;
+    border-color: #fecdd3 !important;
+}
+button.b--red:hover, button.bg-red:hover {
+    background-color: #ffe4e6 !important;
+    border-color: #fda4af !important;
+}
+
+/* Success/Green */
+button.bg-green, .bg-green {
+    background-color: #10b981 !important;
+    color: white !important;
+    border-color: #059669 !important;
+}
+button.bg-green:hover, .bg-green:hover {
+    background-color: #059669 !important;
+}
+
+/* Header Right Stats Pill */
+.header-right .bg-near-white {
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+}
+.header-right .silver { color: rgba(255, 255, 255, 0.6) !important; }
+.header-right .blue { color: #60a5fa !important; }
+.header-right .green { color: #4ade80 !important; }
+.header-right .orange { color: #fb923c !important; }
+.header-right button.bg-transparent { color: white !important; }
+
+
 
 /* Layout complete */
 
 /* Missing Tachyons utilities */
 .overflow-y-auto { overflow-y: auto !important; }
 .lh-solid { line-height: 1; }
+
+/* Prompt Placeholder Help Block */
+.prompt-help-block {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-top: 1rem;
+    width: 100%;
+    flex-shrink: 0;
+}
+.prompt-help-block h3 { margin: 0 0 0.75rem 0; font-size: 0.75rem; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; font-weight: 700; }
+.placeholder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+.placeholder-item { font-size: 0.75rem; line-height: 1.5; color: #475569; }
+.placeholder-tag { font-family: monospace; color: #2563eb; font-weight: 600; background: #eff6ff; padding: 2px 4px; border-radius: 4px; margin-right: 4px; }
 
 /* Tooltips */
 .nt-tooltip-container {
