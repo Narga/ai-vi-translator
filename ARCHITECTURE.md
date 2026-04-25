@@ -1,118 +1,128 @@
-# 🏛️ Architecture Documentation: Novel-Translator
+# Architecture Documentation - Novel-Translator
 
-This document describes the high-level architecture and execution flows of the Novel-Translator project, based on the knowledge graph analysis.
+Tài liệu này mô tả cấu trúc kiến trúc của hệ thống Novel-Translator (Content Translator), dựa trên phân tích từ GitNexus Knowledge Graph.
 
-## 1. Overview
+## 1. Overview (Tổng quan)
+Novel-Translator là một ứng dụng dịch thuật thông minh hỗ trợ nhiều định dạng (Text, EPUB, PDF/Image) với cơ chế quản lý dự án, checkpoint và tích hợp các mô hình AI tiên tiến (Gemini, OpenAI). Kiến trúc được thiết kế theo dạng module hóa với các executors độc lập và hệ thống plugin linh hoạt.
 
-Novel-Translator is a professional-grade content translation ecosystem optimized for Gemini AI and OpenAI-compatible APIs. It follows a modular, service-oriented architecture designed for efficiency (caching/TM), reliability (checkpointing), and premium user experience.
+## 2. Functional Areas (Các phân vùng chức năng)
 
-## 2. Functional Areas (Modules)
+Hệ thống được chia thành 5 phân vùng chính:
 
-Based on cluster analysis, the codebase is organized into several key functional areas:
+### A. WebUI & Routes (Giao diện & Điều hướng)
+- **Clusters**: `Webui`, `Routes`
+- **Nhiệm vụ**: Cung cấp giao diện người dùng Flask, quản lý các điểm cuối API cho Dự án, Cấu hình, và Chỉ dẫn (Prompts).
+- **Files chính**: `webui/__init__.py`, `webui/routes/*.py`.
 
-- **WebUI (Frontend & API)**: Modularized using Flask Blueprints.
-  - `webui/routes/projects.py`: Manages workspaces, sources, and file organization.
-  - `webui/routes/translation.py`: Handles the Server-Sent Events (SSE) streaming worker.
-  - `webui/routes/prompts.py`: Manages the streamlined prompt library.
-- **Core Executor**: The central orchestrator.
-  - `core/executor.py`: Implements `TranslationExecutor`, which coordinates the translation pipeline.
-- **Services Layer**: Domain-specific logic and infrastructure.
-  - `GenAIClient`: Universal adapter for AI providers.
-  - `CheckpointService`: Ensures translation integrity using SQLite (WAL mode).
-  - `TranslationCache` & `TranslationMemory`: Cost optimization via result reuse.
-  - `GlossaryService`: Dynamic terminology injection.
-  - `ApiManager`: Advanced rate-limiting and key rotation.
-- **Plugins**: Specialized processing units.
-  - `ocr/`: PDF and image text extraction engine.
-  - `translation/chunker.py`: Intelligent text splitting (Sentence Aggregation).
-  - `translation/translator.py`: Robust API calling logic with normalization.
+### B. Core Executors (Bộ thực thi lõi)
+- **Clusters**: `Services`, `Cluster_4`
+- **Nhiệm vụ**: Điều phối các tác vụ dịch thuật và soát lỗi phức tạp. Chịu trách nhiệm gọi chunking, quản lý tiến độ và lưu trữ checkpoint.
+- **Files chính**: `core/executor.py`, `core/spellcheck_executor.py`.
 
-## 3. Core Architecture Diagram
+### C. Services (Dịch vụ dùng chung)
+- **Clusters**: `Services`
+- **Nhiệm vụ**: Quản lý cấu hình, kết nối API AI, quản lý cache và dịch vụ checkpoint (lưu/khôi phục trạng thái).
+- **Files chính**: `services/genai_client.py`, `services/checkpoint_service.py`, `services/config_service.py`.
 
-The following diagram illustrates the relationships between major components:
+### D. Plugins & Logic (Tiện ích mở rộng)
+- **Clusters**: `Translation`, `Ocr`
+- **Nhiệm vụ**: Thực hiện các tác vụ chuyên biệt như chia nhỏ văn bản (Chunking), xử lý dịch thô, và soát lỗi chính tả AI.
+- **Files chính**: `plugins/translation/chunker.py`, `plugins/spellcheck/spellchecker.py`.
 
+### E. Text Processing (Xử lý văn bản)
+- **Clusters**: `Text_to_epub`, `Epub_to_text`, `Epub_converter`
+- **Nhiệm vụ**: Chuyển đổi qua lại giữa các định dạng tệp và xử lý OCR cho hình ảnh/PDF.
+- **Files chính**: `plugins/ocr/*.py`, `plugins/epub/*.py`.
+
+## 3. Key Execution Flows (Luồng thực thi chính)
+
+### Luồng Dịch thuật (Translation Flow)
 ```mermaid
-graph TD
-    subgraph Frontend
-        JS[static/js/main.js]
-        CSS[static/css/index.css]
-    end
+sequenceDiagram
+    participant User
+    participant Route as webui/routes/projects.py
+    participant Executor as core/executor.py
+    participant Chunker as plugins/translation/chunker.py
+    participant AI as services/genai_client.py
+    participant DB as services/checkpoint_service.py
 
-    subgraph Web_API [WebUI Routes]
-        RP[projects.py]
-        RT[translation.py]
-        RPR[prompts.py]
+    User->>Route: Yêu cầu dịch file
+    Route->>Executor: translate_text()
+    Executor->>Chunker: process_text_for_chunking()
+    loop Mỗi đoạn (Chunk)
+        Executor->>AI: robust_translate()
+        AI-->>Executor: Kết quả dịch
+        Executor->>DB: save_chunk()
     end
-
-    subgraph Core [Core Orchestration]
-        TE[TranslationExecutor]
-    end
-
-    subgraph Plugins
-        CH[Chunker]
-        OE[OCR Engine]
-        TR[Robust Translator]
-    end
-
-    subgraph Services
-        GAC[GenAIClient]
-        CPS[CheckpointService]
-        TCM[Cache & Translation Memory]
-        GLS[GlossaryService]
-        AM[ApiManager]
-    end
-
-    subgraph Storage
-        DB[(SQLite)]
-        WS[Workspace/Assets]
-    end
-
-    %% Connections
-    JS -- FETCH --> RP
-    JS -- SSE --> RT
-    RP -- calls --> TE
-    RT -- calls --> TE
-    
-    TE -- uses --> CH
-    TE -- uses --> OE
-    TE -- uses --> CPS
-    TE -- uses --> TCM
-    TE -- calls --> TR
-    
-    TR -- uses --> GAC
-    TR -- uses --> GLS
-    GAC -- manages --> AM
-    
-    CPS -- persist --> DB
-    TCM -- persist --> DB
-    RP -- manage --> WS
+    Executor-->>Route: Hoàn tất
+    Route-->>User: Hiển thị kết quả
 ```
 
-## 4. Key Execution Flows
+### Luồng Soát lỗi (Spellcheck Flow)
+```mermaid
+sequenceDiagram
+    participant Route as webui/routes/projects.py
+    participant Executor as core/spellcheck_executor.py
+    participant Plugin as plugins/spellcheck/spellchecker.py
+    participant AI as services/genai_client.py
 
-### A. Translation Workflow (SSE)
-1. **Entry**: `webui/routes/translation.py:translate_worker`
-2. **Process**: Calls `TranslationExecutor.translate_text`.
-3. **Chunking**: `plugins/translation/chunker.py` splits text into sentence-aware chunks.
-4. **Resumption**: `CheckpointService` checks for existing progress.
-5. **Memory/Cache**: `TranslationMemory` searches for fuzzy matches; `TranslationCache` checks for exact hits.
-6. **AI Call**: If no cache, `robust_translate` calls `GenAIClient` via `ApiManager`.
-7. **Post-process**: Result is normalized, saved to `CheckpointService`, and emitted via SSE to the UI.
+    Route->>Executor: execute()
+    Executor->>Plugin: spellcheck_chunk()
+    Plugin->>AI: generate_content()
+    AI-->>Executor: Kết quả soát lỗi
+    Executor-->>Route: Trả về văn bản sạch & Log lỗi
+```
 
-### B. Project File Processing
-1. **Entry**: `webui/routes/projects.py:chunk_project_file`
-2. **Analysis**: `Chunker` analyzes the file structure.
-3. **Transformation**: Titles are wrapped, and best cut positions are calculated.
-4. **Storage**: Chunks are registered in the project metadata for the Side-by-Side editor.
+## 4. Architecture Diagram (Sơ đồ kiến trúc tổng thể)
 
-### C. OCR Pipeline
-1. **Entry**: `plugins/ocr/ocr_engine.py:hybrid_workflow_pdf_to_docx`
-2. **Extraction**: `extract_paragraphs_with_hints` uses bundled binaries.
-3. **Caching**: Image and text hashes are verified against `CacheService` to skip redundant OCR.
+```mermaid
+graph TB
+    subgraph "Frontend Layer (WebUI)"
+        UI[Flask App]
+        JS[JavaScript Assets]
+    end
 
-## 5. Development Guidelines
+    subgraph "Routing Layer"
+        PR[Project Routes]
+        SR[Settings Routes]
+        TR[Prompt Routes]
+    end
 
-- **Naming**: Use `snake_case` for Python and `camelCase` for JS.
-- **Modularity**: Keep logic in `Services` or `Plugins`. Routes should only handle request/response.
-- **Persistence**: Always use `CheckpointService` for long-running tasks to allow resumption.
-- **UI**: Use Tachyons utilities and the CSS radio-tab pattern for the dashboard.
+    subgraph "Core Orchestration"
+        TX[Translation Executor]
+        SX[Spellcheck Executor]
+    end
+
+    subgraph "Services Layer"
+        GC[GenAI Client]
+        CS[Config Service]
+        CK[Checkpoint Service]
+        AM[API Manager]
+    end
+
+    subgraph "Plugins & Text Processing"
+        CH[Chunker Plugin]
+        SP[Spellcheck Plugin]
+        OC[OCR Engine]
+        EP[EPUB Converter]
+    end
+
+    UI --> PR & SR & TR
+    PR --> TX & SX
+    TX --> CH & GC & CK
+    SX --> SP & GC
+    TX & SX --> AM
+    AM --> GC
+    PR --> EP
+    SR --> CS
+    SX --> OC
+```
+
+## 5. Summary Statistics
+- **Files**: 86
+- **Symbols**: 1040
+- **Execution Flows**: 92
+- **Key Cluster**: `Services` (Chứa logic lõi của hệ thống)
+
+---
+*Tài liệu được tạo tự động bởi GitNexus Knowledge Graph.*
