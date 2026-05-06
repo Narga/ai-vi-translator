@@ -51,9 +51,10 @@
                                 <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                          <div>
-                                             <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
-                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="document.getElementById('upload-source-file').click()">📤 Tải lên</button>
-                                         </div>
+                                              <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
+                                              <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="document.getElementById('upload-source-file').click()">📤 Tải lên</button>
+                                              <button id="btn-chunk-selected" class="pointer ph3 pv1 f7 bn white bg-orange br2 shadow-1 hover-bg-dark-orange fw6 dn" onclick="showChunkConfig()">✂️ Chia chunk</button>
+                                          </div>
                                          <button id="btn-translate-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="translateSelectedInProject()">🚀 Dịch đã chọn</button>
                                     </div>
                                     <div class="overflow-x-auto">

@@ -829,6 +829,7 @@ function selectProject(slug, keepSelection = false) {
         
         if (!keepSelection) {
             selectedFiles.clear();
+            updateSelectAllButton();
         }
 
         // 1. Force state visibility
@@ -1305,6 +1306,7 @@ function toggleProjectFile(name, checked) {
 function updateSelectAllButton() {
     const btn = document.getElementById('btn-select-all');
     const chks = document.querySelectorAll('#chk-select-all-sources, #chk-select-all-spellcheck');
+    const chunkBtn = document.getElementById('btn-chunk-selected');
     
     if (btn) {
         if (selectedFiles.size > 0) {
@@ -1315,6 +1317,15 @@ function updateSelectAllButton() {
             btn.innerHTML = `✓ Chọn hết`;
             btn.classList.add('nt-btn-outline');
             btn.classList.remove('nt-btn-primary');
+        }
+    }
+    
+    // Toggle chunk button visibility
+    if (chunkBtn) {
+        if (selectedFiles.size > 0) {
+            chunkBtn.classList.remove('dn');
+        } else {
+            chunkBtn.classList.add('dn');
         }
     }
     
