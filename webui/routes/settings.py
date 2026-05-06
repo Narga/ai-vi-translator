@@ -12,6 +12,7 @@ from webui.helpers import (
     load_api_keys, get_default_chunk_size, get_default_model,
     get_available_models, calculate_stats, save_api_keys
 )
+from webui.decorators import handle_route_errors
 
 logger = logging.getLogger(__name__)
 
@@ -176,27 +177,6 @@ def save_openai_config():
         logger.error(f"Error saving OpenAI config: {e}")
         return jsonify({"error": str(e)}), 500
 
-        # Lưu base_url và model vào app.ini
-        config_path = Path("config/app.ini")
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        if config_path.exists():
-            config.read(config_path)
-
-        if not config.has_section("OPENAI"):
-            config.add_section("OPENAI")
-        if base_url:
-            config.set("OPENAI", "BASE_URL", base_url)
-        if model:
-            config.set("OPENAI", "MODEL", model)
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            config.write(f)
-
-        return jsonify({"success": True})
-    except Exception as e:
-        logger.error(f"Error saving OpenAI config: {e}")
-        return jsonify({"error": str(e)}), 500
 
 
 @settings_bp.route("/api/model-info/<path:model_name>")
@@ -328,43 +308,37 @@ def estimate_tokens():
 
 
 @settings_bp.route("/api/config")
+@handle_route_errors
 def get_config():
     """Lấy cấu hình mặc định."""
-    try:
-        return jsonify({
-            "default_chunk_size": get_default_chunk_size(),
-            "default_model": get_default_model(),
-            "available_models": get_available_models(),
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "default_chunk_size": get_default_chunk_size(),
+        "default_model": get_default_model(),
+        "available_models": get_available_models(),
+    })
 
 
 @settings_bp.route("/api/stats")
+@handle_route_errors
 def get_stats():
     """Lấy thống kê hệ thống."""
-    try:
-        stats = calculate_stats()
-        stats["status"] = "ready"
-        return jsonify(stats)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    stats = calculate_stats()
+    stats["status"] = "ready"
+    return jsonify(stats)
 
 
 @settings_bp.route("/api/cache/clear", methods=["POST"])
+@handle_route_errors
 def clear_cache():
     """Xóa cache."""
-    try:
-        cache_dir = Path("workspace/cache")
-        if cache_dir.exists():
-            count = 0
-            for f in cache_dir.glob("*.pkl*"):
-                f.unlink()
-                count += 1
-            return jsonify({"success": True, "deleted": count})
-        return jsonify({"success": True, "deleted": 0})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    cache_dir = Path("workspace/cache")
+    if cache_dir.exists():
+        count = 0
+        for f in cache_dir.glob("*.pkl*"):
+            f.unlink()
+            count += 1
+        return jsonify({"success": True, "deleted": count})
+    return jsonify({"success": True, "deleted": 0})
 
 
 @settings_bp.route("/api/restart", methods=["POST"])

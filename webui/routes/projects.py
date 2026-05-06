@@ -603,6 +603,8 @@ def rename_project_file(slug):
 
     if not str(old_path).startswith(str((pdir / section).resolve())):
         return jsonify({"error": "Invalid path"}), 403
+    if not str(new_path).startswith(str((pdir / section).resolve())):
+        return jsonify({"error": "Invalid path"}), 403
 
     if not old_path.exists():
         return jsonify({"error": "File không tồn tại"}), 404
@@ -634,7 +636,14 @@ def project_move_done(slug):
     filename = data.get("filename", "")
 
     pdir = _get_project_dir(slug)
-    src = pdir / "sources" / filename
+
+    # Path traversal check
+    if not filename or ".." in filename or "/" in filename or "\\" in filename:
+        return jsonify({"error": "Tên file không hợp lệ"}), 403
+    src = (pdir / "sources" / filename).resolve()
+    if not str(src).startswith(str((pdir / "sources").resolve())):
+        return jsonify({"error": "Invalid path"}), 403
+
     if not src.exists():
         return jsonify({"error": "File nguồn không tồn tại"}), 404
 
@@ -652,7 +661,14 @@ def project_move_back(slug):
     filename = data.get("filename", "")
 
     pdir = _get_project_dir(slug)
-    src = pdir / "translated" / filename
+
+    # Path traversal check
+    if not filename or ".." in filename or "/" in filename or "\\" in filename:
+        return jsonify({"error": "Tên file không hợp lệ"}), 403
+    src = (pdir / "translated" / filename).resolve()
+    if not str(src).startswith(str((pdir / "translated").resolve())):
+        return jsonify({"error": "Invalid path"}), 403
+
     if not src.exists():
         return jsonify({"error": "File dịch không tồn tại"}), 404
 

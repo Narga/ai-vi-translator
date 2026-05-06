@@ -1,6 +1,6 @@
 [project]
 name = "content-translator"
-version = "6.7.0"
+version = "6.8.0"
 description = "AI Content Translator - Dịch tiểu thuyết tự động"
 readme = "docs/README.md"
 requires-python = ">=3.10"

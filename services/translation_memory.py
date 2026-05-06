@@ -300,8 +300,8 @@ class TranslationMemory:
             tm_file = os.path.join(self.tm_dir, "memory.json")
             if os.path.exists(tm_file):
                 return os.path.getsize(tm_file) / 1024 / 1024
-        except:
-            pass
+        except Exception as e:
+            logging.debug(f"Failed to estimate TM size: {e}")
         return 0.0
 
     def export_tm(self, filepath: str) -> bool:
@@ -409,8 +409,8 @@ class ChunkTranslationMemory:
                 with open(chunk_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     return data.get("translation")
-            except:
-                pass
+            except Exception as e:
+                logging.debug(f"Failed to read chunk TM: {e}")
         return None
 
     def clear_chunk_tm(self) -> int:

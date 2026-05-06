@@ -99,9 +99,9 @@ class TranslationCache:
 
     def _get_cache_path_from_logical_key(self, logical_key: str) -> str:
         """
-        Nhận logical_key (JSON string) và trả về đường dẫn file cache (.pkl.gz) tương ứng.
+        Nhận logical_key (JSON string) và trả về đường dẫn file cache (.json.gz) tương ứng.
         """
-        ext = ".pkl.gz" if self.COMPRESS else ".pkl"
+        ext = ".json.gz" if self.COMPRESS else ".json"
         file_name = self._md5(logical_key.encode("utf-8")) + ext
         return os.path.join(self.cache_dir, file_name)
 
@@ -112,22 +112,41 @@ class TranslationCache:
             return None
         path = self._get_cache_path_from_logical_key(logical_key)
 
-        # Try .pkl.gz first, then fallback to .pkl (legacy)
+        # 1. Try .json.gz
         if self.COMPRESS and os.path.exists(path):
             try:
-                with self._lock, gzip.open(path, "rb") as f:
+                with self._lock, gzip.open(path, "rt", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+        # 2. Try .json
+        json_path = path.replace(".json.gz", ".json")
+        if os.path.exists(json_path):
+            try:
+                with self._lock, open(json_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+
+        # 3. Fallback to legacy .pkl.gz
+        legacy_gz_path = path.replace(".json.gz", ".pkl.gz") if self.COMPRESS else path.replace(".json", ".pkl.gz")
+        if os.path.exists(legacy_gz_path):
+            try:
+                with self._lock, gzip.open(legacy_gz_path, "rb") as f:
                     return pickle.load(f)
             except Exception:
                 pass
 
-        # Try legacy .pkl without gzip
-        legacy_path = path.replace(".pkl.gz", ".pkl")
-        if os.path.exists(legacy_path):
+        # 4. Fallback to legacy .pkl
+        legacy_pkl_path = path.replace(".json.gz", ".pkl") if self.COMPRESS else path.replace(".json", ".pkl")
+        if os.path.exists(legacy_pkl_path):
             try:
-                with self._lock, open(legacy_path, "rb") as f:
+                with self._lock, open(legacy_pkl_path, "rb") as f:
                     return pickle.load(f)
             except Exception:
                 pass
+                
         return None
 
     def set(self, logical_key: str, translation: str) -> None:
@@ -137,11 +156,11 @@ class TranslationCache:
         path = self._get_cache_path_from_logical_key(logical_key)
         try:
             if self.COMPRESS:
-                with self._lock, gzip.open(path, "wb") as f:
-                    pickle.dump(translation, f)
+                with self._lock, gzip.open(path, "wt", encoding="utf-8") as f:
+                    json.dump(translation, f, ensure_ascii=False)
             else:
-                with self._lock, open(path, "wb") as f:
-                    pickle.dump(translation, f)
+                with self._lock, open(path, "w", encoding="utf-8") as f:
+                    json.dump(translation, f, ensure_ascii=False)
         except Exception as e:
             logging.warning(f"⚠️ Không thể lưu cache: {e}")
 

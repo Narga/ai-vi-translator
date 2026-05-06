@@ -27,22 +27,7 @@ def _try_calculate_stats() -> None:
         pass
 
 
-class ProgressLogHandler(logging.Handler):
-    """Handler chuyển hướng logs vào progress emitter của UI."""
-    def __init__(self, emit_func: Callable):
-        super().__init__()
-        self.emit_func = emit_func
-        self.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%H:%M:%S"))
-
-    def emit(self, record):
-        try:
-            msg = self.format(record)
-            # Chỉ gửi log từ INFO trở lên vào UI
-            if record.levelno >= logging.INFO:
-                # Bỏ qua các log mang tính hệ thống quá mức nếu cần
-                self.emit_func("info", message=record.getMessage())
-        except Exception:
-            self.handleError(record)
+from core.log_handler import ProgressLogHandler
 
 
 class TranslationExecutor:

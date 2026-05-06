@@ -15,18 +15,25 @@ log_dir = Path("workspace/logs")
 log_dir.mkdir(parents=True, exist_ok=True)
 log_file = log_dir / (datetime.now().strftime("%Y-%m-%d_%H-%M") + "_webui.log")
 
+from logging.handlers import RotatingFileHandler
+
+_file_handler = RotatingFileHandler(
+    log_file, maxBytes=10*1024*1024, backupCount=5, encoding="utf-8"
+)
+_file_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file, encoding="utf-8"),
-        logging.StreamHandler()
-    ]
+    handlers=[_file_handler, logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
 # ============================================================
 # Global State (shared across blueprints)
+# NOTE: translation_result is replaced atomically via `import webui as _state;
+# _state.translation_result = {...}` — safe under CPython GIL.
+# If migrating to multiprocessing, add threading.Lock or use mp.Manager.
 # ============================================================
 progress_queue = Queue()
 translation_result = {}

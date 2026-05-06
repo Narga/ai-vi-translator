@@ -4,24 +4,23 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
-## [6.8.0] - 2026-04-25
-### 📊 Theo dõi tiến độ & Nhật ký Real-time (Progress & Logs)
-- **Granular Progress Reporting**: Cải tiến cơ chế báo cáo tiến độ theo từng bước thực hiện (Chia nhỏ -> Gửi AI -> Lưu kết quả -> Hoàn tất) thay vì nhảy vọt lên 100% ngay lập tức.
-- **Real-time Log Streaming**: Tích hợp `ProgressLogHandler` cho phép đẩy toàn bộ log chi tiết (AI responses, checkpoint cleanup, errors) trực tiếp lên Modal tiến trình trên WebUI. Người dùng có thể theo dõi chính xác AI đang làm gì.
-- **Standardized Logging**: Đồng bộ hóa cách đặt tên file log với cơ chế của `main.py`. Log WebUI giờ đây được lưu dưới dạng timestamp (vd: `2026-04-25_17-00_webui.log`) trong thư mục `workspace/logs`.
+## [6.8.0] - 2026-05-06
+### 🛡️ Bảo mật & Ổn định (Security & Stability - Remediation Phase 1)
+- **Path Traversal Protection**: Vá lỗ hổng bảo mật nghiêm trọng tại các endpoint di chuyển file dự án (`move-done`, `move-back`) và đổi tên file trong `webui/routes/projects.py`.
+- **Safe Binding**: Thay đổi địa chỉ host mặc định từ `0.0.0.0` sang `127.0.0.1` trong `webui.py` để ngăn chặn truy cập trái phép từ mạng ngoài khi chạy cục bộ.
+- **Bare Except Fixes**: Khắc phục các khối `except:` không chỉ định lỗi trong `services/translation_memory.py`, giúp tránh việc nuốt các lỗi hệ thống nghiêm trọng và cải thiện khả năng debug.
+- **Log Rotation**: Tích hợp `RotatingFileHandler` vào `webui/__init__.py`, giới hạn kích thước log file (10MB) và tự động xoay vòng (5 bản backup) để tránh tràn đĩa cứng.
 
-### 🎨 Giao diện & Trải nghiệm (UI/UX Refinements)
-- **AI Prompts Info Re-layout**: Tái cấu trúc khối **💡 Thông tin** trong trang Chỉ dẫn AI, đưa vào bên trong Editor để tối ưu không gian và đồng nhất với giao diện Dự án.
-- **Icon Standardization**: Đổi toàn bộ icon trạng thái hoàn thành từ `✅` (hoặc `☑️`) thành `✔️` trong danh sách tập tin.
-- **Visual Polish**: 
-    - Loại bỏ các góc bo tròn (border-radius) ở các thẻ tab và border dưới để tạo cảm giác chuyên nghiệp, sắc nét hơn.
-    - Căn chỉnh lại các nút điều hướng (Nút Tải lên bên trái, các nút Dịch/Soát đã chọn bên phải).
-    - Loại bỏ số lượng file `(n)` dư thừa trong tab Chính tả để làm gọn giao diện.
-- **Nav Menu Fixes**: Loại bỏ icon người dùng trước bộ đếm API Keys và làm sáng vùng thông tin để text nổi bật, dễ đọc hơn. Sửa lỗi đếm sai API keys trên menu.
+### ⚙️ Hiện đại hóa & Hiệu suất (Modernization & Performance - Remediation Phase 2)
+- **JSON Cache Engine**: Chuyển đổi cơ chế lưu trữ cache từ `pickle` sang `JSON` (kèm gzip) trong `services/cache_service.py`. Tăng tính an toàn, minh bạch và khả năng tương thích giữa các phiên bản Python. Hỗ trợ tự động nhận diện và đọc các file cache cũ (.pkl).
+- **Centralized Log Handler**: Tách `ProgressLogHandler` ra module riêng (`core/log_handler.py`), loại bỏ mã nguồn trùng lặp giữa `executor.py` và `spellcheck_executor.py`.
+- **Standardized Error Handling**: Triển khai decorator `@handle_route_errors` trong `webui/decorators.py` giúp quản lý lỗi tập trung và trả về response JSON thống nhất cho các API route.
+- **Atomic State Documentation**: Bổ sung tài liệu về tính nguyên tử (atomicity) của global state `translation_result` dưới cơ chế GIL của CPython.
 
-### 🛡️ Sửa lỗi & Kỹ thuật (Fixes)
-- **Executor Stability**: Sửa lỗi logic khiến nhật ký modal không cập nhật sau bước chia nhỏ văn bản.
-- **Code Integrity**: Khắc phục lỗi thiếu import `Path` trong `webui/__init__.py` và lỗi cú pháp trong `spellcheck_executor.py`.
+### 🧹 Dọn dẹp & Bảo trì (Cleanup)
+- **Dead Code Removal**: Loại bỏ các đoạn mã thừa và logic lặp lại sau khối xử lý ngoại lệ trong `webui/routes/settings.py`.
+- **Version Alignment**: Đồng bộ hóa phiên bản dự án lên **6.8.0** trong `pyproject.toml` và các tài liệu liên quan.
+
 
 ## [6.7.0] - 2026-04-24
 ### 🛡️ Hệ thống & Độ ổn định (System & Stability)

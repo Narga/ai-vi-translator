@@ -8,21 +8,9 @@ from plugins.translation.chunker import process_text_for_chunking
 from plugins.spellcheck.spellchecker import spellcheck_chunk
 
 logger = logging.getLogger(__name__)
-from typing import Callable
+from core.log_handler import ProgressLogHandler
 
-class ProgressLogHandler(logging.Handler):
-    """Handler chuyển hướng logs vào progress emitter của UI."""
-    def __init__(self, emit_func: Callable):
-        super().__init__()
-        self.emit_func = emit_func
-        self.setFormatter(logging.Formatter("[%(asctime)s] %(message)s", datefmt="%H:%M:%S"))
 
-    def emit(self, record):
-        try:
-            if record.levelno >= logging.INFO:
-                self.emit_func({"type": "info", "message": record.getMessage()})
-        except Exception:
-            self.handleError(record)
 
 class SpellcheckExecutor:
     """
@@ -53,7 +41,7 @@ class SpellcheckExecutor:
         # Đăng ký handler để chuyển hướng log vào UI
         ui_log_handler = None
         if progress_callback:
-            ui_log_handler = ProgressLogHandler(progress_callback)
+            ui_log_handler = ProgressLogHandler(progress_callback, style="dict")
             logging.root.addHandler(ui_log_handler)
 
         try:
