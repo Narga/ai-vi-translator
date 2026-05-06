@@ -81,14 +81,14 @@
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                             </div>
-                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate()" style="resize:none"></textarea>
+                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate();DirtyState.mark('source-text')" style="resize:none"></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
                                                 <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
                                             </div>
-                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." style="resize:none"></textarea>
+                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('result-text')" style="resize:none"></textarea>
                                         </div>
                                     </div>
                                     
@@ -132,14 +132,14 @@
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                             </div>
-                                            <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." style="resize:none"></textarea>
+                                            <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." oninput="DirtyState.mark('translated-source-text')" style="resize:none"></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
                                                 <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
                                             </div>
-                                            <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." style="resize:none"></textarea>
+                                            <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('translated-result-text')" style="resize:none"></textarea>
                                         </div>
                                     </div>
                                     
@@ -315,15 +315,15 @@
                                                <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                    <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                                </div>
-                                               <textarea id="spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateSpellcheckTokenEstimate()" style="resize:none"></textarea>
-                                           </div>
-                                           <!-- Result Textarea -->
-                                           <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
-                                               <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
-                                                   <button id="btn-save-spellcheck" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveSpellcheckResult()">💾 Lưu</button>
-                                                   <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
-                                               </div>
-                                               <textarea id="spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung sau khi kiểm tra chính tả sẽ hiển thị tại đây..." style="resize:none"></textarea>
+                                                <textarea id="spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateSpellcheckTokenEstimate();DirtyState.mark('spell-source-text')" style="resize:none"></textarea>
+                                            </div>
+                                            <!-- Result Textarea -->
+                                            <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
+                                                <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
+                                                    <button id="btn-save-spellcheck" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveSpellcheckResult()">💾 Lưu</button>
+                                                    <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
+                                                </div>
+                                                <textarea id="spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung sau khi kiểm tra chính tả sẽ hiển thị tại đây..." oninput="DirtyState.mark('spell-result-text')" style="resize:none"></textarea>
                                            </div>
                                        </div>
 

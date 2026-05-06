@@ -585,6 +585,37 @@ function fetchModelInfo(modelName) {
 }
 
 let _tokenEstimateTimer = null;
+
+// ============================================================
+// Unsaved Changes Tracking
+// ============================================================
+const DirtyState = {
+    _dirty: new Set(),
+    mark(editorId) {
+        this._dirty.add(editorId);
+        this._updateIndicator();
+    },
+    clean(editorId) {
+        this._dirty.delete(editorId);
+        this._updateIndicator();
+    },
+    isDirty(editorId) {
+        return editorId ? this._dirty.has(editorId) : this._dirty.size > 0;
+    },
+    _updateIndicator() {
+        document.querySelectorAll('.unsaved-dot').forEach(el => {
+            el.style.display = this._dirty.size > 0 ? 'inline-block' : 'none';
+        });
+    }
+};
+
+window.addEventListener('beforeunload', function(e) {
+    if (DirtyState.isDirty()) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
 function updateTokenEstimate() {
     clearTimeout(_tokenEstimateTimer);
     _tokenEstimateTimer = setTimeout(_doTokenEstimate, 300);
@@ -873,6 +904,13 @@ function switchProjectTab(tab) {
 
 function loadProjectFile(filename, section) {
     if (!currentProject) return;
+    if (DirtyState.isDirty() && !confirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) {
+        return;
+    }
+    DirtyState.clean('source-text');
+    DirtyState.clean('result-text');
+    DirtyState.clean('translated-source-text');
+    DirtyState.clean('translated-result-text');
     const slug = currentProject.slug;
     fetch(`/api/projects/${slug}/file/${section}/${filename}`).then(r => r.json()).then(data => {
         if (section === 'sources') {
@@ -885,13 +923,17 @@ function loadProjectFile(filename, section) {
             // Populate Translation if exists
             fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
                 document.getElementById('result-text').value = tData.content || '';
+                DirtyState.clean('result-text');
             }).catch(() => {
                 document.getElementById('result-text').value = '';
+                DirtyState.clean('result-text');
             });
         } else if (section === 'translated') {
             document.getElementById('translated-result-text').value = data.content || '';
             document.getElementById('translated-source-text').value = '';
             currentProjectFile = { name: filename, section };
+            DirtyState.clean('translated-result-text');
+            DirtyState.clean('translated-source-text');
 
             // Show token estimate for translated file
             const tokenMini = document.getElementById('translated-token-estimate');
@@ -2086,6 +2128,7 @@ function saveChunkTranslation() {
             btn.disabled = false;
             if (res.success) {
                 showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
+                DirtyState.clean('result-text');
                 // Refresh danh sách file dự án để cập nhật UI dấu tick hoàn thành
                 if (typeof loadProjectFiles === 'function') {
                     loadProjectFiles(slug);
@@ -2132,6 +2175,7 @@ function saveTranslatedFile() {
             btn.disabled = false;
             if (res.success) {
                 showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
+                DirtyState.clean('translated-result-text');
                 selectProject(slug, true);
             } else {
                 showToast('Lỗi lưu file: ' + (res.error || 'Unknown'), 'error');
