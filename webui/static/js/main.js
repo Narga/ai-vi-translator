@@ -629,6 +629,50 @@ window.addEventListener('beforeunload', function(e) {
     }
 });
 
+// ============================================================
+// Keyboard Navigation cho File List
+// ============================================================
+var _selectedFileIndex = -1;
+
+document.addEventListener('keydown', function(e) {
+    // Bỏ qua nếu đang focus trong textarea hoặc input
+    if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+    if (!currentProject) return;
+
+    var rows = document.querySelectorAll('#project-source-table-body tr');
+    if (!rows.length) return;
+
+    // J = next file, K = previous file (vim-style)
+    if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (_selectedFileIndex < rows.length - 1) {
+            _selectedFileIndex++;
+            _highlightFileRow(rows, _selectedFileIndex);
+        }
+    }
+    if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (_selectedFileIndex > 0) {
+            _selectedFileIndex--;
+            _highlightFileRow(rows, _selectedFileIndex);
+        }
+    }
+    // Enter = mở file đang chọn
+    if (e.key === 'Enter' && _selectedFileIndex >= 0 && _selectedFileIndex < rows.length) {
+        e.preventDefault();
+        var fileLink = rows[_selectedFileIndex].querySelector('.fw6.blue');
+        if (fileLink) fileLink.click();
+    }
+});
+
+function _highlightFileRow(rows, index) {
+    rows.forEach(function(r) { r.style.background = ''; });
+    if (rows[index]) {
+        rows[index].style.background = '#eff6ff';
+        rows[index].scrollIntoView({ block: 'nearest' });
+    }
+}
+
 function updateTokenEstimate() {
     clearTimeout(_tokenEstimateTimer);
     _tokenEstimateTimer = setTimeout(_doTokenEstimate, 300);
