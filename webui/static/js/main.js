@@ -663,9 +663,14 @@ function _doTokenEstimate() {
     } else {
         fitEl.textContent = '';
     }
+
+    // Large text warning
+    if (charCount > 200000) {
+        fitEl.innerHTML = '<span class="orange fw6">⚠️ Văn bản rất lớn (' + (charCount / 1000).toFixed(0) + 'k ký tự). Có thể chậm trên trình duyệt.</span>';
+    }
 }
 
- function mergeTranslatedFiles() {
+function mergeTranslatedFiles() {
      if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
      const translated = currentProject.translated || [];
      if (translated.length === 0) { showToast('Chưa có file dịch để ghép!', 'warning'); return; }
