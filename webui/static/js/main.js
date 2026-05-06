@@ -13,6 +13,12 @@ let currentGenre = '';
 let currentProject = null; // { slug, meta, sources, translated }
 let currentProjectFile = null; // { name, section } for save
 
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
     initPromptTabs();
@@ -776,7 +782,7 @@ function renderProjectSources(sources) {
     
     try {
         el.innerHTML = sources.map(f => {
-            const esc = f.name.replace(/'/g, "\\'");
+            const esc = escapeHtml(f.name);
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
                 ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
@@ -785,7 +791,7 @@ function renderProjectSources(sources) {
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
                 <td>
-                    <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','sources')">${f.name}</div>
+                    <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','sources')">${esc}</div>
                 </td>
                 <td class="f7 gray">${f.size_display}</td>
                 <td>
@@ -817,10 +823,10 @@ function renderProjectTranslated(translated) {
     }
 
     el.innerHTML = translated.map(f => {
-        const esc = f.name.replace(/'/g, "\\'");
+        const esc = escapeHtml(f.name);
         return `<tr>
             <td>
-                <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','translated')">${f.name}</div>
+                <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','translated')">${esc}</div>
             </td>
             <td class="f7 gray">${f.size_display}</td>
             <td class="tr">
@@ -1305,14 +1311,14 @@ function renderProjectSpellcheckSources(sources) {
     }
     try {
         el.innerHTML = sources.map(f => {
-            const esc = f.name.replace(/'/g, "\\'");
+            const esc = escapeHtml(f.name);
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
                 ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
                 : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
-                <td><div class="fw6 blue pointer underline-hover" onclick="loadSpellcheckFile('${esc}')">${f.name}</div></td>
+                <td><div class="fw6 blue pointer underline-hover" onclick="loadSpellcheckFile('${esc}')">${esc}</div></td>
                 <td class="f7 gray">${f.size_display}</td>
                 <td>${statusHtml}</td>
                 <td class="tr">
