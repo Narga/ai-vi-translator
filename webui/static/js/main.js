@@ -41,7 +41,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnRunSpell = document.getElementById('spellcheck-btn');
     if (btnRunSpell) btnRunSpell.addEventListener('click', runSpellcheck);
 
-    setInterval(loadStats, 30000);
+    // Stats polling — only when workspace tab is active
+    var _statsInterval = null;
+    window.startStatsPolling = function() {
+        if (_statsInterval) return;
+        loadStats();
+        _statsInterval = setInterval(loadStats, 30000);
+    };
+    window.stopStatsPolling = function() {
+        if (_statsInterval) { clearInterval(_statsInterval); _statsInterval = null; }
+    };
+    startStatsPolling();
 
     // Temperature slider
     const tempEl = document.getElementById('temperature');
@@ -130,6 +140,13 @@ function initTabs() {
             }
             if (targetId === 'logs') {
                 loadLogList();
+            }
+
+            // Stats polling — only when workspace tab is active
+            if (targetId === 'workspace') {
+                if (typeof startStatsPolling === 'function') startStatsPolling();
+            } else {
+                if (typeof stopStatsPolling === 'function') stopStatsPolling();
             }
 
             // Update Nav Classes
