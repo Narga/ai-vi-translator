@@ -100,9 +100,16 @@ Hệ thống tích hợp sẵn bộ chuyển đổi dành cho sách điện tử
 - **Text → EPUB**: Đóng gói lại thành file sách hoàn chỉnh sau khi dịch xong, bảo toàn Metadata và cấu trúc chương hồi.
 
 ### 🖼️ OCR Engine (Plugin)
-Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét:
-- Nhận diện đa ngôn ngữ (Trung, Nhật, Hàn, Việt).
-- Tích hợp AI để làm sạch văn bản sau khi quét (AI Cleanup).
+Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét. Kể từ phiên bản 6.9.0, OCR Engine được tái cấu trúc thành kiến trúc mô-đun lớp (Layered Architecture):
+- **Cấu trúc mới**: Logic được tách bạch thành các module `config`, `image`, `pdf`, `tables`, `formats`, và `ai_processor` trong thư mục `plugins/ocr/modules/`.
+- **Nhận diện nâng cao**: Tích hợp các công cụ mạnh mẽ như `pytesseract`, `ocrmypdf`, `pdfplumber` và `PyMuPDF`.
+- **AI Post-Processing**: Tự động làm sạch văn bản (AI Cleanup) và sửa lỗi chính tả (AI Spellcheck) sau khi quét để đạt độ chính xác cao nhất.
+- **Tính tương thích**: File `ocr_engine.py` đóng vai trò là "Cửa ngõ" (Facade), đảm bảo các script cũ vẫn hoạt động bình thường.
+
+### 💾 Hệ thống Cache JSON
+Hệ thống sử dụng cơ chế lưu trữ Cache hiện đại:
+- **Định dạng an toàn**: Toàn bộ dữ liệu được lưu dưới dạng `JSON` nén (Gzip) thay vì `pickle` cũ, giúp ngăn chặn các rủi ro bảo mật và dễ dàng kiểm tra nội dung.
+- **Tự động hóa**: Cache được tự động nén để tiết kiệm dung lượng đĩa cứng. Bạn có thể xóa Cache thông qua tab Cấu hình trên WebUI.
 
 ---
 
@@ -129,4 +136,9 @@ Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập ch�
 - **Port bị chiếm:** Dùng `python webui.py --port 8080` để đổi port.
 
 ---
-*Phiên bản tài liệu: 2.1 - Ngày cập nhật: 24/04/2026*
+### Lỗi Phân mảnh Module OCR (v6.9.0+)
+- Nếu gặp lỗi `ImportError` liên quan đến `plugins.ocr.modules`, hãy đảm bảo bạn đang chạy ứng dụng từ thư mục gốc của dự án.
+- **Xử lý Dependency**: Nếu một module báo thiếu thư viện (ví dụ: `pdfplumber`), hệ thống sẽ cố gắng tự động cài đặt qua `lazy_import_and_install`. Nếu thất bại, hãy chạy `pip install pdfplumber`.
+
+---
+*Phiên bản tài liệu: 2.2 - Ngày cập nhật: 06/05/2026*
