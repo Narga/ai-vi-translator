@@ -21,7 +21,6 @@ function escapeHtml(text) {
 
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
-    initPromptTabs();
     initDialogs();
 
     loadProjects();
@@ -155,9 +154,6 @@ function initTabs() {
             }
         });
     });
-}
-
-function initPromptTabs() {
 }
 
 function initDialogs() {
