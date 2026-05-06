@@ -48,7 +48,7 @@
                              <div id="ptab-workspace" class="nt-ptab-content flex-auto flex flex-column overflow-y-auto pa3">
                                 
                                 <!-- Source Table Block -->
-                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                          <div>
                                              <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
@@ -108,7 +108,7 @@
                             </div>
 
                             <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
-                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
                                     <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                         <button id="btn-merge-translated" class="pointer ph3 pv1 f7 bn white bg-dark-green br2 shadow-1 hover-bg-green fw6" onclick="mergeTranslatedFiles()">🧩 Ghép tập tin</button>
                                     </div>
@@ -285,7 +285,7 @@
 
                                <!-- Kiểm tra chính tả Section -->
                                <div id="ptab-spellcheck" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
-                                   <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="max-height: 250px; overflow-y: auto;">
+                                   <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
                                        <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
                                            <button id="btn-spellcheck-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="spellcheckSelectedInProject()">🔤 Soát được chọn</button>
                                        </div>
