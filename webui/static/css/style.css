@@ -261,6 +261,19 @@ button.bg-green:hover, .bg-green:hover {
 }
 .nt-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
+/* Modal Enhancements */
+.modal-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    border-radius: 0.25rem;
+}
+.modal-close-btn:hover { background: #f3f4f6; color: #111827; }
+
 /* Layout complete */
 
 /* Missing Tachyons utilities */
