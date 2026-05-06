@@ -160,16 +160,16 @@ function initDialogs() {
     const modal = document.getElementById('new-genre-modal');
 
     document.getElementById('btn-new-genre').addEventListener('click', () => {
-        modal.style.display = 'flex';
+        ModalManager.show('new-genre-modal');
     });
 
     document.getElementById('btn-cancel-genre').addEventListener('click', () => {
-        modal.style.display = 'none';
+        ModalManager.hide('new-genre-modal');
     });
 
     document.getElementById('btn-confirm-new-genre').addEventListener('click', (e) => {
         createGenre(e);
-        modal.style.display = 'none';
+        ModalManager.hide('new-genre-modal');
     });
 
     // Auto-generate slug from name
@@ -1082,19 +1082,11 @@ function uploadProjectFile() {
 }
 
 function showChunkConfig() {
-    const modal = document.getElementById('chunk-config-modal');
-    if (modal) {
-        modal.classList.remove('dn');
-        modal.classList.add('flex');
-    }
+    ModalManager.show('chunk-config-modal');
 }
 
 function hideChunkConfig() {
-    const modal = document.getElementById('chunk-config-modal');
-    if (modal) {
-        modal.classList.add('dn');
-        modal.classList.remove('flex');
-    }
+    ModalManager.hide('chunk-config-modal');
 }
 
 function confirmChunking() {
@@ -1692,15 +1684,14 @@ function showCreateProjectDialog() {
     // Clear form
     document.getElementById('new-project-name').value = '';
     document.getElementById('new-project-desc').value = '';
-    modal.style.display = 'flex';
+    ModalManager.show('new-project-modal');
 }
 
 function initProjectDialog() {
-    const modal = document.getElementById('new-project-modal');
-    if (!modal) return;
+    if (!document.getElementById('new-project-modal')) return;
 
     document.getElementById('btn-cancel-project').addEventListener('click', () => {
-        modal.style.display = 'none';
+        ModalManager.hide('new-project-modal');
     });
 
     document.getElementById('btn-confirm-new-project').addEventListener('click', () => {
@@ -1716,7 +1707,7 @@ function initProjectDialog() {
         })
             .then(r => r.json())
             .then(data => {
-                modal.style.display = 'none';
+                ModalManager.hide('new-project-modal');
                 if (data.success) {
                     showToast(`Đã tạo dự án "${name}"`, 'success');
                     loadProjects();
@@ -1814,19 +1805,11 @@ function showProjectInfoModal() {
         createdEl.textContent = d;
     }
 
-    const modal = document.getElementById('project-info-modal');
-    if (modal) {
-        modal.classList.remove('dn');
-        modal.style.display = 'flex';
-    }
+    ModalManager.show('project-info-modal');
 }
 
 function hideProjectInfoModal() {
-    const modal = document.getElementById('project-info-modal');
-    if (modal) {
-        modal.classList.add('dn');
-        modal.style.display = '';
-    }
+    ModalManager.hide('project-info-modal');
 }
 
 function saveProjectInfo() {
@@ -2008,19 +1991,11 @@ function showProgress(containerId, barId, percentId, textId, percent, text, isBa
 }
 
 function showProgressModal() {
-    const modal = document.getElementById('translation-progress-modal');
-    if (modal) {
-        modal.classList.remove('dn');
-        modal.classList.add('flex');
-    }
+    ModalManager.show('translation-progress-modal');
 }
 
 function hideProgressModal() {
-    const modal = document.getElementById('translation-progress-modal');
-    if (modal) {
-        modal.classList.add('dn');
-        modal.classList.remove('flex');
-    }
+    ModalManager.hide('translation-progress-modal');
 }
 
 function closeProgress() {
