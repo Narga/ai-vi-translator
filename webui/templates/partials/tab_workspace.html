@@ -78,16 +78,24 @@
                                 <div id="workspace-editor" class="pv2 flex flex-column">
                                     <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
-                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white">
+                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
+                                                <div class="ml-auto flex gap-1">
+                                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('source-text')" title="Toggle word wrap">↩️ Wrap</button>
+                                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('source-text')" title="Tìm trong văn bản">🔍</button>
+                                                </div>
                                             </div>
                                             <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate();DirtyState.mark('source-text')" style="resize:none"></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
-                                            <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
+                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
-                                                <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="showDiffView('source-text','result-text')" title="So sánh bản gốc và bản dịch">📊 Diff</button>
-                                                <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
+                                                <div class="ml-auto flex gap-1">
+                                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="showDiffView('source-text','result-text')" title="So sánh bản gốc và bản dịch">📊 Diff</button>
+                                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('result-text')" title="Toggle word wrap">↩️ Wrap</button>
+                                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('result-text')" title="Tìm trong văn bản">🔍</button>
+                                                    <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
+                                                </div>
                                             </div>
                                             <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('result-text')" style="resize:none"></textarea>
                                         </div>

@@ -948,6 +948,36 @@ async function loadProjectFile(filename, section) {
 // ============================================================
 // Diff View — So sánh 2 textarea song song
 // ============================================================
+
+function toggleWordWrap(textareaId) {
+    var ta = document.getElementById(textareaId);
+    if (!ta) return;
+    if (ta.style.whiteSpace === 'pre') {
+        ta.style.whiteSpace = 'pre-wrap';
+        ta.wrap = 'on';
+    } else {
+        ta.style.whiteSpace = 'pre';
+        ta.wrap = 'off';
+    }
+}
+
+async function findInText(textareaId) {
+    var ta = document.getElementById(textareaId);
+    if (!ta || !ta.value) return;
+    var term = await showPrompt('Tìm kiếm trong văn bản:');
+    if (!term) return;
+    var idx = ta.value.toLowerCase().indexOf(term.toLowerCase());
+    if (idx === -1) {
+        showToast('Không tìm thấy: ' + term, 'warning');
+        return;
+    }
+    ta.focus();
+    ta.setSelectionRange(idx, idx + term.length);
+    var linesBefore = ta.value.substring(0, idx).split('\n').length;
+    ta.scrollTop = Math.max(0, (linesBefore - 5) * 20);
+    showToast('Tìm thấy ở dòng ' + linesBefore, 'success');
+}
+
 function showDiffView(sourceId, targetId) {
     var sourceText = document.getElementById(sourceId).value;
     var targetText = document.getElementById(targetId).value;
