@@ -9,7 +9,6 @@
 
 import os
 import json
-import pickle
 import gzip
 import hashlib
 import logging
@@ -129,24 +128,6 @@ class TranslationCache:
             except Exception:
                 pass
 
-        # 3. Fallback to legacy .pkl.gz
-        legacy_gz_path = path.replace(".json.gz", ".pkl.gz") if self.COMPRESS else path.replace(".json", ".pkl.gz")
-        if os.path.exists(legacy_gz_path):
-            try:
-                with self._lock, gzip.open(legacy_gz_path, "rb") as f:
-                    return pickle.load(f)
-            except Exception:
-                pass
-
-        # 4. Fallback to legacy .pkl
-        legacy_pkl_path = path.replace(".json.gz", ".pkl") if self.COMPRESS else path.replace(".json", ".pkl")
-        if os.path.exists(legacy_pkl_path):
-            try:
-                with self._lock, open(legacy_pkl_path, "rb") as f:
-                    return pickle.load(f)
-            except Exception:
-                pass
-                
         return None
 
     def set(self, logical_key: str, translation: str) -> None:

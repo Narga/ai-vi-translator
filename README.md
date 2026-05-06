@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.8.0)
+# 📚 Content Translator (v6.9.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 

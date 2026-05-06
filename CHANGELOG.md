@@ -4,6 +4,30 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.9.0] - 2026-05-06
+### 🏗️ Tái cấu trúc & Mô-đun hóa (Architecture Refactor - Remediation Phase 3)
+- **OCR Engine De-monolithization**: Phân rã file `ocr_engine.py` khổng lồ (~7,700 dòng) thành kiến trúc đa lớp (Layered Architecture) trong thư mục `plugins/ocr/modules/`.
+    - `config.py`: Quản lý cấu hình, logging và dependency injection.
+    - `image.py`: Xử lý hình ảnh, xoay ảnh tự động và nhận diện ngôn ngữ CJK.
+    - `pdf.py`: Trích xuất text và xử lý cấu trúc PDF chuyên sâu.
+    - `tables.py`: Pipeline nhận diện và trích xuất bảng biểu đa phương thức.
+    - `formats.py`: Chuyển đổi định dạng đầu ra (DOCX, EPUB, HTML).
+    - `ai_processor.py`: Toàn bộ logic xử lý hậu kỳ bằng AI (Cleanup, Spellcheck).
+- **Facade Pattern Implementation**: `ocr_engine.py` được chuyển đổi thành một lớp Facade mỏng, đảm bảo tính tương thích ngược (Backward Compatibility) cho tất cả các consumer hiện tại mà không cần sửa đổi mã nguồn bên ngoài.
+- **Global State Management**: Chuẩn hóa việc quản lý trạng thái biến toàn cục (mutable globals) thông qua cơ chế truy cập module-reference, ngăn chặn lỗi liên kết tĩnh khi nạp module lazy.
+
+### 🧹 Hiện đại hóa Cache (Cache Modernization)
+- **Legacy Support Removal**: Loại bỏ hoàn toàn mã nguồn hỗ trợ định dạng `pickle` lỗi thời trong `services/cache_service.py`. Hệ thống hiện tại chỉ sử dụng định dạng `JSON` (gzip compressed) để đảm bảo tính an toàn và minh bạch dữ liệu.
+
+### 📝 Tài liệu & Quy trình (Documentation)
+- **Technical Remediation Reports**: Bổ sung hệ thống tài liệu kỹ thuật chuyên sâu phục vụ bảo trì:
+    - `docs/CODE_REVIEW_REPORT.md`: Báo cáo kiểm định mã nguồn chi tiết.
+    - `docs/REMEDIATION_PLAN.md`: Kế hoạch khắc phục và lộ trình hiện đại hóa.
+    - `docs/ocr_remediation_context.md`: Tài liệu hướng dẫn chi tiết về cấu trúc phân mảnh module OCR.
+- **GitNexus Index Update**: Cập nhật chỉ mục thông minh của dự án, tăng độ phủ bao quát các module mới (1,237 symbols, 104 execution flows).
+
+---
+
 ## [6.8.0] - 2026-05-06
 ### 🛡️ Bảo mật & Ổn định (Security & Stability - Remediation Phase 1)
 - **Path Traversal Protection**: Vá lỗ hổng bảo mật nghiêm trọng tại các endpoint di chuyển file dự án (`move-done`, `move-back`) và đổi tên file trong `webui/routes/projects.py`.
