@@ -13,12 +13,6 @@ let currentGenre = '';
 let currentProject = null; // { slug, meta, sources, translated }
 let currentProjectFile = null; // { name, section } for save
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
     initDialogs();
@@ -898,9 +892,9 @@ function switchProjectTab(tab) {
     }
 }
 
-function loadProjectFile(filename, section) {
+async function loadProjectFile(filename, section) {
     if (!currentProject) return;
-    if (DirtyState.isDirty() && !confirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) {
+    if (DirtyState.isDirty() && !await showConfirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) {
         return;
     }
     DirtyState.clean('source-text');
@@ -1123,16 +1117,16 @@ function confirmChunking() {
     });
 }
 
-function deleteProjectFile(filename, section) {
-    if (!confirm('Xóa vĩnh viễn "' + filename + '"?')) return;
+async function deleteProjectFile(filename, section) {
+    if (!await showConfirm('Xóa vĩnh viễn "' + filename + '"?', { danger: true })) return;
     fetch(`/api/projects/${currentProject.slug}/file/${section}/${filename}`, {
         method: 'DELETE', headers: { 'Content-Type': 'application/json' }
     }).then(r => r.json()).then(() => selectProject(currentProject.slug));
 }
 
-function renameProjectFile(filename, section) {
+async function renameProjectFile(filename, section) {
     if (!currentProject) return;
-    const newName = prompt(`Đổi tên "${filename}" thành:`, filename);
+    const newName = await showPrompt('Đổi tên file thành:', filename);
     if (!newName || newName === filename) return;
 
     fetch(`/api/projects/${currentProject.slug}/rename`, {
@@ -1218,8 +1212,8 @@ function translateSelectedInProject() {
     });
 }
 
-function moveBackInProject(filename) {
-    if (!confirm('Trả "' + filename + '" về sources?')) return;
+async function moveBackInProject(filename) {
+    if (!await showConfirm('Trả "' + filename + '" về sources?')) return;
     fetch(`/api/projects/${currentProject.slug}/move-back`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename })
@@ -1453,14 +1447,14 @@ function saveProjectPrompts() {
     });
 }
 
-function importPromptFromLibrary() {
+async function importPromptFromLibrary() {
     if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
     const sel = document.getElementById('prompt-library-select');
     const genre = sel ? sel.value : '';
     if (!genre) { showToast('Chọn bộ prompt từ thư viện trước!', 'error'); return; }
 
     const displayName = sel.options[sel.selectedIndex]?.text || genre;
-    if (!confirm(`Áp dụng bộ "${displayName}" vào dự án?\nHành động này sẽ ghi đè chỉ dẫn hiện tại của dự án.`)) return;
+    if (!await showConfirm('Áp dụng bộ "' + displayName + '" vào dự án? Hành động này sẽ ghi đè chỉ dẫn hiện tại của dự án.')) return;
 
     fetch(`/api/projects/${currentProject.slug}/prompts/import`, {
         method: 'POST',
@@ -1479,9 +1473,9 @@ function importPromptFromLibrary() {
     .catch(err => showToast('Lỗi kết nối: ' + err.message, 'error'));
 }
 
-function resetProjectPrompts() {
+async function resetProjectPrompts() {
     if (!currentProject) { showToast('Chưa chọn dự án!', 'error'); return; }
-    if (!confirm('Xóa toàn bộ chỉ dẫn riêng của dự án?\nDự án sẽ quay về dùng chỉ dẫn mặc định hệ thống.')) return;
+    if (!await showConfirm('Xóa toàn bộ chỉ dẫn riêng của dự án? Dự án sẽ quay về dùng chỉ dẫn mặc định hệ thống.')) return;
 
     fetch(`/api/projects/${currentProject.slug}/prompts`, { method: 'DELETE' })
     .then(r => r.json())
@@ -1720,9 +1714,9 @@ function initProjectDialog() {
     });
 }
 
-function deleteCurrentProject() {
+async function deleteCurrentProject() {
     if (!currentProject) return;
-    if (!confirm('Xóa VĨNH VIỄN dự án "' + currentProject.name + '"? Tất cả dữ liệu sẽ bị mất!')) return;
+    if (!await showConfirm('Xóa VĨNH VIỄN dự án "' + currentProject.name + '"? Tất cả dữ liệu sẽ bị mất!', { danger: true })) return;
     fetch('/api/projects/' + currentProject.slug, { method: 'DELETE' })
         .then(r => r.json()).then(() => {
             currentProject = null;
@@ -1744,12 +1738,12 @@ function archiveProject() {
         body: JSON.stringify({ strategy: 'check' })
     })
     .then(r => r.json())
-    .then(data => {
+    .then(async (data) => {
         if (data.error) throw new Error(data.error);
         
         let strategy = 'overwrite';
         if (data.exists) {
-            const userChoice = confirm(`Bản lưu trữ của dự án ${currentProject.name} đã tồn tại.\n\nNhấn OK để GHI ĐÈ.\nNhấn Cancel để TẠO BẢN SAO.`);
+            const userChoice = await showConfirm('Bản lưu trữ của dự án ' + currentProject.name + ' đã tồn tại. Ghi đè? (Hủy = tạo bản sao)');
             strategy = userChoice ? 'overwrite' : 'copy';
         }
         
@@ -1888,8 +1882,8 @@ function loadArchiveList() {
         });
 }
 
-function restoreProject(filename) {
-    if (!confirm(`Khôi phục dự án từ ${filename}?`)) return;
+async function restoreProject(filename) {
+    if (!await showConfirm('Khôi phục dự án từ ' + filename + '?')) return;
     
     showToast('Đang khôi phục...', 'info');
     fetch('/api/archive/restore', {
@@ -1909,8 +1903,8 @@ function restoreProject(filename) {
     });
 }
 
-function deleteArchive(filename) {
-    if (!confirm(`Xóa VĨNH VIỄN bản lưu trữ ${filename}?`)) return;
+async function deleteArchive(filename) {
+    if (!await showConfirm('Xóa VĨNH VIỄN bản lưu trữ ' + filename + '?', { danger: true })) return;
     
     fetch('/api/archive/' + filename, {
         method: 'DELETE'
@@ -1948,16 +1942,16 @@ function loadStats() {
     });
 }
 
-function clearCache() {
-    if (!confirm('Xóa sạch bộ nhớ Cache dịch thuật?')) return;
+async function clearCache() {
+    if (!await showConfirm('Xóa sạch bộ nhớ Cache dịch thuật?', { danger: true })) return;
     fetch('/api/cache/clear', { method: 'POST' }).then(r => r.json()).then(data => {
         showToast('Đã dọn dẹp ' + data.deleted + ' files nháp.', 'success');
         loadStats();
     });
 }
 
-function restartServer() {
-    if (!confirm('Khởi động lại Web Server?')) return;
+async function restartServer() {
+    if (!await showConfirm('Khởi động lại Web Server?')) return;
     fetch('/api/restart', { method: 'POST' })
         .then(r => r.json())
         .then(data => {
@@ -2545,9 +2539,9 @@ function selectGenre(slug) {
         });
 }
 
-function useGenre() {
+async function useGenre() {
     if (!currentGenre || currentGenre === 'default') return;
-    if (!confirm(`Sử dụng bộ prompt "${currentGenre}" làm mặc định cho dịch thuật?`)) return;
+    if (!await showConfirm('Sử dụng bộ prompt "' + currentGenre + '" làm mặc định cho dịch thuật?')) return;
 
     fetch('/api/prompt-sets/' + currentGenre + '/use', { method: 'POST' })
         .then(r => r.json())
@@ -2657,9 +2651,9 @@ function saveGenre() {
     });
 }
 
-function deleteGenre() {
+async function deleteGenre() {
     if (!currentGenre) return;
-    if (!confirm('Hành động này KHÔNG THỂ KHÔI PHỤC. Chắc chắn xóa thư mục the loai "' + currentGenre + '"?')) return;
+    if (!await showConfirm('Hành động này KHÔNG THỂ KHÔI PHỤC. Chắc chắn xóa thư mục the loai "' + currentGenre + '"?', { danger: true })) return;
     fetch('/api/prompt-sets/' + currentGenre, { method: 'DELETE' })
         .then(r => r.json())
         .then(data => {
@@ -2943,10 +2937,10 @@ function loadLogList() {
         .catch(e => showToast('Lỗi tải danh sách logs: ' + e.message, 'error'));
 }
 
-function deleteSelectedLogs() {
+async function deleteSelectedLogs() {
     if (selectedLogFiles.size === 0) return;
     const files = Array.from(selectedLogFiles);
-    if (!confirm(`Xóa vĩnh viễn ${files.length} file log đã chọn?`)) return;
+    if (!await showConfirm('Xóa vĩnh viễn ' + files.length + ' file log đã chọn?', { danger: true })) return;
 
     Promise.all(files.map(filename =>
         fetch(`/api/logs/${encodeURIComponent(filename)}`, { method: 'DELETE' }).then(r => r.json())
@@ -3015,9 +3009,9 @@ function viewLogFile(filename) {
         .catch(e => showToast('Lỗi đọc file: ' + e.message, 'error'));
 }
 
-function deleteCurrentLog() {
+async function deleteCurrentLog() {
     if (!currentLogFile) return;
-    if (!confirm(`Xóa vĩnh viễn file log "${currentLogFile}"?`)) return;
+    if (!await showConfirm('Xóa vĩnh viễn file log "' + currentLogFile + '"?', { danger: true })) return;
     
     fetch(`/api/logs/${encodeURIComponent(currentLogFile)}`, { method: 'DELETE' })
         .then(r => r.json())
