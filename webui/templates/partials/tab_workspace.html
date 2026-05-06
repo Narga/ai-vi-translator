@@ -86,6 +86,7 @@
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
+                                                <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="showDiffView('source-text','result-text')" title="So sánh bản gốc và bản dịch">📊 Diff</button>
                                                 <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
                                             </div>
                                             <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('result-text')" style="resize:none"></textarea>
@@ -137,7 +138,10 @@
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
                                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
-                                                <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
+                                                <div class="flex gap-1">
+                                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="showDiffView('translated-source-text','translated-result-text')" title="So sánh">📊 Diff</button>
+                                                    <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
+                                                </div>
                                             </div>
                                             <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('translated-result-text')" style="resize:none"></textarea>
                                         </div>

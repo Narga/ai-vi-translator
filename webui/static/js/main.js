@@ -941,6 +941,58 @@ async function loadProjectFile(filename, section) {
 }
 
 // ============================================================
+// Diff View — So sánh 2 textarea song song
+// ============================================================
+function showDiffView(sourceId, targetId) {
+    var sourceText = document.getElementById(sourceId).value;
+    var targetText = document.getElementById(targetId).value;
+
+    if (!sourceText && !targetText) {
+        showToast('Cần nội dung để so sánh', 'warning');
+        return;
+    }
+
+    var sourceLines = sourceText.split('\n');
+    var targetLines = targetText.split('\n');
+    var maxLines = Math.max(sourceLines.length, targetLines.length);
+
+    var html = '<div style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">';
+    var changes = 0;
+
+    for (var i = 0; i < maxLines; i++) {
+        var sl = i < sourceLines.length ? sourceLines[i] : '';
+        var tl = i < targetLines.length ? targetLines[i] : '';
+
+        if (sl === tl) {
+            html += '<div style="padding:1px 8px;color:#6b7280;">  ' + escapeHtml(sl) + '</div>';
+        } else {
+            changes++;
+            if (sl) html += '<div style="padding:1px 8px;background:#fee2e2;color:#991b1b;">- ' + escapeHtml(sl) + '</div>';
+            if (tl) html += '<div style="padding:1px 8px;background:#d1fae5;color:#065f46;">+ ' + escapeHtml(tl) + '</div>';
+        }
+    }
+    html += '</div>';
+
+    // Tạo modal
+    var overlay = document.createElement('div');
+    overlay.className = 'fixed absolute--fill bg-black-70 items-center justify-center z-max';
+    overlay.style.cssText = 'display:flex; z-index:99999;';
+    overlay.innerHTML = 
+        '<div class="bg-white br3 shadow-5 w-100 mw8 overflow-hidden animate-pop" style="max-height:85vh;">' +
+            '<div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">' +
+                '<h3 class="f5 ma0 fw6 dark-gray">📊 So sánh thay đổi (' + changes + ' dòng khác)</h3>' +
+                '<button class="modal-close-btn" onclick="this.closest(\'.fixed\').remove()">&times;</button>' +
+            '</div>' +
+            '<div class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;">' + html + '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
+// ============================================================
 // Side-by-Side Editor
 // ============================================================
 function openSideBySideEditor(filename, translatedContent) {
