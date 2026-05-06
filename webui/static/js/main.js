@@ -2216,29 +2216,15 @@ function connectToProgress(btn = null, isBatch = false) {
 
             resetButton(btn, isBatch);
             
-            // Auto-close modal after 10 seconds for all completions
+            // Show done button (no auto-close — user controls when to close)
             if (btnDone) {
                 btnDone.classList.remove('dn');
-                let seconds = 10;
-                btnDone.textContent = `Xong (${seconds}s)`;
-                
-                window._autoReturnTimer = setInterval(() => {
-                    seconds--;
-                    if (seconds <= 0) {
-                        clearInterval(window._autoReturnTimer);
-                        window._autoReturnTimer = null;
-                        closeProgress();
-                    } else {
-                        btnDone.textContent = `Xong (${seconds}s)`;
-                    }
-                }, 1000);
-            } else {
-                // Fallback: auto close after 10s if no button
-                window._autoReturnTimer = setInterval(() => {
-                    clearInterval(window._autoReturnTimer);
-                    window._autoReturnTimer = null;
-                    closeProgress();
-                }, 10000);
+                btnDone.textContent = '✓ Hoàn thành';
+            }
+            // Clear any existing auto-return timer
+            if (window._autoReturnTimer) {
+                clearInterval(window._autoReturnTimer);
+                window._autoReturnTimer = null;
             }
             
             // Update project UI if in project context
