@@ -442,10 +442,16 @@ function saveAppConfig() {
 let currentModelInfo = null; // cache model info
 
 function loadModels() {
+    const sel = document.getElementById('model');
+    if (sel) {
+        sel.innerHTML = '<option>Đang tải models...</option>';
+        sel.disabled = true;
+    }
     const url = '/api/models?full=true';
     fetch(url)
         .then(r => r.json())
         .then(data => {
+            if (sel) sel.disabled = false;
             if (data.models && data.models.length > 0) availableModels = data.models;
             
             const renderOptions = (models, currentDefault) => {
