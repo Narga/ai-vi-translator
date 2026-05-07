@@ -124,6 +124,23 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
   display: block;
 }
 
+/* Info Tab Sub-tabs */
+#info-tab-style-guide:checked ~ .nt-tab-nav label[for="info-tab-style-guide"],
+#info-tab-relationship:checked ~ .nt-tab-nav label[for="info-tab-relationship"],
+#info-tab-glossary:checked ~ .nt-tab-nav label[for="info-tab-glossary"],
+#info-tab-summary:checked ~ .nt-tab-nav label[for="info-tab-summary"] {
+  color: #111;
+  border-bottom: 2px solid var(--primary);
+  font-weight: 600;
+}
+
+#info-tab-style-guide:checked ~ .nt-tab-panels #info-panel-style-guide,
+#info-tab-relationship:checked ~ .nt-tab-panels #info-panel-relationship,
+#info-tab-glossary:checked ~ .nt-tab-panels #info-panel-glossary,
+#info-tab-summary:checked ~ .nt-tab-panels #info-panel-summary {
+  display: block;
+}
+
 #system-tab-main:checked ~ .nt-tab-nav label[for="system-tab-main"],
 #system-tab-summary:checked ~ .nt-tab-nav label[for="system-tab-summary"],
 #system-tab-relationships:checked ~ .nt-tab-nav label[for="system-tab-relationships"],

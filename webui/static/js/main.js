@@ -954,8 +954,11 @@ function switchProjectTab(tab) {
         if (currentProject) {
             if (tab === 'prompt') {
                 loadProjectPrompts();
-            } else if (['style-guide', 'relationship', 'glossary', 'summary'].includes(tab)) {
-                loadGuidelineTab(tab);
+            } else if (tab === 'info') {
+                loadGuidelineTab('style-guide');
+                loadGuidelineTab('relationship');
+                loadGuidelineTab('glossary');
+                loadGuidelineTab('summary');
             } else if (tab === 'spellcheck') {
                 renderProjectSpellcheckSources(currentProject.sources || []);
             }
@@ -2158,31 +2161,23 @@ function hideProgressModal() {
 }
 
 function closeProgress() {
-    const workspaceSources = document.getElementById('workspace-sources');
-    const workspaceProgress = document.getElementById('workspace-progress');
-    if(workspaceSources) workspaceSources.classList.remove('dn');
-    if(workspaceProgress) workspaceProgress.classList.add('dn');
-    
     if (typeof selectedFiles !== 'undefined' && selectedFiles) {
         selectedFiles.clear();
         updateSelectAllButton();
     }
-    
+
     if (typeof currentProject !== 'undefined' && currentProject) {
         selectProject(currentProject.slug, true);
     }
-    
-    if(window._autoReturnTimer) {
+
+    if (window._autoReturnTimer) {
         clearInterval(window._autoReturnTimer);
         window._autoReturnTimer = null;
     }
-    
-    // Hide the modal (but don't stop SSE - translation continues)
-    const modal = document.getElementById('translation-progress-modal');
-    if (modal) {
-        modal.classList.add('dn');
-        modal.classList.remove('flex');
-    }
+
+    // Use ModalManager.hide to correctly clear inline style.display
+    // and restore body.overflow (both set by ModalManager.show)
+    ModalManager.hide('translation-progress-modal');
 }
 
 function startTranslation() {
