@@ -50,8 +50,52 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .sidebar-item.active { border-left-color: var(--primary); background: #f1f7ff; color: var(--primary); font-weight: 600; }
 
 /* Editor Containers */
-.editor-container { display: flex; flex: 1; min-height: 0; width: 100%; }
+.editor-container { display: flex; flex: 1; min-height: 0; width: 100%; min-height: 420px; }
 .editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.editor-textarea { resize: none; }
+.editor-textarea-fill { flex: 1; min-height: 0; }
+
+/* Resizable File List Box */
+.file-list-box {
+    height: 350px;
+    overflow-y: auto;
+    resize: vertical;
+    min-height: 150px;
+    max-height: 600px;
+}
+
+/* Sticky Table Header */
+.sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Model Select Small */
+.model-select-sm {
+    height: 28px;
+}
+
+/* Info Textarea (full-width under editor) */
+.info-panel {
+    margin-top: 1rem;
+}
+
+/* Info textarea min-height */
+.info-textarea {
+    min-height: 400px;
+    resize: vertical;
+}
+
+/* No Resize Textarea */
+.no-resize {
+    resize: none;
+}
+
+/* Checkbox Column Width */
+.col-checkbox {
+    width: 40px;
+}
 
 /* Minimal Table Overrides */
 .minimal-table { width: 100%; border-collapse: collapse; }

@@ -45,8 +45,8 @@
                              <div id="ptab-workspace" class="nt-ptab-content flex-auto flex flex-column overflow-y-auto pa3">
                                 
                                 <!-- Source Table Block -->
-                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
-                                    <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                 <div class="flex-shrink-0 ba b--black-10 br2 bg-white mb3 shadow-sm file-list-box">
+                                     <div class="pa3 bb b--black-10 flex justify-between items-center bg-near-white sticky-top">
                                          <div>
                                               <input type="file" id="upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
                                               <button class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="document.getElementById('upload-source-file').click()">📤 Tải lên</button>
@@ -58,7 +58,7 @@
                                         <table class="minimal-table w-100 collapse f7">
                                             <thead>
                                                 <tr class="bg-near-white silver tc tracked uppercase">
-                                                    <th class="pa2 bb b--black-05" style="width: 40px"><input type="checkbox" id="chk-select-all-sources" onclick="selectAllProjectFiles()"></th>
+                                                    <th class="pa2 bb b--black-05 col-checkbox"><input type="checkbox" id="chk-select-all-sources" onclick="selectAllProjectFiles()"></th>
                                                     <th class="pa2 tl bb b--black-05">Tên tệp</th>
                                                     <th class="pa2 tl bb b--black-05">Kích thước</th>
                                                     <th class="pa2 tl bb b--black-05">Trạng thái</th>
@@ -74,7 +74,7 @@
 
                                 <!-- Integrated Editor Block (Side-by-Side) -->
                                 <div id="workspace-editor" class="pv2 flex flex-column">
-                                    <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
+                                    <div class="editor-container mb3 flex gap-3">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
@@ -83,7 +83,7 @@
                                                     <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('source-text')" title="Tìm trong văn bản">🔍</button>
                                                 </div>
                                             </div>
-                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate();DirtyState.mark('source-text')" style="resize:none"></textarea>
+                                            <textarea id="source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateTokenEstimate();DirtyState.mark('source-text')" class="no-resize></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
@@ -95,7 +95,7 @@
                                                     <button id="btn-save-translation" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">💾 Lưu</button>
                                                 </div>
                                             </div>
-                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('result-text')" style="resize:none"></textarea>
+                                            <textarea id="result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('result-text')" class="no-resize></textarea>
                                         </div>
                                     </div>
                                     
@@ -115,8 +115,8 @@
                             </div>
 
                             <div id="ptab-translated" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
-                                <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
-                                    <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                <div class="flex-shrink-0 ba b--black-10 br2 bg-white mb3 shadow-sm file-list-box">
+                                    <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top">
                                         <button id="btn-merge-translated" class="pointer ph3 pv1 f7 bn white bg-dark-green br2 shadow-1 hover-bg-green fw6" onclick="mergeTranslatedFiles()">🧩 Ghép tập tin</button>
                                     </div>
                                     <div class="overflow-x-auto">
@@ -134,7 +134,7 @@
                                 </div>
 
                                 <div id="translated-editor" class="pv2 flex flex-column">
-                                    <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
+                                    <div class="editor-container mb3 flex gap-3">
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
@@ -143,7 +143,7 @@
                                                     <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('translated-source-text')" title="Tìm trong văn bản">🔍</button>
                                                 </div>
                                             </div>
-                                            <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." oninput="DirtyState.mark('translated-source-text')" style="resize:none"></textarea>
+                                            <textarea id="translated-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file dịch để xem bản gốc..." oninput="DirtyState.mark('translated-source-text')" class="no-resize></textarea>
                                         </div>
                                         <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                             <div class="pa2 bb b--black-10 flex justify-between items-center bg-near-white">
@@ -153,7 +153,7 @@
                                                     <button id="btn-save-translated" class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveTranslatedFile()">💾 Lưu</button>
                                                 </div>
                                             </div>
-                                            <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('translated-result-text')" style="resize:none"></textarea>
+                                            <textarea id="translated-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bản dịch của file đã chọn sẽ hiển thị tại đây..." oninput="DirtyState.mark('translated-result-text')" class="no-resize></textarea>
                                         </div>
                                     </div>
                                     
@@ -194,52 +194,52 @@
                                     <section id="info-panel-style-guide" class="nt-tab-panel h-100">
                                         <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
                                             <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
-                                            <select id="style-guide-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                        <select id="style-guide-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto">
                                                 <option value="">— Chọn Model —</option>
                                             </select>
                                             <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('style_guide')">✨ Generate</button>
                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('style_guide')">💾 Lưu</button>
                                         </div>
-                                        <textarea id="guide-style-guide" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Mô tả tone, phong cách dịch, các quy tắc cần tuân thủ..."></textarea>
+                                        <textarea id="guide-style-guide" class="info-textarea ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" placeholder="Mô tả tone, phong cách dịch, các quy tắc cần tuân thủ..."></textarea>
                                     </section>
 
                                     <!-- Mối quan hệ -->
                                     <section id="info-panel-relationship" class="nt-tab-panel h-100">
                                         <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
                                             <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
-                                            <select id="relationship-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                            <select id="relationship-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto">
                                                 <option value="">— Chọn Model —</option>
                                             </select>
                                             <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('relationship')">✨ Generate</button>
                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('relationship')">💾 Lưu</button>
                                         </div>
-                                        <textarea id="guide-relationship" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Tên gốc | Tên dịch | Vai trò | Mối quan hệ..."></textarea>
+                                        <textarea id="guide-relationship" class="info-textarea ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" placeholder="Tên gốc | Tên dịch | Vai trò | Mối quan hệ..."></textarea>
                                     </section>
 
                                     <!-- Thuật ngữ -->
                                     <section id="info-panel-glossary" class="nt-tab-panel h-100">
                                         <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
                                             <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
-                                            <select id="glossary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                            <select id="glossary-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto">
                                                 <option value="">— Chọn Model —</option>
                                             </select>
                                             <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('glossary')">✨ Generate</button>
                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('glossary')">💾 Lưu</button>
                                         </div>
-                                        <textarea id="guide-glossary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="Thuật ngữ gốc | Thuật ngữ dịch | Ghi chú..."></textarea>
+                                        <textarea id="guide-glossary" class="info-textarea ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" placeholder="Thuật ngữ gốc | Thuật ngữ dịch | Ghi chú..."></textarea>
                                     </section>
 
                                     <!-- Tóm tắt -->
                                     <section id="info-panel-summary" class="nt-tab-panel h-100">
                                         <div class="flex items-center gap-2 mb3 pa2 bg-near-white br2 ba b--black-05">
                                             <span class="f7 fw6 gray mr2">✨ AI Generate:</span>
-                                            <select id="summary-model" class="f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto" style="height:28px">
+                                            <select id="summary-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0 flex-auto">
                                                 <option value="">— Chọn Model —</option>
                                             </select>
                                             <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('summary')">✨ Generate</button>
                                             <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('summary')">💾 Lưu</button>
                                         </div>
-                                        <textarea id="guide-summary" class="ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" style="min-height:400px; resize:vertical" placeholder="AI Generate hoặc viết tóm tắt cốt truyện tại đây..."></textarea>
+                                        <textarea id="guide-summary" class="info-textarea ba b--black-10 br2 pa3 w-100 f7 lh-copy outline-0 flex-auto" placeholder="AI Generate hoặc viết tóm tắt cốt truyện tại đây..."></textarea>
                                     </section>
                                 </div>
                             </div>
@@ -288,19 +288,19 @@
 
                                       <div class="nt-tab-panels flex-auto">
                                           <section id="project-panel-main" class="nt-tab-panel h-100">
-                                              <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt dịch thuật dự án..."></textarea>
+                                              <textarea id="proj-prompt-main" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" class="no-resize placeholder="Prompt dịch thuật dự án..."></textarea>
                                           </section>
                                           <section id="project-panel-summary" class="nt-tab-panel h-100">
-                                              <textarea id="proj-prompt-summary" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt tóm tắt dự án..."></textarea>
+                                              <textarea id="proj-prompt-summary" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" class="no-resize placeholder="Prompt tóm tắt dự án..."></textarea>
                                           </section>
                                           <section id="project-panel-relationships" class="nt-tab-panel h-100">
-                                              <textarea id="proj-prompt-relationships" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt mối quan hệ dự án..."></textarea>
+                                              <textarea id="proj-prompt-relationships" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" class="no-resize placeholder="Prompt mối quan hệ dự án..."></textarea>
                                           </section>
                                           <section id="project-panel-glossary" class="nt-tab-panel h-100">
-                                              <textarea id="proj-prompt-glossary" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt thuật ngữ dự án..."></textarea>
+                                              <textarea id="proj-prompt-glossary" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" class="no-resize placeholder="Prompt thuật ngữ dự án..."></textarea>
                                           </section>
                                           <section id="project-panel-chinh-ta" class="nt-tab-panel h-100">
-                                              <textarea id="proj-prompt-chinh-ta" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" style="resize:none" placeholder="Prompt soát lỗi dự án..."></textarea>
+                                              <textarea id="proj-prompt-chinh-ta" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 h-100" class="no-resize placeholder="Prompt soát lỗi dự án..."></textarea>
                                           </section>
                                       </div>
                                       <div class="prompt-help-block">
@@ -319,15 +319,15 @@
 
                                 <!-- Kiểm tra chính tả Section -->
                                <div id="ptab-spellcheck" class="nt-ptab-content dn flex-auto flex flex-column overflow-y-auto pa3">
-                                   <div class="flex-shrink-0 ba b--black-10 br2 overflow-hidden bg-white mb3 shadow-sm" style="height: 350px; overflow-y: auto; resize: vertical; min-height: 150px; max-height: 600px;">
-                                       <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top" style="position: sticky; top: 0; z-index: 10;">
+                                   <div class="flex-shrink-0 ba b--black-10 br2 bg-white mb3 shadow-sm file-list-box">
+                                        <div class="pa3 bb b--black-10 flex justify-end items-center bg-near-white sticky-top">
                                            <button id="btn-spellcheck-selected" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6" onclick="spellcheckSelectedInProject()">🔤 Soát được chọn</button>
                                        </div>
                                        <div class="overflow-x-auto">
                                            <table class="minimal-table w-100 collapse f7">
                                                <thead>
                                                    <tr class="bg-near-white silver tc tracked uppercase">
-                                                       <th class="pa2 bb b--black-05" style="width: 40px"><input type="checkbox" onclick="selectAllProjectFiles()" id="chk-select-all-spellcheck"></th>
+                                                       <th class="pa2 bb b--black-05 col-checkbox"><input type="checkbox" onclick="selectAllProjectFiles()" id="chk-select-all-spellcheck"></th>
                                                        <th class="pa2 tl bb b--black-05">Tên tệp</th>
                                                        <th class="pa2 tl bb b--black-05">Kích thước</th>
                                                        <th class="pa2 tl bb b--black-05">Trạng thái</th>
@@ -343,7 +343,7 @@
 
                                    <!-- Integrated Editor Block (Side-by-Side with Info) -->
                                    <div id="spellcheck-editor" class="pv2 flex flex-column">
-                                       <div class="editor-container mb3 flex gap-3" style="min-height: 420px;">
+                                       <div class="editor-container mb3 flex gap-3">
                                            <!-- Source Textarea -->
                                            <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
                                                <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
@@ -353,7 +353,7 @@
                                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('spell-source-text')" title="Tìm trong văn bản">🔍</button>
                                                    </div>
                                                </div>
-                                                <textarea id="spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateSpellcheckTokenEstimate();DirtyState.mark('spell-source-text')" style="resize:none"></textarea>
+                                                <textarea id="spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Chọn một file từ danh sách phía trên để nạp nội dung nguồn..." oninput="updateSpellcheckTokenEstimate();DirtyState.mark('spell-source-text')" class="no-resize></textarea>
                                             </div>
                                             <!-- Result Textarea -->
                                             <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm">
@@ -366,16 +366,16 @@
                                                     </div>
                                                     <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
                                                 </div>
-                                                <textarea id="spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung sau khi kiểm tra chính tả sẽ hiển thị tại đây..." oninput="DirtyState.mark('spell-result-text')" style="resize:none"></textarea>
+                                                <textarea id="spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Nội dung sau khi kiểm tra chính tả sẽ hiển thị tại đây..." oninput="DirtyState.mark('spell-result-text')" class="no-resize></textarea>
                                            </div>
                                        </div>
 
                                        <!-- Info Textarea (full width) -->
-                                       <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm" style="margin-top: 1rem;">
+                                       <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column overflow-hidden shadow-sm info-panel">
                                            <div class="pa2 bb b--black-10 flex items-center bg-near-white">
                                                <span class="f7 fw6 gray uppercase tracked">Thông tin chi tiết</span>
                                            </div>
-                                           <textarea id="spell-info-text" class="flex-auto bn pa3 f6 lh-copy outline-0" placeholder="Bảng liệt kê vị trí và danh sách các từ đã sửa..." style="resize:none;"></textarea>
+                                            <textarea id="spell-info-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Bảng liệt kê vị trí và danh sách các từ đã sửa..."></textarea>
                                        </div>
 
                                        <!-- Token & Quick Actions -->
