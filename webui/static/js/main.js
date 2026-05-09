@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadApiKeys();
     initProvider();  // Load active AI provider state
     initProjectDialog();  // Wire project creation modal
+    initFocusMode();      // Restore Focus Mode from localStorage
 
     // Click-outside to close Project Info Modal
     const projInfoModal = document.getElementById('project-info-modal');
@@ -165,6 +166,31 @@ function initTabs() {
             }
         });
     });
+}
+
+function initFocusMode() {
+    const saved = localStorage.getItem('nt_focus_mode');
+    if (saved === 'true') {
+        applyFocusMode(true);
+    }
+}
+
+function toggleFocusMode() {
+    const active = !document.body.classList.contains('focus-mode');
+    localStorage.setItem('nt_focus_mode', active);
+    applyFocusMode(active);
+}
+
+function applyFocusMode(active) {
+    const btn = document.getElementById('btn-focus-mode');
+
+    if (active) {
+        document.body.classList.add('focus-mode');
+        if (btn) btn.textContent = '🖥️ Thoát tập trung';
+    } else {
+        document.body.classList.remove('focus-mode');
+        if (btn) btn.textContent = '🖥️ Chế độ tập trung';
+    }
 }
 
 function initDialogs() {
@@ -640,6 +666,17 @@ document.addEventListener('keydown', function(e) {
     if (!currentProject) return;
 
     var rows = document.querySelectorAll('#project-source-table-body tr');
+    
+    // Esc = thoát Focus Mode
+    if (e.key === 'Escape') {
+        const isFocus = document.body.classList.contains('focus-mode');
+        if (isFocus) {
+            e.preventDefault();
+            toggleFocusMode();
+        }
+        return;
+    }
+
     if (!rows.length) return;
 
     // J = next file, K = previous file (vim-style)
@@ -880,7 +917,7 @@ function renderProjectSources(sources) {
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
                 ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
-                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
+                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chờ</span>`;
             
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
@@ -1309,8 +1346,8 @@ function toggleProjectFile(name, checked) {
 function updateSelectAllButton() {
     const btn = document.getElementById('btn-select-all');
     const chks = document.querySelectorAll('#chk-select-all-sources, #chk-select-all-spellcheck');
-    const chunkBtn = document.getElementById('btn-chunk-selected');
-    
+    const countSpan = document.getElementById('selected-files-count');
+
     if (btn) {
         if (selectedFiles.size > 0) {
             btn.innerHTML = `✓ Chọn hết (${selectedFiles.size})`;
@@ -1322,16 +1359,17 @@ function updateSelectAllButton() {
             btn.classList.remove('nt-btn-primary');
         }
     }
-    
-    // Toggle chunk button visibility
-    if (chunkBtn) {
+
+    // Hiển thị số lượng tập tin đã chọn bên cạnh nút Dịch (không nhúng vào nút)
+    if (countSpan) {
         if (selectedFiles.size > 0) {
-            chunkBtn.classList.remove('dn');
+            countSpan.textContent = `Đã chọn ${selectedFiles.size} tập tin`;
+            countSpan.classList.remove('dn');
         } else {
-            chunkBtn.classList.add('dn');
+            countSpan.classList.add('dn');
         }
     }
-    
+
     if (chks.length > 0 && currentProject && currentProject.sources) {
         const isAllSelected = (selectedFiles.size > 0 && selectedFiles.size === currentProject.sources.length);
         const isIndeterminate = (selectedFiles.size > 0 && selectedFiles.size < currentProject.sources.length);
@@ -1507,7 +1545,7 @@ function renderProjectSpellcheckSources(sources) {
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
                 ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
-                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chưa</span>`;
+                : `<span class="f7 bg-washed-yellow gold pa1 br2 fw6">⏳ Chờ</span>`;
             return `<tr>
                 <td class="tc"><input type="checkbox" ${checked} onchange="toggleProjectFile('${esc}',this.checked)"></td>
                 <td><div class="fw6 blue pointer underline-hover" onclick="loadSpellcheckFile('${esc}')">${esc}</div></td>
@@ -2416,17 +2454,27 @@ function addLog(message, type) {
 }
 
 function resetButton(btn, isBatch = false) {
-    if (isBatch || (btn && btn.id === 'btn-translate-selected')) {
+    if (btn) {
+        btn.disabled = false;
+        if (btn.id === 'btn-translate-selected') {
+            btn.innerHTML = `🚀 Dịch đã chọn`;
+        } else if (btn.id === 'btn-spellcheck-selected') {
+            btn.innerHTML = `🔤 Soát được chọn`;
+        } else {
+            btn.innerHTML = '🚀 Dịch Nội Dung';
+        }
+    } else if (isBatch) {
+        // Fallback: batch mode không truyền btn
         const batchBtn = document.getElementById('btn-translate-selected');
         if (batchBtn) {
             batchBtn.disabled = false;
-            batchBtn.innerHTML = `🚀 Dịch <span id="btn-translate-count">${selectedFiles.size} file</span> đã chọn`;
+            batchBtn.innerHTML = `🚀 Dịch đã chọn`;
         }
     } else {
-        if (!btn) btn = document.getElementById('translate-btn');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '🚀 Dịch Nội Dung';
+        const singleBtn = document.getElementById('translate-btn');
+        if (singleBtn) {
+            singleBtn.disabled = false;
+            singleBtn.innerHTML = '🚀 Dịch Nội Dung';
         }
     }
 }

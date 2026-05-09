@@ -111,6 +111,14 @@ Hệ thống sử dụng cơ chế lưu trữ Cache hiện đại:
 - **Định dạng an toàn**: Toàn bộ dữ liệu được lưu dưới dạng `JSON` nén (Gzip) thay vì `pickle` cũ, giúp ngăn chặn các rủi ro bảo mật và dễ dàng kiểm tra nội dung.
 - **Tự động hóa**: Cache được tự động nén để tiết kiệm dung lượng đĩa cứng. Bạn có thể xóa Cache thông qua tab Cấu hình trên WebUI.
 
+### 🛠️ Công cụ Editor & Ghép tập tin
+Giao diện Editor tích hợp các công cụ giúp tối ưu hóa việc kiểm soát chất lượng bản dịch:
+- **↩️ Wrap (Ngắt dòng)**: Tự động xuống dòng văn bản để hiển thị vừa vặn trong khung soạn thảo mà không cần cuộn ngang. Hữu ích khi làm việc với các đoạn văn dài.
+- **📊 Diff (So sánh)**: Hiển thị sự khác biệt giữa nội dung nguồn và nội dung đích trong một cửa sổ modal chuyên biệt, giúp bạn dễ dàng đối soát các thay đổi hoặc lỗi mất đoạn.
+- **🧩 Ghép tập tin (Smart Merge)**: 
+    - Cho phép gộp tất cả các file đã dịch lẻ tẻ thành một tập tin duy nhất (thường dùng để xuất bản chương/truyện hoàn chỉnh).
+    - **Logic sắp xếp**: Hệ thống sử dụng thuật toán **Natural Sort** (sắp xếp tự nhiên), đảm bảo thứ tự "Chương 2" luôn nằm trước "Chương 10", thay vì sắp xếp theo kiểu chữ cái truyền thống.
+
 ---
 
 ## 6. Quản Lý Chỉ Dẫn (Prompt Management)
@@ -141,4 +149,4 @@ Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập ch�
 - **Xử lý Dependency**: Nếu một module báo thiếu thư viện (ví dụ: `pdfplumber`), hệ thống sẽ cố gắng tự động cài đặt qua `lazy_import_and_install`. Nếu thất bại, hãy chạy `pip install pdfplumber`.
 
 ---
-*Phiên bản tài liệu: 2.2 - Ngày cập nhật: 06/05/2026*
+*Phiên bản tài liệu: 2.3 - Ngày cập nhật: 09/05/2026*

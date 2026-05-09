@@ -4,6 +4,23 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.9.1] - 2026-05-09
+### 🎨 UI/UX & Chế độ tập trung (UI Remediation - Phase 1)
+- **Global Focus Mode**: Di chuyển nút "Chế độ tập trung" lên Header chính, giúp tính năng khả dụng trên toàn bộ ứng dụng.
+- **CSS-Driven Layout**: Tối ưu hóa việc ẩn/hiện Sidebar và Header dự án bằng CSS classes thay vì thao tác DOM trực tiếp, tăng độ mượt mà và ổn định.
+- **Persistence & Shortcuts**: Tích hợp `localStorage` để ghi nhớ trạng thái tập trung và hỗ trợ phím tắt `Escape` để thoát nhanh.
+- **Standardized Labels**: Việt hóa và đồng bộ hóa các nhãn trạng thái tập tin (từ "Chưa" sang "Chờ").
+
+### 🔧 Sửa lỗi & Chuẩn hóa (Bugfixes & Cleanup)
+- **HTML Syntax Fixes**: Khắc phục lỗi sai cú pháp class attribute trong các editor textarea gây lỗi hiển thị trên một số trình duyệt.
+- **Tab Reorganization**: Sắp xếp lại thứ tự các tab Project Workspace theo quy trình làm việc thực tế: Nội dung gốc | Nội dung dịch | Kiểm chính tả | Thông tin | Chỉ dẫn.
+
+### 📝 Tài liệu (Documentation)
+- **Manual Update**: Bổ sung hướng dẫn chi tiết cho các công cụ Editor (Wrap, Diff) và logic Ghép tập tin (Smart Merge).
+- **Remediation Roadmap**: Cập nhật lộ trình Phase 2 & 3 để chuẩn bị cho việc đồng bộ hóa Layout và Backend Status API.
+
+---
+
 ## [6.9.0] - 2026-05-06
 ### 🏗️ Tái cấu trúc & Mô-đun hóa (Architecture Refactor - Remediation Phase 3)
 - **OCR Engine De-monolithization**: Phân rã file `ocr_engine.py` khổng lồ (~7,700 dòng) thành kiến trúc đa lớp (Layered Architecture) trong thư mục `plugins/ocr/modules/`.

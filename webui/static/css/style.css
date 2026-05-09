@@ -430,3 +430,14 @@ button.bg-green:hover, .bg-green:hover {
   visibility: visible;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ============================================================ */
+/* Focus Mode CSS Rules                                         */
+/* ============================================================ */
+body.focus-mode .sidebar {
+    display: none !important;
+}
+
+body.focus-mode #project-header-block {
+    display: none !important;
+}
