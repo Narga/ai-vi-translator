@@ -11,8 +11,10 @@ Hệ thống được chia thành 5 phân vùng chính:
 
 ### A. WebUI & Routes (Giao diện & Điều hướng)
 - **Clusters**: `Webui`, `Routes`
-- **Nhiệm vụ**: Cung cấp giao diện người dùng Flask, quản lý các điểm cuối API cho Dự án, Cấu hình, và Chỉ dẫn (Prompts).
-- **Files chính**: `webui/__init__.py`, `webui/routes/*.py`.
+- **Nhiệm vụ**: Cung cấp giao diện người dùng Flask, quản lý các điểm cuối API.
+- **UI Structure (v6.9.3)**: Hệ thống 5-Tab hợp nhất (Nội dung gốc, Nội dung dịch, Kiểm chính tả, Thông tin, Chỉ dẫn) với cơ chế Sub-tabs (radio-based) cho phần Thông tin.
+- **State Persistence**: Sử dụng `localStorage` để duy trì trạng thái làm việc (active tabs, project selection) xuyên suốt các phiên làm việc.
+- **Files chính**: `webui/__init__.py`, `webui/routes/*.py`, `webui/static/js/main.js`.
 
 ### B. Core Executors (Bộ thực thi lõi)
 - **Clusters**: `Services`, `Cluster_4`

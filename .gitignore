@@ -69,8 +69,15 @@ Desktop.ini
 *.pem
 *.key
 .antigravity/
-.agent/*
+.agent/
+.agents/
+.claude/
+skills-lock.json
 .gitnexus
 .acms/
 uv.lock
 .acms/media/
+
+# Linter caches
+.ruff_cache/
+.stylelint_cache/

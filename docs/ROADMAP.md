@@ -33,25 +33,22 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] **Real-time Progress Logs**: Đẩy log hệ thống trực tiếp lên UI modal.
 - [x] **UI Polish**: Chuẩn hóa icon, căn chỉnh nút và tối ưu khối thông tin.
 
-### 🛡️ 6.9 Remediation & Modularization (v6.9 - CURRENT)
+### 🛡️ 6.9 Remediation & Modularization (v6.9.3 - DONE)
 - [x] **Security Hardening**: Vá lỗ hổng Path Traversal và bảo mật Host binding.
 - [x] **Monolith Decomposition**: Phân rã `ocr_engine.py` (7.7k lines) thành kiến trúc module lớp.
 - [x] **Cache Modernization**: Loại bỏ `pickle`, chuyển sang `JSON Gzip` an toàn.
 - [x] **Core Refactoring**: Loại bỏ mã nguồn trùng lặp và fix hàng loạt bare excepts.
+- [x] **UI/UX Remediation**: Sửa lỗi HTML, hệ thống 5-Tab, Persistence và Smart Merge.
 - [ ] **Frontend Modularization**: Tách `main.js` (3k lines) thành các ES modules chuyên biệt.
 - [ ] **Unit Testing Foundation**: Xây dựng bộ khung test cho core logic (Chunker, Cache).
 
-### 💾 6.9 Future Readiness (Current)
-*Xem chi tiết tại [CONTINUATION_PLAN.md](file:///Users/narga/Briefcase/Projects/Novel-Translator/docs/plan/CONTINUATION_PLAN.md)*
+### 💾 7.0 High-Fidelity Pipeline & Advanced AI (Next)
+*Xem chi tiết tại [report-2026.05.09.md](file:///Users/narga/Briefcase/Projects/Novel-Translator/docs/report-2026.05.09.md)*
+- [ ] **HTML <template> Refactor**: Đồng bộ hóa logic render bằng HTML templates.
+- [ ] **EPUB/HTML Fidelity Pipeline**: Dịch bảo toàn cấu trúc DOM, ảnh và CSS cho EPUB/HTML.
 - [ ] **Progressive Batch Translation**: Hỗ trợ hàng đợi dịch nhiều file với thanh tiến độ tổng thể.
-- [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án để khôi phục khi cần.
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor và cho phép áp dụng nhanh.
-
-### 🛠️ 6.x Bảo toàn cấu trúc & Định dạng (Next)
-- [ ] **HTML/Markdown Preservation**: Thuật toán bảo toàn thẻ tag khi dịch nội dung phức tạp.
-- [ ] **EPUB/MOBI Output**: Hoàn thiện tích hợp xuất bản tài liệu sau dịch.
-- [ ] **Advanced OCR Engines**: Tích hợp các engine OCR mạnh mẽ hơn hoặc Cloud OCR.
-- [ ] **UI Modernization Phase 1**: Thực hiện kế hoạch cải tiến giao diện.
+- [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án.
 
 ---
 
