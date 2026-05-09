@@ -4,6 +4,18 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.0.0] - 2026-05-09
+### 🧭 Separation Roadmap & Governance
+- **Kế hoạch tách backend dùng chung**: Bổ sung bộ tài liệu `docs/separation/` để chuẩn hóa lộ trình tách backend dùng chung cho CLI và WebUI, theo hướng `modular monolith` trước, tách adapter sau.
+- **15 phase tuần tự**: Chia toàn bộ quá trình thành 15 phase nhỏ, có thứ tự, tiêu chí hoàn tất, điều kiện dừng và rollback rõ ràng để phù hợp với model nhẹ và thao tác an toàn.
+- **Execution note template**: Thêm mẫu thực thi bắt buộc trước mỗi phase, ghi rõ phạm vi, file được phép chạm, symbol cần kiểm tra bằng GitNexus, smoke check và điều kiện dừng.
+- **Phase 13 decomposition**: Tách Phase 13 thành 5 sub-plan riêng cho CRUD, file operations, prompts/assets, archive và translation memory để tránh một phase quá lớn.
+- **Nguyên tắc sinh/sửa mã**: Chuẩn hóa lại quy tắc tận dụng mã sẵn có, không sinh mã inline khi đã có template, chỉnh sửa tối giản, kiểm tra sau mỗi phase và không tự động commit/changelog.
+
+### 📝 Documentation Alignment
+- **Context Restore & Planning**: Cập nhật tài liệu kế hoạch để phản ánh hiện trạng logic chạy của dự án, blast radius của các symbol chính, và định hướng refactor an toàn cho CLI/WebUI.
+- **Version Marking**: Đánh dấu mốc **7.0.0** cho giai đoạn tái cấu trúc kiến trúc và chuẩn bị phân tách backend.
+
 ## [6.9.3] - 2026-05-09
 ### 🛠️ Khắc phục & Hoàn thiện UI Remediation (Final)
 - **Cấu trúc DOM bền vững**: Sửa lỗi nghiêm trọng thiếu thẻ đóng HTML trong `tab_workspace.html` gây hiện tượng lồng thẻ và trang trắng (blank page) ở các tab phụ.
