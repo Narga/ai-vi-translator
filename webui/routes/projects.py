@@ -241,6 +241,7 @@ def get_project(slug):
             "sources": sources,
             "translated": translated,
             "profile_files": profile_files,
+            "file_status": meta.get("file_status", {}),
         }
     )
 
@@ -259,6 +260,35 @@ def update_project(slug):
     meta["updated_at"] = datetime.now().isoformat()
     _save_project_meta(slug, meta)
     return jsonify({"success": True, "meta": meta})
+
+
+VALID_FILE_STATUSES = {"Chờ", "Xong"}
+
+@projects_bp.route("/api/projects/<slug>/file-status", methods=["PUT"])
+def update_project_file_status(slug):
+    """Cập nhật trạng thái của một file (Chờ / Xong)."""
+    meta = _load_project_meta(slug)
+    if not meta:
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json or {}
+    filename = data.get("filename")
+    status = data.get("status")
+
+    if not filename or not status:
+        return jsonify({"error": "Thiếu thông tin filename hoặc status"}), 400
+
+    if status not in VALID_FILE_STATUSES:
+        return jsonify({"error": f"Trạng thái không hợp lệ. Chỉ chấp nhận: {', '.join(VALID_FILE_STATUSES)}"}), 400
+
+    if "file_status" not in meta:
+        meta["file_status"] = {}
+
+    meta["file_status"][filename] = status
+    meta["updated_at"] = datetime.now().isoformat()
+
+    _save_project_meta(slug, meta)
+    return jsonify({"success": True, "file_status": meta["file_status"]})
 
 
 @projects_bp.route("/api/projects/<slug>", methods=["DELETE"])

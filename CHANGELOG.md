@@ -4,6 +4,20 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [6.9.3] - 2026-05-09
+### 🛠️ Khắc phục & Hoàn thiện UI Remediation (Final)
+- **Cấu trúc DOM bền vững**: Sửa lỗi nghiêm trọng thiếu thẻ đóng HTML trong `tab_workspace.html` gây hiện tượng lồng thẻ và trang trắng (blank page) ở các tab phụ.
+- **Duy trì trạng thái làm việc (Persistence)**:
+    - Tích hợp `localStorage` để ghi nhớ chính xác Tab chính, Sub-tab dự án và Thẻ thông tin (Mô tả, Thuật ngữ...) sau khi tải lại trang.
+    - Tự động tô sáng (Highlight) dự án đang làm việc trong sidebar và duy trì lựa chọn khi refresh.
+- **Tối ưu trải nghiệm (UX)**:
+    - Di chuyển Toast Notification sang góc dưới bên trái để tránh che khuất các phần tử giao diện chính.
+    - Bổ sung Tooltip và Bảng chú giải hành động (🔤, ✏️, 🗑️) trong tab Kiểm chính tả giúp người dùng dễ dàng làm quen.
+- **Smart Merge & Natural Sort**: Hoàn thiện logic ghép tập tin thông minh, hỗ trợ sắp xếp theo thứ tự tự nhiên (chunk_2 < chunk_10) và ưu tiên các file được chọn qua checkbox.
+- **Version Alignment**: Đồng bộ hóa phiên bản hệ thống lên **6.9.3** trong `pyproject.toml` và toàn bộ tài liệu.
+
+---
+
 ## [6.9.1] - 2026-05-09
 ### 🎨 UI/UX & Chế độ tập trung (UI Remediation - Phase 1)
 - **Global Focus Mode**: Di chuyển nút "Chế độ tập trung" lên Header chính, giúp tính năng khả dụng trên toàn bộ ứng dụng.

@@ -115,7 +115,7 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .op-20 { opacity: 0.2; }
 
 /* Toasts */
-#toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1000; }
+#toast-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1000; }
 .toast { background: #1e293b; color: #fff; padding: 0.75rem 1.25rem; border-radius: 6px; margin-top: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; min-width: 250px; }
 .toast.success { border-left: 4px solid #10b981; }
 .toast.error { border-left: 4px solid #ef4444; }
@@ -431,6 +431,7 @@ button.bg-green:hover, .bg-green:hover {
   transform: translateX(-50%) translateY(0);
 }
 
+
 /* ============================================================ */
 /* Focus Mode CSS Rules                                         */
 /* ============================================================ */
@@ -440,4 +441,13 @@ body.focus-mode .sidebar {
 
 body.focus-mode #project-header-block {
     display: none !important;
+}
+
+/* ============================================================ */
+/* Phase 3: Unified Editor Pane — 50/50 Layout                  */
+/* ============================================================ */
+.nt-editor-pane {
+    flex: 0 0 50%;
+    min-width: 0; /* prevents overflow of long content */
+    box-sizing: border-box;
 }

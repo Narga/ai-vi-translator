@@ -4,6 +4,7 @@ let prompts = window.initialPrompts || {};
 let currentOutputFile = '';
 let allFiles = [];
 let selectedFiles = new Set();
+let selectedTranslatedFiles = new Set(); // Phase 3: riêng cho tab Nội dung dịch
 let availableModels = window.initialAvailableModels || [];
 let availableGeminiModels = [];
 let availableOpenAIModels = [];
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initProvider();  // Load active AI provider state
     initProjectDialog();  // Wire project creation modal
     initFocusMode();      // Restore Focus Mode from localStorage
+    restoreAppState();    // Restore Main Tab from localStorage
 
     // Click-outside to close Project Info Modal
     const projInfoModal = document.getElementById('project-info-modal');
@@ -121,6 +123,15 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnUseGenre = document.getElementById('btn-use-genre');
     if (btnUseGenre) btnUseGenre.addEventListener('click', useGenre);
 
+    // Persistence for Info Sub-tabs (Radio buttons)
+    document.querySelectorAll('.nt-tab-radio').forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (radio.checked) {
+                localStorage.setItem('nt_active_info_tab', radio.id);
+            }
+        });
+    });
+
 });
 
 // ============================================================
@@ -150,6 +161,9 @@ function initTabs() {
                 if (typeof stopStatsPolling === 'function') stopStatsPolling();
             }
 
+            // Save state for persistence
+            localStorage.setItem('nt_active_main_tab', targetId);
+
             // Update Nav Classes
             navItems.forEach(n => n.classList.remove('active'));
             item.classList.add('active');
@@ -157,15 +171,38 @@ function initTabs() {
             // Toggle Sections
             sections.forEach(sec => {
                 sec.classList.remove('active');
+                sec.classList.add('dn'); // Đảm bảo tab ẩn đi
             });
             const targetSection = document.getElementById('tab-' + targetId);
             if (targetSection) {
+                targetSection.classList.remove('dn'); // Xóa class ẩn
                 targetSection.classList.add('active');
                 // Auto scroll to top when switching
                 targetSection.scrollTo(0, 0);
             }
         });
     });
+}
+
+function restoreAppState() {
+    // 1. Restore Main Tab
+    const savedMainTab = localStorage.getItem('nt_active_main_tab');
+    if (savedMainTab) {
+        const tabLink = document.querySelector(`.nav-link[data-tab="${savedMainTab}"]`);
+        if (tabLink) tabLink.click();
+    }
+
+    // 2. Restore Project Tab (Handled in selectProject and loadProjects)
+
+    // 3. Restore Info Tab
+    const savedInfoTab = localStorage.getItem('nt_active_info_tab');
+    if (savedInfoTab) {
+        const infoRadio = document.getElementById(savedInfoTab);
+        if (infoRadio) {
+            infoRadio.checked = true;
+            // Also need to manually trigger change if there are listeners (not currently)
+        }
+    }
 }
 
 function initFocusMode() {
@@ -781,8 +818,14 @@ function mergeTranslatedFiles() {
 
      const slug = currentProject.slug;
 
-     // Natural sort helps handling chunk_2.md vs chunk_10.md properly
-     let filesToMerge = translated.map(f => f.name);
+     // Phase 4: Nếu có file được chọn, chỉ ghép những file đó; ngược lại ghép tất cả (fallback)
+     let filesToMerge;
+     if (selectedTranslatedFiles.size > 0) {
+         filesToMerge = Array.from(selectedTranslatedFiles);
+     } else {
+         filesToMerge = translated.map(f => f.name);
+     }
+     // Natural Sort: xử lý đúng thứ tự chunk_2.md < chunk_10.md
      filesToMerge.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
      const outName = `${slug}.txt`;
@@ -842,10 +885,25 @@ function loadProjects() {
             </div>`;
         }).join('');
         
-        // Auto-select first project if none is active
+        // Auto-select project: saved slug or first one
+        const savedSlug = localStorage.getItem('nt_active_project_slug');
         if (!currentProject && projects.length > 0) {
-            selectProject(projects[0].slug, false, true); // Added flag to prevent recursion if needed, though we'll remove the call below too
+            const slugToSelect = savedSlug || projects[0].slug;
+            selectProject(slugToSelect, false, true); 
+        } else if (currentProject) {
+            // Re-highlight if already selected (e.g. on sidebar refresh)
+            updateSidebarHighlight(currentProject.slug);
         }
+    });
+}
+
+function updateSidebarHighlight(slug) {
+    document.querySelectorAll('.sidebar-item').forEach(el => {
+        // We can find the slug from the onclick attribute or data-slug
+        // Since we injected onclick="selectProject('slug')", we check if it contains the slug
+        const isActive = el.getAttribute('onclick').includes(`'${slug}'`);
+        el.classList.toggle('active', isActive);
+        el.classList.toggle('shadow-1', isActive);
     });
 }
 
@@ -863,9 +921,18 @@ function selectProject(slug, keepSelection = false) {
         
         console.log('Project data loaded:', data);
         currentProject = data;
+        localStorage.setItem('nt_active_project_slug', slug);
+        updateSidebarHighlight(slug);
+
+        // Restore project sub-tab if any
+        const savedPTab = localStorage.getItem('nt_active_project_tab');
+        if (savedPTab) {
+            setTimeout(() => switchProjectTab(savedPTab), 50);
+        }
         
         if (!keepSelection) {
             selectedFiles.clear();
+            selectedTranslatedFiles.clear(); // Phase 3: clear cả translated selection
             updateSelectAllButton();
         }
 
@@ -883,13 +950,20 @@ function selectProject(slug, keepSelection = false) {
         renderProjectSources(data.sources || []);
         renderProjectTranslated(data.translated || []);
 
-        // Reset editor content when opening a project
-        const sourceText = document.getElementById('source-text');
-        const resultText = document.getElementById('result-text');
+        // Phase 3: Reset tất cả editor khi đổi dự án
+        const editorIds = [
+            'source-text', 'result-text',
+            'translated-source-text', 'translated-result-text',
+            'spell-source-text', 'spell-result-text'
+        ];
+        editorIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
         const tokenMini = document.getElementById('token-estimate-mini');
-        if (sourceText) sourceText.value = '';
-        if (resultText) resultText.value = '';
         if (tokenMini) tokenMini.classList.add('dn');
+        const translatedTokenMini = document.getElementById('translated-token-estimate');
+        if (translatedTokenMini) translatedTokenMini.classList.add('dn');
         currentProjectFile = null;
         
         // 4. Reset View
@@ -949,17 +1023,29 @@ function renderProjectTranslated(translated) {
     if (!el) return;
 
     if (!translated.length) {
-        el.innerHTML = '<tr><td colspan="3" class="pa3 tc silver i">Chưa có file dịch</td></tr>';
+        el.innerHTML = '<tr><td colspan="5" class="pa3 tc silver i">Chưa có file dịch</td></tr>';
         return;
     }
 
     el.innerHTML = translated.map(f => {
         const esc = escapeHtml(f.name);
+        const checked = selectedTranslatedFiles.has(f.name) ? 'checked' : '';
+        const status = (currentProject.file_status && currentProject.file_status[f.name]) || "Chờ";
+        const isDone = status === "Xong";
+        
+        const statusHtml = isDone
+            ? `<button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="event.stopPropagation();updateFileStatus('${esc}', 'Chờ')" title="Đánh dấu chờ">✔️ Xong</button>`
+            : `<button class="pointer ph2 pv1 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="event.stopPropagation();updateFileStatus('${esc}', 'Xong')" title="Đánh dấu xong">⏳ Chờ</button>`;
+
         return `<tr>
+            <td class="tc"><input type="checkbox" ${checked} onchange="toggleTranslatedFile('${esc}',this.checked)"></td>
             <td>
                 <div class="fw6 blue pointer underline-hover" onclick="loadProjectFile('${esc}','translated')">${esc}</div>
             </td>
             <td class="f7 gray">${f.size_display}</td>
+            <td class="tc">
+                ${statusHtml}
+            </td>
             <td class="tr">
                 <div class="flex justify-end gap-1">
                     <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','translated')" title="Đổi tên">✏️</button>
@@ -969,6 +1055,45 @@ function renderProjectTranslated(translated) {
             </td>
         </tr>`;
     }).join('');
+    updateSelectAllTranslatedButton();
+}
+
+function toggleTranslatedFile(filename, checked) {
+    if (checked) {
+        selectedTranslatedFiles.add(filename);
+    } else {
+        selectedTranslatedFiles.delete(filename);
+    }
+    updateSelectAllTranslatedButton();
+}
+
+function selectAllTranslatedFiles() {
+    const chk = document.getElementById('chk-select-all-translated');
+    const allChecked = chk && chk.checked;
+    if (allChecked) {
+        (currentProject.translated || []).forEach(f => selectedTranslatedFiles.add(f.name));
+    } else {
+        selectedTranslatedFiles.clear();
+    }
+    renderProjectTranslated(currentProject.translated || []);
+}
+
+function updateSelectAllTranslatedButton() {
+    const chk = document.getElementById('chk-select-all-translated');
+    if (!chk || !currentProject) return;
+    const total = (currentProject.translated || []).length;
+    chk.checked = total > 0 && selectedTranslatedFiles.size === total;
+    chk.indeterminate = selectedTranslatedFiles.size > 0 && selectedTranslatedFiles.size < total;
+    // Show count badge
+    const countEl = document.getElementById('selected-translated-count');
+    if (countEl) {
+        if (selectedTranslatedFiles.size > 0) {
+            countEl.textContent = `${selectedTranslatedFiles.size} đã chọn`;
+            countEl.classList.remove('dn');
+        } else {
+            countEl.classList.add('dn');
+        }
+    }
 }
 
 function switchProjectTab(tab) {
@@ -985,6 +1110,7 @@ function switchProjectTab(tab) {
         const target = document.getElementById('ptab-' + tab);
         if (target) {
             target.classList.remove('dn');
+            localStorage.setItem('nt_active_project_tab', tab);
         }
 
         // Load data when switching to content tabs (Safely)
@@ -1003,6 +1129,32 @@ function switchProjectTab(tab) {
     } catch (e) {
         console.error('Error switching tab:', e);
     }
+}
+
+// -----------------------------------------------------------------------------
+// File Status API
+// -----------------------------------------------------------------------------
+function updateFileStatus(filename, status) {
+    if (!currentProject || !currentProject.slug) return;
+    fetch(`/api/projects/${currentProject.slug}/file-status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, status })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        if (!currentProject.file_status) currentProject.file_status = {};
+        currentProject.file_status[filename] = status;
+        
+        // Re-render the tables to reflect the new status
+        renderProjectTranslated(currentProject.translated || []);
+        renderProjectSources(currentProject.sources || []);
+    })
+    .catch(err => {
+        console.error('Error updating status:', err);
+        showToast('Lỗi cập nhật trạng thái: ' + err.message, 'error');
+    });
 }
 
 async function loadProjectFile(filename, section) {
@@ -1400,7 +1552,7 @@ function translateFileInProject(filename) {
         body: JSON.stringify({ files: [filename] })
     }).then(r => r.json()).then(data => {
         if (data.status === 'started') {
-            switchProjectTab('sources');
+            switchProjectTab('workspace'); // 'workspace' là tab id của Nội dung gốc
             connectToProgress();
         } else showToast(data.error || 'Lỗi', 'error');
     });
@@ -1542,6 +1694,7 @@ function renderProjectSpellcheckSources(sources) {
     try {
         el.innerHTML = sources.map(f => {
             const esc = escapeHtml(f.name);
+            // Phase 3: Spellcheck tab dùng selectedFiles (sources set) cho việc chọn file soát lỗi
             const checked = selectedFiles.has(f.name) ? 'checked' : '';
             const statusHtml = f.has_translation 
                 ? `<span class="f7 bg-washed-green green pa1 br2 fw6">✔️ Xong</span>`
@@ -1553,9 +1706,9 @@ function renderProjectSpellcheckSources(sources) {
                 <td>${statusHtml}</td>
                 <td class="tr">
                     <div class="flex justify-end gap-1">
-                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();spellcheckFileInProject('${esc}')">🔤</button>
-                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','sources')">✏️</button>
-                        <button class="ph2 pv1 f7 ba b--red red bg-white pointer hover-bg-washed-red br1" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')">🗑️</button>
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();spellcheckFileInProject('${esc}')" title="Soát lỗi AI">🔤</button>
+                        <button class="ph2 pv1 f7 ba b--silver bg-white pointer hover-bg-near-white br1" onclick="event.stopPropagation();renameProjectFile('${esc}','sources')" title="Đổi tên">✏️</button>
+                        <button class="ph2 pv1 f7 ba b--red red bg-white pointer hover-bg-washed-red br1" onclick="event.stopPropagation();deleteProjectFile('${esc}','sources')" title="Xóa">🗑️</button>
                     </div>
                 </td>
             </tr>`;
@@ -2387,7 +2540,7 @@ function connectToProgress(btn = null, isBatch = false) {
             // A file in batch is finished, but we don't close SSE yet
             addLog(data.message, 'success');
             // We could update individual file status in UI here if needed
-            if (currentProject && document.getElementById('ptab-sources') && !document.getElementById('ptab-sources').classList.contains('dn')) {
+            if (currentProject && document.getElementById('ptab-workspace') && !document.getElementById('ptab-workspace').classList.contains('dn')) {
                 selectProject(currentProject.slug, true);
             }
         }

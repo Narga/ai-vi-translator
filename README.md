@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.9.0)
+# 📚 Content Translator (v6.9.3)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -57,7 +57,7 @@ python cli.py translate -i input/novel.txt  # CLI mode
 
 ---
 
-## 🏗️ Kiến Trúc (v6.8.0)
+## 🏗️ Kiến Trúc (v6.9.3)
 
 ```
 webui.py ──→ webui/          # Flask App (Blueprints, Static, Templates)
@@ -76,5 +76,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.8.0  
-**Ngày:** 06/05/2026
+**Phiên bản:** 6.9.3  
+**Ngày:** 09/05/2026
