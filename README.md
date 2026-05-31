@@ -1,4 +1,4 @@
-# 📚 Content Translator (v6.9.3)
+# 📚 Content Translator (v7.0.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -11,12 +11,12 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 
 ## 🔥 Tính năng Nổi bật
 
-- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API.
-- 📋 **Advanced Logging**: Hệ thống xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
-- 📦 **Project Archiving**: Hệ thống lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
-- ⚡ **High Performance UI**: Giao diện Dashboard tối giản, cực nhanh dựa trên Tachyons CSS.
-- 🛡️ **Stable Layout**: Hệ thống 7-Tab hợp nhất với cơ chế Flexbox ổn định, chống chồng lấn.
-- ✨ **Integrated AI Guidelines**: Tự động tạo Chỉ dẫn, Thuật ngữ, Mối quan hệ và Tóm tắt bằng AI ngay trong từng thẻ.
+- 🏗️ **Hexagonal Backend**: CLI và WebUI dùng chung backend (`backend/` package với Application/Domain/Infrastructure/Facade layers).
+- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (41 models).
+- 🎨 **Minimalist UI**: Tông Slate & Indigo, loại bỏ emoji rác, tập trung vào trải nghiệm dịch.
+- 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
+- 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
+- 🧪 **Test Suite**: 158 tests (smoke + unit) cho backend, CLI, WebUI và helpers.
 
 ---
 
@@ -49,23 +49,28 @@ python cli.py translate -i input/novel.txt  # CLI mode
 
 | Tài liệu | Mô tả |
 |-----------|--------|
-| [📗 MANUAL.md](MANUAL.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
-| [🗺️ ROADMAP.md](ROADMAP.md) | Lộ trình phát triển và kế hoạch tương lai |
-| [🛠️ DEVELOPMENT.md](DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
-| [📋 CHANGELOG.md](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
-| [📊 REPORTS.md](REPORTS.md) | Tổng hợp các báo cáo tối ưu hóa và fix lỗi |
+| [📗 Hướng dẫn sử dụng](docs/MANUAL.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
+| [🗺️ Lộ trình (Roadmap)](docs/ROADMAP.md) | Lộ trình phát triển và kế hoạch tương lai |
+| [🛠️ Hướng dẫn phát triển](docs/DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
+| [📋 Lịch sử thay đổi](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
+| [📊 Báo cáo dự án](docs/REPORTS.md) | Tổng hợp các báo cáo tối ưu hóa và fix lỗi |
 
 ---
 
-## 🏗️ Kiến Trúc (v6.9.3)
+## 🏗️ Kiến Trúc (v7.0.0)
 
 ```
-webui.py ──→ webui/          # Flask App (Blueprints, Static, Templates)
-               ├── static/
-               ├── templates/
-main.py  ──→ core/           # Dispatcher / Functional Pipeline
-             services/       # AI Provider, Cache, Translation Memory
-             plugins/        # Translation, EPUB, OCR
+webui.py ──→ webui/               # Flask App (Blueprints, Static, Templates)
+cli.py   ──→ backend/             # Backend chung cho CLI & WebUI
+main.py       ├── application/    # Use cases + DTOs + Progress ports
+              │   ├── use_cases/  # TranslateText, TranslateProjectFiles, SpellcheckProjectFiles
+              │   └── dto/        # Request/Response DTOs
+              ├── domain/         # Domain models
+              ├── infrastructure/ # Services: Config, API Keys, Workspace, Project, File, Provider
+              ├── facade/         # AppService (singleton entry point)
+              └── __init__.py     # create_app_service() factory
+              core/               # Core pipeline (TranslationExecutor, plugins)
+              services/           # Cache, TranslationMemory, Health
 ```
 
 ---
@@ -76,5 +81,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 6.9.3  
-**Ngày:** 09/05/2026
+**Phiên bản:** 7.0.0  
+**Ngày:** 31/05/2026

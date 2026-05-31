@@ -1,4 +1,4 @@
-# main.py - v6.8.0 Pure Plugin Architecture + google-genai SDK
+# main.py - v7.0.0 Pure Plugin Architecture + google-genai SDK
 # Tác giả: Narga
 # Changelog v4.0.0:
 # - Tích hợp google-genai SDK mới (thay thế google-generativeai)
@@ -192,7 +192,7 @@ def main():
         args, unknown = parser.parse_known_args()
 
         print("=" * 80)
-        print("📚 Novel Translator v5.0.0 | Pure Executor Architecture")
+        print("📚 Novel Translator v7.0.0 | Pure Executor Architecture")
         print(f"Project: {args.project}")
         print("=" * 80)
 

@@ -3,7 +3,7 @@
 <!-- Chunking Modal -->
 <div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 9999;">
     <div class="bg-white pa4 br3 w-100 mw6 shadow-5 relative animate-pop">
-        <h3 class="mt0 dark-gray fw6 pb2 bb b--black-10">✂️ Cấu hình Chia Chunk</h3>
+        <h3 class="mt0 dark-gray fw6 pb2 bb b--black-10">Cấu hình Chia Chunk</h3>
         
         <div class="mv4 flex justify-center ba b--black-10 pa2 br2 bg-near-white">
             <label class="mr4 pointer f7 fw6 gray uppercase tracked"><input type="radio" name="chunk-type" value="word" checked class="mr2"> Theo từ</label>
@@ -17,7 +17,7 @@
         
         <div class="flex gap-3 pt3 bt b--black-10">
             <button class="flex-auto ph3 pv3 pointer ba b--silver bg-white br2 gray hover-bg-near-white fw6 uppercase tracked f7" onclick="hideChunkConfig()">Hủy bỏ</button>
-            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="confirmChunking()">🚀 Chia ngay</button>
+            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="confirmChunking()">Chia ngay</button>
         </div>
     </div>
 </div>
@@ -28,7 +28,6 @@
         <!-- Modal Header -->
         <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center relative">
             <div class="flex items-center">
-                <span class="f4 mr2">⚡</span>
                 <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
             </div>
             <div class="flex items-center gap-2">
@@ -75,7 +74,6 @@
         <!-- Header -->
         <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
             <div class="flex items-center gap-2">
-                <span class="f4">⚙️</span>
                 <h3 class="f5 ma0 dark-gray fw6">Thông tin Dự án</h3>
             </div>
             <button class="pointer bg-transparent bn f4 gray hover-dark-gray lh-solid" onclick="hideProjectInfoModal()" title="Đóng">&times;</button>
@@ -116,13 +114,13 @@
         <div class="pa3 bt b--black-10 flex justify-between items-center gap-2">
             <!-- Destructive actions (left) -->
             <div class="flex gap-2">
-                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="archiveProjectFromModal()" title="Nén và lưu trữ dự án">📦 Lưu trữ</button>
-                <button class="pointer ph3 pv2 f7 ba b--red red bg-white br2 hover-bg-washed-red fw6" onclick="deleteProjectFromModal()" title="Xóa vĩnh viễn dự án">🗑️ Xóa</button>
+                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="archiveProjectFromModal()" title="Nén và lưu trữ dự án">Lưu trữ</button>
+                <button class="pointer ph3 pv2 f7 ba b--red red bg-white br2 hover-bg-washed-red fw6" onclick="deleteProjectFromModal()" title="Xóa vĩnh viễn dự án">Xóa</button>
             </div>
             <!-- Primary actions (right) -->
             <div class="flex gap-2">
                 <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white" onclick="hideProjectInfoModal()">Hủy</button>
-                <button class="pointer ph4 pv2 f7 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveProjectInfo()">💾 Cập nhật</button>
+                <button class="pointer ph4 pv2 f7 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveProjectInfo()">Cập nhật</button>
             </div>
         </div>
     </div>

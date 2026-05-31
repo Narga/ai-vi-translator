@@ -20,14 +20,20 @@ translation_bp = Blueprint("translation", __name__)
 
 
 def translate_worker(text, config, output_filename="translated", input_file_path=None):
-    """Worker thread để dịch và gửi progress updates thông qua TranslationExecutor."""
+    """Worker thread để dịch - dùng backend use case."""
     from webui import progress_queue, translation_memory
     import webui as _state
+    from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
+    from backend.application.use_cases.translate_text_use_case import TranslateTextUseCase
+    from backend.application.dto.translation_request import TranslationRequest
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    from backend.infrastructure.workspace.workspace_service import WorkspaceService
 
     try:
-        from core.executor import TranslationExecutor
+        key_service = ApiKeyService()
+        ws_service = WorkspaceService()
 
-        api_keys = load_api_keys()
+        api_keys = key_service.load_gemini_keys()
         if not api_keys:
             progress_queue.put({
                 "type": "error",
@@ -35,39 +41,31 @@ def translate_worker(text, config, output_filename="translated", input_file_path
             })
             return
 
-        # Cập nhật context cho load prompt
-        prompts = config.get("prompts", {})
-        if not prompts.get("main"):
-            config["prompts"] = load_prompts()
+        pdir = ws_service.get_project_dir("default-project")
+        out_path = pdir / "translated" / output_filename
 
-        # Glossary paths (Dùng từ default project)
-        pdir = Path("workspace/projects/default-project")
-        glossary_filenames = ["glossary.txt", "characters.txt"]
-        glossary_paths = [pdir / "profile" / gf for gf in glossary_filenames if (pdir / "profile" / gf).exists()]
+        bridge = WebUIProgressBridge(progress_queue)
 
-        executor = TranslationExecutor(api_keys=api_keys, config=config, glossary_paths=glossary_paths or None)
-        
-        # Hàm callback đẩy event thẳng vào queue SSE
-        def cb(data):
-            progress_queue.put(data)
-            # Chụp đường dẫn output sau khi dịch xong
-            if data["type"] == "complete":
-                out_name = data.get("output_file")
-                out_path = pdir / "translated" / out_name if out_name else None
-                if out_path:
-                    _state.translation_result = {
-                        "text": data.get("result"),
-                        "filename": out_name,
-                        "path": str(out_path),
-                    }
+        use_case = TranslateTextUseCase(
+            api_keys=api_keys,
+            config=config,
+        )
 
-        executor.translate_text(
+        request = TranslationRequest(
             text=text,
             output_filename=output_filename,
-            output_file_path=pdir / "translated" / output_filename,
-            progress_callback=cb,
-            translation_memory=translation_memory
+            output_file_path=out_path,
+            translation_memory=translation_memory,
         )
+
+        result = use_case.execute(request, progress_callback=bridge.create_callback())
+
+        if result.success and result.output_path:
+            _state.translation_result = {
+                "text": result.translated_text,
+                "filename": output_filename,
+                "path": result.output_path,
+            }
 
     except Exception as e:
         logger.error(f"Translation error: {e}", exc_info=True)

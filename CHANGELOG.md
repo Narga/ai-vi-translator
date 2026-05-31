@@ -4,17 +4,41 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
-## [7.0.0] - 2026-05-09
-### 🧭 Separation Roadmap & Governance
-- **Kế hoạch tách backend dùng chung**: Bổ sung bộ tài liệu `docs/separation/` để chuẩn hóa lộ trình tách backend dùng chung cho CLI và WebUI, theo hướng `modular monolith` trước, tách adapter sau.
-- **15 phase tuần tự**: Chia toàn bộ quá trình thành 15 phase nhỏ, có thứ tự, tiêu chí hoàn tất, điều kiện dừng và rollback rõ ràng để phù hợp với model nhẹ và thao tác an toàn.
-- **Execution note template**: Thêm mẫu thực thi bắt buộc trước mỗi phase, ghi rõ phạm vi, file được phép chạm, symbol cần kiểm tra bằng GitNexus, smoke check và điều kiện dừng.
-- **Phase 13 decomposition**: Tách Phase 13 thành 5 sub-plan riêng cho CRUD, file operations, prompts/assets, archive và translation memory để tránh một phase quá lớn.
-- **Nguyên tắc sinh/sửa mã**: Chuẩn hóa lại quy tắc tận dụng mã sẵn có, không sinh mã inline khi đã có template, chỉnh sửa tối giản, kiểm tra sau mỗi phase và không tự động commit/changelog.
+## [7.0.0] - 2026-05-31
+### 🏗️ Backend Separation — Hexagonal Architecture (Phase 01-15)
+Tách toàn bộ xử lý nghiệp vụ vào package `backend/` dùng chung cho CLI và WebUI.
 
-### 📝 Documentation Alignment
-- **Context Restore & Planning**: Cập nhật tài liệu kế hoạch để phản ánh hiện trạng logic chạy của dự án, blast radius của các symbol chính, và định hướng refactor an toàn cho CLI/WebUI.
-- **Version Marking**: Đánh dấu mốc **7.0.0** cho giai đoạn tái cấu trúc kiến trúc và chuẩn bị phân tách backend.
+**Backend Architecture:**
+- `backend/application/use_cases/`: `TranslateTextUseCase`, `TranslateProjectFilesUseCase`, `SpellcheckProjectFilesUseCase` + DTOs
+- `backend/domain/`: Domain models & ports
+- `backend/infrastructure/`: `AppConfigService`, `ApiKeyService`, `PromptService`, `ProviderService`, `ModelCatalogService`, `WorkspaceService`, `ProjectService`, `FileDiscoveryService`
+- `backend/facade/`: `AppService` — entry point duy nhất
+- `ProgressEventType` enum + `ProgressMapper`: Chuẩn hóa progress events
+- `WebUIProgressBridge`: Map progress → SSE messages
+- `SettingsFacade`: Gom config/models/API keys/cache/prompts/plugins
+- `RuntimeState`: Singleton thay thế global variables trong `webui/__init__.py`
+
+**CLI & WebUI Refactor:**
+- `cli.py`: Loại bỏ `sys.argv` manipulation, dùng backend services + argparse
+- `webui/routes/translation.py`: Dùng `TranslateTextUseCase`
+- `webui/routes/projects.py`: Dùng `TranslateProjectFilesUseCase` + `SpellcheckProjectFilesUseCase` + `ProjectService`
+
+🎨 **UI/UX Redesign — Slate & Indigo Theme**
+- **Color system**: `style.css` chuyển sang tông Slate & Indigo (`--primary: #4f46e5`, `--bg-app: #f8fafc`)
+- **Header**: Nền trắng (`#ffffff`) với viền Slate mảnh dưới chân
+- **Emoji cleanup**: Loại bỏ emoji khỏi tabs, buttons, stats panel (giữ status indicators)
+- **Segmented Control**: Cấu hình Gemini/OpenAI dạng phẳng thay vì song song
+- **Stats panel**: Thay emoji bằng dấu chấm màu (Indigo/Green/Amber)
+
+🧪 **Test Suite (158 tests, ALL PASSED)**
+- Smoke: CLI help (`test_cli_help.py`), WebUI app factory (`test_webui_app_factory.py`)
+- Unit: Config services (`test_config_services.py`), Provider services (`test_provider_services.py`), Workspace services (`test_workspace_services.py`), Progress event (`test_progress_event.py`), Translate use case (`test_translate_use_case.py`), Helpers (`test_helpers.py`)
+- Fixtures: `conftest.py` với temp dirs, mock config, mock files
+
+📝 **Documentation Cleanup**
+- Xóa: `docs/plans/`, `docs/chunking/`, `docs/superpowers/`, `docs/separation/`, `docs/*.report*`, `docs/NON_PROJECT_FILES_REPORT.md`
+- Cập nhật: README, ROADMAP phản ánh kiến trúc v7.0.0
+- Version: `pyproject.toml` → 7.0.0
 
 ## [6.9.3] - 2026-05-09
 ### 🛠️ Khắc phục & Hoàn thiện UI Remediation (Final)

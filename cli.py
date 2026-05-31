@@ -1,4 +1,4 @@
-# cli.py - v4.0.0
+# cli.py - v7.0.0
 # Tác giả: Narga
 # Chức năng: Command-line interface cho Novel Translator
 
@@ -60,7 +60,7 @@ Ví dụ sử dụng:
 
         # Version
         parser.add_argument(
-            "--version", "-v", action="version", version="%(prog)s 4.0.0"
+            "--version", "-v", action="version", version="%(prog)s 7.0.0"
         )
 
         # Global options
@@ -262,55 +262,171 @@ Ví dụ sử dụng:
         return 0
 
     def _handle_translate(self, args) -> int:
-        """Xử lý lệnh translate."""
-        from main import main as run_translation
-
-        # Build arguments for main.py
-        sys.argv = ["novel-translator"]
-
-        if args.dry_run:
-            sys.argv.append("--dry-run")
-        if args.resume:
-            sys.argv.extend(["--resume", args.resume])
-        if args.force:
-            sys.argv.append("--force")
-        if args.quiet:
-            sys.argv.append("--quiet")
-
-        sys.argv.extend(["--project", args.project])
-        if args.input:
-            sys.argv.extend(["-i", args.input])
-        if args.output:
-            sys.argv.extend(["-o", args.output])
-
-        # Override config
-        if args.config != "config/app.ini":
-            sys.argv.extend(["--config", args.config])
+        """Xử lý lệnh translate - dùng backend use case."""
+        from pathlib import Path
+        from backend.infrastructure.config.api_key_service import ApiKeyService
+        from backend.infrastructure.config.app_config_service import AppConfigService
+        from backend.infrastructure.config.prompt_service import PromptService
+        from backend.infrastructure.workspace.workspace_service import WorkspaceService
+        from backend.infrastructure.workspace.project_service import ProjectService
+        from backend.infrastructure.workspace.file_discovery_service import FileDiscoveryService
+        from backend.application.use_cases.translate_text_use_case import TranslateTextUseCase
+        from backend.application.dto.translation_request import TranslationRequest
 
         self.logger.info(f"🚀 Bắt đầu dịch: {args.input}")
         self.logger.info(f"📁 Output: {args.output}")
 
         try:
-            return run_translation()
+            # Khởi tạo services
+            config_service = AppConfigService()
+            key_service = ApiKeyService()
+            prompt_service = PromptService()
+            ws_service = WorkspaceService()
+            project_service = ProjectService()
+            file_service = FileDiscoveryService()
+
+            # Đảm bảo project tồn tại
+            project_dir = ws_service.get_project_dir(args.project)
+            if not project_dir.exists():
+                if args.project == "default-project":
+                    project_service.ensure_default_project()
+                else:
+                    self.logger.error(f"❌ Dự án '{args.project}' không tồn tại.")
+                    return 1
+
+            # Load API keys
+            api_keys = key_service.load_gemini_keys()
+            if not api_keys:
+                self.logger.error("❌ Không tìm thấy API keys")
+                return 1
+
+            # Resolve paths
+            input_dir = Path(args.input) if args.input else project_dir / "sources"
+            output_dir = Path(args.output) if args.output else project_dir / "translated"
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            # Tìm files
+            files = file_service.find_input_files(input_dir)
+            if not files:
+                self.logger.warning(f"No files in {input_dir}")
+                return 0
+
+            self.logger.info(f"\nFiles: {len(files)}")
+            for f in files:
+                self.logger.info(f"  • {f.name}")
+
+            # Load prompts
+            prompts = prompt_service.load_merged_prompts(project_dir)
+
+            # Glossary paths
+            glossary_filenames = ["glossary.txt", "characters.txt"]
+            glossary_paths = [
+                project_dir / "profile" / gf
+                for gf in glossary_filenames
+                if (project_dir / "profile" / gf).exists()
+            ]
+
+            # Tạo use case
+            use_case = TranslateTextUseCase.from_services(
+                api_keys=api_keys,
+                config_service=config_service,
+                prompt_service=prompt_service,
+                project_dir=project_dir,
+                glossary_paths=glossary_paths or None,
+            )
+
+            # Dịch từng file
+            ok = fail = 0
+            from tqdm import tqdm
+            from threading import Lock
+
+            for filepath in files:
+                self.logger.info(f"\n{'=' * 80}\n{filepath.name}\n{'=' * 80}")
+
+                try:
+                    text_content = filepath.read_text(encoding="utf-8")
+                    self.logger.info(f"Source: {len(text_content):,} chars")
+                except Exception as e:
+                    self.logger.error(f"Cannot read file {filepath.name}: {e}")
+                    fail += 1
+                    continue
+
+                # Progress bar
+                pbar_lock = Lock()
+                pbar_state = {"bar": None, "last_current": 0}
+
+                def cli_callback(data, _fname=filepath.name):
+                    with pbar_lock:
+                        evt_type = data.get("type")
+                        if evt_type == "error":
+                            self.logger.error(data.get("message", ""))
+                        elif evt_type == "progress":
+                            bar = pbar_state["bar"]
+                            if bar is None:
+                                bar = tqdm(total=data["total"], desc=f"Translating {_fname}", unit="chunk")
+                                pbar_state["bar"] = bar
+                            current = data.get("current", 0)
+                            if current > pbar_state["last_current"]:
+                                bar.update(current - pbar_state["last_current"])
+                                pbar_state["last_current"] = current
+                        elif evt_type == "complete":
+                            bar = pbar_state["bar"]
+                            if bar:
+                                bar.close()
+                                pbar_state["bar"] = None
+                            self.logger.info(data.get("message", ""))
+
+                out_path = output_dir / (filepath.stem + "_translated.txt")
+
+                request = TranslationRequest(
+                    text=text_content,
+                    output_filename=filepath.stem,
+                    output_file_path=out_path,
+                    progress_callback=cli_callback,
+                )
+
+                result = use_case.execute(request)
+
+                if result.success:
+                    ok += 1
+                    self.logger.info(f"✅ Saved: {out_path}")
+                else:
+                    fail += 1
+                    self.logger.error(f"❌ Failed: {result.error_message}")
+
+            self.logger.info(f"\n{'=' * 80}\nComplete!\n{'=' * 80}")
+            self.logger.info(f"Success: {ok}, Failed: {fail}")
+            self.logger.info(f"Output: {output_dir}")
+
+            return 0 if fail == 0 else 1
+
         except KeyboardInterrupt:
             self.logger.warning("❌ Bị gián đoạn bởi người dùng")
             return 130
+        except Exception as e:
+            self.logger.critical(f"Error: {e}", exc_info=True)
+            return 1
 
     def _handle_status(self, args) -> int:
-        """Xử lý lệnh status."""
-        from services.api_service import ApiManager
-        from services.cache_service import TranslationCache
+        """Xử lý lệnh status - dùng backend services."""
         from pathlib import Path
+        from backend.infrastructure.config.api_key_service import ApiKeyService
+        from backend.infrastructure.config.app_config_service import AppConfigService
+        from backend.infrastructure.workspace.workspace_service import WorkspaceService
+        from backend.infrastructure.workspace.project_service import ProjectService
 
         self.logger.info("📊 Trạng thái hệ thống")
         self.logger.info("=" * 50)
 
+        config_service = AppConfigService()
+        key_service = ApiKeyService()
+        ws_service = WorkspaceService()
+        project_service = ProjectService()
+
         # Check API keys
         if args.api_keys:
             try:
-                from main import load_api_keys
-
-                keys = load_api_keys()
+                keys = key_service.load_gemini_keys()
                 self.logger.info(f"🔑 API Keys: {len(keys)} loaded")
                 for i, key in enumerate(keys[:5], 1):
                     self.logger.info(f"  {i}. ...{key[-4:]}")
@@ -321,9 +437,8 @@ Ví dụ sử dụng:
 
         # Check cache
         if args.cache:
-            from services.config_service import ConfigService
-            config_service = ConfigService(Path("config"))
-            cache_dir = Path(config_service.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache"))
+            from pathlib import Path
+            cache_dir = Path(config_service.get_cache_dir())
             if cache_dir.exists():
                 cache_files = list(cache_dir.glob("*.pkl*"))
                 self.logger.info(f"📦 Cache: {len(cache_files)} items")
@@ -331,7 +446,7 @@ Ví dụ sử dụng:
                 self.logger.info("📦 Cache: Chưa khởi tạo")
 
         # Check workspace
-        pdir = Path("workspace/projects/default-project")
+        pdir = ws_service.get_project_dir("default-project")
         input_dir = pdir / "sources"
         output_dir = pdir / "translated"
 

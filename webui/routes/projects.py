@@ -1045,9 +1045,13 @@ def summarize_project(slug):
 
 @projects_bp.route("/api/projects/<slug>/translate", methods=["POST"])
 def translate_project_file(slug):
-    """Dịch file(s) trong dự án."""
+    """Dịch file(s) trong dự án - dùng backend use case."""
     from webui import progress_queue
     import webui as _state
+    from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
+    from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    from backend.infrastructure.config.prompt_service import PromptService
 
     data = request.json
     filenames = data.get("files", [])
@@ -1060,22 +1064,11 @@ def translate_project_file(slug):
     if not filenames:
         return jsonify({"error": "Không có file nào được chọn"}), 400
 
-    # Load project prompts
-    prompts = {"main": ""}
-    global_prompts = load_prompts()
-    prompts.update(global_prompts)
-    prompt_dir = pdir / "prompt"
-    if prompt_dir.exists():
-        for key, fname in [
-            ("main", "main_prompt.txt"),
-        ]:
-            fp = prompt_dir / fname
-            if fp.exists():
-                content = fp.read_text(encoding="utf-8").strip()
-                if content:
-                    prompts[key] = content
+    # Load prompts bằng PromptService
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(pdir)
 
-    # Load assets context (Static instructions)
+    # Load assets context
     assets_context = ""
     for pfile in ["style_guide.txt"]:
         fp = pdir / "assets" / pfile
@@ -1083,11 +1076,10 @@ def translate_project_file(slug):
             content = fp.read_text(encoding="utf-8").strip()
             if content and not content.startswith("#"):
                 assets_context += f"\n\n# Hướng dẫn phong cách\n{content}"
-
     if assets_context.strip():
         prompts["main"] += assets_context
 
-    # Glossary paths (Dynamic terms)
+    # Glossary paths
     glossary_filenames = ["glossary.txt", "relationship.txt"]
     glossary_paths = [
         pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
@@ -1110,12 +1102,12 @@ def translate_project_file(slug):
         progress_queue.get()
 
     def _project_translate_worker():
-        """Worker dịch trong project context sử dụng TranslationExecutor."""
+        """Worker dùng backend use case."""
         try:
-            from core.executor import TranslationExecutor
             from services.translation_memory import TranslationMemory
 
-            api_keys = load_api_keys()
+            key_service = ApiKeyService()
+            api_keys = key_service.load_gemini_keys()
             if not api_keys:
                 progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
                 return
@@ -1125,63 +1117,25 @@ def translate_project_file(slug):
                 enabled=True,
             )
 
-            total_files = len(filenames)
-            for idx, filename in enumerate(filenames, 1):
-                file_path = pdir / "sources" / filename
-                if not file_path.exists():
-                    progress_queue.put(
-                        {"type": "info", "message": f"⚠️ File không tồn tại: {filename}"}
-                    )
-                    continue
+            bridge = WebUIProgressBridge(progress_queue)
 
-                try:
-                    text = file_path.read_text(encoding="utf-8")
-                except Exception as e:
-                    progress_queue.put(
-                        {"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"}
-                    )
-                    continue
+            use_case = TranslateProjectFilesUseCase(
+                api_keys=api_keys,
+                config=config,
+                glossary_paths=glossary_paths,
+            )
 
-                progress_queue.put(
-                    {"type": "info", "message": f"📂 [{idx}/{total_files}] Đang dịch: {filename}"}
-                )
+            def save_meta():
+                meta["updated_at"] = datetime.now().isoformat()
+                _save_project_meta(slug, meta)
+                calculate_stats()
 
-                executor = TranslationExecutor(
-                    api_keys=api_keys, config=config, glossary_paths=glossary_paths
-                )
-
-                def cb(data):
-                    if data["type"] == "complete":
-                        out_path = pdir / "translated" / filename
-
-                        _state.translation_result = {
-                            "text": data.get("result"),
-                            "filename": filename,
-                            "path": str(out_path),
-                        }
-                        # Override message cho UI
-                        data["message"] = f"✅ Đã dịch xong file {idx}/{total_files}: {filename}"
-
-                        # Chỉ gửi complete thật sự nếu là file cuối cùng
-                        if idx < total_files:
-                            data["type"] = "file_complete"
-
-                    progress_queue.put(data)
-
-                executor.translate_text(
-                    text=text,
-                    output_filename=filename,
-                    output_file_path=pdir / "translated" / filename,
-                    progress_callback=cb,
-                    translation_memory=project_tm,
-                )
-
-            # Gửi thông báo hoàn tất tất cả sau khi loop xong
-            meta["updated_at"] = datetime.now().isoformat()
-            _save_project_meta(slug, meta)
-            calculate_stats()
-            progress_queue.put(
-                {"type": "complete", "message": f"🚀 Đã hoàn tất {total_files} file!"}
+            use_case.execute(
+                project_dir=pdir,
+                filenames=filenames,
+                progress_callback=bridge.create_callback(),
+                translation_memory=project_tm,
+                save_meta_callback=save_meta,
             )
 
         except Exception as e:
@@ -1198,9 +1152,12 @@ def translate_project_file(slug):
 
 @projects_bp.route("/api/projects/<slug>/spellcheck", methods=["POST"])
 def spellcheck_project_file(slug):
-    """Kiểm tra chính tả file(s) trong dự án."""
+    """Kiểm tra chính tả file(s) trong dự án - dùng backend use case."""
     from webui import progress_queue
-    import webui as _state
+    from backend.application.use_cases.spellcheck_project_files_use_case import SpellcheckProjectFilesUseCase
+    from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    from backend.infrastructure.config.prompt_service import PromptService
 
     data = request.json
     filenames = data.get("files", [])
@@ -1213,48 +1170,18 @@ def spellcheck_project_file(slug):
     if not filenames:
         return jsonify({"error": "Không có file nào được chọn"}), 400
 
-    # Load spell-check prompt
-    prompts = {"main": "", "chinh_ta": ""}
-    global_prompts = load_prompts()
-    prompts.update(global_prompts)
-    prompt_dir = pdir / "prompt"
-    if prompt_dir.exists():
-        for key, fname in [
-            ("chinh_ta", "chinh_ta_prompt.txt"),
-        ]:
-            fp = prompt_dir / fname
-            if fp.exists():
-                content = fp.read_text(encoding="utf-8").strip()
-                if content:
-                    prompts[key] = content
-            elif key == "chinh_ta":
-                # Fallback to system default
-                default_fp = Path("workspace/prompts/default") / fname
-                if default_fp.exists():
-                    prompts[key] = default_fp.read_text(encoding="utf-8").strip()
+    # Load spell-check prompt bằng PromptService
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(pdir)
 
-    # Glossary paths (Dynamic terms)
-    glossary_filenames = ["glossary.txt", "relationship.txt"]
-    glossary_paths = [
-        pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
-    ]
-
-    # Ensure we have a default instruction for spell-check if prompt is empty
     sp_prompt = prompts.get("chinh_ta", "").strip()
     if not sp_prompt:
         sp_prompt = "Hãy soát lỗi chính tả cho văn bản sau, giữ nguyên định dạng. Trả về văn bản đã sửa, sau đó là dấu gạch ngang '---' và danh sách các lỗi đã sửa (nếu có)."
-    
+
     # Load style guide for placeholder replacement
     style_guide_path = pdir / "assets" / "style-guide.txt"
     style_guide = style_guide_path.read_text(encoding="utf-8") if style_guide_path.exists() else ""
-
-    # Replace placeholders
     sp_prompt = sp_prompt.replace("{translation_guidelines}", style_guide)
-
-    executor_prompts = {
-        "main": sp_prompt,
-        "chinh_ta": sp_prompt
-    }
 
     config = {
         "model_name": data.get("model", get_default_model()),
@@ -1262,7 +1189,7 @@ def spellcheck_project_file(slug):
         "temperature": float(data.get("temperature", 1.0)),
         "chunk_size": int(data.get("chunk_size", get_default_chunk_size())),
         "use_cache": data.get("use_cache", True),
-        "prompts": executor_prompts,
+        "prompts": {"main": sp_prompt, "chinh_ta": sp_prompt},
         "max_refinement_attempts": 2,
         "min_length_ratio": 0.5,
         "max_length_ratio": 5.0,
@@ -1273,75 +1200,26 @@ def spellcheck_project_file(slug):
         progress_queue.get()
 
     def _project_spellcheck_worker():
-        """Worker spell-check độc lập sử dụng SpellcheckExecutor."""
+        """Worker dùng backend use case."""
         try:
-            from core.spellcheck_executor import SpellcheckExecutor
-
-            api_keys = load_api_keys()
+            key_service = ApiKeyService()
+            api_keys = key_service.load_gemini_keys()
             if not api_keys:
                 progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
                 return
 
-            total_files = len(filenames)
-            for idx, filename in enumerate(filenames, 1):
-                # Ưu tiên tìm trong sources, sau đó là translated
-                file_path = pdir / "sources" / filename
-                if not file_path.exists():
-                    file_path = pdir / "translated" / filename
-                
-                if not file_path.exists():
-                    progress_queue.put(
-                        {"type": "info", "message": f"⚠️ Tệp không tồn tại: {filename}"}
-                    )
-                    continue
+            bridge = WebUIProgressBridge(progress_queue)
 
-                try:
-                    text = file_path.read_text(encoding="utf-8")
-                except Exception as e:
-                    progress_queue.put(
-                        {"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"}
-                    )
-                    continue
+            use_case = SpellcheckProjectFilesUseCase(
+                api_keys=api_keys,
+                config=config,
+            )
 
-                progress_queue.put(
-                    {"type": "info", "message": f"📂 [{idx}/{total_files}] Đang soát lỗi: {filename}"}
-                )
-
-                executor = SpellcheckExecutor(api_keys=api_keys, config=config)
-
-                def cb(data):
-                    # SpellcheckExecutor uses "progress" type
-                    progress_queue.put(data)
-
-                # Thực thi soát lỗi
-                clean_text, error_log = executor.execute(
-                    text=text,
-                    progress_callback=cb
-                )
-
-                # Lưu kết quả
-                out_path = pdir / "spelling" / filename
-                info_path = pdir / "spelling" / f"{filename.rsplit('.', 1)[0]}_info.txt"
-                out_path.parent.mkdir(parents=True, exist_ok=True)
-
-                with open(out_path, "w", encoding="utf-8") as f:
-                    f.write(clean_text)
-
-                with open(info_path, "w", encoding="utf-8") as f:
-                    f.write(error_log)
-
-                # Gửi thông báo hoàn tất file
-                _state.translation_result = {
-                    "text": clean_text,
-                    "filename": filename,
-                    "path": str(out_path),
-                }
-                
-                msg = f"✅ Đã soát lỗi xong {idx}/{total_files}: {filename}"
-                if idx == total_files:
-                    progress_queue.put({"type": "complete", "message": msg})
-                else:
-                    progress_queue.put({"type": "file_complete", "message": msg})
+            use_case.execute(
+                project_dir=pdir,
+                filenames=filenames,
+                progress_callback=bridge.create_callback(),
+            )
 
         except Exception as e:
             logger.error(f"Lỗi Spellcheck Worker: {str(e)}")

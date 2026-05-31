@@ -1,11 +1,12 @@
 /* Content Translator - Design Restoration (Tachyons Optimized) */
 :root {
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --bg-app: #f1f5f9;
-  --border: #e2e8f0;
-  --text-main: #1e293b;
-  --text-muted: #64748b;
+  --primary: #4f46e5;           /* Indigo-600 */
+  --primary-hover: #4338ca;     /* Indigo-700 */
+  --primary-light: #eef2ff;     /* Indigo-50 for hover/active states */
+  --bg-app: #f8fafc;            /* Slate-50 */
+  --border: #e2e8f0;            /* Slate-200 */
+  --text-main: #0f172a;         /* Slate-900 */
+  --text-muted: #475569;        /* Slate-600 */
 }
 
 body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg-app); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -14,17 +15,17 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-main-bg { display: flex; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
 
 /* Header Tripartite Layout */
-.header-container { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; border-bottom: none; min-height: 60px; background: #0b3d59; z-index: 100; flex-shrink: 0; color: white; }
+.header-container { display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; border-bottom: 1px solid var(--border); min-height: 60px; background: #ffffff; z-index: 100; flex-shrink: 0; color: var(--text-main); }
 .header-left { display: flex; align-items: center; min-width: 250px; }
-.header-left span.dark-gray { color: white !important; }
-.header-left span.silver { color: rgba(255, 255, 255, 0.6) !important; }
+.header-left span.dark-gray { color: var(--text-main) !important; }
+.header-left span.silver { color: var(--text-muted) !important; }
 .header-center { flex: 1; display: flex; justify-content: center; }
 .header-right { display: flex; align-items: center; min-width: 320px; justify-content: flex-end; }
 
 /* Navigation */
-.nav-link { padding: 1.25rem 1rem; text-decoration: none; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; border-radius: 0 !important; }
-.nav-link:hover { color: white; }
-.nav-link.active { border-bottom-color: white; color: white; }
+.nav-link { padding: 1.25rem 1rem; text-decoration: none; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; border-radius: 0 !important; }
+.nav-link:hover { color: var(--primary); }
+.nav-link.active { border-bottom-color: var(--primary); color: var(--primary); }
 
 /* Tabs Layout Handling */
 .nt-tab-content { flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; display: none; }
@@ -47,7 +48,7 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 /* Sidebar Items */
 .sidebar-item { padding: 1rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); transition: all 0.1s; border-left: 4px solid transparent; }
 .sidebar-item:hover { background: #f8fafc; }
-.sidebar-item.active { border-left-color: var(--primary); background: #f1f7ff; color: var(--primary); font-weight: 600; }
+.sidebar-item.active { border-left-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 600; }
 
 /* Editor Containers */
 .editor-container { display: flex; flex: 1; min-height: 0; width: 100%; min-height: 420px; }
@@ -227,13 +228,13 @@ button, .btn {
 
 /* Primary/Blue (e.g. Save) */
 button.bg-blue, .bg-blue {
-    background-color: #3b82f6 !important;
+    background-color: var(--primary) !important;
     color: white !important;
-    border-color: #2563eb !important;
+    border-color: var(--primary-hover) !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 button.bg-blue:hover, .bg-blue:hover {
-    background-color: #2563eb !important;
+    background-color: var(--primary-hover) !important;
 }
 
 /* Orange (e.g. Chunk) */
@@ -282,15 +283,15 @@ button.bg-green:hover, .bg-green:hover {
 
 /* Header Right Stats Pill */
 .header-right .bg-near-white {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-    color: white !important;
+    background: #f1f5f9 !important;
+    border-color: var(--border) !important;
+    color: var(--text-muted) !important;
 }
-.header-right .silver { color: rgba(255, 255, 255, 0.6) !important; }
-.header-right .blue { color: #60a5fa !important; }
-.header-right .green { color: #4ade80 !important; }
-.header-right .orange { color: #fb923c !important; }
-.header-right button.bg-transparent { color: white !important; }
+.header-right .silver { color: var(--text-muted) !important; }
+.header-right .blue { color: var(--primary) !important; }
+.header-right .green { color: #10b981 !important; }
+.header-right .orange { color: #f59e0b !important; }
+.header-right button.bg-transparent { color: var(--text-muted) !important; }
 
 /* Button System */
 .nt-btn {
