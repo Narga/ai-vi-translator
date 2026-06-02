@@ -434,17 +434,6 @@ button.bg-green:hover, .bg-green:hover {
 
 
 /* ============================================================ */
-/* Focus Mode CSS Rules                                         */
-/* ============================================================ */
-body.focus-mode .sidebar {
-    display: none !important;
-}
-
-body.focus-mode #project-header-block {
-    display: none !important;
-}
-
-/* ============================================================ */
 /* Phase 3: Unified Editor Pane — 50/50 Layout                  */
 /* ============================================================ */
 .nt-editor-pane {

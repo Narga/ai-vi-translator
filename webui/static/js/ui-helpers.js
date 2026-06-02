@@ -171,29 +171,6 @@ const UiHelpers = {
         if (btnDone) btnDone.classList.add('dn');
     },
 
-    // Focus Mode
-    initFocusMode() {
-        const saved = localStorage.getItem('nt_focus_mode');
-        if (saved === 'true') UiHelpers.applyFocusMode(true);
-    },
-
-    toggleFocusMode() {
-        const active = !document.body.classList.contains('focus-mode');
-        localStorage.setItem('nt_focus_mode', active);
-        UiHelpers.applyFocusMode(active);
-    },
-
-    applyFocusMode(active) {
-        const btn = document.getElementById('btn-focus-mode');
-        if (active) {
-            document.body.classList.add('focus-mode');
-            if (btn) btn.textContent = 'Thoát tập trung';
-        } else {
-            document.body.classList.remove('focus-mode');
-            if (btn) btn.textContent = 'Chế độ tập trung';
-        }
-    },
-
     // Provider Management
     switchProvider(provider) {
         document.querySelectorAll('.nt-provider-col').forEach(col => {

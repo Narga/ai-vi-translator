@@ -120,7 +120,7 @@ const TranslationWorker = {
             else if (data.type === 'file_complete') {
                 UiHelpers.addLog(data.message, 'success');
                 if (window.currentProject) {
-                    ProjectManager.selectProject(window.currentProject.slug, true);
+                    ProjectManager.openProject(window.currentProject.slug);
                 }
             }
             else if (data.type === 'complete') {
@@ -148,7 +148,7 @@ const TranslationWorker = {
                 }
                 
                 if (window.currentProject) {
-                    ProjectManager.selectProject(window.currentProject.slug, isBatch);
+                    ProjectManager.openProject(window.currentProject.slug);
                 }
                 ApiClient.loadStats();
             }
@@ -177,7 +177,7 @@ const TranslationWorker = {
         }
 
         if (window.currentProject) {
-            ProjectManager.selectProject(window.currentProject.slug, true);
+            ProjectManager.openProject(window.currentProject.slug);
         }
 
         if (window._autoReturnTimer) {

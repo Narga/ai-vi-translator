@@ -93,29 +93,6 @@ function initTabs() {
 }
 
 // ============================================================
-// Workspace Tab Data Loading (Alpine.js triggers this)
-// ============================================================
-function switchProjectTab(tab) {
-    try {
-        if (window.currentProject) {
-            if (tab === 'prompt') {
-                PromptManager.loadProjectPrompts();
-            } else if (tab === 'info') {
-                ProjectManager.showPmInfoTab('style-guide');
-                PromptManager.loadGuidelineTab('style-guide');
-                PromptManager.loadGuidelineTab('relationship');
-                PromptManager.loadGuidelineTab('glossary');
-                PromptManager.loadGuidelineTab('summary');
-            } else if (tab === 'spellcheck') {
-                ProjectManager.renderProjectSpellcheckSources(window.currentProject.sources || []);
-            }
-        }
-    } catch (e) {
-        console.error('Error loading tab data:', e);
-    }
-}
-
-// ============================================================
 // Keyboard Navigation
 // ============================================================
 var _selectedFileIndex = -1;
@@ -124,17 +101,8 @@ document.addEventListener('keydown', function(e) {
     if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
     if (!window.currentProject) return;
 
-    var rows = document.querySelectorAll('#project-source-table-body tr');
+    var rows = document.querySelectorAll('#pm-file-list .file-item-compact');
     
-    if (e.key === 'Escape') {
-        const isFocus = document.body.classList.contains('focus-mode');
-        if (isFocus) {
-            e.preventDefault();
-            UiHelpers.toggleFocusMode();
-        }
-        return;
-    }
-
     if (!rows.length) return;
 
     if (e.key === 'j' || e.key === 'ArrowDown') {
@@ -153,8 +121,7 @@ document.addEventListener('keydown', function(e) {
     }
     if (e.key === 'Enter' && _selectedFileIndex >= 0 && _selectedFileIndex < rows.length) {
         e.preventDefault();
-        var fileLink = rows[_selectedFileIndex].querySelector('.fw6.blue');
-        if (fileLink) fileLink.click();
+        rows[_selectedFileIndex].click();
     }
 });
 
@@ -207,7 +174,6 @@ document.addEventListener('DOMContentLoaded', function () {
     ApiClient.loadApiKeys();
     UiHelpers.initProvider();
     ProjectManager.initProjectDialog();
-    UiHelpers.initFocusMode();
     UiHelpers.restoreAppState();
     
     // Khởi tạo Auto-save
@@ -344,7 +310,6 @@ function switchProvider(p) { UiHelpers.switchProvider(p); }
 function saveAppConfig() { ApiClient.saveAppConfig(); }
 function saveApiKeys() { ApiClient.saveApiKeys(); }
 function clearCache() { ApiClient.clearCache(); }
-function toggleFocusMode() { UiHelpers.toggleFocusMode(); }
 function restartServer() { ApiClient.restartServer(); }
 function uploadProjectFile() { ProjectManager.uploadProjectFile(); }
 function markModel() { ApiClient.markModel(); }
