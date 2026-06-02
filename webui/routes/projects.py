@@ -87,7 +87,7 @@ def _project_stats(slug):
 
 @projects_bp.route("/api/projects")
 def list_projects():
-    """Liệt kê tất cả dự án."""
+    """Liệt kê tất cả dự án với thông tin đầy đủ cho card display."""
     PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
     projects = []
     for d in sorted(PROJECTS_DIR.iterdir()):
@@ -97,7 +97,46 @@ def list_projects():
         if not meta:
             continue
         stats = _project_stats(d.name)
-        projects.append({**meta, "slug": d.name, **stats})
+        
+        # Backward compatibility: parse book_title/author từ name cũ
+        if "book_title" not in meta:
+            parts = meta.get("name", "").split(" - ", 1)
+            meta["book_title"] = parts[0] if parts else meta.get("name", "")
+            meta["author"] = parts[1] if len(parts) > 1 else ""
+        
+        # Đọc danh sách tập tin nguồn thực tế để so sánh trạng thái
+        src_dir = d / "sources"
+        tr_dir = d / "translated"
+        source_files = [f for f in src_dir.rglob("*") if f.is_file() and not f.name.startswith(".")] if src_dir.exists() else []
+        file_status = meta.get("file_status", {})
+        
+        # Dự án được coi là Hoàn thành khi:
+        # 1. Có file nguồn VÀ
+        # 2. Toàn bộ file nguồn đều có translated tương ứng HOẶC có status "Xong"
+        def is_file_done(f):
+            rel = str(f.relative_to(src_dir))
+            # Kiểm tra file_status trước
+            if file_status.get(rel) == "Xong":
+                return True
+            # Kiểm tra file translated có tồn tại không
+            trans_file = tr_dir / rel
+            return trans_file.exists()
+        
+        all_done = len(source_files) > 0 and all(is_file_done(f) for f in source_files)
+        status = "Hoàn thành" if all_done else "Đang thực hiện"
+        
+        # Tính progress percentage
+        total_files = len(source_files)
+        translated_files = stats.get("translated_count", 0)
+        progress = (translated_files / total_files * 100) if total_files > 0 else 0
+        
+        projects.append({
+            **meta, 
+            "slug": d.name, 
+            **stats,
+            "progress": round(progress, 1),
+            "status": status
+        })
     return jsonify(projects)
 
 
@@ -105,9 +144,15 @@ def list_projects():
 def create_project():
     """Tạo dự án mới."""
     data = request.json
+    book_title = data.get("book_title", "").strip()
+    author = data.get("author", "").strip()
     name = data.get("name", "").strip()
-    if not name:
-        return jsonify({"error": "Tên dự án không được trống"}), 400
+
+    if book_title:
+        author_display = author if author else "Vô danh"
+        name = f"{book_title} - {author_display}"
+    elif not name:
+        return jsonify({"error": "Tên tác phẩm hoặc tên dự án không được trống"}), 400
 
     slug = re.sub(r"[^\w\-]", "-", name.lower()).strip("-")
     slug = re.sub(r"-+", "-", slug)
@@ -142,6 +187,8 @@ def create_project():
 
     meta = {
         "name": name,
+        "book_title": book_title if book_title else (name.split(" - ", 1)[0] if " - " in name else name),
+        "author": author if author else (name.split(" - ", 1)[1] if " - " in name else ""),
         "slug": slug,
         "description": data.get("description", ""),
         "genre": data.get("genre", ""),
@@ -179,6 +226,12 @@ def get_project(slug):
     meta = _load_project_meta(slug)
     if not meta:
         return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    # Backward compatibility: parse book_title/author từ name cũ
+    if "book_title" not in meta:
+        parts = meta.get("name", "").split(" - ", 1)
+        meta["book_title"] = parts[0] if parts else meta.get("name", "")
+        meta["author"] = parts[1] if len(parts) > 1 else ""
 
     pdir = _get_project_dir(slug)
     stats = _project_stats(slug)
@@ -423,6 +476,80 @@ def delete_archive(filename):
 
 
 # ============================================================
+# Project Import/Export APIs
+# ============================================================
+
+
+@projects_bp.route("/api/projects/<slug>/export", methods=["GET"])
+def export_project(slug):
+    """Export dự án thành file zip để tải về."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+    
+    import zipfile
+    from io import BytesIO
+    
+    memory_file = BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for file_path in pdir.rglob("*"):
+            if file_path.is_file() and not file_path.name.startswith('.'):
+                arcname = file_path.relative_to(pdir.parent)
+                zf.write(file_path, arcname)
+    
+    memory_file.seek(0)
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=f"{slug}.zip"
+    )
+
+
+@projects_bp.route("/api/projects/import", methods=["POST"])
+def import_project():
+    """Nhập dự án từ file zip."""
+    if "file" not in request.files:
+        return jsonify({"error": "Không tìm thấy file"}), 400
+    
+    f = request.files["file"]
+    if not f.filename or not f.filename.endswith('.zip'):
+        return jsonify({"error": "File phải là định dạng .zip"}), 400
+    
+    import zipfile
+    import tempfile
+    
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        zip_path = Path(tmp_dir) / "import.zip"
+        f.save(str(zip_path))
+        
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(tmp_dir)
+        
+        # Tìm thư mục dự án trong zip
+        extracted_dirs = [d for d in Path(tmp_dir).iterdir() if d.is_dir()]
+        if not extracted_dirs:
+            return jsonify({"error": "File zip không hợp lệ"}), 400
+        
+        project_dir = extracted_dirs[0]
+        slug = project_dir.name
+        
+        # Kiểm tra trùng lặp
+        dest_dir = _get_project_dir(slug)
+        if dest_dir.exists():
+            return jsonify({"error": f"Dự án '{slug}' đã tồn tại"}), 409
+        
+        # Copy vào workspace
+        shutil.copytree(project_dir, dest_dir)
+        
+        meta = _load_project_meta(slug)
+        if meta:
+            return jsonify({"success": True, "slug": slug, "meta": meta})
+        else:
+            return jsonify({"error": "Không tìm thấy project.json trong file"}), 400
+
+
+# ============================================================
 # Project File APIs
 # ============================================================
 
@@ -511,6 +638,30 @@ def merge_project_files(slug):
     except Exception as e:
         logger.error(f"Error merging files: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+@projects_bp.route("/api/projects/<slug>/files/spelling")
+def get_project_spelling_files(slug):
+    """Lấy danh sách file đã soát lỗi."""
+    pdir = _get_project_dir(slug)
+    spelling_dir = pdir / "spelling"
+    
+    if not spelling_dir.exists():
+        return jsonify([])
+    
+    files = []
+    for f in sorted(spelling_dir.rglob("*")):
+        if f.is_file() and not f.name.startswith('.'):
+            rel = str(f.relative_to(spelling_dir))
+            size = f.stat().st_size
+            files.append({
+                "name": rel,
+                "path": str(f),
+                "size": size,
+                "size_display": f"{size / 1024:.1f} KB" if size < 1048576 else f"{size / 1048576:.1f} MB",
+            })
+    
+    return jsonify(files)
 
 
 @projects_bp.route("/api/projects/<slug>/file/<path:filepath>", methods=["DELETE"])

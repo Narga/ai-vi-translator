@@ -116,7 +116,7 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .op-20 { opacity: 0.2; }
 
 /* Toasts */
-#toast-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1000; }
+#toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1000; }
 .toast { background: #1e293b; color: #fff; padding: 0.75rem 1.25rem; border-radius: 6px; margin-top: 0.75rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); font-size: 0.875rem; display: flex; align-items: center; gap: 0.5rem; min-width: 250px; }
 .toast.success { border-left: 4px solid #10b981; }
 .toast.error { border-left: 4px solid #ef4444; }
@@ -451,4 +451,450 @@ body.focus-mode #project-header-block {
     flex: 0 0 50%;
     min-width: 0; /* prevents overflow of long content */
     box-sizing: border-box;
+}
+
+/* ============================================================ */
+/* Alpine.js: Ẩn element khi Alpine.js chưa khởi tạo (FOUC)     */
+/* ============================================================ */
+[x-cloak] { display: none !important; }
+
+/* ============================================================ */
+/* Sidebar Mini-tabs (inline in header)                          */
+/* ============================================================ */
+.sidebar-mini-tab {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    margin-right: 2px;
+}
+.sidebar-mini-tab:hover {
+    color: var(--primary);
+    background: rgba(79, 70, 229, 0.04);
+}
+.sidebar-mini-tab.active {
+    color: var(--primary);
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+/* ============================================================ */
+/* Dirty State Indicator                                         */
+/* ============================================================ */
+.file-tree-item.dirty::after {
+    content: " *";
+    color: var(--primary);
+    font-weight: bold;
+}
+.unsaved-dot {
+    display: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    margin-left: 4px;
+}
+
+/* ============================================================ */
+/* Spell Log Panel (collapsible)                                 */
+/* ============================================================ */
+.spell-log-panel {
+    margin-top: 0.75rem;
+}
+.spell-log-panel details {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #f8fafc;
+}
+.spell-log-panel summary {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+}
+.spell-log-panel summary:hover {
+    background: rgba(79, 70, 229, 0.04);
+}
+.spell-log-content {
+    padding: 0.75rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    min-height: 100px;
+    max-height: 300px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* ============================================================ */
+/* Workspace Sub-tabs (Alpine.js managed)                        */
+/* ============================================================ */
+.workspace-sub-tab {
+    padding: 0.75rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+.workspace-sub-tab:hover {
+    color: var(--primary);
+}
+.workspace-sub-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+
+/* ============================================================ */
+/* PROJECT MANAGEMENT CARDS                                      */
+/* ============================================================ */
+.project-card {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.project-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #cbd5e1;
+}
+.project-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+.project-card-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+    line-height: 1.4;
+}
+.project-card-author {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin: 4px 0 0 0;
+}
+.project-card-desc {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin: 8px 0 0 0;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.project-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: #64748b;
+    padding-top: 12px;
+    border-top: 1px solid #f1f5f9;
+}
+.project-card-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.project-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 110px;
+}
+.project-card-actions button {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.project-card-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.project-card-status.done {
+    background: #dcfce7;
+    color: #166534;
+}
+.project-card-status.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+#project-cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+/* Custom scrollbar */
+#project-cards-container::-webkit-scrollbar {
+    width: 6px;
+}
+#project-cards-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+#project-cards-container::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+#project-cards-container::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.project-card-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    transition: width 0.3s ease;
+}
+.project-card-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* ============================================================ */
+/* 3-COLUMN WORKSPACE LAYOUT                                     */
+/* ============================================================ */
+.workspace-layout-3col {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    height: 100%;
+    align-items: stretch;
+    overflow: hidden;
+}
+.file-list-sidebar {
+    width: 25%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e0e0e0;
+    background: white;
+    position: relative;
+    min-width: 0;
+}
+.file-list-sidebar-header {
+    padding: 12px;
+    border-bottom: 1px solid #e0e0e0;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.file-list-sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+}
+.editors-container-2col {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    min-width: 0;
+}
+.editor-pane-3col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    border-right: 1px solid #e0e0e0;
+}
+.editor-pane-3col:last-child {
+    border-right: none;
+}
+
+/* File item compact style */
+.file-item-compact {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.file-item-compact:hover {
+    background: #f8f9fa;
+}
+.file-item-compact.active {
+    background: #e3f2fd;
+    border-left: 3px solid #2196F3;
+}
+.min-width-0 {
+    min-width: 0;
+}
+.file-item-name {
+    font-weight: 600;
+    color: #1976D2;
+    font-size: 0.9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.file-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 2px;
+}
+.file-item-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.file-item-actions button {
+    padding: 4px;
+    font-size: 0.7rem;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.file-item-actions button:hover {
+    opacity: 1;
+    background: rgba(0,0,0,0.05);
+}
+.file-item-actions button svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Icon toolbar */
+.icon-toolbar {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.icon-toolbar button {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    transition: all 0.15s ease;
+}
+.icon-toolbar button:hover {
+    background: rgba(0,0,0,0.05);
+}
+.icon-toolbar button svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Green dot for completed files */
+.file-done-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4CAF50;
+    margin-left: 4px;
+}
+
+/* Status badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+.status-badge.done {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.status-badge.pending {
+    background: #fff3e0;
+    color: #ef6c00;
+}
+
+/* Drag and drop upload */
+.file-list-sidebar.drag-over {
+    background: #e3f2fd;
+    border: 2px dashed #2196F3;
+}
+.file-list-sidebar.drag-over::after {
+    content: 'Thả file vào đây để tải lên';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(33, 150, 243, 0.9);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+    .file-list-sidebar {
+        width: 240px;
+    }
+}
+@media (max-width: 992px) {
+    .workspace-layout-3col {
+        flex-direction: column;
+    }
+    .file-list-sidebar {
+        width: 100%;
+        max-height: 300px;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .editors-container-2col {
+        flex-direction: column;
+    }
 }

@@ -9,15 +9,15 @@
                         <button class="ph3 pv2 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveAppConfig()">Lưu Cấu Hình</button>
                     </div>
 
-                    <!-- Row 1: Provider Cards (Parallel) -->
-                    <div class="flex flex-wrap mhn2 mb3">
+                    <!-- Row 1: Provider Cards (Alpine.js managed) -->
+                    <div x-data="{ activeProvider: 'gemini' }" class="flex flex-wrap mhn2 mb3">
                         <!-- Gemini API Keys -->
                         <div class="w-100 w-50-ns ph2 mb3">
-                            <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba b--blue o-100 br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" data-provider="gemini" onclick="switchProvider('gemini')">
+                            <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'gemini' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="gemini" x-on:click="activeProvider = 'gemini'; UiHelpers.switchProvider('gemini')">
                                 <div class="flex-auto">
                                     <div class="flex justify-between items-center mb3">
                                         <label class="flex items-center pointer">
-                                            <input type="radio" name="active_provider" value="gemini" class="mr2 pointer" checked>
+                                            <input type="radio" name="active_provider" value="gemini" class="mr2 pointer" :checked="activeProvider === 'gemini'">
                                             <span class="f5 fw6 dark-gray">Google Gemini</span>
                                         </label>
                                     </div>
@@ -37,11 +37,11 @@
 
                         <!-- OpenAI API Key -->
                         <div class="w-100 w-50-ns ph2 mb3">
-                            <div id="provider-openai-col" class="nt-provider-col flex flex-column justify-between h-100 ba b--black-10 o-60 br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" data-provider="openai" onclick="switchProvider('openai')">
+                            <div id="provider-openai-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'openai' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="openai" x-on:click="activeProvider = 'openai'; UiHelpers.switchProvider('openai')">
                                 <div class="flex-auto">
                                     <div class="flex justify-between items-center mb3">
                                         <label class="flex items-center pointer">
-                                            <input type="radio" name="active_provider" value="openai" class="mr2 pointer">
+                                            <input type="radio" name="active_provider" value="openai" class="mr2 pointer" :checked="activeProvider === 'openai'">
                                             <span class="f5 fw6 dark-gray">OpenAI Compatible</span>
                                         </label>
                                     </div>
@@ -108,59 +108,65 @@
                                 </div>
                             </div>
 
-                            <div class="flex flex-wrap mhn2 pt2">
-                                <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                        Chunk Size
-                                        <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
-                                        </span>
-                                    </label>
-                                    <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                            <!-- Advanced Config (Accordion) -->
+                            <details class="ba b--black-10 br2 bg-near-white pa3 mb3">
+                                <summary class="pointer f6 fw6 dark-gray">Cấu hình nâng cao (Advanced)</summary>
+                                <div class="pt3">
+                                    <div class="flex flex-wrap mhn2">
+                                        <div class="w-100 w-50-ns ph2 mb3">
+                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                                Chunk Size
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                        </div>
+                                        <div class="w-100 w-50-ns ph2 mb3">
+                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                                Context Radius
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Số ký tự bao quanh đoạn đang dịch để AI hiểu ngữ cảnh (trước/sau).">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                        </div>
+                                        <div class="w-100 ph2 mb3">
+                                            <label class="db f7 fw6 gray mb2 uppercase tracked">
+                                                Temperature (<span id="temp-value" class="blue fw6">0.7</span>)
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Độ sáng tạo: 0.0 là máy móc, 1.0+ là bay bổng (có thể sai lệch).">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer">
+                                        </div>
+                                        <div class="w-100 w-50-ns ph2 mb3">
+                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                                API Delay (giây)
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Thời gian nghỉ giữa các yêu cầu để tránh bị khóa API (Rate Limit).">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                        </div>
+                                        <div class="w-100 w-50-ns ph2 mb3">
+                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                                Độ trễ bù trừ (Antilag)
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Bù trừ độ trễ mạng để tối ưu hóa tốc độ gửi yêu cầu.">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="text" class="ba b--black-10 br2 pa2 w-100 f7 bg-near-white outline-0 silver" value="10ms" readonly>
+                                        </div>
+                                        <div class="w-100 ph2 mt2">
+                                            <label class="flex items-center pointer">
+                                                <input type="checkbox" id="use-cache" name="CACHE.ENABLE_CACHE" class="mr2 pointer">
+                                                <span class="f7 fw6 dark-gray">Sử dụng Cache API (Khuyên dùng)</span>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                        Context Radius
-                                        <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Số ký tự bao quanh đoạn đang dịch để AI hiểu ngữ cảnh (trước/sau).">ⓘ</span>
-                                        </span>
-                                    </label>
-                                    <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
-                                </div>
-                                <div class="w-100 ph2 mb3">
-                                    <label class="db f7 fw6 gray mb2 uppercase tracked">
-                                        Temperature (<span id="temp-value" class="blue fw6">0.7</span>)
-                                        <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Độ sáng tạo: 0.0 là máy móc, 1.0+ là bay bổng (có thể sai lệch).">ⓘ</span>
-                                        </span>
-                                    </label>
-                                    <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer">
-                                </div>
-                                <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                        API Delay (giây)
-                                        <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Thời gian nghỉ giữa các yêu cầu để tránh bị khóa API (Rate Limit).">ⓘ</span>
-                                        </span>
-                                    </label>
-                                    <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
-                                </div>
-                                <div class="w-100 w-50-ns ph2 mb3">
-                                    <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                        Độ trễ bù trừ (Antilag)
-                                        <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Bù trừ độ trễ mạng để tối ưu hóa tốc độ gửi yêu cầu.">ⓘ</span>
-                                        </span>
-                                    </label>
-                                    <input type="text" class="ba b--black-10 br2 pa2 w-100 f7 bg-near-white outline-0 silver" value="10ms" readonly>
-                                </div>
-                                <div class="w-100 ph2 mt2">
-                                    <label class="flex items-center pointer">
-                                        <input type="checkbox" id="use-cache" name="CACHE.ENABLE_CACHE" class="mr2 pointer">
-                                        <span class="f7 fw6 dark-gray">Sử dụng Cache API (Khuyên dùng)</span>
-                                    </label>
-                                </div>
-                            </div>
+                            </details>
                         </form>
                     </div>
 

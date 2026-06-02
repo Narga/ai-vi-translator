@@ -4,6 +4,45 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.1.0] - 2026-06-02
+### 🎨 Project Management UI & Workspace 3-Column Layout
+
+**Quản lý Dự án (Tab mới):**
+- Giao diện quản lý dự án độc lập với form tạo dự án (Tên tác phẩm, Tác giả, Thể loại, Mô tả)
+- Danh sách dự án dạng card với thông tin: tên, tác giả, mô tả, số files, trạng thái, ngày tạo
+- Nút thao tác: Mở dự án, Lưu trữ, Xóa
+- Import/Export dự án qua file zip
+- Tự động xác định trạng thái "Hoàn thành" khi tất cả file đã dịch xong
+
+**Workspace 3 Cột:**
+- Layout 3 cột: Danh sách tập tin | Editor Nguồn | Editor Bản dịch
+- Tab Bản gốc/Bản dịch trong danh sách tập tin
+- Tab Chưa soát/Đã soát trong Kiểm chính tả
+- Nút ẩn/hiện từng cột với co giãn tự động
+- Token estimate cập nhật real-time
+
+**Cải tiến UI:**
+- SVG icons thay thế emoji cho các nút thao tác
+- Nút thao tác luôn hiển thị cùng dòng với thông tin file
+- Toast notification chuyển lên góc trên bên phải
+- Spell Log Panel collapsible cho Kiểm chính tả
+- Auto-save cho editor Bản dịch (10 giây)
+- Phím tắt Ctrl+S để lưu
+- Drag-and-drop upload file
+
+**Backend:**
+- API mới: `/api/projects/import`, `/api/projects/<slug>/export`
+- API mới: `/api/projects/<slug>/files/spelling`
+- Cập nhật `project.json` với `book_title` và `author`
+- Backward compatibility cho dự án cũ
+
+**Frontend Modularization:**
+- Tách `main.js` thành 6 ES modules: `api-client.js`, `project-manager.js`, `editor-component.js`, `prompt-manager.js`, `translation-worker.js`, `ui-helpers.js`
+- Namespace pattern: `window.ProjectManager`, `window.EditorComponent`, etc.
+- Alpine.js integration cho tab switching
+
+---
+
 ## [7.0.0] - 2026-05-31
 ### 🏗️ Backend Separation — Hexagonal Architecture (Phase 01-15)
 Tách toàn bộ xử lý nghiệp vụ vào package `backend/` dùng chung cho CLI và WebUI.

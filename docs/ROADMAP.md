@@ -56,14 +56,14 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 ## 🎯 Giai đoạn 8: Cải tiến & Tính năng mới (Next)
 
 ### Ưu tiên cao
-- [ ] **Frontend Modularization**: Tách `main.js` (~3.4k lines) → ES modules (projects.js, editor.js, api-client.js, ui-handlers.js)
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
 - [ ] **Batch Progress UI**: Thanh tiến độ tổng thể khi dịch nhiều file
+- [ ] **HTML \<template\> Refactor**: Thay thế nối chuỗi HTML trong JS bằng thẻ `<template>`
 
 ### Ưu tiên trung bình
-- [ ] **HTML \<template\> Refactor**: Thay thế nối chuỗi HTML trong JS bằng thẻ `<template>`
 - [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án
 - [ ] **EPUB/HTML Fidelity Pipeline**: Dịch bảo toàn cấu trúc DOM, ảnh và CSS
+- [ ] **Sync Scroll**: Đồng bộ cuộn giữa editor trái và phải
 
 ### Ưu tiên thấp
 - [ ] **Local LLM Integration**: Kết nối Ollama/LocalAI
@@ -71,4 +71,35 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [ ] **Multi-Language Expansion**: Hỗ trợ Anh-Việt, Nhật-Việt
 
 ---
-*Cập nhật lần cuối: 2026-05-31*
+
+## ✅ Giai đoạn 7.1: Project Management & Workspace UI (v7.1.0 — Đã xong)
+
+### 🎨 7.1.1 Project Management Tab
+- [x] Tab "Quản lý dự án" độc lập trên navigation bar
+- [x] Form tạo dự án: Tên tác phẩm, Tác giả, Thể loại, Mô tả
+- [x] Danh sách dự án dạng card với thông tin đầy đủ
+- [x] Import/Export dự án qua file zip
+- [x] Tự động xác định trạng thái dự án
+
+### 🖥️ 7.1.2 Workspace 3-Column Layout
+- [x] Layout 3 cột: File list | Source editor | Translation editor
+- [x] Tab Bản gốc/Bản dịch trong file list
+- [x] Tab Chưa soát/Đã soát trong Kiểm chính tả
+- [x] Ẩn/hiện cột với co giãn tự động
+- [x] Token estimate real-time
+
+### ⚡ 7.1.3 UX Enhancements
+- [x] SVG icons thay thế emoji
+- [x] Auto-save cho editor Bản dịch
+- [x] Phím tắt Ctrl+S
+- [x] Drag-and-drop upload
+- [x] Spell Log Panel collapsible
+
+### 🔧 7.1.4 Frontend Modularization
+- [x] Tách main.js thành 6 ES modules
+- [x] Namespace pattern cho tất cả modules
+- [x] Alpine.js integration
+
+---
+
+*Cập nhật lần cuối: 2026-06-02*
