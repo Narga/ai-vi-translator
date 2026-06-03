@@ -102,4 +102,26 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-02*
+## ✅ Giai đoạn 7.2: Bug Fixes & UX Improvements (v7.2.0 — Đã xong)
+
+### 🐛 7.2.1 Model Loading & API Consistency
+- [x] Xử lý danh sách models rỗng — không giữ models cũ
+- [x] Đồng bộ `/api/openai/models` trả về `default` + `provider`
+- [x] Tự động tải models sau khi lưu cấu hình OpenAI
+
+### 🖥️ 7.2.2 Diff View Enhancement
+- [x] Thêm chế độ xem Ngang (Side-by-side)
+- [x] Nút chuyển đổi Dọc/Ngang
+
+### 🔧 7.2.3 Project Manager & Translation Worker
+- [x] Khôi phục các hàm thao tác file bị thiếu
+- [x] Drag-and-drop cho spellcheck sidebar
+- [x] Nút "Hoàn thành" đóng modal + auto-close 5 giây
+
+### 🔌 7.2.4 Plugin & Backend Fixes
+- [x] Sửa lỗi tham số `model_name` → `model` trong spellchecker
+- [x] Tab switching tự động tải dữ liệu (prompts, API keys)
+
+---
+
+*Cập nhật lần cuối: 2026-06-03*

@@ -44,17 +44,26 @@ const ApiClient = {
             sel.innerHTML = '<option>Đang tải models...</option>';
             sel.disabled = true;
         }
-        const url = '/api/models?full=true';
+
+        // Xác định provider đang active
+        const activeProvider = document.querySelector('input[name="active_provider"]:checked');
+        const provider = activeProvider ? activeProvider.value : 'gemini';
+
+        const url = provider === 'openai' ? '/api/openai/models?full=true' : '/api/models?full=true';
+
         fetch(url)
             .then(r => r.json())
             .then(data => {
                 if (sel) sel.disabled = false;
-                if (data.models && data.models.length > 0) window.availableModels = data.models;
-                
+
                 const renderOptions = (models, currentDefault) => {
                     let saved = localStorage.getItem('nt_marked_models');
                     let markedModels = saved ? JSON.parse(saved) : [];
-                    
+
+                    if (!models || models.length === 0) {
+                        return '<option value="">— Không có models —</option>';
+                    }
+
                     return models.map(m => {
                         const id = typeof m === 'string' ? m : m.id;
                         const name = typeof m === 'string' ? m : m.name;
@@ -64,6 +73,28 @@ const ApiClient = {
                         return `<option value="${id}" ${isSelected}>${name}${isFree}${isMarked}</option>`;
                     }).join('');
                 };
+
+                if (data.error) {
+                    UiHelpers.showToast(data.error, 'error');
+                    const emptyHtml = renderOptions([], '');
+                    if (sel) sel.innerHTML = emptyHtml;
+                    ['cfg-qa-model', 'summarize-model', 'style-guide-model', 'relationship-model',
+                     'glossary-model', 'summary-model', 'pm-style-guide-model'].forEach(sid => {
+                        const e = document.getElementById(sid);
+                        if (e) e.innerHTML = sid === 'summarize-model'
+                            ? '<option value="">— Mặc định —</option>' + emptyHtml
+                            : '<option value="">— Chọn Model —</option>' + emptyHtml;
+                    });
+                    window.availableModels = [];
+                    return;
+                }
+
+                if (data.models && data.models.length > 0) {
+                    window.availableModels = data.models;
+                } else {
+                    window.availableModels = [];
+                    UiHelpers.showToast('Không lấy được danh sách models. Kiểm tra lại API key và Base URL.', 'info');
+                }
 
                 const defaultModelVal = data.default || '';
 
@@ -85,14 +116,18 @@ const ApiClient = {
 
                 const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model', 'pm-style-guide-model'];
                 contentTabModels.forEach(selId => {
-                    const sel = document.getElementById(selId);
-                    if (sel) sel.innerHTML = '<option value="">— Chọn Model —</option>' + renderOptions(window.availableModels, '');
+                    const s = document.getElementById(selId);
+                    if (s) s.innerHTML = '<option value="">— Chọn Model —</option>' + renderOptions(window.availableModels, '');
                 });
 
                 ApiClient.loadAppConfig();
             })
             .catch(err => {
                 console.error('Error loading models:', err);
+                if (sel) {
+                    sel.disabled = false;
+                    sel.innerHTML = '<option value="">— Lỗi kết nối —</option>';
+                }
             });
     },
 

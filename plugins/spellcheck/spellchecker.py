@@ -31,12 +31,14 @@ def spellcheck_chunk(
 
     try:
         client = GenAIClient(api_key=api_key)
-        result = client.generate_content(
+        result, status = client.generate_content(
             prompt=full_prompt,
-            model_name=model_name,
+            model=model_name,
             temperature=temperature
         )
-        return result, "success", api_key
+        if status == "success" and result:
+            return result.strip(), "success", api_key
+        return "", status or "empty_response", api_key
     except Exception as e:
         logger.error(f"Lỗi Spellcheck API: {str(e)}")
         return "", str(e), api_key

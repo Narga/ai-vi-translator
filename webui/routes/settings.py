@@ -116,12 +116,12 @@ def manage_provider():
 @settings_bp.route("/api/openai/models")
 def get_openai_models():
     """Lấy danh sách models từ OpenAI/OpenRouter."""
-    from webui.helpers import load_openai_key, get_openai_base_url
+    from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
 
     try:
         api_key = load_openai_key()
         if not api_key:
-            return jsonify({"error": "Chưa cấu hình OpenAI API key"}), 400
+            return jsonify({"models": [], "error": "Chưa cấu hình OpenAI API key"}), 200
 
         full = request.args.get("full", "false").lower() == "true"
 
@@ -133,12 +133,14 @@ def get_openai_models():
             models = client.list_models_full()
             # Sort: free models first
             models.sort(key=lambda x: not x.get("is_free", False))
-            return jsonify({"models": models})
         else:
             models = client.list_models()
-            return jsonify({"models": models})
+
+        default_model = get_openai_model()
+        return jsonify({"models": models, "default": default_model, "provider": "openai"})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"get_openai_models error: {e}")
+        return jsonify({"models": [], "error": str(e)}), 200
 
 
 @settings_bp.route("/api/openai/config", methods=["POST"])

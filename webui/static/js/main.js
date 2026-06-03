@@ -66,6 +66,8 @@ function initTabs() {
             if (targetId === 'archive') ApiClient.loadArchiveList();
             if (targetId === 'logs') ApiClient.loadLogList();
             if (targetId === 'projects') ProjectManager.loadProjectCards();
+            if (targetId === 'prompts') PromptManager.loadGenres();
+            if (targetId === 'config') ApiClient.loadApiKeys();
 
             if (targetId === 'workspace') {
                 if (typeof startStatsPolling === 'function') startStatsPolling();
@@ -309,6 +311,7 @@ function toggleEpubForm() { UiHelpers.toggleEpubForm(); }
 function switchProvider(p) { UiHelpers.switchProvider(p); }
 function saveAppConfig() { ApiClient.saveAppConfig(); }
 function saveApiKeys() { ApiClient.saveApiKeys(); }
+function saveOpenAIConfig() { UiHelpers.saveOpenAIConfig(); }
 function clearCache() { ApiClient.clearCache(); }
 function restartServer() { ApiClient.restartServer(); }
 function uploadProjectFile() { ProjectManager.uploadProjectFile(); }

@@ -40,27 +40,41 @@ novel-translator/
 ├── main.py                 # Entry point cho CLI script
 ├── cli.py                  # Giao diện dòng lệnh (argparse)
 ├── webui.py                # Entry point cho Web UI (35 dòng)
-├── webui/                  # 📦 Flask App Package (v5.0.0)
+├── webui/                  # 📦 Flask App Package
 │   ├── __init__.py        # App Factory + global state
 │   ├── helpers.py         # Utilities dùng chung
-│   └── routes/            # Flask Blueprints
-│       ├── translation.py # Worker + SSE streaming
-│       ├── settings.py    # Models, Config, Stats, Cache
-│       ├── prompts.py     # Prompt Sets CRUD
-│       ├── projects.py    # Project workspace + TM APIs
-│       └── plugins.py     # EPUB Converter + OCR
-├── core/                   # Hạ tầng lõi (PluginManager)
-├── services/               # Các dịch vụ (API, Cache, Checkpoint)
-├── plugins/                # Chứa các plugin thực thi
+│   ├── routes/            # Flask Blueprints
+│   │   ├── translation.py # Worker + SSE streaming
+│   │   ├── settings.py    # Models, Config, Stats, Cache
+│   │   ├── prompts.py     # Prompt Sets CRUD
+│   │   ├── projects.py    # Project workspace + TM APIs
+│   │   └── plugins.py     # EPUB Converter + OCR
+│   ├── static/js/         # ES modules (Alpine.js 3.x)
+│   │   ├── api-client.js       # API calls, model loading
+│   │   ├── project-manager.js  # Project CRUD, 3-column workspace
+│   │   ├── editor-component.js # Editor, token estimate, diff view
+│   │   ├── prompt-manager.js   # Prompt genres & prompts CRUD
+│   │   ├── translation-worker.js # SSE, progress, spellcheck
+│   │   └── ui-helpers.js       # Toast, modals, provider switching
+│   └── templates/partials/ # Jinja2 partials cho từng tab
+├── backend/                # Backend chung cho CLI & WebUI
+│   ├── application/       # Use cases + DTOs
+│   ├── domain/            # Domain models
+│   ├── infrastructure/    # Services (Config, API, Project, File...)
+│   └── facade/            # AppService entry point
+├── core/                   # Core pipeline (TranslationExecutor)
+├── services/               # Cache, TranslationMemory, Health
+├── plugins/                # Plugin thực thi
 │   ├── translation/       # Lõi dịch thuật chính
+│   ├── spellcheck/        # Kiểm chính tả AI
 │   ├── epub_converter/    # Chuyển đổi EPUB
-│   └── ocr/              # Nhận diện ảnh/PDF
+│   └── ocr/               # Nhận diện ảnh/PDF
 ├── config/                 # Cấu hình app.ini và API keys
 └── docs/                   # Tài liệu
-    ├── Roadmap.md         # Lộ trình phát triển
-    ├── CHANGELOG.md       # Lịch sử thay đổi
-    ├── documents/         # Manual, DEVELOPMENT guide
-    └── reports/           # Các báo cáo đánh giá
+    ├── ROADMAP.md         # Lộ trình phát triển
+    ├── DEVELOPMENT.md     # Hướng dẫn phát triển
+    ├── MANUAL.md          # Hướng dẫn sử dụng
+    └── plans/             # Thiết kế tính năng (lưu trữ)
 ```
 
 ---

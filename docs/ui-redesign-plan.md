@@ -1,8 +1,7 @@
-# Kế Hoạch Cải Tiến UI — Novel Translator
+# [ĐÃ HOÀN THÀNH] Kế Hoạch Cải Tiến UI — Novel Translator
 
-> **Mục tiêu:** Đơn giản hóa điều hướng, giảm trùng lặp code, tăng trải nghiệm người dùng — giữ nguyên Tachyons CSS và Slate & Indigo theme.
-> **Thư viện chính:** Alpine.js 3.14.x (CDN + local fallback) + ES Modules.
-> **Quyết định đã chốt qua Q&A:** Xem mục 10 ở cuối tài liệu.
+> ⚠️ Tài liệu lịch sử — UI redesign đã hoàn tất. Giữ lại để tham khảo quyết định thiết kế.
+> **Trạng thái:** Tất cả mục tiêu đã triển khai trong v7.0.0–v7.2.0.
 
 ---
 

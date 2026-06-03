@@ -219,8 +219,13 @@ const UiHelpers = {
         })
             .then(r => r.json())
             .then(res => {
-                if (res.success) UiHelpers.showToast('Đã lưu cấu hình OpenAI', 'success');
-                else UiHelpers.showToast(res.error || 'Lỗi lưu config', 'error');
+                if (res.success) {
+                    UiHelpers.showToast('Đã lưu cấu hình OpenAI', 'success');
+                    // Reload models với cấu hình mới
+                    ApiClient.loadModels();
+                } else {
+                    UiHelpers.showToast(res.error || 'Lỗi lưu config', 'error');
+                }
             })
             .catch(e => UiHelpers.showToast(e.message, 'error'));
     },

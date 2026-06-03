@@ -1,4 +1,6 @@
-# Thiết kế Hệ thống Quản lý Dự án & Cải tiến Giao diện Biên dịch Tập trung (3 Cột)
+# [ĐÃ HOÀN THÀNH — v7.1.0] Thiết kế Hệ thống Quản lý Dự án & Cải tiến Giao diện Biên dịch Tập trung (3 Cột)
+
+> Tài liệu lịch sử — tính năng đã triển khai đầy đủ. Giữ lại để tham khảo kiến trúc.
 
 Tài liệu này đề xuất phương án thiết kế giao diện quản lý dự án mới và tái cấu trúc vùng làm việc biên dịch/kiểm chính tả thành giao diện 3 cột tập trung, dựa trên các yêu cầu của người dùng.
 

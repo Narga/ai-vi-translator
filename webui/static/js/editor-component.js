@@ -260,7 +260,8 @@ const EditorComponent = {
         var targetLines = targetText.split('\n');
         var maxLines = Math.max(sourceLines.length, targetLines.length);
 
-        var html = '<div style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">';
+        // Unified diff view
+        var unifiedHtml = '<div style="font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-all;">';
         var changes = 0;
 
         for (var i = 0; i < maxLines; i++) {
@@ -268,14 +269,35 @@ const EditorComponent = {
             var tl = i < targetLines.length ? targetLines[i] : '';
 
             if (sl === tl) {
-                html += '<div style="padding:1px 8px;color:#6b7280;">  ' + escapeHtml(sl) + '</div>';
+                unifiedHtml += '<div style="padding:1px 8px;color:#6b7280;">  ' + escapeHtml(sl) + '</div>';
             } else {
                 changes++;
-                if (sl) html += '<div style="padding:1px 8px;background:#fee2e2;color:#991b1b;">- ' + escapeHtml(sl) + '</div>';
-                if (tl) html += '<div style="padding:1px 8px;background:#d1fae5;color:#065f46;">+ ' + escapeHtml(tl) + '</div>';
+                if (sl) unifiedHtml += '<div style="padding:1px 8px;background:#fee2e2;color:#991b1b;">- ' + escapeHtml(sl) + '</div>';
+                if (tl) unifiedHtml += '<div style="padding:1px 8px;background:#d1fae5;color:#065f46;">+ ' + escapeHtml(tl) + '</div>';
             }
         }
-        html += '</div>';
+        unifiedHtml += '</div>';
+
+        // Side-by-side diff view
+        var sideHtml = '<div style="display:flex;gap:0;font-family:monospace;font-size:13px;line-height:1.6;">';
+        sideHtml += '<div style="flex:1;border-right:1px solid #e0e0e0;overflow:auto;white-space:pre-wrap;word-break:break-all;">';
+        sideHtml += '<div style="padding:4px 8px;background:#fee2e2;font-weight:600;color:#991b1b;border-bottom:1px solid #e0e0e0;">Bản gốc</div>';
+        for (var i = 0; i < sourceLines.length; i++) {
+            var sl = sourceLines[i];
+            var tl = i < targetLines.length ? targetLines[i] : '';
+            var bg = sl === tl ? 'transparent' : '#fee2e2';
+            sideHtml += '<div style="padding:1px 8px;background:' + bg + ';">' + escapeHtml(sl) + '</div>';
+        }
+        sideHtml += '</div>';
+        sideHtml += '<div style="flex:1;overflow:auto;white-space:pre-wrap;word-break:break-all;">';
+        sideHtml += '<div style="padding:4px 8px;background:#d1fae5;font-weight:600;color:#065f46;border-bottom:1px solid #e0e0e0;">Bản dịch</div>';
+        for (var i = 0; i < maxLines; i++) {
+            var sl = i < sourceLines.length ? sourceLines[i] : '';
+            var tl = i < targetLines.length ? targetLines[i] : '';
+            var bg = sl === tl ? 'transparent' : '#d1fae5';
+            sideHtml += '<div style="padding:1px 8px;background:' + bg + ';">' + escapeHtml(tl) + '</div>';
+        }
+        sideHtml += '</div></div>';
 
         var overlay = document.createElement('div');
         overlay.className = 'fixed absolute--fill bg-black-70 items-center justify-center z-max';
@@ -284,15 +306,39 @@ const EditorComponent = {
             '<div class="bg-white br3 shadow-5 w-100 mw8 overflow-hidden animate-pop" style="max-height:85vh;">' +
                 '<div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">' +
                     '<h3 class="f5 ma0 fw6 dark-gray">📊 So sánh thay đổi (' + changes + ' dòng khác)</h3>' +
-                    '<button class="modal-close-btn" onclick="this.closest(\'.fixed\').remove()">&times;</button>' +
+                    '<div class="flex gap-2">' +
+                        '<button id="btn-diff-unified" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="EditorComponent.switchDiffView(\'unified\')">Dọc</button>' +
+                        '<button id="btn-diff-side" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="EditorComponent.switchDiffView(\'side\')">Ngang</button>' +
+                        '<button class="modal-close-btn" onclick="this.closest(\'.fixed\').remove()">&times;</button>' +
+                    '</div>' +
                 '</div>' +
-                '<div class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;">' + html + '</div>' +
+                '<div id="diff-view-unified" class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;">' + unifiedHtml + '</div>' +
+                '<div id="diff-view-side" class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;display:none;">' + sideHtml + '</div>' +
             '</div>';
 
         document.body.appendChild(overlay);
         overlay.addEventListener('click', function(e) {
             if (e.target === overlay) overlay.remove();
         });
+    },
+
+    switchDiffView(mode) {
+        var unifiedEl = document.getElementById('diff-view-unified');
+        var sideEl = document.getElementById('diff-view-side');
+        var btnUnified = document.getElementById('btn-diff-unified');
+        var btnSide = document.getElementById('btn-diff-side');
+        
+        if (mode === 'unified') {
+            if (unifiedEl) unifiedEl.style.display = '';
+            if (sideEl) sideEl.style.display = 'none';
+            if (btnUnified) btnUnified.classList.add('active');
+            if (btnSide) btnSide.classList.remove('active');
+        } else {
+            if (unifiedEl) unifiedEl.style.display = 'none';
+            if (sideEl) sideEl.style.display = '';
+            if (btnUnified) btnUnified.classList.remove('active');
+            if (btnSide) btnSide.classList.add('active');
+        }
     },
 
     copyResult() {

@@ -4,6 +4,39 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.2.0] - 2026-06-03
+### 🐛 Bug Fixes & UX Improvements
+
+**Model Loading Fix:**
+- Không còn giữ danh sách models cũ khi API mới trả về danh sách rỗng
+- `/api/openai/models` trả về `default` model và xử lý lỗi nhất quán với `/api/models`
+- Hiển thị thông báo "Không có models" rõ ràng thay vì giữ models cũ
+
+**Diff View Cải tiến:**
+- Thêm chế độ xem Ngang (Side-by-side) bên cạnh Dọc (Unified)
+- Nút chuyển đổi Dọc/Ngang trong modal so sánh
+
+**Project Manager:**
+- Khôi phục các hàm thao tác file bị thiếu (toggle, select all, rename, delete, move back)
+- Khởi tạo drag-and-drop cho spellcheck sidebar
+- Input upload file cho spellcheck tab
+
+**Translation Worker:**
+- Nút "Hoàn thành" hoạt động đúng (đóng modal)
+- Tự động đóng modal sau 5 giây khi hoàn tất
+- Dọn dẹp timer đúng cách khi đóng modal
+
+**Backend:**
+- Sửa lỗi tham số `model_name` → `model` trong spellchecker plugin
+- `get_openai_models()` trả về `default` + `provider` key tương thích
+
+**UI/UX:**
+- Tự động tải danh sách models sau khi lưu cấu hình OpenAI
+- Tải prompts/genres khi chuyển sang tab Chỉ dẫn AI
+- Tải API keys khi chuyển sang tab Cấu hình
+
+---
+
 ## [7.1.0] - 2026-06-02
 ### 🎨 Project Management UI & Workspace 3-Column Layout
 

@@ -138,19 +138,24 @@ const TranslationWorker = {
 
                 TranslationWorker.resetButton(btn, isBatch);
                 
+                // Hiện nút Hoàn thành
                 if (btnDone) {
                     btnDone.classList.remove('dn');
                     btnDone.textContent = '✓ Hoàn thành';
-                }
-                if (window._autoReturnTimer) {
-                    clearInterval(window._autoReturnTimer);
-                    window._autoReturnTimer = null;
+                    btnDone.onclick = function() {
+                        TranslationWorker.closeProgress();
+                    };
                 }
                 
                 if (window.currentProject) {
                     ProjectManager.openProject(window.currentProject.slug);
                 }
                 ApiClient.loadStats();
+                
+                // Tự động đóng modal sau 5 giây
+                window._autoCloseTimer = setTimeout(() => {
+                    TranslationWorker.closeProgress();
+                }, 5000);
             }
             else if (data.type === 'error') {
                 evtSource.close();
@@ -171,6 +176,12 @@ const TranslationWorker = {
     },
 
     closeProgress() {
+        // Xóa auto-close timer nếu có
+        if (window._autoCloseTimer) {
+            clearTimeout(window._autoCloseTimer);
+            window._autoCloseTimer = null;
+        }
+
         if (window.selectedFiles) {
             window.selectedFiles.clear();
             ProjectManager.updateSelectAllButton();

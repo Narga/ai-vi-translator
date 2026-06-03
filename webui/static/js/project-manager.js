@@ -198,6 +198,9 @@ const ProjectManager = {
             // Khôi phục trạng thái ẩn/hiện cột
             ProjectManager.restoreColumnStates();
             
+            // Khởi tạo drag-and-drop cho sidebar
+            setTimeout(() => ProjectManager.initDragDrop(), 100);
+            
             // Clear editors
             ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'].forEach(id => {
                 const el = document.getElementById(id);
@@ -460,6 +463,90 @@ const ProjectManager = {
         });
     },
     
+    // ===== FILE SELECTION FUNCTIONS =====
+    
+    toggleProjectFile(name, checked) {
+        if (checked) window.selectedFiles.add(name);
+        else window.selectedFiles.delete(name);
+        ProjectManager.updateSelectAllButton();
+    },
+
+    toggleTranslatedFile(filename, checked) {
+        if (checked) window.selectedTranslatedFiles.add(filename);
+        else window.selectedTranslatedFiles.delete(filename);
+        ProjectManager.updateSelectAllTranslatedButton();
+    },
+
+    updateSelectAllButton() {
+        const chks = document.querySelectorAll('#chk-select-all-sources, #chk-select-all-spellcheck');
+        const countSpans = document.querySelectorAll('#selected-files-count, #pm-selected-files-count, #pm-selected-spellcheck-count');
+        const infoSpans = document.querySelectorAll('#pm-selected-files-info, #pm-selected-spellcheck-info');
+
+        countSpans.forEach(countSpan => {
+            if (window.selectedFiles.size > 0) {
+                countSpan.textContent = `Đã chọn ${window.selectedFiles.size} tập tin`;
+                countSpan.classList.remove('dn');
+            } else {
+                countSpan.classList.add('dn');
+            }
+        });
+        
+        infoSpans.forEach(infoSpan => {
+            if (window.selectedFiles.size > 0) {
+                infoSpan.textContent = `Đã chọn ${window.selectedFiles.size} tập tin`;
+                infoSpan.classList.remove('dn');
+            } else {
+                infoSpan.classList.add('dn');
+            }
+        });
+
+        if (chks.length > 0 && window.currentProject && window.currentProject.sources) {
+            const isAllSelected = (window.selectedFiles.size > 0 && window.selectedFiles.size === window.currentProject.sources.length);
+            const isIndeterminate = (window.selectedFiles.size > 0 && window.selectedFiles.size < window.currentProject.sources.length);
+            chks.forEach(chk => {
+                chk.checked = isAllSelected;
+                chk.indeterminate = isIndeterminate;
+            });
+        }
+    },
+
+    updateSelectAllTranslatedButton() {
+        const chk = document.getElementById('chk-select-all-translated');
+        if (!chk || !window.currentProject) return;
+        const total = (window.currentProject.translated || []).length;
+        chk.checked = total > 0 && window.selectedTranslatedFiles.size === total;
+        chk.indeterminate = window.selectedTranslatedFiles.size > 0 && window.selectedTranslatedFiles.size < total;
+        const countEls = document.querySelectorAll('#selected-translated-count, #pm-selected-files-count');
+        countEls.forEach(countEl => {
+            if (window.selectedTranslatedFiles.size > 0) {
+                countEl.textContent = `${window.selectedTranslatedFiles.size} đã chọn`;
+                countEl.classList.remove('dn');
+            } else {
+                countEl.classList.add('dn');
+            }
+        });
+    },
+
+    resetSelection() {
+        window.selectedFiles.clear();
+        window.selectedTranslatedFiles.clear();
+        ProjectManager.updateSelectAllButton();
+        ProjectManager.updateSelectAllTranslatedButton();
+    },
+
+    selectAllProjectFiles() {
+        if (!window.currentProject) return;
+        const allSources = window.currentProject.sources || [];
+        if (window.selectedFiles.size === allSources.length && allSources.length > 0) {
+            window.selectedFiles.clear();
+        } else {
+            allSources.forEach(f => window.selectedFiles.add(f.name));
+        }
+        ProjectManager.updateSelectAllButton();
+        ProjectManager.renderPmFileList(allSources);
+        ProjectManager.renderPmSpellcheckFileList(allSources);
+    },
+
     showPmPromptTab(tabName) {
         const panels = ['main', 'summary', 'relationships', 'glossary', 'chinh-ta'];
         panels.forEach(p => {
@@ -532,6 +619,44 @@ const ProjectManager = {
                 UiHelpers.showToast(data.error || 'Lỗi xóa dự án', 'error');
             }
         });
+    },
+
+    // ===== FILE OPERATIONS =====
+
+    async deleteProjectFile(filename, section) {
+        if (!await showConfirm('Xóa vĩnh viễn "' + filename + '"?', { danger: true })) return;
+        fetch(`/api/projects/${window.currentProject.slug}/file/${section}/${filename}`, {
+            method: 'DELETE', headers: { 'Content-Type': 'application/json' }
+        }).then(r => r.json()).then(() => {
+            ProjectManager.openProject(window.currentProject.slug);
+        });
+    },
+
+    async renameProjectFile(filename, section) {
+        if (!window.currentProject) return;
+        const newName = await showPrompt('Đổi tên file thành:', filename);
+        if (!newName || newName === filename) return;
+
+        fetch(`/api/projects/${window.currentProject.slug}/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ old_name: filename, new_name: newName, section: section })
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                UiHelpers.showToast('Đã đổi tên file thành công', 'success');
+                ProjectManager.openProject(window.currentProject.slug);
+            } else {
+                UiHelpers.showToast(data.error || 'Lỗi đổi tên', 'error');
+            }
+        });
+    },
+
+    async moveBackInProject(filename) {
+        if (!await showConfirm('Trả "' + filename + '" về sources?')) return;
+        fetch(`/api/projects/${window.currentProject.slug}/move-back`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename })
+        }).then(r => r.json()).then(() => ProjectManager.openProject(window.currentProject.slug));
     },
 
     // ===== 3-COLUMN FILE LIST RENDERING =====
@@ -619,39 +744,54 @@ const ProjectManager = {
     // ===== DRAG AND DROP UPLOAD =====
 
     initDragDrop() {
-        const sidebar = document.querySelector('.file-list-sidebar');
-        if (!sidebar) return;
+        // Khởi tạo drag-and-drop cho tất cả sidebar hiện có
+        // Gọi lại sau khi mở project để đảm bảo sidebar đã render
+        const sidebars = document.querySelectorAll('.file-list-sidebar');
+        
+        sidebars.forEach(sidebar => {
+            // Tránh gắn event listener nhiều lần
+            if (sidebar.dataset.dragDropInit) return;
+            sidebar.dataset.dragDropInit = 'true';
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            sidebar.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                sidebar.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                });
             });
-        });
 
-        sidebar.addEventListener('dragenter', () => {
-            sidebar.classList.add('drag-over');
-        });
+            sidebar.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                sidebar.classList.add('drag-over');
+            });
 
-        sidebar.addEventListener('dragleave', (e) => {
-            if (!sidebar.contains(e.relatedTarget)) {
+            sidebar.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+
+            sidebar.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                if (!sidebar.contains(e.relatedTarget)) {
+                    sidebar.classList.remove('drag-over');
+                }
+            });
+
+            sidebar.addEventListener('drop', (e) => {
+                e.preventDefault();
                 sidebar.classList.remove('drag-over');
-            }
-        });
+                
+                if (!window.currentProject) {
+                    UiHelpers.showToast('Vui lòng chọn dự án trước!', 'warning');
+                    return;
+                }
 
-        sidebar.addEventListener('drop', (e) => {
-            sidebar.classList.remove('drag-over');
-            
-            if (!window.currentProject) {
-                UiHelpers.showToast('Vui lòng chọn dự án trước!', 'warning');
-                return;
-            }
+                const files = e.dataTransfer.files;
+                if (!files.length) return;
 
-            const files = e.dataTransfer.files;
-            if (!files.length) return;
-
-            Array.from(files).forEach(file => {
-                ProjectManager.uploadSingleFile(file);
+                Array.from(files).forEach(file => {
+                    ProjectManager.uploadSingleFile(file);
+                });
             });
         });
     },
@@ -680,6 +820,28 @@ const ProjectManager = {
         } catch (err) {
             UiHelpers.showToast('Lỗi upload: ' + err.message, 'error');
         }
+    },
+
+    uploadProjectFile() {
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án!', 'error');
+            return;
+        }
+        
+        // Tìm input file đang active (có thể là pm-upload-source-file hoặc pm-upload-spell-file)
+        const fileInput = document.getElementById('pm-upload-source-file') || 
+                          document.getElementById('pm-upload-spell-file');
+        if (!fileInput) return;
+        
+        const files = fileInput.files;
+        if (!files.length) return;
+        
+        Array.from(files).forEach(file => {
+            ProjectManager.uploadSingleFile(file);
+        });
+        
+        // Reset input
+        fileInput.value = '';
     },
     
     // ===== PROJECT MANAGEMENT WORKSPACE RENDERING =====
