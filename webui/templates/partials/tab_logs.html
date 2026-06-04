@@ -6,7 +6,7 @@
             <div class="w-30 ba b--black-10 br2 bg-white flex flex-column shadow-1 overflow-hidden" style="flex: 0 0 320px; width: 320px; min-width: 320px; max-width: 320px; max-height: 680px;">
                 <div class="pa3 bb b--black-10 bg-near-white flex items-center justify-between">
                     <span class="f6 fw6 light-silver uppercase tracked">File Log Hệ Thống</span>
-                    <button id="btn-delete-selected-logs" class="dn pointer ph2 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="deleteSelectedLogs()" title="Xóa các file đã chọn">Xóa đã chọn</button>
+                    <button id="btn-delete-selected-logs" class="dn pointer ph2 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="UiHelpers.deleteSelectedLogs()" title="Xóa các file đã chọn">Xóa đã chọn</button>
                 </div>
                 <!-- Log List -->
                 <div id="sys-log-list" class="flex-auto overflow-y-auto">
@@ -18,7 +18,7 @@
             <div class="flex-auto ba b--black-10 br2 bg-white flex flex-column shadow-1 overflow-hidden" style="flex: 1 1 auto; min-width: 0; max-height: 680px;">
                 <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
                     <h3 id="current-log-title" class="f5 ma0 dark-gray fw6 truncate">Chọn file để xem</h3>
-                    <button id="btn-delete-log" class="dn pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="deleteCurrentLog()" title="Xóa file log">Xóa</button>
+                    <button id="btn-delete-log" class="dn pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="UiHelpers.deleteCurrentLog()" title="Xóa file log">Xóa</button>
                 </div>
                 <!-- Log Editor/Viewer content -->
                 <div class="flex-auto bg-near-black near-white pa3 overflow-auto relative">

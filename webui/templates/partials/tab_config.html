@@ -6,17 +6,17 @@
                     <!-- Main Header: Selection & Model Config -->
                     <div class="flex justify-between items-center mb3">
                         <h2 class="f4 mt0 mb0 fw6 dark-gray">Cấu hình Hệ thống & AI Provider</h2>
-                        <button class="ph3 pv2 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveAppConfig()">Lưu Cấu Hình</button>
+                        <button class="ph3 pv2 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="ApiClient.saveAppConfig()">Lưu Cấu Hình</button>
                     </div>
 
                     <!-- Row 1: Provider Cards (Alpine.js managed) -->
                     <div x-data="{ activeProvider: 'gemini' }" class="flex flex-wrap mhn2 mb3">
                         <!-- Gemini API Keys -->
                         <div class="w-100 w-50-ns ph2 mb3">
-                            <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'gemini' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="gemini" x-on:click="activeProvider = 'gemini'; UiHelpers.switchProvider('gemini')">
+                            <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'gemini' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="gemini">
                                 <div class="flex-auto">
                                     <div class="flex justify-between items-center mb3">
-                                        <label class="flex items-center pointer">
+                                        <label class="flex items-center pointer" x-on:click="activeProvider = 'gemini'; UiHelpers.switchProvider('gemini')">
                                             <input type="radio" name="active_provider" value="gemini" class="mr2 pointer" :checked="activeProvider === 'gemini'">
                                             <span class="f5 fw6 dark-gray">Google Gemini</span>
                                         </label>
@@ -26,39 +26,57 @@
                                     </div>
                                     <div class="mb3">
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Keys (mỗi dòng 1 key)</label>
-                                        <textarea id="config-api-keys" class="ba b--black-10 br2 pa2 w-100 code f7 outline-0" style="height:120px; resize:none" placeholder="AIzaSy..."></textarea>
+                                        <textarea id="config-api-keys" class="ba b--black-10 br2 pa2 w-100 code f7 outline-0 api-keys-textarea" placeholder="AIzaSy..."></textarea>
                                     </div>
                                 </div>
                                 <div class="mt2">
-                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); saveApiKeys()">Lưu Keys Gemini</button>
+                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); GeminiProvider.saveKeys()">💾 Lưu Keys Gemini</button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- OpenAI API Key -->
+                        <!-- OpenAI Compatible Providers -->
                         <div class="w-100 w-50-ns ph2 mb3">
-                            <div id="provider-openai-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'openai' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="openai" x-on:click="activeProvider = 'openai'; UiHelpers.switchProvider('openai')">
+                            <div id="provider-openai-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'openai' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="openai">
                                 <div class="flex-auto">
                                     <div class="flex justify-between items-center mb3">
-                                        <label class="flex items-center pointer">
+                                        <label class="flex items-center pointer" x-on:click="activeProvider = 'openai'; UiHelpers.switchProvider('openai')">
                                             <input type="radio" name="active_provider" value="openai" class="mr2 pointer" :checked="activeProvider === 'openai'">
-                                            <span class="f5 fw6 dark-gray">OpenAI Compatible</span>
+                                            <span class="f5 fw6 dark-gray">OpenAI Compatible Providers</span>
                                         </label>
                                     </div>
                                     <div class="tc pv3 mb2">
                                         <img src="/static/images/openai-logo.png" alt="OpenAI Logo" title="OpenAI Logo" class="h3 object-fit-contain">
                                     </div>
+                                    <!-- Provider dropdown + nút Xóa -->
                                     <div class="mb3">
+                                        <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Provider</label>
+                                        <div class="flex items-center gap-2 mb3">
+                                            <select id="openai-provider-select" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="OpenAIProvider.onSelectProvider(this.value)">
+                                                <option value="">— Chọn provider —</option>
+                                            </select>
+                                            <button class="ba b--red bg-white pa2 br2 pointer f7 red hover-bg-washed-red nowrap shadow-sm" onclick="OpenAIProvider.deleteSelected()" title="Xóa provider đang chọn">✕</button>
+                                        </div>
+                                    </div>
+                                    <!-- Tên + API Key + Base URL (auto-fill khi chọn provider) -->
+                                    <div class="mb3">
+                                        <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Nhà cung cấp mẫu hình</label>
+                                        <input type="text" id="openai-provider-name" class="ba b--black-10 br2 pa2 w-100 f7 mb3 outline-0" placeholder="Chọn provider từ dropdown hoặc nhập tên mới">
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Key</label>
-                                        <input type="text" id="openai-api-key" class="ba b--black-10 br2 pa2 w-100 code f7 mb3 outline-0" placeholder="Nhập API Key hoặc để trống nếu cấu hình qua ENV">
-                                        
+                                        <input type="text" id="openai-api-key" class="ba b--black-10 br2 pa2 w-100 code f7 mb3 outline-0" placeholder="Nhập API Key">
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Base URL</label>
-                                        <input type="text" id="openai-base-url" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" placeholder="https://openrouter.ai/api/v1" value="https://openrouter.ai/api/v1">
-                                        <small class="silver mt1 db f7">Để trống nếu dùng trực tiếp OpenAI</small>
+                                        <input type="text" id="openai-base-url" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" placeholder="https://openrouter.ai/api/v1">
+                                    </div>
+                                    <!-- Nút Thêm / Sửa -->
+                                    <div class="bt b--black-10 pt3 mt3">
+                                        <div class="flex items-center gap-2">
+                                            <button class="ba b--blue bg-blue white pa2 br2 pointer f7 nowrap hover-bg-dark-blue shadow-sm flex-auto" onclick="OpenAIProvider.addNew()">+ Thêm mới</button>
+                                            <button class="ba b--dark-blue bg-dark-blue white pa2 br2 pointer f7 nowrap hover-bg-navy shadow-sm flex-auto" onclick="OpenAIProvider.editSelected()">Sửa</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="mt2">
-                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); saveOpenAIConfig()">Lưu Cấu hình OpenAI</button>
+                                    <button class="ba b--black-10 bg-near-white w-100 pv2 ph3 br2 pointer f7 hover-bg-white fw6 gray" onclick="event.stopPropagation(); OpenAIProvider.saveCurrent()">💾 Lưu Cấu hình OpenAI</button>
                                 </div>
                             </div>
                         </div>
@@ -68,11 +86,11 @@
                     <div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3">
                         <!-- Model Selection Sub-section -->
                         <div class="bb b--black-10 pb3 mb3">
-                            <h3 class="f5 fw6 mt0 mb3 dark-gray">Chọn Model cho <span id="current-provider-name" class="blue fw7">Gemini</span></h3>
+                            <h3 class="f5 fw6 mt0 mb3 dark-gray">Chọn model <span id="current-provider-name" class="blue fw7">AI</span></h3>
                             <div class="flex items-center gap-2 mb2">
                                 <select id="model" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="onModelChange(this.value)"></select>
-                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="markModel()" title="Đánh dấu thiết lập yêu thích để dễ tìm kiếm">Đánh dấu</button>
-                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="loadModels()">Lấy danh sách</button>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="ApiClient.markModel()" title="Đánh dấu thiết lập yêu thích để dễ tìm kiếm">Đánh dấu</button>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="ApiClient.loadModels()">Lấy danh sách</button>
                             </div>
                             <div id="model-info-panel" class="f7 gray mt1">
                                 <span>Input limit: <strong id="model-input-limit" class="dark-gray">—</strong></span>
@@ -86,12 +104,12 @@
                             <div class="flex flex-wrap mhn2 pb2">
                                 <div class="w-100 w-50-ns ph2 mb3">
                                     <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                        QA Model
+                                        Chunk Size
                                         <span class="nt-tooltip-container">
-                                            <span class="nt-help-icon" data-tooltip="Model phụ trách kiểm soát chất lượng và rà soát lỗi sau khi dịch.">ⓘ</span>
+                                            <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
                                         </span>
                                     </label>
-                                    <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0"></select>
+                                    <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
                                     <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
@@ -115,12 +133,12 @@
                                     <div class="flex flex-wrap mhn2">
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                                Chunk Size
+                                                Review Model
                                                 <span class="nt-tooltip-container">
-                                                    <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
+                                                    <span class="nt-help-icon" data-tooltip="Dùng để rà soát & sửa lỗi bản dịch sau khi hoàn tất.">ⓘ</span>
                                                 </span>
                                             </label>
-                                            <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                            <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0"></select>
                                         </div>
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
@@ -175,7 +193,7 @@
                         <h4 class="f5 fw6 mt0 mb3 dark-gray">Dọn dẹp hệ thống</h4>
                         <div class="flex items-center justify-between">
                             <p class="f7 silver ma0 w-70 lh-copy">Giải phóng dung lượng bộ nhớ tạm đệm của hệ thống bằng cách xóa các phản hồi API đã được lưu.</p>
-                            <button id="btn-clear-cache" class="ba b--red bg-white pv2 ph3 br2 pointer f7 red hover-bg-washed-red fw6 nowrap shadow-sm" onclick="clearCache()">Xóa Cache</button>
+                            <button id="btn-clear-cache" class="ba b--red bg-white pv2 ph3 br2 pointer f7 red hover-bg-washed-red fw6 nowrap shadow-sm" onclick="ApiClient.clearCache()">Xóa Cache</button>
                         </div>
                     </div>
 

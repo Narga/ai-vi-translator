@@ -53,6 +53,44 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
+## ✅ Giai đoạn 7.3: Provider Management & Frontend Optimization (v7.3.0 — Đã xong)
+
+### 🔧 7.3.1 Provider Single Source of Truth
+- [x] `providers.json` là nguồn duy nhất cho tất cả provider configs
+- [x] Migration một chiều từ `API.txt` + `app.ini` → `providers.json`
+- [x] Atomic write (`os.replace` + `shutil.move` fallback)
+- [x] Bảo vệ `gemini-default` — không cho xóa
+- [x] API mới: `/api/providers` (GET/POST/PUT/DELETE) + `/api/providers/select`
+
+### 🎨 7.3.2 Config Tab Rebuild
+- [x] Dropdown chọn OpenAI provider + nút Xóa
+- [x] Input "Nhà cung cấp mẫu hình" + nút Thêm/Sửa
+- [x] Auto-fill Tên + API Key + Base URL khi chọn provider
+- [x] Đổi "QA Model" → "Review Model", ẩn vào Advanced
+- [x] Đưa Chunk Size ra khỏi Advanced
+- [x] Sửa click handler: input/textarea không trigger toast
+
+### 🐛 7.3.3 Bug Fixes (12 lỗi)
+- [x] Nav bar stats không hiển thị (loadProjects → loadProjectCards)
+- [x] Ctrl+S / AutoSave targets sai element ID
+- [x] PromptManager load/save project prompts sai ID
+- [x] deleteGenre ref null element
+- [x] switchProvider CSS class sai
+- [x] 12 hàm ProjectManager bị thiếu
+- [x] Archive restore/delete không hoạt động
+- [x] Syntax error do code thừa sau consolidate
+
+### ✂️ 7.3.4 Frontend Optimization (-331 dòng)
+- [x] Consolidate loadFile/renderFile/showPanel functions
+- [x] Xóa 50 global wrapper functions → direct Module.method()
+- [x] Xóa ~200 dòng dead code (CSS + JS)
+- [x] Inline styles → CSS classes
+- [x] Modal z-index → CSS variables
+- [x] Button styling consolidation
+- [x] Modals hợp nhất vào 1 file
+
+---
+
 ## 🎯 Giai đoạn 8: Cải tiến & Tính năng mới (Next)
 
 ### Ưu tiên cao
@@ -124,4 +162,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-03*
+*Cập nhật lần cuối: 2026-06-04*

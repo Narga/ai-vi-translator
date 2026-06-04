@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.2.0)
+# 📚 Content Translator (v7.3.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -12,12 +12,12 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 ## 🔥 Tính năng Nổi bật
 
 - 🏗️ **Hexagonal Backend**: CLI và WebUI dùng chung backend (`backend/` package với Application/Domain/Infrastructure/Facade layers).
-- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, Xiaomi, proxy).
+- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, Xiaomi, proxy). Quản lý nhiều provider qua `providers.json`.
 - 🎨 **Quản lý Dự án**: Tab "Quản lý dự án" độc lập với workspace 3 cột, import/export zip, trạng thái tự động.
 - 🖥️ **So sánh bản dịch (Diff View)**: Xem Dọc/Ngang — so sánh bản gốc và bản dịch trực quan.
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
-- 🧪 **Test Suite**: 158 tests (smoke + unit) cho backend, CLI, WebUI và helpers.
+- 🧪 **Test Suite**: 131 tests (unit) cho backend, CLI, WebUI và helpers.
 
 ---
 
@@ -32,10 +32,9 @@ uv sync
 
 ### Cấu hình API Key
 ```bash
-# Tạo file .env (khuyến nghị)
-echo "GEMINI_API_KEYS=your_key_1,your_key_2" > .env
-# Hoặc OpenAI/OpenRouter
-echo "OPENAI_API_KEY=your_openai_key" >> .env
+# Chạy ứng dụng lần đầu — tự động migration từ API.txt + app.ini → providers.json
+# Hoặc cấu hình thủ công qua tab "Cấu hình" trên WebUI
+# providers.json là nguồn duy nhất (tự động thêm vào .gitignore)
 ```
 
 ### Chạy ứng dụng
@@ -71,8 +70,8 @@ main.py       ├── application/    # Use cases + DTOs + Progress ports
               └── __init__.py     # create_app_service() factory
               core/               # Core pipeline (TranslationExecutor, plugins)
               services/           # Cache, TranslationMemory, Health
-              webui/static/js/    # 6 ES modules: api-client, project-manager, editor-component,
-                                  #   prompt-manager, translation-worker, ui-helpers
+              webui/static/js/    # 7 ES modules: api-client, provider-manager, project-manager,
+                                  #   editor-component, prompt-manager, translation-worker, ui-helpers
 ```
 
 ---
@@ -83,5 +82,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.2.0  
-**Ngày:** 03/06/2026
+**Phiên bản:** 7.3.0  
+**Ngày:** 04/06/2026

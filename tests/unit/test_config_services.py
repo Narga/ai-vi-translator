@@ -179,45 +179,47 @@ class TestApiKeyServiceMethods:
         assert count >= 0
 
     def test_save_keys(self, tmp_path):
-        """Test save_keys ghi file đúng."""
+        """Test save_keys lưu vào providers.json."""
+        from backend.infrastructure.providers.provider_service import ProviderService
         from backend.infrastructure.config.api_key_service import ApiKeyService
+        # Tạo providers.json mẫu
+        import json
+        providers_file = tmp_path / "providers.json"
+        providers_file.write_text(json.dumps({
+            "version": 1, "active_id": "gemini-default",
+            "providers": [{"id": "gemini-default", "type": "gemini", "name": "Google Gemini", "api_keys": ["old_key"]}]
+        }))
         service = ApiKeyService(config_dir=tmp_path)
-
-        # Tạo file API.txt mẫu
-        api_file = tmp_path / "API.txt"
-        api_file.write_text("[GEMINI]\nold_key\n")
-
-        # Save keys mới
         result = service.save_keys("GEMINI", "new_key1\nnew_key2\n")
         assert result is True
-
-        # Verify file đã được ghi
-        content = api_file.read_text()
-        assert "new_key1" in content
-        assert "new_key2" in content
+        # Verify providers.json đã được ghi
+        data = json.loads(providers_file.read_text())
+        gemini = next(p for p in data["providers"] if p["type"] == "gemini")
+        assert "new_key1" in gemini["api_keys"]
 
     def test_parse_api_file(self, tmp_path):
-        """Test _parse_api_file parse đúng format."""
-        from backend.infrastructure.config.api_key_service import ApiKeyService
-        service = ApiKeyService(config_dir=tmp_path)
-
+        """Test ProviderService._parse_api_file parse đúng format."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        import json
+        # Tạo providers.json để tránh trigger migration (sẽ xóa API.txt)
+        (tmp_path / "providers.json").write_text(json.dumps({"version": 1, "active_id": "gemini-default", "providers": []}))
         api_file = tmp_path / "API.txt"
         api_file.write_text("[GEMINI]\ngemini_key1\ngemini_key2\n\n[OPENAI]\nopenai_key1\n")
-
-        sections = service._parse_api_file()
+        ps = ProviderService(config_dir=tmp_path)
+        sections = ps._parse_api_file(api_file)
         assert "GEMINI" in sections
         assert "OPENAI" in sections
         assert len(sections["GEMINI"]) == 2
         assert len(sections["OPENAI"]) == 1
 
     def test_parse_api_file_legacy(self, tmp_path):
-        """Test _parse_api_file với legacy format (không có section)."""
-        from backend.infrastructure.config.api_key_service import ApiKeyService
-        service = ApiKeyService(config_dir=tmp_path)
-
+        """Test ProviderService._parse_api_file với legacy format (không có section)."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        import json
+        (tmp_path / "providers.json").write_text(json.dumps({"version": 1, "active_id": "gemini-default", "providers": []}))
         api_file = tmp_path / "API.txt"
         api_file.write_text("key1\nkey2\nkey3\n")
-
-        sections = service._parse_api_file()
+        ps = ProviderService(config_dir=tmp_path)
+        sections = ps._parse_api_file(api_file)
         assert "GEMINI" in sections  # Default section
         assert len(sections["GEMINI"]) == 3

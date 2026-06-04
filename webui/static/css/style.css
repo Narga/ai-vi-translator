@@ -1,12 +1,13 @@
 /* Content Translator - Design Restoration (Tachyons Optimized) */
 :root {
-  --primary: #4f46e5;           /* Indigo-600 */
-  --primary-hover: #4338ca;     /* Indigo-700 */
-  --primary-light: #eef2ff;     /* Indigo-50 for hover/active states */
-  --bg-app: #f8fafc;            /* Slate-50 */
-  --border: #e2e8f0;            /* Slate-200 */
-  --text-main: #0f172a;         /* Slate-900 */
-  --text-muted: #475569;        /* Slate-600 */
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: #eff6ff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --z-modal: 9998;
+    --z-modal-top: 10000;
 }
 
 body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg-app); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -31,61 +32,12 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-tab-content { flex: 1; min-height: 0; flex-direction: column; overflow-y: auto; overflow-x: hidden; display: none; }
 .nt-tab-content.active { display: flex !important; }
 
-/* Main Project Tabs Border */
-.tab-btn { border-bottom: 2px solid transparent !important; border-radius: 0 !important; }
-.tab-btn.active { border-bottom-color: var(--primary) !important; color: var(--primary) !important; }
-
-/* Project Sub-Tabs (ptab) Handling */
-.nt-ptab-content { flex-direction: column; }
-.nt-ptab-content.active-ptab { display: flex !important; }
-.nt-ptab-content.dn { display: none !important; }
-
 /* Workspace Layout */
 .workspace-wrapper { display: flex; flex: 1; min-height: 0; padding: 1.5rem; gap: 1.5rem; width: 100%; box-sizing: border-box; }
-.sidebar { width: 320px; display: flex; flex-direction: column; flex-shrink: 0; }
-.main-content { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-
-/* Sidebar Items */
-.sidebar-item { padding: 1rem 1rem; cursor: pointer; border-bottom: 1px solid var(--border); transition: all 0.1s; border-left: 4px solid transparent; }
-.sidebar-item:hover { background: #f8fafc; }
-.sidebar-item.active { border-left-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 600; }
-
-/* Editor Containers */
-.editor-container { display: flex; flex: 1; min-height: 0; width: 100%; min-height: 420px; }
-.editor-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.editor-textarea { resize: none; }
-.editor-textarea-fill { flex: 1; min-height: 0; }
-
-/* Resizable File List Box */
-.file-list-box {
-    height: 350px;
-    overflow-y: auto;
-    resize: vertical;
-    min-height: 150px;
-    max-height: 600px;
-}
-
-/* Sticky Table Header */
-.sticky-top {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
 
 /* Model Select Small */
 .model-select-sm {
     height: 28px;
-}
-
-/* Info Textarea (full-width under editor) */
-.info-panel {
-    margin-top: 1rem;
-}
-
-/* Info textarea min-height */
-.info-textarea {
-    min-height: 400px;
-    resize: vertical;
 }
 
 /* No Resize Textarea */
@@ -93,10 +45,11 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
     resize: none;
 }
 
-/* Checkbox Column Width */
-.col-checkbox {
-    width: 40px;
-}
+/* Inline style replacements */
+.icon-sm svg { width: 14px; height: 14px; }
+.projects-list-view { height: calc(100vh - 80px); overflow: hidden; }
+.api-keys-textarea { height: 120px; resize: none; }
+.prompt-textarea { min-height: 340px; resize: none; }
 
 /* Minimal Table Overrides */
 .minimal-table { width: 100%; border-collapse: collapse; }
@@ -113,7 +66,6 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 
 /* Animations */
 .transition-all { transition: all 0.15s ease-in-out; }
-.op-20 { opacity: 0.2; }
 
 /* Toasts */
 #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1000; }
@@ -137,55 +89,6 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .nt-tab-label { cursor: pointer; }
 .nt-tab-panel { display: none; }
 
-#project-tab-main:checked ~ .nt-tab-nav label[for="project-tab-main"],
-#project-tab-summary:checked ~ .nt-tab-nav label[for="project-tab-summary"],
-#project-tab-relationships:checked ~ .nt-tab-nav label[for="project-tab-relationships"],
-#project-tab-glossary:checked ~ .nt-tab-nav label[for="project-tab-glossary"],
-#project-tab-chinh-ta:checked ~ .nt-tab-nav label[for="project-tab-chinh-ta"] {
-  color: #111;
-  border-bottom: 2px solid var(--primary);
-  font-weight: 600;
-}
-
-#project-tab-main:checked ~ .nt-tab-panels #project-panel-main,
-#project-tab-summary:checked ~ .nt-tab-panels #project-panel-summary,
-#project-tab-relationships:checked ~ .nt-tab-panels #project-panel-relationships,
-#project-tab-glossary:checked ~ .nt-tab-panels #project-panel-glossary,
-#project-tab-chinh-ta:checked ~ .nt-tab-panels #project-panel-chinh-ta {
-  display: block;
-}
-
-#project-info-tab-summary:checked ~ .nt-tab-nav label[for="project-info-tab-summary"],
-#project-info-tab-relationships:checked ~ .nt-tab-nav label[for="project-info-tab-relationships"],
-#project-info-tab-glossary:checked ~ .nt-tab-nav label[for="project-info-tab-glossary"] {
-  color: #111;
-  border-bottom: 2px solid var(--primary);
-  font-weight: 600;
-}
-
-#project-info-tab-summary:checked ~ .nt-tab-panels #project-info-panel-summary,
-#project-info-tab-relationships:checked ~ .nt-tab-panels #project-info-panel-relationships,
-#project-info-tab-glossary:checked ~ .nt-tab-panels #project-info-panel-glossary {
-  display: block;
-}
-
-/* Info Tab Sub-tabs */
-#info-tab-style-guide:checked ~ .nt-tab-nav label[for="info-tab-style-guide"],
-#info-tab-relationship:checked ~ .nt-tab-nav label[for="info-tab-relationship"],
-#info-tab-glossary:checked ~ .nt-tab-nav label[for="info-tab-glossary"],
-#info-tab-summary:checked ~ .nt-tab-nav label[for="info-tab-summary"] {
-  color: #111;
-  border-bottom: 2px solid var(--primary);
-  font-weight: 600;
-}
-
-#info-tab-style-guide:checked ~ .nt-tab-panels #info-panel-style-guide,
-#info-tab-relationship:checked ~ .nt-tab-panels #info-panel-relationship,
-#info-tab-glossary:checked ~ .nt-tab-panels #info-panel-glossary,
-#info-tab-summary:checked ~ .nt-tab-panels #info-panel-summary {
-  display: block;
-}
-
 #system-tab-main:checked ~ .nt-tab-nav label[for="system-tab-main"],
 #system-tab-summary:checked ~ .nt-tab-nav label[for="system-tab-summary"],
 #system-tab-relationships:checked ~ .nt-tab-nav label[for="system-tab-relationships"],
@@ -197,8 +100,6 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 }
 
 #system-tab-main:checked ~ .nt-tab-panels #system-panel-main,
-#system-tab-retranslate:checked ~ .nt-tab-panels #system-panel-retranslate,
-#system-tab-correction:checked ~ .nt-tab-panels #system-panel-correction,
 #system-tab-summary:checked ~ .nt-tab-panels #system-panel-summary,
 #system-tab-relationships:checked ~ .nt-tab-panels #system-panel-relationships,
 #system-tab-glossary:checked ~ .nt-tab-panels #system-panel-glossary,
@@ -214,42 +115,30 @@ body { margin: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; ba
 .animate-pop { animation: pop-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
 /* Buttons Design Restoration */
-button, .btn {
-    border-radius: 6px;
-    font-weight: 600;
-    transition: all 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    cursor: pointer;
-    border: 1px solid transparent;
-}
-
 /* Primary/Blue (e.g. Save) */
-button.bg-blue, .bg-blue {
+button.bg-blue {
     background-color: var(--primary) !important;
     color: white !important;
     border-color: var(--primary-hover) !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-button.bg-blue:hover, .bg-blue:hover {
+button.bg-blue:hover {
     background-color: var(--primary-hover) !important;
 }
 
 /* Orange (e.g. Chunk) */
-button.bg-orange, .bg-orange {
+button.bg-orange {
     background-color: #f97316 !important;
     color: white !important;
     border-color: #ea580c !important;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-button.bg-orange:hover, .bg-orange:hover, .hover-bg-dark-orange:hover {
+button.bg-orange:hover, .hover-bg-dark-orange:hover {
     background-color: #ea580c !important;
 }
 
 /* Secondary/White/Silver (e.g. Clone/Cancel) */
-button.bg-white, button.b--silver, .bg-white.ba.b--silver {
+button.bg-white.ba, button.b--silver {
     background-color: white !important;
     color: #475569 !important;
     border-color: #e2e8f0 !important;
@@ -261,7 +150,7 @@ button.bg-white:hover, button.b--silver:hover {
 }
 
 /* Danger/Red (e.g. Delete) */
-button.b--red, button.bg-red, .btn-danger {
+button.b--red, button.bg-red {
     background-color: #fff1f2 !important;
     color: #e11d48 !important;
     border-color: #fecdd3 !important;
@@ -272,12 +161,12 @@ button.b--red:hover, button.bg-red:hover {
 }
 
 /* Success/Green */
-button.bg-green, .bg-green {
+button.bg-green {
     background-color: #10b981 !important;
     color: white !important;
     border-color: #059669 !important;
 }
-button.bg-green:hover, .bg-green:hover {
+button.bg-green:hover {
     background-color: #059669 !important;
 }
 
@@ -312,8 +201,6 @@ button.bg-green:hover, .bg-green:hover {
 .nt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .nt-btn-primary { background: var(--primary); color: white; }
 .nt-btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-.nt-btn-secondary { background: white; color: #374151; border: 1px solid #d1d5db; }
-.nt-btn-secondary:hover:not(:disabled) { background: #f9fafb; border-color: #9ca3af; }
 .nt-btn-outline { background: transparent; color: #374151; border: 1px solid #d1d5db; }
 .nt-btn-outline:hover:not(:disabled) { background: #f9fafb; }
 .nt-btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
@@ -321,7 +208,6 @@ button.bg-green:hover, .bg-green:hover {
 .nt-btn-success { background: #10b981; color: white; border: 1px solid #059669; }
 .nt-btn-success:hover:not(:disabled) { background: #059669; }
 .nt-btn-sm { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
-.nt-btn-lg { padding: 0.75rem 1.5rem; font-size: 1rem; }
 
 /* Input System */
 .nt-input {
@@ -436,11 +322,6 @@ button.bg-green:hover, .bg-green:hover {
 /* ============================================================ */
 /* Phase 3: Unified Editor Pane — 50/50 Layout                  */
 /* ============================================================ */
-.nt-editor-pane {
-    flex: 0 0 50%;
-    min-width: 0; /* prevents overflow of long content */
-    box-sizing: border-box;
-}
 
 /* ============================================================ */
 /* Alpine.js: Ẩn element khi Alpine.js chưa khởi tạo (FOUC)     */
@@ -666,11 +547,6 @@ button.bg-green:hover, .bg-green:hover {
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 12px;
-}
-.project-card-progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #8BC34A);
-    transition: width 0.3s ease;
 }
 .project-card-actions {
     display: flex;

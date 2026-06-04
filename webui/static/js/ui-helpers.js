@@ -181,7 +181,7 @@ const UiHelpers = {
                 const radio = col.querySelector('input[type="radio"]');
                 if (radio) radio.checked = true;
             } else {
-                col.classList.add('b--light-gray', 'o-60');
+                col.classList.add('b--black-10', 'o-60');
                 col.classList.remove('b--blue', 'o-100');
                 const radio = col.querySelector('input[type="radio"]');
                 if (radio) radio.checked = false;
@@ -198,6 +198,9 @@ const UiHelpers = {
                 if (data.success) {
                     UiHelpers.showToast(`Đã chuyển sang ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI Compatible'}`, 'success');
                     ApiClient.loadModels();
+                    // Cập nhật heading
+                    const nameEl = document.getElementById('current-provider-name');
+                    if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
                 } else {
                     UiHelpers.showToast(data.error || 'Lỗi chuyển provider', 'error');
                 }
@@ -253,14 +256,9 @@ const UiHelpers = {
                     if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
                 }
 
-                if (data.openai_config) {
-                    const cfg = data.openai_config;
-                    if (cfg.base_url) document.getElementById('openai-base-url').value = cfg.base_url;
-                    const keyInput = document.getElementById('openai-api-key');
-                    if (keyInput) {
-                        if (cfg.key) keyInput.value = cfg.key;
-                        else if (cfg.has_key) keyInput.placeholder = '••••••••••• (đã cấu hình qua biến môi trường)';
-                    }
+                // Load OpenAI providers dropdown (new in v7.3.0)
+                if (typeof OpenAIProvider !== 'undefined') {
+                    OpenAIProvider.loadProviders();
                 }
             })
             .catch(e => console.error('Failed to load provider info:', e));

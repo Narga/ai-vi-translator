@@ -299,13 +299,11 @@ const ApiClient = {
 
     loadStats() {
         fetch('/api/stats').then(r => r.json()).then(data => {
-            const apiKeyEl = document.getElementById('api-keys-count');
             const cacheCountEl = document.getElementById('cache-count');
             const cacheSizeEl = document.getElementById('cache-size');
             const projCountEl = document.getElementById('project-count');
             const archiveCountEl = document.getElementById('archive-count');
 
-            if (apiKeyEl) apiKeyEl.textContent = data.api_keys_count || data.api_keys || 0;
             if (cacheCountEl) cacheCountEl.textContent = data.cache_files || 0;
             if (cacheSizeEl) cacheSizeEl.textContent = data.cache_size_mb || 0;
             if (projCountEl) projCountEl.textContent = data.project_count || 0;

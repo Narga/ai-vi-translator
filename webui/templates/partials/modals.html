@@ -1,7 +1,7 @@
 <!-- ==================== GLOBAL MODALS ==================== -->
 
 <!-- Chunking Modal -->
-<div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 9999;">
+<div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
     <div class="bg-white pa4 br3 w-100 mw6 shadow-5 relative animate-pop">
         <h3 class="mt0 dark-gray fw6 pb2 bb b--black-10">Cấu hình Chia Chunk</h3>
         
@@ -16,14 +16,14 @@
         </div>
         
         <div class="flex gap-3 pt3 bt b--black-10">
-            <button class="flex-auto ph3 pv3 pointer ba b--silver bg-white br2 gray hover-bg-near-white fw6 uppercase tracked f7" onclick="hideChunkConfig()">Hủy bỏ</button>
-            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="confirmChunking()">Chia ngay</button>
+            <button class="flex-auto ph3 pv3 pointer ba b--silver bg-white br2 gray hover-bg-near-white fw6 uppercase tracked f7" onclick="ProjectManager.hideChunkConfig()">Hủy bỏ</button>
+            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="ProjectManager.confirmChunking()">Chia ngay</button>
         </div>
     </div>
 </div>
 
 <!-- Translation Progress Modal -->
-<div id="translation-progress-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 10000;">
+<div id="translation-progress-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal-top);">
     <div class="bg-white br3 shadow-5 w-100 mw7 overflow-hidden relative animate-pop">
         <!-- Modal Header -->
         <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center relative">
@@ -31,7 +31,7 @@
                 <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
             </div>
             <div class="flex items-center gap-2">
-                <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="closeProgress()">Hoàn thành</button>
+                <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="TranslationWorker.closeProgress()">Hoàn thành</button>
             </div>
         </div>
 
@@ -68,14 +68,14 @@
 </div>
 
 <!-- Project Info Modal -->
-<div id="project-info-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 9998;">
+<div id="project-info-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
     <div class="bg-white br3 shadow-5 w-100 mw6 overflow-hidden animate-pop">
         <!-- Header -->
         <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
             <div class="flex items-center gap-2">
                 <h3 class="f5 ma0 dark-gray fw6">Thông tin Dự án</h3>
             </div>
-            <button class="pointer bg-transparent bn f4 gray hover-dark-gray lh-solid" onclick="hideProjectInfoModal()" title="Đóng">&times;</button>
+            <button class="pointer bg-transparent bn f4 gray hover-dark-gray lh-solid" onclick="ProjectManager.hideProjectInfoModal()" title="Đóng">&times;</button>
         </div>
 
         <!-- Body -->
@@ -113,14 +113,64 @@
         <div class="pa3 bt b--black-10 flex justify-between items-center gap-2">
             <!-- Destructive actions (left) -->
             <div class="flex gap-2">
-                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="archiveProjectFromModal()" title="Nén và lưu trữ dự án">Lưu trữ</button>
-                <button class="pointer ph3 pv2 f7 ba b--red red bg-white br2 hover-bg-washed-red fw6" onclick="deleteProjectFromModal()" title="Xóa vĩnh viễn dự án">Xóa</button>
+                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white fw6" onclick="ProjectManager.archiveProjectFromModal()" title="Nén và lưu trữ dự án">Lưu trữ</button>
+                <button class="pointer ph3 pv2 f7 ba b--red red bg-white br2 hover-bg-washed-red fw6" onclick="ProjectManager.deleteProjectFromModal()" title="Xóa vĩnh viễn dự án">Xóa</button>
             </div>
             <!-- Primary actions (right) -->
             <div class="flex gap-2">
-                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white" onclick="hideProjectInfoModal()">Hủy</button>
-                <button class="pointer ph4 pv2 f7 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="saveProjectInfo()">Cập nhật</button>
+                <button class="pointer ph3 pv2 f7 ba b--silver bg-white br2 gray hover-bg-near-white" onclick="ProjectManager.hideProjectInfoModal()">Hủy</button>
+                <button class="pointer ph4 pv2 f7 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue" onclick="ProjectManager.saveProjectInfo()">Cập nhật</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Project Modal -->
+<div id="new-project-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center" style="display: none;">
+    <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">📁 Tạo Dự án Mới</h3>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên dự án *</label>
+            <input type="text" id="new-project-name" class="nt-input w-100" placeholder="VD: Đạo Mộ Bút Ký, ...">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả</label>
+            <input type="text" id="new-project-desc" class="nt-input w-100" placeholder="Mô tả ngắn về dự án (tùy chọn)">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Thể loại</label>
+            <select id="new-project-genre" class="nt-input w-100">
+                <option value="">— Không chọn —</option>
+            </select>
+            <small class="db mt1 silver">Liên kết với bộ prompt theo thể loại. Có thể đổi sau.</small>
+        </div>
+        <div class="flex justify-end gap-3 pt3 bt b--black-10">
+            <button type="button" id="btn-cancel-project" class="nt-btn nt-btn-outline">Hủy bỏ</button>
+            <button type="button" id="btn-confirm-new-project" class="nt-btn nt-btn-success">✅ Tạo Dự án</button>
+        </div>
+    </div>
+</div>
+
+<!-- New Genre Modal -->
+<div id="new-genre-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center" style="display: none;">
+    <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">Tạo bộ Prompt Mới</h3>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên thể loại *</label>
+            <input type="text" id="new-genre-name" class="nt-input w-100" placeholder="VD: Tiên Hiệp, Đô Thị...">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Slug nhận dạng</label>
+            <input type="text" id="new-genre-slug" class="nt-input w-100" placeholder="tien-hiep">
+            <small class="db mt1 silver">Đường dẫn folder tạo tự động từ tên.</small>
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả khái quát</label>
+            <input type="text" id="new-genre-desc" class="nt-input w-100" placeholder="Mở rộng bối cảnh...">
+        </div>
+        <div class="flex justify-end gap-3 pt3 bt b--black-10">
+            <button type="button" id="btn-cancel-genre" class="nt-btn nt-btn-outline">Hủy bỏ</button>
+            <button type="button" id="btn-confirm-new-genre" class="nt-btn nt-btn-success">Xác nhận Tạo</button>
         </div>
     </div>
 </div>

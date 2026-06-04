@@ -133,54 +133,16 @@ class TestHelpersBasicFunctions:
 
 
 class TestHelpersParseApiFile:
-    """Test _parse_api_file function."""
+    """Test _parse_api_file function — DEPRECATED in v7.3.0."""
 
-    def test_parse_api_file_returns_dict(self, tmp_path):
-        """Test rằng _parse_api_file trả về dict."""
+    def test_parse_api_file_raises_not_implemented(self, tmp_path):
+        """Test rằng _parse_api_file raises NotImplementedError sau migration v7.3.0."""
         from webui.helpers import _parse_api_file
-
-        # Tạo file API test
+        import pytest
         api_file = tmp_path / "API.txt"
-        api_file.write_text("[GEMINI]\nkey1\nkey2\n\n[OPENAI]\nkey3\n")
-
-        sections = _parse_api_file(api_file)
-        assert isinstance(sections, dict)
-        assert "GEMINI" in sections
-        assert "OPENAI" in sections
-        assert len(sections["GEMINI"]) == 2
-        assert len(sections["OPENAI"]) == 1
-
-    def test_parse_api_file_empty(self, tmp_path):
-        """Test _parse_api_file với file rỗng."""
-        from webui.helpers import _parse_api_file
-
-        api_file = tmp_path / "API.txt"
-        api_file.write_text("")
-
-        sections = _parse_api_file(api_file)
-        assert isinstance(sections, dict)
-
-    def test_parse_api_file_not_exist(self, tmp_path):
-        """Test _parse_api_file với file không tồn tại."""
-        from webui.helpers import _parse_api_file
-
-        api_file = tmp_path / "nonexistent.txt"
-        sections = _parse_api_file(api_file)
-        assert isinstance(sections, dict)
-        assert len(sections) == 0
-
-    def test_parse_api_file_legacy_format(self, tmp_path):
-        """Test _parse_api_file với legacy format (không có section)."""
-        from webui.helpers import _parse_api_file
-
-        api_file = tmp_path / "API.txt"
-        api_file.write_text("key1\nkey2\nkey3\n")
-
-        sections = _parse_api_file(api_file)
-        assert isinstance(sections, dict)
-        # Legacy format default section là GEMINI
-        assert "GEMINI" in sections
-        assert len(sections["GEMINI"]) == 3
+        api_file.write_text("[GEMINI]\nkey1\nkey2\n")
+        with pytest.raises(NotImplementedError):
+            _parse_api_file(api_file)
 
 
 class TestCoreImports:

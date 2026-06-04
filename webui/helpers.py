@@ -76,90 +76,69 @@ def get_default_model():
 
 
 def get_active_provider():
-    """Get active AI provider from config."""
-    config = load_config()
+    """Get active AI provider from providers.json."""
     try:
-        return config.get("PROVIDER", "ACTIVE_PROVIDER", fallback="gemini").lower()
-    except Exception:
+        from backend.infrastructure.providers.provider_service import ProviderService
+        return ProviderService().get_active_provider()
+    except Exception as e:
+        logger.debug(f"get_active_provider fallback: {e}")
         return "gemini"
 
 
 def load_openai_key():
-    """Load OpenAI/OpenRouter API key từ config/API.txt [OPENAI] section."""
+    """Load OpenAI/OpenRouter key. Ưu tiên active provider, fallback sang provider openai đầu tiên."""
     try:
-        api_file = Path("config/API.txt")
-        if api_file.exists():
-            sections = _parse_api_file(api_file)
-            keys = sections.get("OPENAI", [])
-            if keys:
-                return keys[0]
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        # Nếu active là openai → trả key của nó
+        active = provider_service.get_active_provider_config()
+        if active and active.get("type") == "openai":
+            return active.get("api_key", "")
+        # Fallback: tìm provider openai đầu tiên
+        openai_providers = provider_service.get_providers_by_type("openai")
+        if openai_providers:
+            return openai_providers[0].get("api_key", "")
     except Exception as e:
         logger.debug(f"load_openai_key error: {e}")
-
-    # Fallback: đọc từ .env (legacy support)
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-        key = os.environ.get("OPENAI_API_KEY", "")
-        if key:
-            return key.strip()
-    except Exception:
-        pass
-
-    # Fallback 2: đọc từ config/app.ini [OPENAI] section
-    config = load_config()
-    try:
-        return config.get("OPENAI", "API_KEY", fallback="").strip()
-    except Exception:
-        return ""
+    return ""
 
 
 def _parse_api_file(filepath):
-    """Helper để parse file API.txt theo nhóm [SECTION]."""
-    sections = {}
-    current_section = "GEMINI"  # Default for legacy files without sections
-    
-    if not filepath.exists():
-        return sections
-        
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if line.startswith("[") and line.endswith("]"):
-                    current_section = line[1:-1].upper()
-                    if current_section not in sections:
-                        sections[current_section] = []
-                    continue
-                
-                if current_section not in sections:
-                    sections[current_section] = []
-                sections[current_section].append(line)
-    except Exception as e:
-        logger.error(f"Error parsing {filepath}: {e}")
-        
-    return sections
+    """Helper để parse file API.txt — DEPRECATED in v7.3.0 (providers.json is source of truth)."""
+    raise NotImplementedError("_parse_api_file đã bị xóa sau migration v7.3.0. Dùng ProviderService.")
 
 
 def get_openai_base_url():
-    """Get OpenAI base URL from config."""
-    config = load_config()
+    """Get OpenAI base URL. Ưu tiên active provider, fallback sang provider openai đầu tiên."""
     try:
-        url = config.get("OPENAI", "BASE_URL", fallback="").strip()
-        return url if url else None
+        from backend.infrastructure.providers.provider_service import ProviderService
+        ps = ProviderService()
+        url = ps.get_active_base_url()
+        if url:
+            return url
+        openai_providers = ps.get_providers_by_type("openai")
+        if openai_providers:
+            u = openai_providers[0].get("base_url", "")
+            return u if u else None
     except Exception:
-        return None
+        pass
+    return None
 
 
 def get_openai_model():
-    """Get default OpenAI model from config."""
-    config = load_config()
+    """Get default OpenAI model. Ưu tiên active provider, fallback sang provider openai đầu tiên."""
     try:
-        return config.get("OPENAI", "MODEL", fallback="gpt-4o-mini")
+        from backend.infrastructure.providers.provider_service import ProviderService
+        ps = ProviderService()
+        active = ps.get_active_provider_config()
+        if active and active.get("type") == "openai":
+            return active.get("default_model", "") or "gpt-4o-mini"
+        openai_providers = ps.get_providers_by_type("openai")
+        if openai_providers:
+            return openai_providers[0].get("default_model", "") or "gpt-4o-mini"
     except Exception:
-        return "gpt-4o-mini"
+        pass
+    return "gpt-4o-mini"
 
 
 def get_available_models():
@@ -227,53 +206,54 @@ def get_available_openai_models():
 
 
 def load_api_keys(section=None):
-    """Load API keys từ config/API.txt. Nếu section=None, load tất cả các keys từ mọi nhóm."""
-    api_file = Path("config/API.txt")
-    if api_file.exists():
-        sections = _parse_api_file(api_file)
-        if section:
-            return sections.get(section.upper(), [])
-        else:
-            # Flatten all keys from all sections
-            all_keys = []
-            for keys in sections.values():
-                all_keys.extend(keys)
-            return all_keys
-
-    # Fallback: đọc từ .env
+    """Load API keys từ providers.json. section=None → tất cả, 'GEMINI', hoặc 'OPENAI'."""
     try:
-        from dotenv import load_dotenv
-        load_dotenv()
-        env_value = os.environ.get("GEMINI_API_KEYS", "")
-        if env_value:
-            return [k.strip() for k in env_value.split(",") if k.strip()]
-    except Exception:
-        pass
-
-    return []
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        if section is None:
+            all_keys = []
+            for p in provider_service.load_providers().get("providers", []):
+                if p.get("type") == "gemini":
+                    all_keys.extend(p.get("api_keys", []))
+                else:
+                    if p.get("api_key"):
+                        all_keys.append(p["api_key"])
+            return all_keys
+        type_name = "gemini" if section.upper() == "GEMINI" else "openai"
+        providers = provider_service.get_providers_by_type(type_name)
+        keys = []
+        for p in providers:
+            if type_name == "openai":
+                if p.get("api_key"):
+                    keys.append(p["api_key"])
+            else:
+                keys.extend(p.get("api_keys", []))
+        return keys
+    except Exception as e:
+        logger.debug(f"load_api_keys error: {e}")
+        return []
 
 
 def save_api_keys(keys_text, section="GEMINI"):
-    """Lưu API keys vào file config/API.txt theo nhóm."""
-    api_file = Path("config/API.txt")
-    api_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Đọc dữ liệu hiện tại
-    sections = _parse_api_file(api_file)
-    
-    # Cập nhật section chỉ định
-    new_keys = [k.strip() for k in keys_text.splitlines() if k.strip()]
-    sections[section.upper()] = new_keys
-    
-    # Ghi lại toàn bộ file
+    """Lưu API keys vào providers.json theo section."""
     try:
-        with open(api_file, "w", encoding="utf-8") as f:
-            for sec, keys in sections.items():
-                f.write(f"[{sec}]\n")
-                for k in keys:
-                    f.write(f"{k}\n")
-                f.write("\n")
-        return True
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        if section.upper() == "OPENAI":
+            active = provider_service.get_active_provider_config()
+            if active and active.get("type") == "openai":
+                api_key = keys_text.strip()
+                if api_key:
+                    provider_service.update_provider(active["id"], api_key=api_key)
+                return True
+            return False
+        # GEMINI
+        keys = [k.strip() for k in keys_text.splitlines() if k.strip()]
+        providers = provider_service.get_providers_by_type("gemini")
+        if providers:
+            provider_service.update_provider(providers[0]["id"], api_keys=keys)
+            return True
+        return False
     except Exception as e:
         logger.error(f"save_api_keys error: {e}")
         return False
@@ -286,8 +266,6 @@ def calculate_stats():
     cache_dir = Path("workspace/cache")
     cache_files = list(cache_dir.glob("*.pkl*")) if cache_dir.exists() else []
     cache_size = sum(f.stat().st_size for f in cache_files) if cache_files else 0
-
-    api_keys = load_api_keys()  # Load all keys for stats count
 
     # Count projects
     projects_dir = Path("workspace/projects")
@@ -321,7 +299,6 @@ def calculate_stats():
         "total_translated": total_translated,
         "cache_files": len(cache_files),
         "cache_size_mb": round(cache_size / 1024 / 1024, 2),
-        "api_keys_count": len(api_keys),
         "default_model": get_default_model(),
         "default_chunk_size": get_default_chunk_size(),
         "tm_entries": tm_stats.get("total_entries", 0),
