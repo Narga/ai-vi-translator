@@ -4,6 +4,89 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.3.0] - 2026-06-04
+### Provider Management & Config Tab Refactor
+
+**Backend — Single Source of Truth:**
+- Rewrite `ProviderService`: providers.json là nguồn duy nhất cho tất cả provider configs
+- Migration một chiều: `config/API.txt` + `config/app.ini` → `config/providers.json`
+- Xóa `[PROVIDER]`, `[OPENAI]`, `[API]` sections khỏi `app.ini`
+- Xóa `config/API.txt` sau migration
+- Thêm `config/providers.json` vào `.gitignore`
+- Atomic write cho providers.json (`os.replace` + `shutil.move` fallback)
+- Bảo vệ `gemini-default` — không cho xóa qua UI/API
+
+**Backend — Service Refactor:**
+- `ApiKeyService` → wrapper gọi `ProviderService` (giữ nguyên interface)
+- `AppConfigService` → delegate 4 provider methods sang `ProviderService`
+- `ModelCatalogService` → đọc key/url/model qua `ProviderService`
+- `SettingsFacade` → cập nhật response shape `get_provider_info()`
+- `webui/helpers.py` → wrapper gọi `ProviderService` (giữ nguyên interface)
+- `main.py` → delegate `load_api_keys()` sang `ApiKeyService`
+
+**API — New Endpoints:**
+- `GET /api/providers` — Danh sách providers (full key cho UI nội bộ)
+- `POST /api/providers` — Tạo provider mới
+- `PUT /api/providers/<id>` — Cập nhật provider
+- `DELETE /api/providers/<id>` — Xóa provider
+- `POST /api/providers/select` — Kích hoạt provider theo id
+
+**Frontend — Config Tab:**
+- Sửa UX: click vào input/textarea không trigger toast chuyển provider
+- Thêm dropdown chọn OpenAI provider + nút Xóa
+- Thêm input "Nhà cung cấp mẫu hình" + nút Thêm/Sửa
+- Đổi "OpenAI Compatible" → "OpenAI Compatible Providers"
+- Đổi "Chọn Model cho Gemini" → "Chọn model AI"
+- Đổi "QA Model" → "Review Model", ẩn vào Advanced
+- Đưa Chunk Size ra khỏi Advanced
+- Tạo `provider-manager.js` (GeminiProvider + OpenAIProvider)
+- Auto-fill Tên + API Key + Base URL khi chọn provider
+
+### Bug Fixes
+
+**Critical:**
+- Sửa `ProjectManager.loadProjects()` → `loadProjectCards()` — nav bar stats không hiển thị
+- Xóa `ProjectManager.initProjectDialog()` — function không tồn tại
+- Sửa Ctrl+S targets `#result-text` → `#pm-result-text`
+- Sửa AutoSave bind `#result-text` → `#pm-result-text`
+- Sửa PromptManager `#proj-prompt-*` → `#pm-proj-prompt-*` (load/save project prompts)
+- Sửa `deleteGenre` ref `genre-empty-state` (null) → null-safe
+- Sửa `switchProvider` CSS `b--light-gray` → `b--black-10`
+- Thêm 12 hàm ProjectManager bị thiếu (showProjectInfoModal, archiveProjectFromModal, createNewProject, etc.)
+- Thêm `restoreProject` + `deleteArchive` cho tab Lưu trữ
+- Sửa archive API: gửi `strategy: "overwrite"` thay vì mặc định `"check"`
+- Syntax error `project-manager.js` — xóa code thừa sau consolidate
+
+**Frontend Fixes:**
+- Sửa `copyResult`/`copySpellcheckResult` element IDs → `#pm-result-text`/`#pm-spell-result-text`
+- Sửa `copySpellcheckResult` dùng `navigator.clipboard` thay `execCommand`
+- Status indicator (file-done-dot) hiển thị cạnh kích thước, không phải trong tên file
+- Thêm text "Chờ" cho file chưa soát lỗi
+
+### Frontend Optimization (-331 dòng)
+
+**Consolidate:**
+- `loadProjectFile`/`loadPmProjectFile` → generic `_loadFilePair(prefix)`
+- `loadSpellcheckFile`/`loadPmSpellcheckFile` → generic `_loadSpellcheckFile(prefix)`
+- `renderPmFileList`/`renderPmSpellcheckFileList` → shared `_renderFileItems` helper
+- `showPmInfoTab`/`showPmPromptTab` → `_showPanel` helper
+- Column toggle map → module-level `COL_MAP` constant
+- Clipboard API: `execCommand` → `navigator.clipboard.writeText`
+
+**Remove Dead Code:**
+- ~130 dòng CSS dead (radio selectors, unused classes)
+- 7 dead JS functions (renderFileList3Col, runRetranslate, etc.)
+- 50 global wrapper functions → direct `Module.method()` trong HTML onclick
+- Unused JS variables (`window.allFiles`)
+
+**Other:**
+- Inline styles → CSS classes (`.projects-list-view`, `.api-keys-textarea`, `.prompt-textarea`)
+- Modal z-index → CSS variables (`--z-modal`, `--z-modal-top`)
+- Button styling: xóa global `button, .btn` override, tighten color selectors
+- Consolidate modals vào 1 file (`modals.html`)
+
+---
+
 ## [7.2.0] - 2026-06-03
 ### 🐛 Bug Fixes & UX Improvements
 

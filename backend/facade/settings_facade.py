@@ -50,27 +50,53 @@ class SettingsFacade:
         return {"models": models, "default": default_model, "provider": provider}
 
     def get_provider_info(self) -> Dict[str, Any]:
-        """Lấy thông tin provider hiện tại."""
+        """Lấy thông tin provider hiện tại (v7.3.0 response shape)."""
         from backend.infrastructure.providers.provider_service import ProviderService
-        from backend.infrastructure.config.api_key_service import ApiKeyService
 
         provider_service = ProviderService(self._config_dir)
-        key_service = ApiKeyService(self._config_dir)
 
-        provider = provider_service.get_active_provider()
-        providers = provider_service.get_available_providers()
-        openai_key = key_service.load_openai_key()
+        active_type = provider_service.get_active_provider()  # "gemini" | "openai"
+        active_config = provider_service.get_active_provider_config()
+        providers_list = [
+            {"id": p["id"], "name": p.get("name", p["id"]), "type": p.get("type", "gemini")}
+            for p in provider_service.load_providers().get("providers", [])
+        ]
 
-        return {
-            "active": provider,
-            "providers": providers,
-            "openai_config": {
-                "base_url": provider_service.get_openai_base_url() or "",
-                "model": provider_service.get_openai_model(),
-                "has_key": bool(openai_key),
-                "key": openai_key or "",
-            },
+        result: Dict[str, Any] = {
+            "active": active_type,
+            "active_id": active_config["id"] if active_config else "gemini-default",
+            "providers": providers_list,
         }
+
+        # openai_config: trả full key cho UI cấu hình nội bộ
+        if active_type == "openai" and active_config:
+            result["openai_config"] = {
+                "provider_id": active_config["id"],
+                "provider_name": active_config.get("name", ""),
+                "base_url": active_config.get("base_url", ""),
+                "model": active_config.get("default_model", ""),
+                "has_key": bool(active_config.get("api_key")),
+                "api_key": active_config.get("api_key", ""),
+            }
+        else:
+            # Gemini active: trả openai_config từ provider openai đầu tiên
+            openai_providers = provider_service.get_providers_by_type("openai")
+            if openai_providers:
+                first = openai_providers[0]
+                result["openai_config"] = {
+                    "provider_id": first["id"],
+                    "provider_name": first.get("name", ""),
+                    "base_url": first.get("base_url", ""),
+                    "model": first.get("default_model", ""),
+                    "has_key": bool(first.get("api_key")),
+                    "api_key": first.get("api_key", ""),
+                }
+            else:
+                result["openai_config"] = {
+                    "base_url": "", "model": "", "has_key": False, "api_key": "",
+                }
+
+        return result
 
     def get_config(self) -> Dict[str, Any]:
         """Lấy cấu hình mặc định."""

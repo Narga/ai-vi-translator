@@ -2,9 +2,9 @@
 <section id="tab-projects" class="nt-tab-content dn">
     
     <!-- VIEW 1: DANH SÁCH DỰ ÁN (List View) -->
-    <div id="projects-list-view" class="flex flex-row gap-4 w-100 h-100 overflow-y-auto pa4">
+    <div id="projects-list-view" class="flex flex-row gap-4 w-100 projects-list-view pa4">
         <!-- Cột trái: Tạo dự án mới -->
-        <div class="w-40 bg-white br3 border b--black-10 shadow-sm pa4">
+        <div class="w-40 bg-white br3 border b--black-10 shadow-sm pa4 overflow-y-auto flex-shrink-0">
             <h2 class="f3 fw6 dark-gray tc">Tạo dự án dịch mới</h2>
             <p class="f7 gray tc mb4">Bắt đầu bằng cách nhập thông tin cho dự án sách của bạn.</p>
             
@@ -34,8 +34,8 @@
         </div>
         
         <!-- Cột phải: Danh sách dự án -->
-        <div class="w-60 bg-white br3 border b--black-10 shadow-sm pa4">
-            <div class="flex justify-between items-center mb3">
+        <div class="w-60 bg-white br3 border b--black-10 shadow-sm pa4 overflow-hidden flex flex-column">
+            <div class="flex justify-between items-center mb3 flex-shrink-0">
                 <h2 class="f3 fw6 dark-gray">Quản lý dự án</h2>
                 <div class="flex gap-2">
                     <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="document.querySelector('[data-tab=archive]').click()">
@@ -43,7 +43,7 @@
                     </button>
                 </div>
             </div>
-            <div id="project-cards-container" class="flex flex-column gap3 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+            <div id="project-cards-container" class="flex flex-column gap3 overflow-y-auto overflow-x-hidden flex-auto">
                 <!-- Cards được render động bởi JS -->
                 <div class="pa4 tc silver i">Đang tải...</div>
             </div>
@@ -54,11 +54,11 @@
     <div id="projects-workspace-view" style="display: none;" class="flex flex-column w-100 h-100 overflow-hidden">
         <!-- Header với nút quay lại -->
         <div class="flex items-center justify-between pa3 bb b--black-10 bg-white flex-shrink-0">
-            <div class="flex items-center gap3">
+            <div class="flex items-center gap-3">
                 <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.backToList()">
                     ← Quay lại
                 </button>
-                <div>
+                <div class="pl3 bl b--black-10">
                     <h2 id="pm-project-title" class="f5 ma0 dark-gray fw6">Tên dự án</h2>
                     <p id="pm-project-desc" class="f7 gray ma0 mt1">Mô tả dự án...</p>
                 </div>
@@ -89,9 +89,9 @@
                             <div class="icon-toolbar">
                                 <input type="file" id="pm-upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
                                 <button onclick="document.getElementById('pm-upload-source-file').click()" title="Tải lên"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
-                                <button onclick="showChunkConfig()" title="Chia chunk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/></svg></button>
-                                <button onclick="translateSelectedInProject()" title="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
-                                <button onclick="mergeTranslatedFiles()" title="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+                                <button onclick="ProjectManager.showChunkConfig()" title="Chia chunk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/></svg></button>
+                                <button onclick="TranslationWorker.translateSelectedInProject()" title="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
+                                <button onclick="ProjectManager.mergeTranslatedFiles()" title="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -112,8 +112,8 @@
                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                 <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
                                 <div class="ml-auto flex gap-1">
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('pm-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('pm-source-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.findInText('pm-source-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
                                 </div>
                             </div>
                             <textarea id="pm-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file từ danh sách bên trái..." oninput="updateTokenEstimate();DirtyState.mark('pm-source-text')"></textarea>
@@ -122,10 +122,10 @@
                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
                                 <div class="ml-auto flex gap-1">
-                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="showDiffView('pm-source-text','pm-result-text')" title="So sánh">So sánh</button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('pm-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('pm-result-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                    <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveChunkTranslation()">Lưu</button>
+                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-source-text','pm-result-text')" title="So sánh">So sánh</button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.findInText('pm-result-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                    <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveChunkTranslation()">Lưu</button>
                                 </div>
                             </div>
                             <textarea id="pm-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Bản dịch sẽ hiển thị tại đây..." oninput="DirtyState.mark('pm-result-text')"></textarea>
@@ -150,9 +150,9 @@
                         <span id="pm-selected-files-info" class="dn blue fw6"></span>
                     </div>
                     <div class="flex gap-2">
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="copyResult()">Sao chép</button>
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="downloadResult()">Tải về</button>
-                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="startTranslation()">Dịch lại</button>
+                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copyResult()">Sao chép</button>
+                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadResult()">Tải về</button>
+                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.startTranslation()">Dịch lại</button>
                     </div>
                 </div>
             </div>
@@ -168,7 +168,8 @@
                             <div class="icon-toolbar">
                                 <input type="file" id="pm-upload-spell-file" class="dn" multiple onchange="uploadProjectFile()">
                                 <button onclick="document.getElementById('pm-upload-spell-file').click()" title="Tải lên"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
-                                <button onclick="spellcheckSelectedInProject()" title="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m5 12 5 5 10-10"/></svg></button>
+                                <button onclick="TranslationWorker.spellcheckSelectedInProject()" title="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m5 12 5 5 10-10"/></svg></button>
+                                <button onclick="ProjectManager.deleteSelectedSpellFiles()" title="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -187,8 +188,8 @@
                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                 <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
                                 <div class="ml-auto flex gap-1">
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('pm-spell-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('pm-spell-source-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.findInText('pm-spell-source-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
                                 </div>
                             </div>
                             <textarea id="pm-spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file để soát lỗi..." oninput="DirtyState.mark('pm-spell-source-text')"></textarea>
@@ -197,10 +198,10 @@
                             <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
                                 <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
                                 <div class="ml-auto flex gap-1">
-                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="showDiffView('pm-spell-source-text','pm-spell-result-text')" title="So sánh">So sánh</button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="toggleWordWrap('pm-spell-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="findInText('pm-spell-result-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                    <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="saveSpellcheckResult()">Lưu</button>
+                                    <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-spell-source-text','pm-spell-result-text')" title="So sánh">So sánh</button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                    <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.findInText('pm-spell-result-text')" title="Tìm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                    <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveSpellcheckResult()">Lưu</button>
                                 </div>
                             </div>
                             <textarea id="pm-spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Kết quả soát lỗi..." oninput="DirtyState.mark('pm-spell-result-text')"></textarea>
@@ -232,9 +233,9 @@
                         <span id="pm-selected-spellcheck-info" class="dn blue fw6"></span>
                     </div>
                     <div class="flex gap-2">
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="copySpellcheckResult()">Sao chép</button>
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="downloadSpellCheckResult()">Tải về</button>
-                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="runSpellcheck()">Soát lại</button>
+                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copySpellcheckResult()">Sao chép</button>
+                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadSpellCheckResult()">Tải về</button>
+                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.runSpellcheck()">Soát lại</button>
                     </div>
                 </div>
             </div>
@@ -250,8 +251,8 @@
                     </div>
                     <div class="flex items-center gap-2">
                         <select id="pm-style-guide-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0" style="width: 150px;"><option value="">— Chọn Model —</option></select>
-                        <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="aiGenerateContent('style_guide')">Generate</button>
-                        <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="saveGuidelineField('style_guide')">Lưu</button>
+                        <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="PromptManager.aiGenerateContent('style_guide')">Generate</button>
+                        <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="PromptManager.saveGuidelineField('style_guide')">Lưu</button>
                     </div>
                 </div>
                 <div class="flex-auto flex flex-column overflow-hidden">
@@ -285,10 +286,10 @@
                             <option value="">— Chọn bộ prompt —</option>
                             <option value="default">Mặc định (Hệ thống)</option>
                         </select>
-                        <button class="pointer ph2 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 nowrap" onclick="importPromptFromLibrary()">Áp dụng</button>
+                        <button class="pointer ph2 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 nowrap" onclick="PromptManager.importPromptFromLibrary()">Áp dụng</button>
                         <span id="pm-prompt-status-badge" class="f7 fw6 silver ba b--black-10 pa1 br2">Hệ thống</span>
-                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 nowrap" onclick="saveProjectPrompts()">Lưu</button>
-                        <button class="pointer ph2 pv1 f7 bn dark-red br2 shadow-1 fw6 nowrap" onclick="resetProjectPrompts()" style="background:#ffe4e4; border: 1px solid #f5c6c6;">Xóa riêng</button>
+                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 nowrap" onclick="PromptManager.saveProjectPrompts()">Lưu</button>
+                        <button class="pointer ph2 pv1 f7 bn dark-red br2 shadow-1 fw6 nowrap" onclick="PromptManager.resetProjectPrompts()" style="background:#ffe4e4; border: 1px solid #f5c6c6;">Xóa riêng</button>
                     </div>
                 </div>
                 <div class="flex-auto flex flex-column overflow-hidden">

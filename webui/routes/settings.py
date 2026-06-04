@@ -61,20 +61,23 @@ def get_models():
 
 @settings_bp.route("/api/provider", methods=["GET", "POST"])
 def manage_provider():
-    """Quản lý provider AI (chuyển đổi Gemini ↔ OpenAI)."""
+    """Quản lý provider AI (chuyển đổi Gemini ↔ OpenAI). Legacy endpoint."""
     from webui.helpers import get_active_provider, get_openai_base_url, get_openai_model, load_openai_key
+    from backend.infrastructure.providers.provider_service import ProviderService
 
     if request.method == "GET":
         try:
-            from services.ai_provider import get_available_providers
-
             provider = get_active_provider()
-            providers = get_available_providers()
+            provider_service = ProviderService()
+            providers = provider_service.get_available_providers()
             openai_key = load_openai_key()
+            active_config = provider_service.get_active_provider_config()
             return jsonify({
                 "active": provider,
+                "active_id": active_config["id"] if active_config else "gemini-default",
                 "providers": providers,
                 "openai_config": {
+                    "provider_id": (active_config.get("id") if active_config and active_config.get("type") == "openai" else ""),
                     "base_url": get_openai_base_url() or "",
                     "model": get_openai_model(),
                     "has_key": bool(openai_key),
@@ -84,29 +87,17 @@ def manage_provider():
         except Exception as e:
             return jsonify({"error": str(e)}), 500
 
-    # POST: Chuyển đổi provider
+    # POST: Chuyển đổi provider theo type (legacy)
     try:
         data = request.json
         new_provider = data.get("provider", "gemini").lower()
-
         if new_provider not in ("gemini", "openai"):
             return jsonify({"error": "Provider không hợp lệ. Sử dụng 'gemini' hoặc 'openai'."}), 400
 
-        config_path = Path("config/app.ini")
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        if config_path.exists():
-            config.read(config_path)
-
-        if not config.has_section("PROVIDER"):
-            config.add_section("PROVIDER")
-        config.set("PROVIDER", "ACTIVE_PROVIDER", new_provider)
-
-        with open(config_path, "w", encoding="utf-8") as f:
-            config.write(f)
-
-        logger.info(f"Switched AI provider to: {new_provider}")
-        return jsonify({"success": True, "active": new_provider})
+        provider_service = ProviderService()
+        chosen_id = provider_service.select_provider_by_type(new_provider)
+        logger.info(f"Switched AI provider to: {new_provider} (id={chosen_id})")
+        return jsonify({"success": True, "active": new_provider, "active_id": chosen_id})
 
     except Exception as e:
         logger.error(f"Error switching provider: {e}")
@@ -145,34 +136,38 @@ def get_openai_models():
 
 @settings_bp.route("/api/openai/config", methods=["POST"])
 def save_openai_config():
-    """Lưu cấu hình OpenAI (API key, base URL, model) vào app.ini và API.txt."""
+    """Lưu cấu hình OpenAI (API key, base URL, model) vào providers.json."""
     try:
+        from backend.infrastructure.providers.provider_service import ProviderService
         data = request.json
         api_key = data.get("api_key", "").strip()
         base_url = data.get("base_url", "").strip()
-        model = data.get("model", "gpt-4o-mini").strip()
+        model = data.get("model", "").strip()
 
-        # Lưu api_key vào config/API.txt [OPENAI]
+        provider_service = ProviderService()
+        # Tìm active OpenAI provider
+        active = provider_service.get_active_provider_config()
+        if not active or active.get("type") != "openai":
+            # Fallback: tìm openai provider đầu tiên
+            openai_providers = provider_service.get_providers_by_type("openai")
+            if openai_providers:
+                active = openai_providers[0]
+            else:
+                return jsonify({"error": "Không tìm thấy OpenAI provider"}), 400
+
+        update_kwargs = {}
         if api_key:
-            from webui.helpers import save_api_keys
-            save_api_keys(api_key, section="OPENAI")
-
-        # Lưu base_url và model vào app.ini
-        config_path = Path("config/app.ini")
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        if config_path.exists():
-            config.read(config_path)
-
-        if not config.has_section("OPENAI"):
-            config.add_section("OPENAI")
+            update_kwargs["api_key"] = api_key
         if base_url:
-            config.set("OPENAI", "BASE_URL", base_url)
+            update_kwargs["base_url"] = base_url
         if model:
-            config.set("OPENAI", "MODEL", model)
+            update_kwargs["default_model"] = model
 
-        with open(config_path, "w", encoding="utf-8") as f:
-            config.write(f)
+        if update_kwargs:
+            provider_service.update_provider(active["id"], **update_kwargs)
+
+        # Kích hoạt provider này
+        provider_service.select_provider(active["id"])
 
         return jsonify({"success": True})
     except Exception as e:
@@ -365,21 +360,54 @@ def restart_server():
 
 
 @settings_bp.route("/api/keys", methods=["GET", "POST"])
+@handle_route_errors
 def manage_api_keys():
-    """Lấy hoặc lưu danh sách API keys theo nhóm (mặc định: GEMINI)."""
+    """Lấy hoặc lưu danh sách API keys theo provider type (mặc định: GEMINI)."""
     section = request.args.get("section", "GEMINI").upper()
-    
+
     if request.method == "GET":
-        try:
-            api_file = Path("config/API.txt")
-            if api_file.exists():
-                from webui.helpers import _parse_api_file
-                sections = _parse_api_file(api_file)
-                keys = sections.get(section, [])
-                return jsonify({"content": "\n".join(keys)})
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+
+        if section == "OPENAI":
+            active = provider_service.get_active_provider_config()
+            if active and active.get("type") == "openai":
+                return jsonify({"content": active.get("api_key", ""), "provider_id": active["id"]})
+            # Fallback: openai provider đầu tiên
+            openai_providers = provider_service.get_providers_by_type("openai")
+            if openai_providers:
+                return jsonify({"content": openai_providers[0].get("api_key", ""), "provider_id": openai_providers[0]["id"]})
             return jsonify({"content": ""})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+
+        # GEMINI (default)
+        providers = provider_service.get_providers_by_type("gemini")
+        all_keys = []
+        for p in providers:
+            all_keys.extend(p.get("api_keys", []))
+        return jsonify({"content": "\n".join(all_keys)})
+
+    # POST
+    from backend.infrastructure.providers.provider_service import ProviderService
+    provider_service = ProviderService()
+    data = request.json
+    keys_text = data.get("content", "")
+
+    if section == "OPENAI":
+        active = provider_service.get_active_provider_config()
+        if active and active.get("type") == "openai":
+            api_key = keys_text.strip()
+            if api_key:
+                provider_service.update_provider(active["id"], api_key=api_key)
+            return jsonify({"success": True})
+        return jsonify({"error": "Không có OpenAI provider đang active"}), 400
+
+    # GEMINI
+    keys = [k.strip() for k in keys_text.splitlines() if k.strip()]
+    providers = provider_service.get_providers_by_type("gemini")
+    if not providers:
+        return jsonify({"error": "Không tìm thấy Gemini provider"}), 400
+    provider_service.update_provider(providers[0]["id"], api_keys=keys)
+    return jsonify({"success": True})
     
     # POST
     try:
@@ -487,3 +515,86 @@ def manage_sys_log(filename):
         return jsonify({"content": content})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ------------------------------------------------------------------
+# /api/providers/* — Multi-provider CRUD endpoints (v7.3.0)
+# ------------------------------------------------------------------
+
+@settings_bp.route("/api/providers", methods=["GET"])
+@handle_route_errors
+def list_providers():
+    """Danh sách tất cả providers."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    provider_service = ProviderService()
+    data = provider_service.load_providers()
+    # Trả full api_key cho UI cấu hình nội bộ
+    return jsonify({
+        "active_id": data.get("active_id", "gemini-default"),
+        "providers": data.get("providers", []),
+    })
+
+
+@settings_bp.route("/api/providers", methods=["POST"])
+@handle_route_errors
+def create_provider():
+    """Tạo provider mới."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    data = request.json
+    name = data.get("name", "").strip()
+    type_ = data.get("type", "openai")
+    if not name:
+        return jsonify({"error": "Tên provider không được để trống"}), 400
+    try:
+        provider_service = ProviderService()
+        provider = provider_service.add_provider(name=name, type=type_)
+        return jsonify({"success": True, "provider": provider})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@settings_bp.route("/api/providers/<provider_id>", methods=["PUT"])
+@handle_route_errors
+def update_provider(provider_id):
+    """Cập nhật provider."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    data = request.json
+    try:
+        provider_service = ProviderService()
+        # Không cho update gemini-default name/type
+        if provider_id == "gemini-default" and ("name" in data or "type" in data):
+            pass  # Cho phép update name, nhưng không cho đổi type
+        provider = provider_service.update_provider(provider_id, **data)
+        return jsonify({"success": True, "provider": provider})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@settings_bp.route("/api/providers/<provider_id>", methods=["DELETE"])
+@handle_route_errors
+def delete_provider(provider_id):
+    """Xóa provider."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    try:
+        provider_service = ProviderService()
+        provider_service.delete_provider(provider_id)
+        return jsonify({"success": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@settings_bp.route("/api/providers/select", methods=["POST"])
+@handle_route_errors
+def select_provider():
+    """Kích hoạt provider theo id."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    data = request.json
+    active_id = data.get("active_id", "").strip()
+    if not active_id:
+        return jsonify({"error": "active_id không được để trống"}), 400
+    try:
+        provider_service = ProviderService()
+        provider_service.select_provider(active_id)
+        return jsonify({"success": True, "active_id": active_id})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400

@@ -7,6 +7,7 @@ ModelCatalogService quản lý việc liệt kê và khám phá models.
 Phase 05: Tách logic model discovery ra khỏi webui/helpers.py.
 """
 
+import configparser
 import logging
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -137,17 +138,15 @@ class ModelCatalogService:
         models = AVAILABLE_OPENAI_MODELS.copy()
 
         try:
-            from backend.infrastructure.config.api_key_service import ApiKeyService
             from backend.infrastructure.providers.provider_service import ProviderService
 
-            key_service = ApiKeyService(self._config_dir)
             provider_service = ProviderService(self._config_dir)
 
-            api_key = key_service.load_openai_key()
+            api_key = provider_service.get_active_api_key()
             if api_key:
                 from services.ai_provider import list_models_for_provider
 
-                base_url = provider_service.get_openai_base_url()
+                base_url = provider_service.get_active_base_url()
                 fetched = list_models_for_provider("openai", api_key, base_url)
                 if fetched:
                     models = fetched
@@ -169,19 +168,17 @@ class ModelCatalogService:
             List of model info dicts
         """
         try:
-            from backend.infrastructure.config.api_key_service import ApiKeyService
             from backend.infrastructure.providers.provider_service import ProviderService
 
-            key_service = ApiKeyService(self._config_dir)
             provider_service = ProviderService(self._config_dir)
 
-            api_key = key_service.load_openai_key()
+            api_key = provider_service.get_active_api_key()
             if not api_key:
                 return []
 
             from services.openai_client import OpenAIClient
 
-            base_url = provider_service.get_openai_base_url()
+            base_url = provider_service.get_active_base_url()
             client = OpenAIClient(api_key=api_key, base_url=base_url)
             models = client.list_models_full()
             models.sort(key=lambda x: not x.get("is_free", False))
@@ -201,9 +198,6 @@ class ModelCatalogService:
         Returns:
             Model name
         """
-        from backend.infrastructure.providers.provider_service import ProviderService
-        provider_service = ProviderService(self._config_dir)
-
         config = configparser.ConfigParser()
         config_file = self._config_dir / "app.ini"
         if config_file.exists():
@@ -218,13 +212,6 @@ class ModelCatalogService:
         Returns:
             Model name
         """
-        config = configparser.ConfigParser()
-        config_file = self._config_dir / "app.ini"
-        if config_file.exists():
-            config.read(config_file)
-
-        return config.get("OPENAI", "MODEL", fallback="gpt-4o-mini")
-
-
-# Cần import configparser ở module level
-import configparser
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService(self._config_dir)
+        return provider_service.get_active_default_model()

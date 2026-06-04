@@ -37,46 +37,12 @@ def setup_logging(log_dir: Path) -> None:
 
 
 def load_api_keys(path: str = "config/API.txt") -> List[str]:
-    """Load Gemini API keys từ config/API.txt theo nhóm [GEMINI]."""
-    api_file = Path(path)
-    if api_file.exists():
-        sections = {}
-        current_section = "GEMINI"
-        try:
-            with open(api_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if line.startswith("[") and line.endswith("]"):
-                        current_section = line[1:-1].upper()
-                        if current_section not in sections:
-                            sections[current_section] = []
-                        continue
-                    if current_section not in sections:
-                        sections[current_section] = []
-                    sections[current_section].append(line)
-            
-            keys = sections.get("GEMINI", [])
-            if keys:
-                logging.info(f"✅ Loaded {len(keys)} API keys from {path} [GEMINI]")
-                return keys
-        except Exception as e:
-            logging.error(f"❌ Error loading API keys from {path}: {e}")
-
-    # Fallback: đọc từ .env
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-        env_value = os.environ.get("GEMINI_API_KEYS", "")
-        if env_value:
-            keys = [k.strip() for k in env_value.split(",") if k.strip()]
-            logging.info(f"✅ Loaded {len(keys)} API keys from .env")
-            return keys
-    except Exception:
-        pass
-
-    return []
+    """Load Gemini API keys. Delegates to ApiKeyService (providers.json)."""
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    keys = ApiKeyService(Path("config")).load_gemini_keys()
+    if keys:
+        logging.info(f"✅ Loaded {len(keys)} API keys from providers.json")
+    return keys
 
 
 def load_prompts(project_dir: Path = None) -> Dict[str, str]:

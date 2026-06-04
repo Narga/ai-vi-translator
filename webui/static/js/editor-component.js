@@ -5,144 +5,82 @@
 const EditorComponent = {
     syncScrollEnabled: true,
 
-    async loadProjectFile(filename, section) {
+    // Generic file loader — prefix = '' hoặc 'pm-'
+    async _loadFilePair(prefix, filename, section) {
         if (!window.currentProject) return;
         if (DirtyState.isDirty() && !await showConfirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) {
             return;
         }
-        DirtyState.clean('source-text');
-        DirtyState.clean('result-text');
-        DirtyState.clean('spell-source-text');
-        DirtyState.clean('spell-result-text');
+        DirtyState.clean(prefix + 'source-text');
+        DirtyState.clean(prefix + 'result-text');
+        DirtyState.clean(prefix + 'spell-source-text');
+        DirtyState.clean(prefix + 'spell-result-text');
         const slug = window.currentProject.slug;
-        
+
         if (section === 'sources') {
             fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
-                document.getElementById('source-text').value = data.content || '';
+                document.getElementById(prefix + 'source-text').value = data.content || '';
                 window.currentProjectFile = { name: filename, section };
-                document.getElementById('token-estimate-mini').classList.remove('dn');
+                if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
                 EditorComponent.updateTokenEstimate();
-                
                 fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
-                    document.getElementById('result-text').value = tData.content || '';
-                    DirtyState.clean('result-text');
+                    document.getElementById(prefix + 'result-text').value = tData.content || '';
+                    DirtyState.clean(prefix + 'result-text');
                 }).catch(() => {
-                    document.getElementById('result-text').value = '';
-                    DirtyState.clean('result-text');
+                    document.getElementById(prefix + 'result-text').value = '';
+                    DirtyState.clean(prefix + 'result-text');
                 });
             });
         } else if (section === 'translated') {
             fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(data => {
-                document.getElementById('result-text').value = data.content || '';
+                document.getElementById(prefix + 'result-text').value = data.content || '';
                 window.currentProjectFile = { name: filename, section };
-                DirtyState.clean('result-text');
-                document.getElementById('token-estimate-mini').classList.remove('dn');
-                
+                DirtyState.clean(prefix + 'result-text');
+                if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
                 fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
-                    document.getElementById('source-text').value = sData.content || '';
+                    document.getElementById(prefix + 'source-text').value = sData.content || '';
                     EditorComponent.updateTokenEstimate();
                 }).catch(() => {
-                    document.getElementById('source-text').value = '(Không tìm thấy bản gốc tương ứng)';
+                    document.getElementById(prefix + 'source-text').value = '(Không tìm thấy bản gốc tương ứng)';
                 });
             });
         }
     },
 
-    loadSpellcheckFile(filename) {
+    // Generic spellcheck file loader — prefix = '' hoặc 'pm-'
+    _loadSpellcheckFile(prefix, filename) {
         if (!window.currentProject) return;
         const slug = window.currentProject.slug;
+        const infoName = filename.replace(/\.(txt|md)$/, '') + '_info.txt';
         fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
-            document.getElementById('spell-result-text').value = data.content || '';
+            document.getElementById(prefix + 'spell-result-text').value = data.content || '';
             window.currentProjectFile = { name: filename, section: 'spelling' };
-            DirtyState.clean('spell-result-text');
-            const infoName = filename.replace(/\.(txt|md)$/, '') + '_info.txt';
+            DirtyState.clean(prefix + 'spell-result-text');
             fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
-                const logEl = document.getElementById('spell-log-content');
+                const logEl = document.getElementById(prefix + 'spell-log-content');
                 if (logEl) logEl.textContent = infoData.content || 'Không có dữ liệu soát lỗi.';
             }).catch(() => {
-                const logEl = document.getElementById('spell-log-content');
+                const logEl = document.getElementById(prefix + 'spell-log-content');
                 if (logEl) logEl.textContent = 'Không có dữ liệu soát lỗi.';
             });
         }).catch(() => {
-            document.getElementById('spell-result-text').value = '';
-            const logEl = document.getElementById('spell-log-content');
+            document.getElementById(prefix + 'spell-result-text').value = '';
+            const logEl = document.getElementById(prefix + 'spell-log-content');
             if (logEl) logEl.textContent = 'Lỗi tải file.';
         });
         fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sourceData => {
-            document.getElementById('spell-source-text').value = sourceData.content || '';
-            DirtyState.clean('spell-source-text');
+            document.getElementById(prefix + 'spell-source-text').value = sourceData.content || '';
+            DirtyState.clean(prefix + 'spell-source-text');
         }).catch(() => {
-            document.getElementById('spell-source-text').value = '';
+            document.getElementById(prefix + 'spell-source-text').value = '';
         });
     },
 
-    async loadPmProjectFile(filename, section) {
-        if (!window.currentProject) return;
-        if (DirtyState.isDirty() && !await showConfirm('Bạn có thay đổi chưa lưu. Tiếp tục?')) {
-            return;
-        }
-        DirtyState.clean('pm-source-text');
-        DirtyState.clean('pm-result-text');
-        DirtyState.clean('pm-spell-source-text');
-        DirtyState.clean('pm-spell-result-text');
-        const slug = window.currentProject.slug;
-        
-        if (section === 'sources') {
-            fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
-                document.getElementById('pm-source-text').value = data.content || '';
-                window.currentProjectFile = { name: filename, section };
-                EditorComponent.updateTokenEstimate();
-                
-                fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
-                    document.getElementById('pm-result-text').value = tData.content || '';
-                    DirtyState.clean('pm-result-text');
-                }).catch(() => {
-                    document.getElementById('pm-result-text').value = '';
-                    DirtyState.clean('pm-result-text');
-                });
-            });
-        } else if (section === 'translated') {
-            fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(data => {
-                document.getElementById('pm-result-text').value = data.content || '';
-                window.currentProjectFile = { name: filename, section };
-                DirtyState.clean('pm-result-text');
-                
-                fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
-                    document.getElementById('pm-source-text').value = sData.content || '';
-                    EditorComponent.updateTokenEstimate();
-                }).catch(() => {
-                    document.getElementById('pm-source-text').value = '(Không tìm thấy bản gốc tương ứng)';
-                });
-            });
-        }
-    },
-
-    loadPmSpellcheckFile(filename) {
-        if (!window.currentProject) return;
-        const slug = window.currentProject.slug;
-        fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
-            document.getElementById('pm-spell-result-text').value = data.content || '';
-            window.currentProjectFile = { name: filename, section: 'spelling' };
-            DirtyState.clean('pm-spell-result-text');
-        }).catch(() => {
-            document.getElementById('pm-spell-result-text').value = '';
-        });
-        fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sourceData => {
-            document.getElementById('pm-spell-source-text').value = sourceData.content || '';
-            DirtyState.clean('pm-spell-source-text');
-        }).catch(() => {
-            document.getElementById('pm-spell-source-text').value = '';
-        });
-        // Load spell log
-        const infoName = filename.replace(/\.(txt|md)$/, '') + '_info.txt';
-        fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
-            const logEl = document.getElementById('pm-spell-log-content');
-            if (logEl) logEl.textContent = infoData.content || 'Không có dữ liệu soát lỗi.';
-        }).catch(() => {
-            const logEl = document.getElementById('pm-spell-log-content');
-            if (logEl) logEl.textContent = 'Không có dữ liệu soát lỗi.';
-        });
-    },
+    // Public API — delegates to generic helpers
+    async loadProjectFile(filename, section) { return this._loadFilePair('', filename, section); },
+    async loadPmProjectFile(filename, section) { return this._loadFilePair('pm-', filename, section); },
+    loadSpellcheckFile(filename) { this._loadSpellcheckFile('', filename); },
+    loadPmSpellcheckFile(filename) { this._loadSpellcheckFile('pm-', filename); },
 
     _tokenEstimateTimer: null,
 
@@ -342,7 +280,7 @@ const EditorComponent = {
     },
 
     copyResult() {
-        navigator.clipboard.writeText(document.getElementById('result-text').value)
+        navigator.clipboard.writeText(document.getElementById('pm-result-text').value)
             .then(() => UiHelpers.showToast('Đã sao chép vào Clipboard!', 'success'))
             .catch(() => UiHelpers.showToast('Copy thất bại', 'error'));
     },
@@ -350,7 +288,7 @@ const EditorComponent = {
     downloadResult() {
         if (window.currentOutputFile) window.open('/api/download/' + window.currentOutputFile, '_blank');
         else {
-            const text = document.getElementById('result-text').value;
+            const text = document.getElementById('pm-result-text').value;
             if (!text) { UiHelpers.showToast('Chưa có nội dung để tải!', 'error'); return; }
             const fname = window.currentProjectFile ? window.currentProjectFile.name : 'translated.txt';
             const a = document.createElement('a');
@@ -360,10 +298,9 @@ const EditorComponent = {
     },
 
     copySpellcheckResult() {
-        const el = document.getElementById('spell-result-text');
-        el.select();
-        document.execCommand('copy');
-        UiHelpers.showToast('Đã sao chép.', 'success');
+        navigator.clipboard.writeText(document.getElementById('pm-spell-result-text').value)
+            .then(() => UiHelpers.showToast('Đã sao chép vào Clipboard!', 'success'))
+            .catch(() => UiHelpers.showToast('Copy thất bại', 'error'));
     },
 
     downloadSpellCheckResult() {

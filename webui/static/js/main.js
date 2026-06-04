@@ -5,7 +5,6 @@
 // ============================================================
 window.prompts = window.initialPrompts || {};
 window.currentOutputFile = '';
-window.allFiles = [];
 window.selectedFiles = new Set();
 window.selectedTranslatedFiles = new Set();
 window.availableModels = window.initialAvailableModels || [];
@@ -67,7 +66,10 @@ function initTabs() {
             if (targetId === 'logs') ApiClient.loadLogList();
             if (targetId === 'projects') ProjectManager.loadProjectCards();
             if (targetId === 'prompts') PromptManager.loadGenres();
-            if (targetId === 'config') ApiClient.loadApiKeys();
+            if (targetId === 'config') {
+                ApiClient.loadApiKeys();
+                if (typeof OpenAIProvider !== 'undefined') OpenAIProvider.loadProviders();
+            }
 
             if (targetId === 'workspace') {
                 if (typeof startStatsPolling === 'function') startStatsPolling();
@@ -140,12 +142,12 @@ document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         
-        const resultText = document.getElementById('result-text');
-        const spellResultText = document.getElementById('spell-result-text');
+        const resultText = document.getElementById('pm-result-text');
+        const spellResultText = document.getElementById('pm-spell-result-text');
         
-        if (document.activeElement === resultText || DirtyState.isDirty('result-text')) {
+        if (document.activeElement === resultText || DirtyState.isDirty('pm-result-text')) {
             EditorComponent.saveChunkTranslation();
-        } else if (document.activeElement === spellResultText || DirtyState.isDirty('spell-result-text')) {
+        } else if (document.activeElement === spellResultText || DirtyState.isDirty('pm-spell-result-text')) {
             EditorComponent.saveSpellcheckResult();
         }
     }
@@ -169,13 +171,12 @@ document.addEventListener('DOMContentLoaded', function () {
     initTabs();
     UiHelpers.initDialogs();
 
-    ProjectManager.loadProjects();
+    ProjectManager.loadProjectCards();
     ApiClient.loadStats();
     ApiClient.loadModels();
     PromptManager.loadGenres();
     ApiClient.loadApiKeys();
     UiHelpers.initProvider();
-    ProjectManager.initProjectDialog();
     UiHelpers.restoreAppState();
     
     // Khởi tạo Auto-save
@@ -222,29 +223,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Core action buttons
-    const btnTranslate = document.getElementById('translate-btn');
-    if (btnTranslate) btnTranslate.addEventListener('click', TranslationWorker.startTranslation);
-    
     const btnClearCache = document.getElementById('btn-clear-cache');
     if (btnClearCache) btnClearCache.addEventListener('click', ApiClient.clearCache);
-    
-    const btnCopy = document.getElementById('btn-copy-result');
-    if (btnCopy) btnCopy.addEventListener('click', EditorComponent.copyResult);
-    
-    const btnDownload = document.getElementById('download-btn');
-    if (btnDownload) btnDownload.addEventListener('click', EditorComponent.downloadResult);
-
-    // Done tab buttons
-    const btnRetrans = document.getElementById('btn-run-retranslate');
-    if (btnRetrans) btnRetrans.addEventListener('click', runRetranslate);
-    const btnCorrect = document.getElementById('btn-run-correction');
-    if (btnCorrect) btnCorrect.addEventListener('click', runCorrection);
-    const btnBoth = document.getElementById('btn-run-both');
-    if (btnBoth) btnBoth.addEventListener('click', runBoth);
-    const btnCopyDone = document.getElementById('btn-copy-done-result');
-    if (btnCopyDone) btnCopyDone.addEventListener('click', copyDoneResult);
-    const btnDownDone = document.getElementById('btn-download-done-result');
-    if (btnDownDone) btnDownDone.addEventListener('click', downloadDoneResult);
 
     // Prompt Manager buttons
     const btnDelGenre = document.getElementById('btn-delete-genre');
@@ -324,15 +304,3 @@ function openProject(slug) { ProjectManager.openProject(slug); }
 function exportProject(slug) { ProjectManager.exportProject(slug); }
 function importProject() { ProjectManager.importProject(); }
 function closeProgress() { TranslationWorker.closeProgress(); }
-
-function runRetranslate() {
-    const text = document.getElementById('result-text')?.value;
-    if (!text || !text.trim()) { UiHelpers.showToast('Chưa tải nội dung file dịch!', 'error'); return; }
-}
-function runCorrection() {
-    const text = document.getElementById('result-text')?.value;
-    if (!text || !text.trim()) { UiHelpers.showToast('Chưa tải nội dung file dịch!', 'error'); return; }
-}
-function runBoth() {}
-function copyDoneResult() {}
-function downloadDoneResult() {}

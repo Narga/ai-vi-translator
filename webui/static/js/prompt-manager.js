@@ -167,10 +167,13 @@ const PromptManager = {
             .then(data => {
                 if (data.success) {
                     PromptManager.currentGenre = '';
-                    document.getElementById('genre-empty-state').classList.remove('dn');
-                    document.getElementById('genre-editor').classList.add('dn');
-                    document.getElementById('genre-editor').classList.remove('flex');
-                    document.getElementById('btn-delete-genre').disabled = true;
+                    const editorEl = document.getElementById('genre-editor');
+                    if (editorEl) {
+                        editorEl.classList.add('dn');
+                        editorEl.classList.remove('flex');
+                    }
+                    const btnDel = document.getElementById('btn-delete-genre');
+                    if (btnDel) btnDel.disabled = true;
                     PromptManager.loadGenres();
                 }
             });
@@ -183,11 +186,11 @@ const PromptManager = {
             .then(r => r.json())
             .then(data => {
                 const fields = {
-                    'proj-prompt-main': data.main,
-                    'proj-prompt-summary': data.summary,
-                    'proj-prompt-relationships': data.relationships,
-                    'proj-prompt-glossary': data.glossary,
-                    'proj-prompt-chinh-ta': data.chinh_ta
+                    'pm-proj-prompt-main': data.main,
+                    'pm-proj-prompt-summary': data.summary,
+                    'pm-proj-prompt-relationships': data.relationships,
+                    'pm-proj-prompt-glossary': data.glossary,
+                    'pm-proj-prompt-chinh-ta': data.chinh_ta
                 };
                 for (const [id, val] of Object.entries(fields)) {
                     const el = document.getElementById(id);
@@ -197,19 +200,16 @@ const PromptManager = {
             })
             .catch(err => console.error('Error loading project prompts:', err));
 
-        const selIds = ['prompt-library-select', 'pm-prompt-library-select'];
-        selIds.forEach(selId => {
-            const sel = document.getElementById(selId);
-            if (sel) {
-                fetch('/api/prompt-sets').then(r => r.json()).then(data => {
-                    const genres = (data || []).filter(g => g.slug !== 'default');
-                    let opts = '<option value="">— Chọn bộ prompt —</option>';
-                    opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
-                    genres.forEach(g => { opts += `<option value="${g.slug}">📁 ${g.name}</option>`; });
-                    sel.innerHTML = opts;
-                }).catch(() => {});
-            }
-        });
+        const sel = document.getElementById('pm-prompt-library-select');
+        if (sel) {
+            fetch('/api/prompt-sets').then(r => r.json()).then(data => {
+                const genres = (data || []).filter(g => g.slug !== 'default');
+                let opts = '<option value="">— Chọn bộ prompt —</option>';
+                opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
+                genres.forEach(g => { opts += `<option value="${g.slug}">📁 ${g.name}</option>`; });
+                sel.innerHTML = opts;
+            }).catch(() => {});
+        }
     },
 
     saveProjectPrompts() {
@@ -218,11 +218,11 @@ const PromptManager = {
             return;
         }
         const fields = {
-            main: document.getElementById('proj-prompt-main'),
-            summary: document.getElementById('proj-prompt-summary'),
-            relationships: document.getElementById('proj-prompt-relationships'),
-            glossary: document.getElementById('proj-prompt-glossary'),
-            chinh_ta: document.getElementById('proj-prompt-chinh-ta')
+            main: document.getElementById('pm-proj-prompt-main'),
+            summary: document.getElementById('pm-proj-prompt-summary'),
+            relationships: document.getElementById('pm-proj-prompt-relationships'),
+            glossary: document.getElementById('pm-proj-prompt-glossary'),
+            chinh_ta: document.getElementById('pm-proj-prompt-chinh-ta')
         };
         
         const payload = {};

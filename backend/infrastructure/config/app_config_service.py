@@ -151,29 +151,24 @@ class AppConfigService:
         )
 
     def get_active_provider(self) -> str:
-        """Lấy active AI provider (gemini hoặc openai)."""
-        return self.get("PROVIDER", "ACTIVE_PROVIDER", fallback="gemini").lower()
+        """Lấy active AI provider (gemini hoặc openai). Delegate sang ProviderService."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        return ProviderService(self._config_dir).get_active_provider()
 
     def set_active_provider(self, provider: str) -> None:
-        """
-        Set active AI provider.
-
-        Args:
-            provider: "gemini" hoặc "openai"
-        """
-        if provider not in ("gemini", "openai"):
-            raise ValueError(f"Invalid provider: {provider}")
-        self.set_value("PROVIDER", "ACTIVE_PROVIDER", provider)
-        self.save()
+        """Set active AI provider. Delegate sang ProviderService."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        ProviderService(self._config_dir).select_provider_by_type(provider)
 
     def get_openai_base_url(self) -> Optional[str]:
-        """Lấy OpenAI base URL."""
-        url = self.get("OPENAI", "BASE_URL", fallback="")
-        return url if url else None
+        """Lấy OpenAI base URL. Delegate sang ProviderService."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        return ProviderService(self._config_dir).get_active_base_url()
 
     def get_openai_model(self) -> str:
-        """Lấy OpenAI model mặc định."""
-        return self.get("OPENAI", "MODEL", fallback="gpt-4o-mini")
+        """Lấy OpenAI model mặc định. Delegate sang ProviderService."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        return ProviderService(self._config_dir).get_active_default_model()
 
     def is_cache_enabled(self) -> bool:
         """Kiểm tra cache có enabled không."""
