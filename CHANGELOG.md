@@ -4,6 +4,31 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.4.0] - 2026-06-10
+### Provider Routing Fix & HTML Template Refactor
+
+**Provider Routing (Translation + Spellcheck):**
+- `plugins/spellcheck/spellchecker.py`: Thêm `_get_client()` dispatch theo `provider_type`, không còn hard-code Gemini
+- `plugins/translation/translator.py`: Cập nhật `_get_client()` cache key theo provider_type + base_url
+- `webui/routes/projects.py`: Worker đọc `ProviderService.get_active_provider_config()` để lấy đúng key/base_url/model theo provider đang active
+- Xóa import `ApiKeyService` thừa trong `spellcheck_project_file`
+- Thêm test suite `tests/unit/test_spellcheck_provider.py` (7 tests cho client dispatch)
+
+**Nút Làm mới (Refresh) cho Quản lý dự án:**
+- Thêm `ProjectManager.refreshProjectCards()` async với loading state
+- Thêm nút "↻ Làm mới" trong `tab_projects.html`
+- Gọi `GET /api/projects` và cập nhật danh sách card
+
+**HTML `<template>` Refactor:**
+- Project cards: chuyển từ `innerHTML` + string concat → `<template id="tpl-project-card">` + DOM API
+- Thêm template trong `tab_projects.html` với `js-*` class hooks
+- Chống XSS: dùng `textContent` thay vì `${}` cho dữ liệu người dùng
+
+**Archive System Enhancements:**
+- API mới `GET /api/archive/<filename>/download` tải file lưu trữ (chống path traversal)
+- Nút "Tải về" trong danh sách lưu trữ
+- `ProjectManager.archiveProjectFromList()` với hộp thoại ghi đè (overwrite/copy)
+
 ## [7.3.0] - 2026-06-04
 ### Provider Management & Config Tab Refactor
 

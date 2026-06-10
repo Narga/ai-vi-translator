@@ -41,6 +41,9 @@
                     <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="document.querySelector('[data-tab=archive]').click()">
                         📥 Nhập dự án
                     </button>
+                    <button id="btn-refresh-projects" class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.refreshProjectCards()">
+                        ↻ Làm mới
+                    </button>
                 </div>
             </div>
             <div id="project-cards-container" class="flex flex-column gap3 overflow-y-auto overflow-x-hidden flex-auto">
@@ -312,4 +315,30 @@
             </div>
         </div>
     </div>
+    
+    <!-- TEMPLATES -->
+    <template id="tpl-project-card">
+        <div class="project-card">
+            <div class="project-card-header">
+                <div class="flex-auto">
+                    <h3 class="project-card-title pointer hover-blue js-title" style="cursor: pointer;"></h3>
+                    <p class="project-card-author js-author"></p>
+                    <p class="project-card-desc js-desc"></p>
+                </div>
+                <div class="project-card-actions">
+                    <button class="bn white bg-blue hover-bg-dark-blue fw6 js-btn-open">Mở dự án</button>
+                    <button class="ba b--silver bg-white hover-bg-near-white js-btn-archive">📦 Lưu trữ</button>
+                    <button class="ba b--green green bg-white hover-bg-washed-green js-btn-export">💾 Tải về</button>
+                    <button class="ba b--red red bg-white hover-bg-washed-red js-btn-delete">🗑️ Xóa</button>
+                </div>
+            </div>
+            <div class="project-card-meta">
+                <span class="project-card-meta-item js-meta-files"></span>
+                <span class="project-card-meta-item js-meta-translated"></span>
+                <span class="project-card-meta-item js-meta-date"></span>
+                <span class="project-card-meta-item js-meta-genre" style="display: none;"></span>
+                <span class="project-card-status js-status"></span>
+            </div>
+        </div>
+    </template>
 </section>

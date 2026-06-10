@@ -283,6 +283,8 @@ function importPromptFromLibrary() { PromptManager.importPromptFromLibrary(); }
 function saveProjectPrompts() { PromptManager.saveProjectPrompts(); }
 function resetProjectPrompts() { PromptManager.resetProjectPrompts(); }
 function loadArchiveList() { ApiClient.loadArchiveList(); }
+function archiveProjectFromList(slug) { ProjectManager.archiveProjectFromList(slug); }
+function downloadArchive(filename) { ProjectManager.downloadArchive(filename); }
 function deleteSelectedLogs() { UiHelpers.deleteSelectedLogs(); }
 function deleteCurrentLog() { UiHelpers.deleteCurrentLog(); }
 function runEpubConverter() { UiHelpers.runEpubConverter(); }

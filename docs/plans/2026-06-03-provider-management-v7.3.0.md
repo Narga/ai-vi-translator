@@ -1,7 +1,7 @@
 # Kế Hoạch: Quản lý Provider & Sửa lỗi UX Tab Cấu hình (v7.3.0)
 
 > **Ngày tạo:** 2026-06-03
-> **Trạng thái:** SẴN SÀNG TRIỂN KHAI
+> **Trạng thái:** ✅ ĐÃ HOÀN THÀNH (committed v7.3.0)
 > **Phạm vi:** Backend + Frontend — Tab "Cấu hình" + Provider management
 > **Ước lượng:** ~10h (4h backend + 3h frontend + 2h tích hợp + 1h docs)
 

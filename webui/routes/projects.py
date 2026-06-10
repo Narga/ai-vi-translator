@@ -475,6 +475,20 @@ def delete_archive(filename):
     return jsonify({"success": True})
 
 
+@projects_bp.route("/api/archive/<filename>/download", methods=["GET"])
+def download_archive(filename):
+    """Tải file lưu trữ."""
+    archive_path = ARCHIVE_DIR / filename
+    if not archive_path.exists():
+        return jsonify({"error": "File không tồn tại"}), 404
+
+    # Prevent path traversal
+    if archive_path.parent != ARCHIVE_DIR:
+        return jsonify({"error": "Invalid path"}), 403
+
+    return send_file(archive_path, as_attachment=True, download_name=filename)
+
+
 # ============================================================
 # Project Import/Export APIs
 # ============================================================
@@ -1237,8 +1251,10 @@ def translate_project_file(slug):
     ]
 
     config = {
-        "model_name": data.get("model", get_default_model()),
-        "qa_model": data.get("model", get_default_model()),
+        "provider_type": "", # Sẽ được điền bên trong worker
+        "base_url": "", # Sẽ được điền bên trong worker
+        "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
+        "qa_model": data.get("model", ""),
         "temperature": float(data.get("temperature", 1.0)),
         "chunk_size": int(data.get("chunk_size", get_default_chunk_size())),
         "use_cache": data.get("use_cache", True),
@@ -1256,12 +1272,36 @@ def translate_project_file(slug):
         """Worker dùng backend use case."""
         try:
             from services.translation_memory import TranslationMemory
+            from backend.infrastructure.providers.provider_service import ProviderService
 
-            key_service = ApiKeyService()
-            api_keys = key_service.load_gemini_keys()
-            if not api_keys:
-                progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
+            provider_service = ProviderService()
+            active_provider = provider_service.get_active_provider_config() or {}
+            provider_type = active_provider.get("type", "gemini")
+            base_url = active_provider.get("base_url")
+            # Fallback model tùy theo provider type
+            provider_default_model = active_provider.get("default_model")
+            if provider_default_model:
+                default_model = provider_default_model
+            elif provider_type == "openai":
+                default_model = "gpt-4o-mini"
+            else:
+                default_model = get_default_model()
+
+            if provider_type == "gemini":
+                api_keys = active_provider.get("api_keys", [])
+            else:
+                api_key = active_provider.get("api_key")
+                api_keys = [api_key] if api_key else []
+
+            if not api_keys or not api_keys[0]:
+                progress_queue.put({"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
                 return
+
+            config["provider_type"] = provider_type
+            config["base_url"] = base_url
+            if not config["model_name"]:
+                config["model_name"] = default_model
+                config["qa_model"] = default_model
 
             project_tm = TranslationMemory(
                 tm_dir=str(pdir / "assets" / "translation_memory"),
@@ -1307,7 +1347,6 @@ def spellcheck_project_file(slug):
     from webui import progress_queue
     from backend.application.use_cases.spellcheck_project_files_use_case import SpellcheckProjectFilesUseCase
     from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
-    from backend.infrastructure.config.api_key_service import ApiKeyService
     from backend.infrastructure.config.prompt_service import PromptService
 
     data = request.json
@@ -1335,8 +1374,10 @@ def spellcheck_project_file(slug):
     sp_prompt = sp_prompt.replace("{translation_guidelines}", style_guide)
 
     config = {
-        "model_name": data.get("model", get_default_model()),
-        "qa_model": data.get("model", get_default_model()),
+        "provider_type": "", # Sẽ được điền bên trong worker
+        "base_url": "", # Sẽ được điền bên trong worker
+        "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
+        "qa_model": data.get("model", ""),
         "temperature": float(data.get("temperature", 1.0)),
         "chunk_size": int(data.get("chunk_size", get_default_chunk_size())),
         "use_cache": data.get("use_cache", True),
@@ -1353,11 +1394,36 @@ def spellcheck_project_file(slug):
     def _project_spellcheck_worker():
         """Worker dùng backend use case."""
         try:
-            key_service = ApiKeyService()
-            api_keys = key_service.load_gemini_keys()
-            if not api_keys:
-                progress_queue.put({"type": "error", "message": "Không tìm thấy API keys"})
+            from backend.infrastructure.providers.provider_service import ProviderService
+            
+            provider_service = ProviderService()
+            active_provider = provider_service.get_active_provider_config() or {}
+            provider_type = active_provider.get("type", "gemini")
+            base_url = active_provider.get("base_url")
+            # Fallback model tùy theo provider type
+            provider_default_model = active_provider.get("default_model")
+            if provider_default_model:
+                default_model = provider_default_model
+            elif provider_type == "openai":
+                default_model = "gpt-4o-mini"
+            else:
+                default_model = get_default_model()
+
+            if provider_type == "gemini":
+                api_keys = active_provider.get("api_keys", [])
+            else:
+                api_key = active_provider.get("api_key")
+                api_keys = [api_key] if api_key else []
+
+            if not api_keys or not api_keys[0]:
+                progress_queue.put({"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
                 return
+
+            config["provider_type"] = provider_type
+            config["base_url"] = base_url
+            if not config["model_name"]:
+                config["model_name"] = default_model
+                config["qa_model"] = default_model
 
             bridge = WebUIProgressBridge(progress_queue)
 

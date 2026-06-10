@@ -333,6 +333,7 @@ const ApiClient = {
                         </td>
                         <td class="pa3 bb b--border gray f6">${file.size_display}</td>
                         <td class="pa3 tr bb b--border">
+                            <button class="pointer ph3 pv1 f7 ba b--green green bg-white br1 shadow-1 hover-bg-washed-green transition mr2" onclick="ProjectManager.downloadArchive('${file.filename}')">Tải về</button>
                             <button class="pointer ph3 pv1 f7 ba b--blue blue bg-white br1 shadow-1 hover-bg-light-blue transition mr2" onclick="ProjectManager.restoreProject('${file.filename}')">Khôi phục</button>
                             <button class="pointer ph3 pv1 f7 ba b--red red bg-white br1 shadow-1 hover-bg-washed-red transition" onclick="ProjectManager.deleteArchive('${file.filename}')">Xóa</button>
                         </td>

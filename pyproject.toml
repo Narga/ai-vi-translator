@@ -1,8 +1,8 @@
 [project]
 name = "content-translator"
-version = "7.3.0"
+version = "7.4.0"
 description = "AI Content Translator - Dịch tiểu thuyết tự động"
-readme = "docs/README.md"
+readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [

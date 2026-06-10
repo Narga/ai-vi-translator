@@ -128,8 +128,33 @@ const COL_MAP = {
 const ProjectManager = {
     // ===== PROJECT CARD FUNCTIONS =====
     
+    async refreshProjectCards(options = {}) {
+        const btn = document.getElementById('btn-refresh-projects');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '↻ Đang tải...';
+        }
+        
+        try {
+            await this.loadProjectCards();
+            if (options.showToast !== false) {
+                UiHelpers.showToast('Đã làm mới danh sách dự án', 'success');
+            }
+        } catch (error) {
+            console.error(error);
+            if (options.showToast !== false) {
+                UiHelpers.showToast('Lỗi làm mới: ' + error.message, 'error');
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '↻ Làm mới';
+            }
+        }
+    },
+
     loadProjectCards() {
-        fetch('/api/projects')
+        return fetch('/api/projects')
         .then(r => r.json())
         .then(projects => {
             const container = document.getElementById('project-cards-container');
@@ -140,42 +165,73 @@ const ProjectManager = {
                 return;
             }
             
-            container.innerHTML = projects.map(p => {
+            container.innerHTML = ''; // Clear current cards
+
+            const template = document.getElementById('tpl-project-card');
+            if (!template) {
+                console.error('Template tpl-project-card not found');
+                return;
+            }
+
+            projects.forEach(p => {
                 const statusClass = p.status === 'Hoàn thành' ? 'done' : 'pending';
                 const statusText = p.status || 'Đang thực hiện';
                 const statusIcon = statusClass === 'done' ? '✅' : '⏳';
                 const createdDate = p.created_at ? new Date(p.created_at).toLocaleDateString('vi-VN') : '—';
                 
-                return `
-                <div class="project-card">
-                    <div class="project-card-header">
-                        <div class="flex-auto">
-                            <h3 class="project-card-title pointer hover-blue" onclick="ProjectManager.openProject('${p.slug}')" style="cursor: pointer;">
-                                ${escapeHtml(p.book_title || p.name)}
-                            </h3>
-                            ${p.author ? `<p class="project-card-author">${escapeHtml(p.author)}</p>` : ''}
-                            ${p.description ? `<p class="project-card-desc">${escapeHtml(p.description)}</p>` : ''}
-                        </div>
-                        <div class="project-card-actions">
-                            <button class="bn white bg-blue hover-bg-dark-blue fw6" onclick="ProjectManager.openProject('${p.slug}')">Mở dự án</button>
-                            <button class="ba b--silver bg-white hover-bg-near-white" onclick="ProjectManager.exportProject('${p.slug}')">💾 Lưu trữ</button>
-                            <button class="ba b--red red bg-white hover-bg-washed-red" onclick="ProjectManager.deleteProjectCard('${p.slug}')">🗑️ Xóa</button>
-                        </div>
-                    </div>
-                    <div class="project-card-meta">
-                        <span class="project-card-meta-item">📁 ${p.source_count || 0} files</span>
-                        <span class="project-card-meta-item">✅ ${p.translated_count || 0} đã xong</span>
-                        <span class="project-card-meta-item">📅 ${createdDate}</span>
-                        ${p.genre ? `<span class="project-card-meta-item">📖 ${escapeHtml(p.genre)}</span>` : ''}
-                        <span class="project-card-status ${statusClass}">${statusIcon} ${statusText}</span>
-                    </div>
-                </div>`;
-            }).join('');
+                const clone = template.content.cloneNode(true);
+                
+                // Title
+                const titleEl = clone.querySelector('.js-title');
+                titleEl.textContent = p.book_title || p.name;
+                titleEl.onclick = () => ProjectManager.openProject(p.slug);
+                
+                // Author
+                const authorEl = clone.querySelector('.js-author');
+                if (p.author) {
+                    authorEl.textContent = p.author;
+                } else {
+                    authorEl.style.display = 'none';
+                }
+                
+                // Description
+                const descEl = clone.querySelector('.js-desc');
+                if (p.description) {
+                    descEl.textContent = p.description;
+                } else {
+                    descEl.style.display = 'none';
+                }
+                
+                // Buttons
+                clone.querySelector('.js-btn-open').onclick = () => ProjectManager.openProject(p.slug);
+                clone.querySelector('.js-btn-archive').onclick = () => ProjectManager.archiveProjectFromList(p.slug);
+                clone.querySelector('.js-btn-export').onclick = () => ProjectManager.exportProject(p.slug);
+                clone.querySelector('.js-btn-delete').onclick = () => ProjectManager.deleteProjectCard(p.slug);
+                
+                // Meta
+                clone.querySelector('.js-meta-files').textContent = `📁 ${p.source_count || 0} files`;
+                clone.querySelector('.js-meta-translated').textContent = `✅ ${p.translated_count || 0} đã xong`;
+                clone.querySelector('.js-meta-date').textContent = `📅 ${createdDate}`;
+                
+                const genreEl = clone.querySelector('.js-meta-genre');
+                if (p.genre) {
+                    genreEl.textContent = `📖 ${p.genre}`;
+                    genreEl.style.display = '';
+                }
+                
+                // Status
+                const statusEl = clone.querySelector('.js-status');
+                statusEl.textContent = `${statusIcon} ${statusText}`;
+                statusEl.className = `project-card-status ${statusClass}`;
+                
+                container.appendChild(clone);
+            });
         })
         .catch(err => {
             console.error('Error loading project cards:', err);
             const container = document.getElementById('project-cards-container');
             if (container) container.innerHTML = '<div class="pa4 tc red">Lỗi tải danh sách dự án</div>';
+            throw err;
         });
     },
 
@@ -955,6 +1011,43 @@ const ProjectManager = {
         });
     },
 
+    archiveProjectFromList(slug) {
+        // Kiểm tra archive đã tồn tại chưa
+        fetch(`/api/projects/${slug}/archive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ strategy: 'check' })
+        }).then(r => r.json()).then(data => {
+            if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
+            if (data.exists) {
+                // Archive đã tồn tại → hỏi overwrite hay copy
+                showConfirm('Bản lưu trữ đã tồn tại. Ghi đè?', { confirmText: 'Ghi đè', cancelText: 'Tạo bản mới' }).then(overwrite => {
+                    const strategy = overwrite ? 'overwrite' : 'copy';
+                    fetch(`/api/projects/${slug}/archive`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ strategy })
+                    }).then(r => r.json()).then(d => {
+                        if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
+                        UiHelpers.showToast('Đã lưu trữ dự án', 'success');
+                        ProjectManager.loadProjectCards();
+                    }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
+                });
+            } else {
+                // Chưa có archive → tạo mới
+                fetch(`/api/projects/${slug}/archive`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ strategy: 'overwrite' })
+                }).then(r => r.json()).then(d => {
+                    if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
+                    UiHelpers.showToast('Đã lưu trữ dự án', 'success');
+                    ProjectManager.loadProjectCards();
+                }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
+            }
+        }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
+    },
+
     // ===== ARCHIVE =====
     restoreProject(filename) {
         showConfirm('Khôi phục dự án từ "' + filename + '"?').then(ok => {
@@ -983,6 +1076,10 @@ const ProjectManager = {
                 ApiClient.loadArchiveList();
             }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
         });
+    },
+
+    downloadArchive(filename) {
+        window.location.href = '/api/archive/' + encodeURIComponent(filename) + '/download';
     },
 
     // ===== CHUNK CONFIG =====

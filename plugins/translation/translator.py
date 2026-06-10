@@ -24,33 +24,41 @@ from services.cache_service import TranslationCache
 from services.emergency_stop import check_emergency_stop, EmergencyStopError
 
 
-# Cache GenAI clients theo API key để tránh khởi tạo lại
-_client_cache: Dict[str, GenAIClient] = {}
+# Cache GenAI clients theo API key và config để tránh khởi tạo lại
+_client_cache: Dict[str, Any] = {}
 
 
-def _get_client(api_key: str, config: Dict[str, Any]) -> GenAIClient:
+def _get_client(api_key: str, config: Dict[str, Any]) -> Any:
     """
-    Lấy hoặc tạo GenAIClient cho API key (có cache).
+    Lấy hoặc tạo Client (GenAI hoặc OpenAI) cho API key (có cache).
 
     Args:
         api_key (str): API key
-        config (Dict[str, Any]): Cấu hình chứa model và thinking_level
+        config (Dict[str, Any]): Cấu hình chứa model, provider_type, base_url, thinking_level
 
     Returns:
-        GenAIClient: Client instance
+        Any: Client instance
     """
     global _client_cache
 
+    provider_type = config.get("provider_type", "gemini")
+    base_url = config.get("base_url") or ""
     default_model = config.get("model_name", "gemini-3-flash-preview")
     thinking_level = config.get("thinking_level", "MEDIUM")
 
-    # Cache key chỉ dựa trên API key (SDK đã fixed là google-genai)
-    cache_key = api_key
+    # Cache key dựa trên type, key, base_url, model
+    cache_key = f"{provider_type}_{api_key}_{base_url}_{default_model}"
 
     if cache_key not in _client_cache:
-        _client_cache[cache_key] = GenAIClient(
-            api_key=api_key, default_model=default_model, thinking_level=thinking_level
-        )
+        if provider_type == "openai":
+            from services.openai_client import OpenAIClient
+            _client_cache[cache_key] = OpenAIClient(
+                api_key=api_key, base_url=base_url, default_model=default_model
+            )
+        else:
+            _client_cache[cache_key] = GenAIClient(
+                api_key=api_key, default_model=default_model, thinking_level=thinking_level
+            )
 
     return _client_cache[cache_key]
 

@@ -49,11 +49,12 @@ novel-translator/
 │   │   ├── prompts.py     # Prompt Sets CRUD
 │   │   ├── projects.py    # Project workspace + TM APIs
 │   │   └── plugins.py     # EPUB Converter + OCR
-│   ├── static/js/         # ES modules (Alpine.js 3.x)
+│   ├── static/js/         # 7 ES modules (Alpine.js 3.x)
 │   │   ├── api-client.js       # API calls, model loading
 │   │   ├── project-manager.js  # Project CRUD, 3-column workspace
 │   │   ├── editor-component.js # Editor, token estimate, diff view
 │   │   ├── prompt-manager.js   # Prompt genres & prompts CRUD
+│   │   ├── provider-manager.js # Provider CRUD, dropdown, Gemini/OpenAI switch
 │   │   ├── translation-worker.js # SSE, progress, spellcheck
 │   │   └── ui-helpers.js       # Toast, modals, provider switching
 │   └── templates/partials/ # Jinja2 partials cho từng tab

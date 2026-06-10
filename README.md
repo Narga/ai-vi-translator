@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.3.0)
+# 📚 Content Translator (v7.4.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -17,7 +17,7 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 - 🖥️ **So sánh bản dịch (Diff View)**: Xem Dọc/Ngang — so sánh bản gốc và bản dịch trực quan.
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
-- 🧪 **Test Suite**: 131 tests (unit) cho backend, CLI, WebUI và helpers.
+- 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers.
 
 ---
 
@@ -82,5 +82,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.3.0  
-**Ngày:** 04/06/2026
+**Phiên bản:** 7.4.0  
+**Ngày:** 10/06/2026

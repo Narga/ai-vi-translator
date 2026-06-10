@@ -89,6 +89,17 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] Button styling consolidation
 - [x] Modals hợp nhất vào 1 file
 
+### 📦 7.3.5 Archive System Enhancements (v7.3.1 — Đã xong)
+- [x] API `GET /api/archive/<filename>/download` tải về tệp lưu trữ an toàn (chống path traversal)
+- [x] Nút "Tải về" trực tiếp từ danh sách lưu trữ và thẻ dự án
+- [x] Hộp thoại xác nhận ghi đè (Overwrite) hoặc sao chép (Copy) khi tệp lưu trữ trùng tên
+
+
+### 🚀 7.4 Refactoring & Provider Routing (v7.4.0 — Đã xong)
+- [x] Sửa lỗi Provider Routing: Active provider được truyền chính xác khi dịch và soát lỗi, thay vì luôn dùng Gemini.
+- [x] Nút Làm mới (Refresh) cho Quản lý dự án để tải lại danh sách dễ dàng.
+- [x] HTML `<template>` Refactor: Chuyển đổi nối chuỗi HTML trong thẻ sang JS template để chống XSS và giữ code sạch.
+
 ---
 
 ## 🎯 Giai đoạn 8: Cải tiến & Tính năng mới (Next)
@@ -96,7 +107,7 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 ### Ưu tiên cao
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
 - [ ] **Batch Progress UI**: Thanh tiến độ tổng thể khi dịch nhiều file
-- [ ] **HTML \<template\> Refactor**: Thay thế nối chuỗi HTML trong JS bằng thẻ `<template>`
+- [x] **HTML \<template\> Refactor**: Thay thế nối chuỗi HTML trong JS bằng thẻ `<template>`
 
 ### Ưu tiên trung bình
 - [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án
@@ -162,4 +173,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-04*
+*Cập nhật lần cuối: 2026-06-10*
