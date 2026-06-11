@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.4.0)
+# 📚 Content Translator (v7.4.1)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -82,5 +82,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.4.0  
-**Ngày:** 10/06/2026
+**Phiên bản:** 7.4.1  
+**Ngày:** 11/06/2026

@@ -198,12 +198,9 @@ class ModelCatalogService:
         Returns:
             Model name
         """
-        config = configparser.ConfigParser()
-        config_file = self._config_dir / "app.ini"
-        if config_file.exists():
-            config.read(config_file)
-
-        return config.get("MODEL", "MODEL", fallback="gemini-3-flash-preview")
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService(self._config_dir)
+        return provider_service.get_active_default_model()
 
     def get_openai_model(self) -> str:
         """

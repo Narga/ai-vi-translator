@@ -71,11 +71,10 @@ novel-translator/
 │   ├── epub_converter/    # Chuyển đổi EPUB
 │   └── ocr/               # Nhận diện ảnh/PDF
 ├── config/                 # Cấu hình app.ini và API keys
-└── docs/                   # Tài liệu
-    ├── ROADMAP.md         # Lộ trình phát triển
-    ├── DEVELOPMENT.md     # Hướng dẫn phát triển
-    ├── MANUAL.md          # Hướng dẫn sử dụng
-    └── plans/             # Thiết kế tính năng (lưu trữ)
+    └── docs/                   # Tài liệu
+        ├── ROADMAP.md         # Lộ trình phát triển
+        ├── DEVELOPMENT.md     # Hướng dẫn phát triển
+        └── MANUAL.md          # Hướng dẫn sử dụng
 ```
 
 ---
@@ -152,4 +151,4 @@ Dự án sử dụng `uv` để quản lý package.
 - Cập nhật lock file: `uv lock`
 
 ---
-*Phiên bản: 2.0 - Ngày cập nhật: 01/03/2026*
+*Phiên bản: 2.1 - Ngày cập nhật: 11/06/2026*

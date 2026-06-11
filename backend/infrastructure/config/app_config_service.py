@@ -125,8 +125,10 @@ class AppConfigService:
     # ------------------------------------------------------------------
 
     def get_default_model(self) -> str:
-        """Lấy model mặc định."""
-        return self.get("MODEL", "MODEL", fallback="gemini-3-flash-preview")
+        """Lấy model mặc định từ active provider."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService(self._config_dir)
+        return provider_service.get_active_default_model()
 
     def get_qa_model(self) -> str:
         """Lấy QA model."""

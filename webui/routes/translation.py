@@ -97,45 +97,7 @@ def index():
     )
 
 
-@translation_bp.route("/api/translate", methods=["POST"])
-def start_translation():
-    """Bắt đầu dịch thuật."""
-    from webui import progress_queue
-    import webui as _state
 
-    data = request.json
-
-    config = {
-        "model_name": data.get("model", "gemini-3-flash-preview"),
-        "qa_model": data.get("model", "gemini-3-flash-preview"),
-        "temperature": float(data.get("temperature", 1.0)),
-        "chunk_size": int(data.get("chunk_size", 22000)),
-        "use_cache": data.get("use_cache", True),
-        "prompts": data.get("prompts", {}),
-        "max_refinement_attempts": 2,
-        "min_length_ratio": 0.5,
-        "max_length_ratio": 5.0,
-        "context_char_count": 500,
-    }
-
-    text = data.get("text", "")
-    output_filename = data.get("filename", "translated")
-
-    if not text.strip():
-        return jsonify({"error": "Vui lòng nhập văn bản cần dịch"}), 400
-
-    if data.get("prompts"):
-        save_prompts(data["prompts"])
-
-    while not progress_queue.empty():
-        progress_queue.get()
-    _state.translation_result = {}
-
-    thread = Thread(target=translate_worker, args=(text, config, output_filename))
-    thread.daemon = True
-    thread.start()
-
-    return jsonify({"status": "started"})
 
 
 @translation_bp.route("/api/progress")

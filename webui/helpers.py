@@ -67,12 +67,26 @@ def get_default_chunk_size():
 
 
 def get_default_model():
-    """Get default model from config."""
-    config = load_config()
+    """Get default model từ active provider."""
     try:
-        return config.get("MODEL", "MODEL", fallback="gemini-2.0-flash-exp")
-    except Exception:
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        active_config = provider_service.get_active_provider_config()
+        if active_config and active_config.get("default_model"):
+            return active_config["default_model"]
+        # Fallback to gemini default model
+        gemini_providers = provider_service.get_providers_by_type("gemini")
+        if gemini_providers:
+            return gemini_providers[0].get("default_model", "gemini-2.0-flash-exp")
         return "gemini-2.0-flash-exp"
+    except Exception as e:
+        logger.debug(f"get_default_model fallback: {e}")
+        # Fallback to legacy app.ini
+        config = load_config()
+        try:
+            return config.get("MODEL", "MODEL", fallback="gemini-2.0-flash-exp")
+        except Exception:
+            return "gemini-2.0-flash-exp"
 
 
 def get_active_provider():

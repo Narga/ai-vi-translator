@@ -27,6 +27,23 @@ PROJECTS_DIR = Path("workspace/projects")
 
 
 # ============================================================
+# Spellcheck helpers
+# ============================================================
+
+def _is_spellcheck_info_file(path: Path) -> bool:
+    """Kiểm tra file có phải là file log spellcheck (_info.txt) không."""
+    return path.is_file() and path.name.endswith("_info.txt")
+
+
+def _spellcheck_info_name(filename: str) -> str:
+    """Tạo tên file log từ tên file nội dung.
+    Quy tắc: stem + '_info.txt', tương đương backend filename.rsplit('.', 1)[0] + '_info.txt'
+    """
+    stem, _dot, _ext = filename.rpartition(".")
+    return f"{stem or filename}_info.txt"
+
+
+# ============================================================
 # Project Helpers
 # ============================================================
 
@@ -656,7 +673,7 @@ def merge_project_files(slug):
 
 @projects_bp.route("/api/projects/<slug>/files/spelling")
 def get_project_spelling_files(slug):
-    """Lấy danh sách file đã soát lỗi."""
+    """Lấy danh sách file đã soát lỗi (chỉ file nội dung, không bao gồm file log _info.txt)."""
     pdir = _get_project_dir(slug)
     spelling_dir = pdir / "spelling"
     
@@ -665,7 +682,7 @@ def get_project_spelling_files(slug):
     
     files = []
     for f in sorted(spelling_dir.rglob("*")):
-        if f.is_file() and not f.name.startswith('.'):
+        if f.is_file() and not f.name.startswith('.') and not _is_spellcheck_info_file(f):
             rel = str(f.relative_to(spelling_dir))
             size = f.stat().st_size
             files.append({

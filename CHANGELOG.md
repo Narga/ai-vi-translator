@@ -4,6 +4,29 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.4.1] - 2026-06-11
+### Provider Routing Hoàn thiện & Bug Fixes
+
+**Phase 1B — Legacy Route Cleanup:**
+- Xoá hẳn route `/api/translate` (cũ trong `webui/routes/translation.py`) — không dùng nữa
+- Xoá hẳn route `/api/provider` (cũ trong `webui/routes/settings.py`) — đã thay thế bằng `/api/providers`
+
+**Phase 1C — Helper Normalization:**
+- `get_default_model()` ở `webui/helpers.py`, `ModelCatalogService`, `AppConfigService` giờ đọc từ `ProviderService.get_active_default_model()` thay vì `config/app.ini`
+- Giữ fallback sang `app.ini` nếu `ProviderService` chưa sẵn sàng
+
+**3C — Chunk Splitting API Integration:**
+- Thêm `getChunkTargetFilename()` để xác định file nguồn cần chunk
+- `showChunkConfig()` kiểm tra project/file trước khi mở modal
+- `confirmChunking()` async — gọi `POST /api/projects/<slug>/chunk/<filename>` với `{ max_chars }`
+- Validation: maxChars ≥ 1000, có project, có file target
+
+**3D — Ẩn file log `_info.txt` khỏi danh sách soát lỗi:**
+- Backend: `_is_spellcheck_info_file()` + `_spellcheck_info_name()` trong `projects.py`
+- `get_project_spelling_files()` lọc bỏ file `_info.txt`
+- Frontend defensive: `renderPmSpellcheckedList()` lọc `_info.txt` phía client
+- `getSpellcheckInfoFilename()` helper + cập nhật `_loadSpellcheckFile()` dùng helper
+
 ## [7.4.0] - 2026-06-10
 ### Provider Routing Fix & HTML Template Refactor
 

@@ -96,9 +96,13 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 
 ### 🚀 7.4 Refactoring & Provider Routing (v7.4.0 — Đã xong)
-- [x] Sửa lỗi Provider Routing: Active provider được truyền chính xác khi dịch và soát lỗi, thay vì luôn dùng Gemini.
-- [x] Nút Làm mới (Refresh) cho Quản lý dự án để tải lại danh sách dễ dàng.
-- [x] HTML `<template>` Refactor: Chuyển đổi nối chuỗi HTML trong thẻ sang JS template để chống XSS và giữ code sạch.
+- [x] Provider Routing (7.4.0): Active provider được truyền chính xác khi dịch và soát lỗi
+- [x] Nút Làm mới (Refresh) cho Quản lý dự án
+- [x] HTML `<template>` Refactor: Chống XSS, code sạch hơn
+- [x] Legacy Route Cleanup (7.4.1): Xoá `/api/translate`, `/api/provider`
+- [x] Helper Normalization (7.4.1): `get_default_model()` đọc từ `ProviderService`
+- [x] Chunk API Integration (7.4.1): Frontend gọi `POST /api/projects/<slug>/chunk/<filename>` thay vì chỉ hiển thị modal
+- [x] Ẩn file log `_info.txt` (7.4.1): Không hiển thị file log spellcheck trong danh sách đã soát
 
 ---
 
@@ -107,12 +111,12 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 ### Ưu tiên cao
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
 - [ ] **Batch Progress UI**: Thanh tiến độ tổng thể khi dịch nhiều file
-- [x] **HTML \<template\> Refactor**: Thay thế nối chuỗi HTML trong JS bằng thẻ `<template>`
 
 ### Ưu tiên trung bình
 - [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án
 - [ ] **EPUB/HTML Fidelity Pipeline**: Dịch bảo toàn cấu trúc DOM, ảnh và CSS
 - [ ] **Sync Scroll**: Đồng bộ cuộn giữa editor trái và phải
+- [ ] **Workspace tab content/file**: Restore lại nội dung/tập tin của workspace tab khi chuyển đổi tab chính
 
 ### Ưu tiên thấp
 - [ ] **Local LLM Integration**: Kết nối Ollama/LocalAI
@@ -173,4 +177,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-10*
+*Cập nhật lần cuối: 2026-06-11*

@@ -17,12 +17,10 @@ Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuy
    # Hoặc dùng pip:
    pip install -r requirements.txt
    ```
-3. Cấu hình API: Tạo file `.env` hoặc `config/API.txt` và dán các API Keys.
+3. Cấu hình API: Chạy ứng dụng lần đầu → tự động migration sang `config/providers.json`. Hoặc cấu hình qua tab **Cấu hình** trên WebUI.
    ```bash
-   # .env (khuyến nghị)
-   GEMINI_API_KEYS=key1,key2,key3
-   
-   # Hoặc config/API.txt (mỗi key một dòng)
+   # Cấu hình thủ công: tạo config/providers.json (xem mẫu trong code)
+   # Hoặc cấu hình qua giao diện WebUI
    ```
 
 ---

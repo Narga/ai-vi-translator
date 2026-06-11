@@ -408,11 +408,13 @@ const ProjectManager = {
         fetch(`/api/projects/${slug}/files/spelling`)
             .then(r => r.json())
             .then(files => {
-                if (!files.length) {
+                // Phòng thủ: lọc bỏ file _info.txt nếu backend chưa kịp lọc
+                const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
+                if (!visibleFiles.length) {
                     el.innerHTML = '<div class="pa3 tc silver i f7">Chưa có file đã soát</div>';
                     return;
                 }
-                el.innerHTML = files.map(f => {
+                el.innerHTML = visibleFiles.map(f => {
                     const esc = escapeHtml(f.name);
                     const isActive = window.currentProjectFile === f.name;
                     const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
@@ -1083,7 +1085,38 @@ const ProjectManager = {
     },
 
     // ===== CHUNK CONFIG =====
+    getChunkTargetFilename() {
+        const current = window.currentProjectFile;
+        if (current && typeof current === 'object' && current.section === 'sources' && current.name) {
+            return current.name;
+        }
+        if (typeof current === 'string') {
+            return current;
+        }
+        if (window.selectedFiles && window.selectedFiles.size === 1) {
+            return Array.from(window.selectedFiles)[0];
+        }
+        return null;
+    },
+
     showChunkConfig() {
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án', 'error');
+            return;
+        }
+        const filename = ProjectManager.getChunkTargetFilename();
+        if (!filename) {
+            UiHelpers.showToast('Chọn một tập tin nguồn để chia chunk', 'error');
+            return;
+        }
+        const modal = document.getElementById('chunk-config-modal');
+        if (modal) {
+            modal.dataset.filename = filename;
+        }
+        const input = document.getElementById('chunk-size-input');
+        if (input && !input.value) {
+            input.value = '100000';
+        }
         ModalManager.show('chunk-config-modal');
     },
 
@@ -1091,10 +1124,43 @@ const ProjectManager = {
         ModalManager.hide('chunk-config-modal');
     },
 
-    confirmChunking() {
-        if (!window.currentProject) return;
-        UiHelpers.showToast('Đang chia chunk...', 'success');
-        ProjectManager.hideChunkConfig();
+    async confirmChunking() {
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án', 'error');
+            return;
+        }
+
+        const modal = document.getElementById('chunk-config-modal');
+        const filename = modal?.dataset.filename || ProjectManager.getChunkTargetFilename();
+        if (!filename) {
+            UiHelpers.showToast('Chọn một tập tin nguồn để chia chunk', 'error');
+            return;
+        }
+
+        const maxChars = parseInt(document.getElementById('chunk-size-input')?.value || '0', 10);
+        if (!Number.isFinite(maxChars) || maxChars < 1000) {
+            UiHelpers.showToast('Giới hạn chunk phải từ 1000 ký tự trở lên', 'error');
+            return;
+        }
+
+        try {
+            UiHelpers.showToast('Đang chia chunk...', 'success');
+            const slug = window.currentProject.slug;
+            const res = await fetch(`/api/projects/${slug}/chunk/${encodeURIComponent(filename)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ max_chars: maxChars })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Không thể chia chunk');
+            }
+            ProjectManager.hideChunkConfig();
+            UiHelpers.showToast(data.message || `Đã chia thành ${data.chunks || 0} chunk`, 'success');
+            await ProjectManager.openProject(slug);
+        } catch (error) {
+            UiHelpers.showToast('Lỗi chia chunk: ' + error.message, 'error');
+        }
     },
 
     // ===== MERGE FILES =====

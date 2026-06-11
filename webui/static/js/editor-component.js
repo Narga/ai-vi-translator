@@ -5,6 +5,17 @@
 const EditorComponent = {
     syncScrollEnabled: true,
 
+    // Helper: derive tên file log _info từ tên file nội dung
+    // Quy tắc giống backend: stem + '_info.txt' (filename.rsplit('.', 1)[0] + '_info.txt')
+    getSpellcheckInfoFilename(filename) {
+        const slash = filename.lastIndexOf('/');
+        const dir = slash >= 0 ? filename.slice(0, slash + 1) : '';
+        const base = slash >= 0 ? filename.slice(slash + 1) : filename;
+        const dot = base.lastIndexOf('.');
+        const stem = dot > 0 ? base.slice(0, dot) : base;
+        return `${dir}${stem}_info.txt`;
+    },
+
     // Generic file loader — prefix = '' hoặc 'pm-'
     async _loadFilePair(prefix, filename, section) {
         if (!window.currentProject) return;
@@ -51,7 +62,7 @@ const EditorComponent = {
     _loadSpellcheckFile(prefix, filename) {
         if (!window.currentProject) return;
         const slug = window.currentProject.slug;
-        const infoName = filename.replace(/\.(txt|md)$/, '') + '_info.txt';
+        const infoName = EditorComponent.getSpellcheckInfoFilename(filename);
         fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
             document.getElementById(prefix + 'spell-result-text').value = data.content || '';
             window.currentProjectFile = { name: filename, section: 'spelling' };

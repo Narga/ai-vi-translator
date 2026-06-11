@@ -59,49 +59,7 @@ def get_models():
         return jsonify({"error": str(e)}), 500
 
 
-@settings_bp.route("/api/provider", methods=["GET", "POST"])
-def manage_provider():
-    """Quản lý provider AI (chuyển đổi Gemini ↔ OpenAI). Legacy endpoint."""
-    from webui.helpers import get_active_provider, get_openai_base_url, get_openai_model, load_openai_key
-    from backend.infrastructure.providers.provider_service import ProviderService
 
-    if request.method == "GET":
-        try:
-            provider = get_active_provider()
-            provider_service = ProviderService()
-            providers = provider_service.get_available_providers()
-            openai_key = load_openai_key()
-            active_config = provider_service.get_active_provider_config()
-            return jsonify({
-                "active": provider,
-                "active_id": active_config["id"] if active_config else "gemini-default",
-                "providers": providers,
-                "openai_config": {
-                    "provider_id": (active_config.get("id") if active_config and active_config.get("type") == "openai" else ""),
-                    "base_url": get_openai_base_url() or "",
-                    "model": get_openai_model(),
-                    "has_key": bool(openai_key),
-                    "key": openai_key or "",
-                },
-            })
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    # POST: Chuyển đổi provider theo type (legacy)
-    try:
-        data = request.json
-        new_provider = data.get("provider", "gemini").lower()
-        if new_provider not in ("gemini", "openai"):
-            return jsonify({"error": "Provider không hợp lệ. Sử dụng 'gemini' hoặc 'openai'."}), 400
-
-        provider_service = ProviderService()
-        chosen_id = provider_service.select_provider_by_type(new_provider)
-        logger.info(f"Switched AI provider to: {new_provider} (id={chosen_id})")
-        return jsonify({"success": True, "active": new_provider, "active_id": chosen_id})
-
-    except Exception as e:
-        logger.error(f"Error switching provider: {e}")
-        return jsonify({"error": str(e)}), 500
 
 
 @settings_bp.route("/api/openai/models")
