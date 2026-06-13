@@ -108,18 +108,31 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ## 🎯 Giai đoạn 8: Cải tiến & Tính năng mới (Next)
 
-### Ưu tiên cao
+### ✅ Đã hoàn thành (v7.5.0)
+- [x] **Sửa lỗi API Key Invalid**: Xử lý key bị từ chối, cooldown 24 giờ, tie-break round-robin
+- [x] **File Selection & Deletion Fix**: `data-filename` attribute, escapeHtml an toàn, xoá source/translated
+- [x] **Tab State Preservation**: Giữ trạng thái mini-tab (Bản dịch/Đã soát) khi reload workspace
+- [x] **Provider Routing Fix**: Shim `/api/provider`, sửa `switchProvider()`/`initProvider()` dùng `/api/providers/*`, `loadModels()` endpoint thống nhất
+- [x] **Nút xóa tab Biên tập**: `deleteSelectedSourceFiles()` + SVG icon xóa
+- [x] **Generate tab Thông tin**: Dropdown source file, `aiGenerateFromInfoTab()`, `saveGuidelineFromInfoTab()`, response mở rộng (`content`, `asset_file`)
+- [x] **ProjectContextService**: Service đọc `style_guide.txt` + `summary.txt` từ assets, chèn vào prompt dịch qua placeholder hoặc fallback append
+- [x] **ProjectContextService Unit Tests**: 9 tests cho load_context và render_prompt
+
+### 🔴 Cần làm — Xóa Cache & Force Retranslate
+- [ ] **Xóa Translation Cache**: Xóa `services/cache_service.py`, vô hiệu hóa cache trong `AppConfigService`, xóa checkbox/UI cache
+- [ ] **API Clear TM**: Endpoint `POST /api/projects/<slug>/tm/clear` + nút "Xóa TM dự án" trong UI
+- [ ] **Force Retranslate**: Checkbox "Dịch lại từ đầu", gửi `force_retranslate` payload, executor bỏ qua checkpoint/cache/TM
+- [ ] **Unit Tests**: executor force_retranslate, route tm/clear, route translate with force_retranslate
+
+### 📋 Ưu tiên trung bình (tương lai)
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
 - [ ] **Batch Progress UI**: Thanh tiến độ tổng thể khi dịch nhiều file
-- [x] **Sửa lỗi API Key Invalid** (v7.5.0): Xử lý key bị từ chối, cooldown 24 giờ, tie-break round-robin
-
-### Ưu tiên trung bình
 - [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án
 - [ ] **EPUB/HTML Fidelity Pipeline**: Dịch bảo toàn cấu trúc DOM, ảnh và CSS
 - [ ] **Sync Scroll**: Đồng bộ cuộn giữa editor trái và phải
 - [ ] **Workspace tab content/file**: Restore lại nội dung/tập tin của workspace tab khi chuyển đổi tab chính
 
-### Ưu tiên thấp
+### 📋 Ưu tiên thấp (tương lai)
 - [ ] **Local LLM Integration**: Kết nối Ollama/LocalAI
 - [ ] **Agentic Post-Editing**: AI tự động rà soát bản dịch sau hoàn tất
 - [ ] **Multi-Language Expansion**: Hỗ trợ Anh-Việt, Nhật-Việt
@@ -178,4 +191,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-11*
+*Cập nhật lần cuối: 2026-06-13*
