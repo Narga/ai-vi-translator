@@ -206,6 +206,7 @@ class AdaptiveRateLimiter:
         self.daily_usage: Dict[str, int] = {}
         self.daily_tokens: Dict[str, int] = {}
         self.last_reset_date: str = datetime.utcnow().strftime("%Y-%m-%d")
+        self._round_robin_offset: int = 0  # Tie-break cho least_used
         self._lock = Lock()
         self._logger = logging.getLogger(__name__)
 
@@ -291,6 +292,26 @@ class AdaptiveRateLimiter:
                     f"thử lại {failures}/{self.MAX_RETRIES} sau {delay}s"
                 )
                 return True, delay
+
+            # Lỗi key vĩnh viễn - loại key khỏi phiên dịch ngay
+            elif any(
+                kw in error_lower
+                for kw in [
+                    "api_key_invalid",
+                    "api key not found",
+                    "invalid api key",
+                    "please pass a valid api key",
+                    "permission_denied",
+                    "unauthenticated",
+                ]
+            ):
+                # Cooldown 24 giờ (loại khỏi phiên dịch hiện tại)
+                self.cool_down_until[api_key] = current_time + 86400
+                self._logger.warning(
+                    f"🔑 Key ...{api_key[-4:]} không hợp lệ (invalid/permission), "
+                    f"loại khỏi phiên dịch hiện tại (cooldown 24h)"
+                )
+                return False, 0  # Chuyển key ngay, không retry
 
             # Lỗi network/timeout - shorter delays
             elif any(kw in error_lower for kw in ["timeout", "deadline", "connection"]):
@@ -380,8 +401,14 @@ class AdaptiveRateLimiter:
             return None
 
         with self._lock:
-            # Sắp xếp theo usage tăng dần, chọn key ít dùng nhất
-            return min(available, key=lambda k: self.daily_usage.get(k, 0))
+            # Tìm usage thấp nhất
+            min_usage = min(self.daily_usage.get(k, 0) for k in available)
+            # Lọc các key cùng usage thấp nhất
+            candidates = [k for k in available if self.daily_usage.get(k, 0) == min_usage]
+            # Tie-break: chọn theo round-robin offset
+            chosen = candidates[self._round_robin_offset % len(candidates)]
+            self._round_robin_offset += 1
+            return chosen
 
     def get_stats(self) -> Dict[str, Any]:
         """Trả về thống kê rate limiter."""

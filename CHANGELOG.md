@@ -4,6 +4,30 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.5.0] - 2026-06-11
+### Sửa lỗi API Key Invalid & Cải thiện Tie-break
+
+**Phase 1 — Sửa lỗi API Key Invalid:**
+- Sửa `AdaptiveRateLimiter.should_retry()` để nhận diện lỗi key vĩnh viễn (API_KEY_INVALID, permission_denied, unauthenticated)
+- Thêm cooldown 24 giờ cho key bị từ chối (không retry)
+- Thêm 6 unit tests cho lỗi key invalid
+
+**Phase 2 — Cải thiện Tie-break cho Least Used Key:**
+- Thêm `_round_robin_offset` vào `AdaptiveRateLimiter.__init__()`
+- Sửa `get_least_used_key()` để sử dụng round-robin tie-break
+- Thêm 2 unit tests cho tie-break
+
+**Phase 3 — Unit Test Coverage:**
+- Thêm `tests/unit/test_api_service.py` (13 tests)
+- Tất cả test PASS (176 tổng)
+
+**Phase 4 — Backward Compatibility:**
+- Giữ nguyên interface `ApiManager.handle_api_error()`
+- Không thay đổi `plugins/translation/translator.py`
+- Giữ mask key trong log (chỉ hiển thị suffix 4 ký tự)
+
+---
+
 ## [7.4.1] - 2026-06-11
 ### Provider Routing Hoàn thiện & Bug Fixes
 

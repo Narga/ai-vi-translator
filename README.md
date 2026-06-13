@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.4.1)
+# 📚 Content Translator (v7.5.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -6,6 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
+
+**Tính năng mới (v7.5.0):** Sửa lỗi API Key Invalid - hệ thống giờ nhận diện key bị từ chối, đưa vào cooldown 24 giờ, và tránh kẹt key vô hạn.
 
 ---
 

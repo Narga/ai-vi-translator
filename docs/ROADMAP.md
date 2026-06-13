@@ -111,6 +111,7 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 ### Ưu tiên cao
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
 - [ ] **Batch Progress UI**: Thanh tiến độ tổng thể khi dịch nhiều file
+- [x] **Sửa lỗi API Key Invalid** (v7.5.0): Xử lý key bị từ chối, cooldown 24 giờ, tie-break round-robin
 
 ### Ưu tiên trung bình
 - [ ] **Prompt Versioning**: Lưu lịch sử các phiên bản prompt của dự án
