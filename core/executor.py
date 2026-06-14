@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Dict, Any, Callable, List, Optional
 
 from services.api_service import ApiManager
-from services.cache_service import TranslationCache
 from services.checkpoint_service import CheckpointService
 from services.glossary_service import GlossaryService
 from plugins.translation.chunker import process_text_for_chunking
@@ -53,9 +52,8 @@ class TranslationExecutor:
         self.api_manager = ApiManager(api_keys)
         self.config = config
 
-        # Init caching
-        use_cache = config.get("use_cache", True)
-        self.cache = TranslationCache("workspace/cache", enabled=use_cache)
+        # Force retranslate mode
+        self.force_retranslate = bool(config.get("force_retranslate", False))
 
         # Init checkpoint
         self.checkpoint_service = CheckpointService("workspace/checkpoints")
@@ -110,21 +108,33 @@ class TranslationExecutor:
             emit("info", message=f"Đã chia thành {len(chunks)} chunks")
             emit("progress", percent=10, message=f"Đã chia thành {len(chunks)} chunks")
 
-            # 2. Checkpoint Resume
+            # 2. Force mode: cleanup checkpoint và bỏ qua resume
+            if self.force_retranslate:
+                emit("info", message="Force retranslate: bỏ qua checkpoint/cache/TM cho lần chạy này.")
+                self.checkpoint_service.cleanup(output_filename)
+
+            # 3. Checkpoint Resume (chỉ khi không force)
             translated_chunks: Dict[int, str] = {}
             prev_context = ""
             start_index = 0
 
-            resume_info = self.checkpoint_service.get_resume_info(output_filename)
-            if resume_info and resume_info.get("total_chunks") == len(chunks):
-                translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
-                start_index = resume_info.get("next_chunk_index", 0)
-                emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
-                emit("progress", percent=15, message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
+            if not self.force_retranslate:
+                resume_info = self.checkpoint_service.get_resume_info(output_filename)
+                if resume_info and resume_info.get("total_chunks") == len(chunks):
+                    translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
+                    start_index = resume_info.get("next_chunk_index", 0)
+                    emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
+                    emit("progress", percent=15, message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
 
-                # Lấy context từ chunk dịch trước đó
-                if start_index > 0 and (start_index - 1) in translated_chunks:
-                    prev_context = self._tail_context(translated_chunks[start_index - 1])
+                    # Lấy context từ chunk dịch trước đó
+                    if start_index > 0 and (start_index - 1) in translated_chunks:
+                        prev_context = self._tail_context(translated_chunks[start_index - 1])
+                else:
+                    self.checkpoint_service.init_session(
+                        filename=output_filename,
+                        total_chunks=len(chunks),
+                        chunks_text=chunks,
+                    )
             else:
                 self.checkpoint_service.init_session(
                     filename=output_filename,
@@ -133,7 +143,7 @@ class TranslationExecutor:
                 )
 
             # 3. Dịch từng chunk
-            stats = {"cached": 0, "tokens": 0, "tm_hits": 0}
+            stats = {"tokens": 0, "tm_hits": 0}
 
             for i in range(start_index, len(chunks)):
                 chunk = chunks[i]
@@ -195,15 +205,13 @@ class TranslationExecutor:
 
             _try_calculate_stats()
 
-            cache_info = f"{stats['cached']}/{len(chunks)} cache"
-            tm_info = f", {stats['tm_hits']} TM" if stats["tm_hits"] > 0 else ""
+            tm_info = f"{stats['tm_hits']} TM" if stats["tm_hits"] > 0 else "0 TM"
 
             emit(
                 "complete",
-                message=f"Dịch hoàn tất! ({cache_info}{tm_info})",
+                message=f"Dịch hoàn tất! ({tm_info})",
                 result=full_translation,
                 chunks=len(chunks),
-                cached=stats["cached"],
                 tm_hits=stats["tm_hits"],
                 source_length=len(text),
                 translated_length=len(full_translation),
@@ -284,30 +292,22 @@ class TranslationExecutor:
         emit: Callable,
     ) -> Optional[str]:
         """
-        Dịch một chunk đơn lẻ, xử lý cache/TM/glossary/API.
+        Dịch một chunk đơn lẻ, xử lý TM/glossary/API.
 
         Returns:
             Kết quả dịch, hoặc None nếu thất bại.
         """
         i = chunk_index
 
-        # 1. Cache hit?
-        cache_key = self.cache.build_key(chunk, self.prompts, self.config, prev_context)
-        cached_result = self.cache.get(cache_key)
-        if cached_result:
-            stats["cached"] += 1
-            emit("info", message=f"Chunk {i + 1}: Sử dụng cache ✅")
-            return cached_result
-
-        # 2. Translation Memory hit?
-        if translation_memory:
+        # Force mode: bỏ qua TM
+        if not self.force_retranslate and translation_memory:
             tm_match = translation_memory.find_match(chunk)
             if tm_match and tm_match.get("similarity", 0) >= 0.9:
                 stats["tm_hits"] += 1
                 emit("info", message=f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚")
                 return tm_match["translation"]
 
-        # 3. Chuẩn bị prompt (nhúng Dynamic Glossary nếu có)
+        # Chuẩn bị prompt (nhúng Dynamic Glossary nếu có)
         chunk_prompts = copy.deepcopy(self.prompts)
         if self.glossary and self.glossary.is_active:
             main_prompt = chunk_prompts.get("main", "")
@@ -316,11 +316,10 @@ class TranslationExecutor:
                 chunk_prompts["main"] = enriched_prompt
                 emit("info", message=f"Chunk {i + 1}: Nhúng {term_count} thuật ngữ glossary")
 
-        # 4. Gọi API dịch
-        result, status, api_key = robust_translate(
+        # Gọi API dịch
+        result, status, api_key_used = robust_translate(
             original_chunk=chunk,
             api_manager=self.api_manager,
-            cache=self.cache,
             prompts=chunk_prompts,
             config_params=self.config,
             previous_chunk_context=prev_context,
@@ -336,7 +335,7 @@ class TranslationExecutor:
                 chunk_index=i,
                 original_text=chunk,
                 translated_text=result,
-                api_key_used=api_key,
+                api_key_used=api_key_used,
             )
             return result
 

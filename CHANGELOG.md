@@ -4,6 +4,54 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.6.0] - 2026-06-14
+### Loại bỏ Translation Cache & Thêm Force Retranslate
+
+**Translation Cache Removal:**
+- Xoá hoàn toàn `services/cache_service.py` (170 dòng) — không còn cache kết quả dịch
+- Xoá import/logic cache trong `core/executor.py`, `plugins/translation/translator.py`, `webui/routes/translation.py`
+- Xoá `use_cache` khỏi `TranslationRequest` DTO và `TranslationResult` DTO
+- Xoá checkbox "Sử dụng Cache" và block "Dọn dẹp hệ thống" trong tab Cấu hình
+- Xoá thống kê cache khỏi Dashboard (`webui/helpers.py`)
+- Xoá `--cache` flag khỏi CLI (`cli.py`)
+- Xoá test case `test_import_cache_service` trong `tests/unit/test_helpers.py`
+
+**Force Retranslate:**
+- Thêm checkbox "Dịch lại từ đầu" trong toolbar tab Biên tập
+- `translation-worker.js` gửi `force_retranslate` payload trong tất cả API translate
+- Backend nhận `force_retranslate` trong `/api/projects/<slug>/translate`
+- Executor bỏ qua checkpoint và TM khi `force_retranslate=True`
+- Đảm bảo TM vẫn được ghi lại sau khi dịch thành công (chỉ skip `find_match`)
+
+**Clear Project TM:**
+- Thêm nút "Xóa TM dự án" trong header workspace
+- API endpoint `POST /api/projects/<slug>/tm/clear` xoá TM riêng của dự án
+
+**ProjectContextService:**
+- Service mới `backend/infrastructure/config/project_context_service.py` đọc `style_guide.txt` + `summary.txt` từ assets
+- Thay thế hardcode asset reading trong `projects.py`
+- Hỗ trợ placeholder `{translation_guidelines}`, `{project_summary}`, `{project_context}` trong prompt
+- Fallback append context nếu prompt không có placeholder
+
+**Frontend Improvements:**
+- Thêm checkbox "Chọn tất cả" cho cả sidebar nguồn và sidebar soát lỗi
+- Thêm nút "Xóa đã chọn" cho cả hai sidebar
+- Project card redesigned: nút hành động compact (ℹ️, 💾, 📦, 🗑️)
+- Tab Info: dropdown file nguồn, Generate/Lưu hoạt động đúng theo subtab đang chọn
+- Tab State Preservation: giữ trạng thái mini-tab khi reload workspace
+- `data-filename` attribute thay vì inline string interpolation (XSS safety)
+- `escapeHtml()` cải thiện: xử lý null/undefined, dùng string replace thay vì DOM
+
+**API & Backend:**
+- Legacy shim `/api/provider` backward compatibility cho frontend cũ
+- Gemini model info fallback khi API không trả metadata
+- Unified model loading endpoint (`/api/models` tự detect provider)
+- `ApiClient.fetchJson()` cải thiện error handling (JSON parse protection)
+- `switchProvider()` / `initProvider()` dùng `/api/providers/*` thay vì `/api/provider`
+- `@click.stop` trên input config防止 nhấm nhầm chuyển provider
+
+---
+
 ## [7.5.0] - 2026-06-11
 ### Sửa lỗi API Key Invalid & Cải thiện Tie-break
 

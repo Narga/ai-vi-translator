@@ -21,7 +21,6 @@ class TranslationResult:
         translated_text: Nội dung đã dịch
         output_path: Đường dẫn file output
         chunks: Số chunks đã dịch
-        cached: Số chunks lấy từ cache
         tm_hits: Số chunks lấy từ Translation Memory
         tokens_used: Tổng tokens đã dùng
         source_length: Độ dài text nguồn
@@ -33,7 +32,6 @@ class TranslationResult:
     translated_text: Optional[str] = None
     output_path: Optional[str] = None
     chunks: int = 0
-    cached: int = 0
     tm_hits: int = 0
     tokens_used: int = 0
     source_length: int = 0
@@ -47,7 +45,6 @@ class TranslationResult:
             "translated_text": self.translated_text,
             "output_path": self.output_path,
             "chunks": self.chunks,
-            "cached": self.cached,
             "tm_hits": self.tm_hits,
             "tokens_used": self.tokens_used,
             "source_length": self.source_length,

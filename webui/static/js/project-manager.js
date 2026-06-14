@@ -203,7 +203,7 @@ const ProjectManager = {
                 }
                 
                 // Buttons
-                clone.querySelector('.js-btn-open').onclick = () => ProjectManager.openProject(p.slug);
+                clone.querySelector('.js-btn-info').onclick = () => ProjectManager.showProjectInfoFromList(p.slug);
                 clone.querySelector('.js-btn-archive').onclick = () => ProjectManager.archiveProjectFromList(p.slug);
                 clone.querySelector('.js-btn-export').onclick = () => ProjectManager.exportProject(p.slug);
                 clone.querySelector('.js-btn-delete').onclick = () => ProjectManager.deleteProjectCard(p.slug);
@@ -291,9 +291,37 @@ const ProjectManager = {
             if (titleEl) titleEl.textContent = data.name;
             if (descEl) descEl.textContent = data.description || 'Dự án không có mô tả';
             
-            // Render file lists
-            ProjectManager.renderPmFileList(data.sources || []);
-            ProjectManager.renderPmSpellcheckFileList(data.sources || []);
+            // Render file lists depending on active tabs
+            const translatedBtn = document.getElementById('pm-tab-translated');
+            const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
+            if (isTranslatedActive) {
+                ProjectManager.renderPmTranslatedList(data.translated || []);
+                ProjectManager.updateSelectAllTranslatedButton();
+            } else {
+                ProjectManager.renderPmFileList(data.sources || []);
+                ProjectManager.updateSelectAllButton();
+            }
+            
+            const spellcheckedBtn = document.getElementById('pm-tab-spellchecked');
+            const isSpellcheckedActive = spellcheckedBtn && spellcheckedBtn.classList.contains('active');
+            if (isSpellcheckedActive) {
+                ProjectManager.renderPmSpellcheckedList();
+            } else {
+                ProjectManager.renderPmSpellcheckFileList(data.sources || []);
+                ProjectManager.updateSelectAllButton();
+            }
+            
+            // Populate dropdown source file cho tab Thông tin
+            const sourceSelect = document.getElementById('pm-info-source-file');
+            if (sourceSelect) {
+                sourceSelect.innerHTML = '<option value="">— Chọn file nguồn —</option>';
+                (data.sources || []).forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f.name;
+                    opt.textContent = f.name;
+                    sourceSelect.appendChild(opt);
+                });
+            }
             
             // Khôi phục trạng thái ẩn/hiện cột
             ProjectManager.restoreColumnStates();
@@ -340,10 +368,12 @@ const ProjectManager = {
             if (sourcesBtn) sourcesBtn.classList.add('active');
             if (translatedBtn) translatedBtn.classList.remove('active');
             ProjectManager.renderPmFileList(window.currentProject?.sources || []);
+            ProjectManager.updateSelectAllButton();
         } else {
             if (sourcesBtn) sourcesBtn.classList.remove('active');
             if (translatedBtn) translatedBtn.classList.add('active');
             ProjectManager.renderPmTranslatedList(window.currentProject?.translated || []);
+            ProjectManager.updateSelectAllTranslatedButton();
         }
     },
     
@@ -362,9 +392,9 @@ const ProjectManager = {
             const checked = window.selectedTranslatedFiles.has(f.name) ? 'checked' : '';
             
             return `
-            <div class="file-item-compact ${isActive ? 'active' : ''}" onclick="EditorComponent.loadPmProjectFile('${esc}','translated')">
+            <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmProjectFile(this.dataset.filename,'translated')">
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleTranslatedFile('${esc}',this.checked)" class="flex-shrink-0">
+                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleTranslatedFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
                         <span class="file-item-name">${esc}</span>
                     </div>
@@ -372,8 +402,8 @@ const ProjectManager = {
                 <div class="file-item-meta">
                     <span>${f.size_display || ''}</span>
                     <div class="file-item-actions">
-                        <button onclick="event.stopPropagation();ProjectManager.renameProjectFile('${esc}','translated')" title="Đổi tên">${Icons.rename}</button>
-                        <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile('${esc}','translated')" title="Xóa" class="red">${Icons.delete}</button>
+                        <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Đổi tên">${Icons.rename}</button>
+                        <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Xóa" class="red">${Icons.delete}</button>
                     </div>
                 </div>
             </div>`;
@@ -388,6 +418,7 @@ const ProjectManager = {
             if (unspellcheckedBtn) unspellcheckedBtn.classList.add('active');
             if (spellcheckedBtn) spellcheckedBtn.classList.remove('active');
             ProjectManager.renderPmSpellcheckFileList(window.currentProject?.sources || []);
+            ProjectManager.updateSelectAllButton();
         } else {
             if (unspellcheckedBtn) unspellcheckedBtn.classList.remove('active');
             if (spellcheckedBtn) spellcheckedBtn.classList.add('active');
@@ -412,6 +443,7 @@ const ProjectManager = {
                 const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
                 if (!visibleFiles.length) {
                     el.innerHTML = '<div class="pa3 tc silver i f7">Chưa có file đã soát</div>';
+                    ProjectManager.updateSelectAllButton();
                     return;
                 }
                 el.innerHTML = visibleFiles.map(f => {
@@ -420,9 +452,9 @@ const ProjectManager = {
                     const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
                     
                     return `
-                    <div class="file-item-compact ${isActive ? 'active' : ''}" onclick="EditorComponent.loadPmSpellcheckFile('${esc}')">
+                    <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmSpellcheckFile(this.dataset.filename)">
                         <div class="flex items-center gap-2">
-                            <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile('${esc}',this.checked)" class="flex-shrink-0">
+                            <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
                             <div class="flex-auto min-width-0">
                                 <span class="file-item-name">${esc}</span>
                             </div>
@@ -431,11 +463,12 @@ const ProjectManager = {
                             <span>${f.size_display || ''}</span>
                             <span class="file-done-dot" title="Đã soát xong"></span>
                             <div class="file-item-actions">
-                                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile('${esc}','spelling')" title="Xóa" class="red">${Icons.delete}</button>
+                                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'spelling')" title="Xóa" class="red">${Icons.delete}</button>
                             </div>
                         </div>
                     </div>`;
                 }).join('');
+                ProjectManager.updateSelectAllButton();
             })
             .catch(() => {
                 el.innerHTML = '<div class="pa3 tc silver i f7">Lỗi tải danh sách</div>';
@@ -454,6 +487,22 @@ const ProjectManager = {
 
     showPmInfoTab(tabName) {
         this._showPanel('pm-info-panel-', ['style-guide', 'relationship', 'glossary', 'summary'], tabName);
+        // Map tab UI name → backend content_type
+        const tabToContentType = {
+            'style-guide': 'style_guide',
+            'relationship': 'relationship',
+            'glossary': 'glossary',
+            'summary': 'summary',
+        };
+        window.pmActiveInfoTab = tabToContentType[tabName] || 'style_guide';
+
+        // Toggle active class trên các nút subtab
+        document.querySelectorAll('.pm-info-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.infoTab === window.pmActiveInfoTab);
+        });
+
+        // Load nội dung từ backend nếu cần
+        PromptManager.loadGuidelineTab(tabName);
     },
     
     toggleColumn(colName) {
@@ -560,7 +609,8 @@ const ProjectManager = {
     },
 
     updateSelectAllButton() {
-        const chks = document.querySelectorAll('#chk-select-all-sources, #chk-select-all-spellcheck');
+        const chkSidebar = document.getElementById('chk-select-all-sidebar');
+        const chkSpellcheck = document.getElementById('chk-select-all-spellcheck');
         const countSpans = document.querySelectorAll('#selected-files-count, #pm-selected-files-count, #pm-selected-spellcheck-count');
         const infoSpans = document.querySelectorAll('#pm-selected-files-info, #pm-selected-spellcheck-info');
 
@@ -582,22 +632,57 @@ const ProjectManager = {
             }
         });
 
-        if (chks.length > 0 && window.currentProject && window.currentProject.sources) {
-            const isAllSelected = (window.selectedFiles.size > 0 && window.selectedFiles.size === window.currentProject.sources.length);
-            const isIndeterminate = (window.selectedFiles.size > 0 && window.selectedFiles.size < window.currentProject.sources.length);
-            chks.forEach(chk => {
-                chk.checked = isAllSelected;
-                chk.indeterminate = isIndeterminate;
-            });
+        if (window.currentProject) {
+            // Update Project sources sidebar select-all checkbox
+            if (chkSidebar && window.currentProject.sources) {
+                const sourcesBtn = document.getElementById('pm-tab-sources');
+                const isSourcesActive = sourcesBtn && sourcesBtn.classList.contains('active');
+                if (isSourcesActive) {
+                    const total = window.currentProject.sources.length;
+                    chkSidebar.checked = total > 0 && window.selectedFiles.size === total;
+                    chkSidebar.indeterminate = window.selectedFiles.size > 0 && window.selectedFiles.size < total;
+                }
+            }
+            
+            // Update Spellcheck sidebar select-all checkbox
+            if (chkSpellcheck) {
+                const unspellcheckedBtn = document.getElementById('pm-tab-unspellchecked');
+                const isUnspellcheckedActive = unspellcheckedBtn && unspellcheckedBtn.classList.contains('active');
+                if (isUnspellcheckedActive && window.currentProject.sources) {
+                    const total = window.currentProject.sources.length;
+                    chkSpellcheck.checked = total > 0 && window.selectedFiles.size === total;
+                    chkSpellcheck.indeterminate = window.selectedFiles.size > 0 && window.selectedFiles.size < total;
+                } else if (!isUnspellcheckedActive) {
+                    const checkboxes = document.querySelectorAll('#pm-spellcheck-file-list input[type="checkbox"]');
+                    if (checkboxes.length > 0) {
+                        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                        const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+                        chkSpellcheck.checked = allChecked;
+                        chkSpellcheck.indeterminate = someChecked && !allChecked;
+                    } else {
+                        chkSpellcheck.checked = false;
+                        chkSpellcheck.indeterminate = false;
+                    }
+                }
+            }
         }
     },
 
     updateSelectAllTranslatedButton() {
-        const chk = document.getElementById('chk-select-all-translated');
-        if (!chk || !window.currentProject) return;
-        const total = (window.currentProject.translated || []).length;
-        chk.checked = total > 0 && window.selectedTranslatedFiles.size === total;
-        chk.indeterminate = window.selectedTranslatedFiles.size > 0 && window.selectedTranslatedFiles.size < total;
+        const chkSidebar = document.getElementById('chk-select-all-sidebar');
+        if (!window.currentProject) return;
+        
+        // Update Project translated sidebar select-all checkbox
+        if (chkSidebar && window.currentProject.translated) {
+            const translatedBtn = document.getElementById('pm-tab-translated');
+            const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
+            if (isTranslatedActive) {
+                const total = window.currentProject.translated.length;
+                chkSidebar.checked = total > 0 && window.selectedTranslatedFiles.size === total;
+                chkSidebar.indeterminate = window.selectedTranslatedFiles.size > 0 && window.selectedTranslatedFiles.size < total;
+            }
+        }
+        
         const countEls = document.querySelectorAll('#selected-translated-count, #pm-selected-files-count');
         countEls.forEach(countEl => {
             if (window.selectedTranslatedFiles.size > 0) {
@@ -702,25 +787,110 @@ const ProjectManager = {
         });
     },
 
-    async deleteSelectedSpellFiles() {
-        const selected = window.selectedFiles;
+    async deleteSelectedFiles(section = 'sources') {
+        const selected = (section === 'translated') ? window.selectedTranslatedFiles : window.selectedFiles;
         if (!selected || selected.size === 0) {
             UiHelpers.showToast('Chưa chọn tập tin nào', 'error');
             return;
         }
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án', 'error');
+            return;
+        }
         const count = selected.size;
-        if (!await showConfirm('Xóa vĩnh viễn ' + count + ' tập tin đã chọn?', { danger: true })) return;
+        if (!await showConfirm(`Xóa vĩnh viễn ${count} tập tin trong ${section}?`, { danger: true })) return;
         const slug = window.currentProject.slug;
+        let successCount = 0;
+        let failCount = 0;
         const promises = [...selected].map(filename =>
-            fetch(`/api/projects/${slug}/file/spelling/${filename}`, {
+            fetch(`/api/projects/${slug}/file/${section}/${filename}`, {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' }
-            }).then(r => r.json())
+            })
+                .then(r => r.json())
+                .then(data => { if (data.success !== false) successCount++; else failCount++; })
+                .catch(() => failCount++)
         );
-        Promise.all(promises).then(() => {
-            selected.clear();
-            ProjectManager.openProject(slug);
-            UiHelpers.showToast('Đã xóa ' + count + ' tập tin', 'success');
-        });
+        await Promise.all(promises);
+        selected.clear();
+        ProjectManager.openProject(slug);
+        if (failCount > 0) {
+            UiHelpers.showToast(`Đã xóa ${successCount}, lỗi ${failCount} tập tin`, 'error');
+        } else {
+            UiHelpers.showToast(`Đã xóa ${count} tập tin`, 'success');
+        }
+    },
+
+    async deleteSelectedSpellFiles() {
+        return this.deleteSelectedFiles('spelling');
+    },
+
+    async deleteSelectedSourceFiles() {
+        return this.deleteSelectedFiles('sources');
+    },
+
+    async deleteSelectedTranslatedFiles() {
+        return this.deleteSelectedFiles('translated');
+    },
+
+    async deleteSelectedSidebarFiles() {
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const isSourcesActive = sourcesBtn && sourcesBtn.classList.contains('active');
+        if (isSourcesActive) {
+            return this.deleteSelectedSourceFiles();
+        } else {
+            return this.deleteSelectedTranslatedFiles();
+        }
+    },
+
+    async deleteSelectedSpellSidebarFiles() {
+        const unspellcheckedBtn = document.getElementById('pm-tab-unspellchecked');
+        const isUnspellcheckedActive = unspellcheckedBtn && unspellcheckedBtn.classList.contains('active');
+        if (isUnspellcheckedActive) {
+            return this.deleteSelectedSourceFiles();
+        } else {
+            return this.deleteSelectedSpellFiles();
+        }
+    },
+
+    selectAllSidebarFiles() {
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const isSourcesActive = sourcesBtn && sourcesBtn.classList.contains('active');
+        if (isSourcesActive) {
+            ProjectManager.selectAllProjectFiles();
+        } else {
+            ProjectManager.selectAllTranslatedFiles();
+        }
+    },
+
+    selectAllSpellcheckFiles() {
+        if (!window.currentProject) return;
+        const unspellcheckedBtn = document.getElementById('pm-tab-unspellchecked');
+        const isUnspellcheckedActive = unspellcheckedBtn && unspellcheckedBtn.classList.contains('active');
+        
+        if (isUnspellcheckedActive) {
+            const allSources = window.currentProject.sources || [];
+            if (window.selectedFiles.size === allSources.length && allSources.length > 0) {
+                window.selectedFiles.clear();
+            } else {
+                allSources.forEach(f => window.selectedFiles.add(f.name));
+            }
+            ProjectManager.updateSelectAllButton();
+            ProjectManager.renderPmSpellcheckFileList(allSources);
+        } else {
+            const slug = window.currentProject.slug;
+            fetch(`/api/projects/${slug}/files/spelling`)
+                .then(r => r.json())
+                .then(files => {
+                    const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
+                    if (window.selectedFiles.size === visibleFiles.length && visibleFiles.length > 0) {
+                        window.selectedFiles.clear();
+                    } else {
+                        visibleFiles.forEach(f => window.selectedFiles.add(f.name));
+                    }
+                    ProjectManager.updateSelectAllButton();
+                    ProjectManager.renderPmSpellcheckedList();
+                });
+        }
     },
 
     async renameProjectFile(filename, section) {
@@ -872,11 +1042,11 @@ const ProjectManager = {
             const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
             const dot = options.getDot ? options.getDot(f, isActive) : '';
             const dirty = options.getDirty ? options.getDirty(f, isActive) : '';
-            const actions = options.getActions(esc);
+            const actions = options.getActions();
             return `
-            <div class="file-item-compact ${isActive ? 'active' : ''}" onclick="${options.getOnclick(esc)}">
+            <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="${options.getOnclick()}">
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile('${esc}',this.checked)" class="flex-shrink-0">
+                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
                         <span class="file-item-name">${esc}${dirty}</span>
                     </div>
@@ -892,29 +1062,40 @@ const ProjectManager = {
 
     renderPmFileList(sources) {
         this._renderFileItems(document.getElementById('pm-file-list'), sources, {
-            getOnclick: esc => `EditorComponent.loadPmProjectFile('${esc}','sources')`,
+            getOnclick: () => `EditorComponent.loadPmProjectFile(this.dataset.filename,'sources')`,
             getDirty: (f, isActive) => isActive && DirtyState.isDirty('pm-result-text') ? '<span class="red fw6 ml1">*</span>' : '',
             getDot: f => f.has_translation ? '<span class="file-done-dot" title="Đã dịch xong"></span>' : '',
-            getActions: esc => `
-                <button onclick="event.stopPropagation();TranslationWorker.translateFileInProject('${esc}')" title="Dịch">${Icons.translate}</button>
-                <button onclick="event.stopPropagation();ProjectManager.renameProjectFile('${esc}','sources')" title="Đổi tên">${Icons.rename}</button>
-                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile('${esc}','sources')" title="Xóa" class="red">${Icons.delete}</button>`
+            getActions: () => `
+                <button onclick="event.stopPropagation();TranslationWorker.translateFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Dịch">${Icons.translate}</button>
+                <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Đổi tên">${Icons.rename}</button>
+                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`
         });
     },
 
     renderPmSpellcheckFileList(sources) {
         this._renderFileItems(document.getElementById('pm-spellcheck-file-list'), sources, {
-            getOnclick: esc => `EditorComponent.loadPmSpellcheckFile('${esc}')`,
+            getOnclick: () => `EditorComponent.loadPmSpellcheckFile(this.dataset.filename)`,
             getDot: f => {
                 const status = (window.currentProject.file_status && window.currentProject.file_status[f.name]) || 'Chờ';
                 return status === 'Xong' ? '<span class="file-done-dot" title="Đã soát xong"></span>' : '<span class="silver f8">Chờ</span>';
             },
-            getActions: esc => `
-                <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject('${esc}')" title="Soát lỗi AI">${Icons.spellcheck}</button>`
+            getActions: () => `
+                <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Soát lỗi AI">${Icons.spellcheck}</button>`
         });
     },
 
     // ===== PROJECT INFO MODAL =====
+    showProjectInfoFromList(slug) {
+        fetch('/api/projects/' + slug)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) throw new Error(data.error);
+            window.currentProject = data;
+            this.showProjectInfoModal();
+        })
+        .catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
+    },
+
     showProjectInfoModal() {
         if (!window.currentProject) return;
         const p = window.currentProject;
@@ -951,8 +1132,28 @@ const ProjectManager = {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã cập nhật thông tin dự án', 'success');
             ProjectManager.hideProjectInfoModal();
-            ProjectManager.openProject(window.currentProject.slug);
+            const listView = document.getElementById('projects-list-view');
+            if (listView && listView.style.display !== 'none') {
+                ProjectManager.loadProjectCards();
+            } else {
+                ProjectManager.openProject(window.currentProject.slug);
+            }
         }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
+    },
+
+    async clearProjectTM() {
+        if (!window.currentProject) return;
+        const slug = window.currentProject.slug;
+        const name = window.currentProject.name || slug;
+        if (!await showConfirm('Xóa Translation Memory của dự án "' + name + '"?\nThao tác này sẽ xóa toàn bộ dữ liệu TM riêng của dự án này.', { danger: true })) return;
+
+        fetch(`/api/projects/${slug}/tm/clear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).then(r => r.json()).then(data => {
+            if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
+            UiHelpers.showToast(`Đã xóa ${data.deleted || 0} mục TM`, 'success');
+        }).catch(e => UiHelpers.showToast('Lỗi xóa TM: ' + e.message, 'error'));
     },
 
     archiveProjectFromModal() {
@@ -1176,16 +1377,15 @@ const ProjectManager = {
     },
 
     selectAllTranslatedFiles() {
-        const checkboxes = document.querySelectorAll('#pm-translated-file-list input[type="checkbox"]');
-        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        checkboxes.forEach(cb => {
-            cb.checked = !allChecked;
-            const name = cb.closest('.file-item-compact')?.querySelector('.file-item-name')?.textContent?.trim();
-            if (name) {
-                if (!allChecked) window.selectedTranslatedFiles.add(name);
-                else window.selectedTranslatedFiles.delete(name);
-            }
-        });
+        if (!window.currentProject) return;
+        const allTranslated = window.currentProject.translated || [];
+        if (window.selectedTranslatedFiles.size === allTranslated.length && allTranslated.length > 0) {
+            window.selectedTranslatedFiles.clear();
+        } else {
+            allTranslated.forEach(f => window.selectedTranslatedFiles.add(f.name));
+        }
+        ProjectManager.updateSelectAllTranslatedButton();
+        ProjectManager.renderPmTranslatedList(allTranslated);
     },
 
     createNewProject() {

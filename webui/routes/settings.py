@@ -19,6 +19,40 @@ logger = logging.getLogger(__name__)
 settings_bp = Blueprint("settings", __name__)
 
 
+# ------------------------------------------------------------------
+# DEPRECATED SHIM: /api/provider — sẽ xóa ở phiên bản tiếp theo
+# Frontend cũ vẫn gọi endpoint này. Delegate sang ProviderService.
+# ------------------------------------------------------------------
+
+@settings_bp.route("/api/provider", methods=["GET", "POST"])
+def legacy_provider_shim():
+    """[DEPRECATED] Shim cho frontend cũ. Dùng /api/providers/* thay thế."""
+    from backend.infrastructure.providers.provider_service import ProviderService
+    provider_service = ProviderService()
+
+    if request.method == "GET":
+        active = provider_service.get_active_provider_config()
+        if not active:
+            return jsonify({"active": "gemini", "provider": {}})
+        return jsonify({
+            "active": active.get("type", "gemini"),
+            "active_id": active.get("id", ""),
+            "provider": active,
+        })
+
+    # POST: { "provider": "gemini" } hoặc { "provider": "openai" }
+    data = request.json or {}
+    provider_type = data.get("provider", "gemini")
+    try:
+        providers = provider_service.get_providers_by_type(provider_type)
+        if not providers:
+            return jsonify({"error": f"Không tìm thấy provider loại {provider_type}"}), 400
+        # Kích hoạt provider đầu tiên của type đó
+        provider_service.select_provider(providers[0]["id"])
+        return jsonify({"success": True, "active": provider_type, "active_id": providers[0]["id"]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @settings_bp.route("/api/models")
 def get_models():
     """Lấy danh sách models khả dụng cho provider hiện tại hoặc provider chỉ định."""
@@ -47,12 +81,29 @@ def get_models():
         else:
             # Gemini
             from webui.helpers import get_available_gemini_models
-            models = get_available_gemini_models()
+            def is_gemini_model_id(model_id):
+                model_id = str(model_id or "")
+                # OpenAI-compatible model ids often contain namespaces/pricing suffixes.
+                # Gemini ids from Google are plain names such as gemini-* or gemma-*.
+                return (
+                    (model_id.startswith("gemini-") or model_id.startswith("gemma-"))
+                    and "/" not in model_id
+                    and ":" not in model_id
+                )
+
+            models = [m for m in get_available_gemini_models() if is_gemini_model_id(m)]
+            if not models:
+                from webui.helpers import AVAILABLE_GEMINI_MODELS
+                models = AVAILABLE_GEMINI_MODELS.copy()
             if full:
                 # Wrap Gemini names in objects for consistency
                 models = [{"id": m, "name": m} for m in models]
 
         default_model = get_default_model()
+        if provider == "gemini":
+            model_ids = [m["id"] if isinstance(m, dict) else m for m in models]
+            if default_model not in model_ids:
+                default_model = model_ids[0] if model_ids else "gemini-2.0-flash-exp"
         return jsonify({"models": models, "default": default_model, "provider": provider})
     except Exception as e:
         logger.error(f"get_models error: {e}")
@@ -138,12 +189,50 @@ def save_openai_config():
 def get_model_info(model_name):
     """Lấy thông tin chi tiết của model (Gemini hoặc OpenAI)."""
     from webui.helpers import get_active_provider
-    provider = get_active_provider()
+    requested_provider = request.args.get("provider")
+    provider = requested_provider if requested_provider in ("gemini", "openai") else get_active_provider()
 
     try:
         if provider == "gemini":
+            if "/" in model_name or ":" in model_name or not (
+                model_name.startswith("gemini-") or model_name.startswith("gemma-")
+            ):
+                return jsonify({"error": f"Model không thuộc Gemini: {model_name}"}), 400
+
+            gemini_fallback_info = {
+                "gemini-2.0-flash-exp": (1048576, 8192),
+                "gemini-2.0-flash": (1048576, 8192),
+                "gemini-1.5-pro": (2097152, 8192),
+                "gemini-1.5-flash": (1048576, 8192),
+                "gemini-1.5-flash-8b": (1048576, 8192),
+                "gemini-3-pro": (1048576, 8192),
+                "gemini-3-flash": (1048576, 8192),
+            }
+
+            def fallback_gemini_info(detail=""):
+                limits = gemini_fallback_info.get(model_name)
+                if not limits:
+                    return None
+                input_limit, output_limit = limits
+                return {
+                    "provider": "gemini",
+                    "name": model_name,
+                    "display_name": model_name,
+                    "description": "Thông tin fallback cục bộ; dùng khi Gemini API không trả metadata live.",
+                    "input_token_limit": input_limit,
+                    "output_token_limit": output_limit,
+                    "input_token_display": f"{input_limit:,}",
+                    "output_token_display": f"{output_limit:,}",
+                    "rate_limits": {},
+                    "fallback": True,
+                    "detail": detail,
+                }
+
             api_keys = load_api_keys()
             if not api_keys:
+                fallback = fallback_gemini_info("Không tìm thấy API key Gemini")
+                if fallback:
+                    return jsonify(fallback)
                 return jsonify({"error": "Không tìm thấy API key Gemini"}), 400
 
             from google import genai
@@ -178,6 +267,9 @@ def get_model_info(model_name):
                 info["rate_limits"] = rate_limits
                 return jsonify(info)
             except Exception as e:
+                fallback = fallback_gemini_info(str(e))
+                if fallback:
+                    return jsonify(fallback)
                 return jsonify({"error": f"Không tìm thấy model Gemini: {model_name}", "detail": str(e)}), 404
 
         else:
@@ -285,15 +377,12 @@ def get_stats():
 @settings_bp.route("/api/cache/clear", methods=["POST"])
 @handle_route_errors
 def clear_cache():
-    """Xóa cache."""
-    cache_dir = Path("workspace/cache")
-    if cache_dir.exists():
-        count = 0
-        for f in cache_dir.glob("*.pkl*"):
-            f.unlink()
-            count += 1
-        return jsonify({"success": True, "deleted": count})
-    return jsonify({"success": True, "deleted": 0})
+    """[DEPRECATED] Cache endpoint - Translation Cache is no longer used."""
+    return jsonify({
+        "success": True,
+        "deleted": 0,
+        "message": "Translation Cache đã bị loại bỏ khỏi luồng dịch."
+    })
 
 
 @settings_bp.route("/api/restart", methods=["POST"])
@@ -421,6 +510,16 @@ def manage_app_settings():
                 
         with open(config_path, "w", encoding="utf-8") as f:
             config.write(f)
+            
+        # Cập nhật default_model trong providers.json để tránh desync
+        if "MODEL" in new_config_data and "MODEL" in new_config_data["MODEL"]:
+            new_model = new_config_data["MODEL"]["MODEL"]
+            if new_model:
+                from backend.infrastructure.providers.provider_service import ProviderService
+                provider_service = ProviderService()
+                active = provider_service.get_active_provider_config()
+                if active:
+                    provider_service.update_provider(active["id"], default_model=new_model)
             
         return jsonify({"success": True})
     except Exception as e:

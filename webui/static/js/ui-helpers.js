@@ -3,9 +3,13 @@
 // ============================================================
 
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    if (text === null || text === undefined) return '';
+    return text.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 const ModalManager = {
@@ -188,21 +192,27 @@ const UiHelpers = {
             }
         });
 
-        fetch('/api/provider', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ provider })
-        })
-            .then(r => r.json())
+        // Tìm provider id phù hợp từ danh sách providers
+        ApiClient.fetchJson('/api/providers')
             .then(data => {
-                if (data.success) {
+                const providers = data.providers || [];
+                const match = providers.find(p => p.type === provider);
+                if (!match) {
+                    UiHelpers.showToast(`Không tìm thấy provider loại ${provider}`, 'error');
+                    return;
+                }
+                return ApiClient.fetchJson('/api/providers/select', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active_id: match.id })
+                });
+            })
+            .then(data => {
+                if (data && data.success) {
                     UiHelpers.showToast(`Đã chuyển sang ${provider === 'gemini' ? 'Google Gemini' : 'OpenAI Compatible'}`, 'success');
                     ApiClient.loadModels();
-                    // Cập nhật heading
                     const nameEl = document.getElementById('current-provider-name');
                     if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
-                } else {
-                    UiHelpers.showToast(data.error || 'Lỗi chuyển provider', 'error');
                 }
             })
             .catch(e => UiHelpers.showToast(e.message, 'error'));
@@ -234,27 +244,28 @@ const UiHelpers = {
     },
 
     initProvider() {
-        fetch('/api/provider')
-            .then(r => r.json())
+        ApiClient.fetchJson('/api/providers')
             .then(data => {
-                if (data.active) {
-                    const provider = data.active;
-                    const radio = document.querySelector(`input[name="active_provider"][value="${provider}"]`);
-                    if (radio) radio.checked = true;
+                const activeId = data.active_id || '';
+                const providers = data.providers || [];
+                const active = providers.find(p => p.id === activeId);
+                const provider = active ? active.type : 'gemini';
 
-                    document.querySelectorAll('.nt-provider-col').forEach(col => {
-                        col.classList.toggle('nt-provider-active', col.dataset.provider === provider);
-                    });
+                const radio = document.querySelector(`input[name="active_provider"][value="${provider}"]`);
+                if (radio) radio.checked = true;
 
-                    const badge = document.getElementById('provider-active-badge');
-                    if (badge) {
-                        badge.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
-                        badge.className = 'f7 fw6 ph2 pv1 br2 ' +
-                            (provider === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
-                    }
-                    const nameEl = document.getElementById('current-provider-name');
-                    if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
+                document.querySelectorAll('.nt-provider-col').forEach(col => {
+                    col.classList.toggle('nt-provider-active', col.dataset.provider === provider);
+                });
+
+                const badge = document.getElementById('provider-active-badge');
+                if (badge) {
+                    badge.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
+                    badge.className = 'f7 fw6 ph2 pv1 br2 ' +
+                        (provider === 'gemini' ? 'bg-light-green dark-green' : 'bg-lightest-blue dark-blue');
                 }
+                const nameEl = document.getElementById('current-provider-name');
+                if (nameEl) nameEl.textContent = provider === 'gemini' ? 'Gemini' : 'OpenAI';
 
                 // Load OpenAI providers dropdown (new in v7.3.0)
                 if (typeof OpenAIProvider !== 'undefined') {

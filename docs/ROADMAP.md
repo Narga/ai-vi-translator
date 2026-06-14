@@ -118,10 +118,13 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] **ProjectContextService**: Service đọc `style_guide.txt` + `summary.txt` từ assets, chèn vào prompt dịch qua placeholder hoặc fallback append
 - [x] **ProjectContextService Unit Tests**: 9 tests cho load_context và render_prompt
 
-### 🔴 Cần làm — Xóa Cache & Force Retranslate
-- [ ] **Xóa Translation Cache**: Xóa `services/cache_service.py`, vô hiệu hóa cache trong `AppConfigService`, xóa checkbox/UI cache
-- [ ] **API Clear TM**: Endpoint `POST /api/projects/<slug>/tm/clear` + nút "Xóa TM dự án" trong UI
-- [ ] **Force Retranslate**: Checkbox "Dịch lại từ đầu", gửi `force_retranslate` payload, executor bỏ qua checkpoint/cache/TM
+### ✅ Đã hoàn thành (v7.6.0)
+- [x] **Xóa Translation Cache**: Xóa `services/cache_service.py`, loại bỏ toàn bộ logic cache
+- [x] **Force Retranslate**: Checkbox "Dịch lại từ đầu", executor bỏ qua checkpoint/TM
+- [x] **Clear Project TM**: API `POST /api/projects/<slug>/tm/clear` + nút "Xóa TM dự án"
+- [x] **Frontend Improvements**: Select all checkbox, batch delete, project card redesign, tab state preservation
+
+### 🔴 Cần làm (tương lai)
 - [ ] **Unit Tests**: executor force_retranslate, route tm/clear, route translate with force_retranslate
 
 ### 📋 Ưu tiên trung bình (tương lai)
@@ -191,4 +194,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-13*
+*Cập nhật lần cuối: 2026-06-14*

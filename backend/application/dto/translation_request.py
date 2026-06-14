@@ -27,7 +27,6 @@ class TranslationRequest:
         qa_model: Tên QA model
         temperature: Temperature cho model
         chunk_size: Kích thước chunk tối đa
-        use_cache: Có sử dụng cache không
         prompts: Dict chứa prompts
         context_char_count: Số ký tự context cho chunk tiếp theo
         glossary_paths: Danh sách đường dẫn glossary files
@@ -43,7 +42,6 @@ class TranslationRequest:
     qa_model: str = "gemini-3-flash-preview"
     temperature: float = 1.0
     chunk_size: int = 22000
-    use_cache: bool = True
     prompts: Dict[str, str] = field(default_factory=dict)
     context_char_count: int = 500
     glossary_paths: Optional[List[Path]] = None
@@ -62,7 +60,6 @@ class TranslationRequest:
             "qa_model": self.qa_model,
             "temperature": self.temperature,
             "chunk_size": self.chunk_size,
-            "use_cache": self.use_cache,
             "prompts": self.prompts,
             "context_char_count": self.context_char_count,
             "max_refinement_attempts": 2,
@@ -90,7 +87,6 @@ class TranslationRequest:
             qa_model=data.get("qa_model", data.get("model", "gemini-3-flash-preview")),
             temperature=float(data.get("temperature", 1.0)),
             chunk_size=int(data.get("chunk_size", 22000)),
-            use_cache=data.get("use_cache", True),
             prompts=data.get("prompts", {}),
             context_char_count=int(data.get("context_char_count", 500)),
             glossary_paths=data.get("glossary_paths"),

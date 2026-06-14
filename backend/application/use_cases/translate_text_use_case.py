@@ -143,7 +143,6 @@ class TranslateTextUseCase:
             config["qa_model"] = config_service.get_qa_model()
             config["temperature"] = config_service.get_temperature()
             config["chunk_size"] = config_service.get_default_chunk_size()
-            config["use_cache"] = config_service.is_cache_enabled()
             config["context_char_count"] = config_service.get_context_char_count()
 
         if prompt_service:

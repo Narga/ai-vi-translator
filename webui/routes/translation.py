@@ -129,7 +129,6 @@ def translate_text():
     try:
         from plugins.translation.translator import robust_translate
         from services.api_service import ApiManager
-        from services.cache_service import TranslationCache
 
         data = request.json
         text = data.get("text", "")
@@ -158,8 +157,6 @@ def translate_text():
         
         from webui.helpers import load_config
         app_config = load_config()
-        cache_dir = app_config.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache")
-        cache = TranslationCache(cache_dir, enabled=True)
 
         config_params = {
             "model_name": model,
@@ -169,7 +166,7 @@ def translate_text():
         }
 
         translated, stats, log = robust_translate(
-            text, api_manager, cache, {"main": prompt}, config_params
+            text, api_manager, {"main": prompt}, config_params
         )
 
         return jsonify({"translated": translated, "mode": mode, "chars": len(text)})

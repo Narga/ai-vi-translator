@@ -322,10 +322,10 @@ const PromptManager = {
     },
 
     GUIDELINE_TAB_MAP: {
-        'style-guide':  { field: 'style_guide',  elId: 'guide-style-guide',  modelId: 'style-guide-model' },
-        'relationship': { field: 'characters',   elId: 'guide-relationship', modelId: 'relationship-model' },
-        'glossary':     { field: 'glossary',     elId: 'guide-glossary',     modelId: 'glossary-model' },
-        'summary':      { field: 'summary',      elId: 'guide-summary',      modelId: 'summary-model' },
+        'style-guide':  { field: 'style_guide',  elId: 'pm-guide-style-guide',  modelId: 'style-guide-model' },
+        'relationship': { field: 'characters',   elId: 'pm-guide-relationship', modelId: 'relationship-model' },
+        'glossary':     { field: 'glossary',     elId: 'pm-guide-glossary',     modelId: 'glossary-model' },
+        'summary':      { field: 'summary',      elId: 'pm-guide-summary',      modelId: 'summary-model' },
     },
 
     loadGuidelineTab(tab) {
@@ -333,7 +333,7 @@ const PromptManager = {
         const mapping = PromptManager.GUIDELINE_TAB_MAP[tab];
         if (!mapping) return;
 
-        PromptManager._populateModelSelect(mapping.modelId);
+        PromptManager._populateModelSelect('pm-info-model');
 
         fetch(`/api/projects/${window.currentProject.slug}/guidelines`)
             .then(r => r.json())
@@ -358,10 +358,10 @@ const PromptManager = {
     saveGuidelineField(fieldKey) {
         if (!window.currentProject) return;
         const reverseMap = {
-            'style_guide': 'guide-style-guide',
-            'relationship': 'guide-relationship',
-            'glossary': 'guide-glossary',
-            'summary': 'guide-summary',
+            'style_guide': 'pm-guide-style-guide',
+            'relationship': 'pm-guide-relationship',
+            'glossary': 'pm-guide-glossary',
+            'summary': 'pm-guide-summary',
         };
         const elId = reverseMap[fieldKey];
         const el = document.getElementById(elId);
@@ -392,10 +392,10 @@ const PromptManager = {
             'summary': 'summary-model',
         };
         const outputElMap = {
-            'style_guide': 'guide-style-guide',
-            'relationship': 'guide-relationship',
-            'glossary': 'guide-glossary',
-            'summary': 'guide-summary',
+            'style_guide': 'pm-guide-style-guide',
+            'relationship': 'pm-guide-relationship',
+            'glossary': 'pm-guide-glossary',
+            'summary': 'pm-guide-summary',
         };
 
         const modelSel = document.getElementById(modelSelMap[fieldKey]);
@@ -420,6 +420,67 @@ const PromptManager = {
                 if (data.success && data.summary) {
                     if (outputEl) outputEl.value = data.summary;
                     UiHelpers.showToast('AI đã tạo nội dung thành công!', 'success');
+                } else {
+                    UiHelpers.showToast(data.error || 'AI không trả về kết quả', 'error');
+                }
+            })
+            .catch(e => {
+                if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
+                UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+            });
+    },
+
+    saveGuidelineFromInfoTab() {
+        const fieldKey = window.pmActiveInfoTab || 'style_guide';
+        const saveKeyMap = {
+            'style_guide': 'style_guide',
+            'relationship': 'relationship',
+            'glossary': 'glossary',
+            'summary': 'summary',
+        };
+        PromptManager.saveGuidelineField(saveKeyMap[fieldKey] || fieldKey);
+    },
+
+    aiGenerateFromInfoTab() {
+        if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
+        const sourceSelect = document.getElementById('pm-info-source-file');
+        const sourceFile = sourceSelect ? sourceSelect.value : '';
+        if (!sourceFile) {
+            UiHelpers.showToast('Vui lòng chọn tập tin nguồn trước khi Generate', 'error');
+            return;
+        }
+
+        const modelSel = document.getElementById('pm-info-model');
+        const model = modelSel ? modelSel.value : '';
+        const fieldKey = window.pmActiveInfoTab || 'style_guide';
+        
+        const outputElMap = {
+            'style_guide': 'pm-guide-style-guide',
+            'relationship': 'pm-guide-relationship',
+            'glossary': 'pm-guide-glossary',
+            'summary': 'pm-guide-summary',
+        };
+        const outputEl = document.getElementById(outputElMap[fieldKey]);
+        if (outputEl) { outputEl.placeholder = '⏳ AI đang tạo nội dung...'; outputEl.disabled = true; }
+
+        fetch(`/api/projects/${window.currentProject.slug}/summarize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model, source_file: sourceFile, content_type: fieldKey })
+        })
+            .then(async r => {
+                const isJson = r.headers.get('content-type')?.includes('application/json');
+                const data = isJson ? await r.json() : null;
+                if (!r.ok) throw new Error(data?.error || `Lỗi server: ${r.status}`);
+                return data;
+            })
+            .then(data => {
+                if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
+                const content = data.content || data.summary;
+                if (data.success && content) {
+                    if (outputEl) outputEl.value = content;
+                    const assetFile = data.asset_file || fieldKey + '.txt';
+                    UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');
                 } else {
                     UiHelpers.showToast(data.error || 'AI không trả về kết quả', 'error');
                 }

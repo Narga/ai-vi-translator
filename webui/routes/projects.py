@@ -1209,7 +1209,14 @@ def summarize_project(slug):
             assets_dir = pdir / "assets"
             assets_dir.mkdir(parents=True, exist_ok=True)
             (assets_dir / asset_filename).write_text(result, encoding="utf-8")
-            return jsonify({"success": True, "summary": result})
+            return jsonify({
+                "success": True,
+                "summary": result,
+                "content": result,
+                "content_type": content_type,
+                "asset_file": asset_filename,
+                "source_file": source_file,
+            })
         else:
             return jsonify({"error": f"AI trả về lỗi: {result or status}"}), 500
 
@@ -1237,6 +1244,7 @@ def translate_project_file(slug):
 
     data = request.json
     filenames = data.get("files", [])
+    force_retranslate = bool(data.get("force_retranslate", False))
 
     pdir = _get_project_dir(slug)
     meta = _load_project_meta(slug)
@@ -1250,16 +1258,11 @@ def translate_project_file(slug):
     prompt_service = PromptService()
     prompts = prompt_service.load_merged_prompts(pdir)
 
-    # Load assets context
-    assets_context = ""
-    for pfile in ["style_guide.txt"]:
-        fp = pdir / "assets" / pfile
-        if fp.exists():
-            content = fp.read_text(encoding="utf-8").strip()
-            if content and not content.startswith("#"):
-                assets_context += f"\n\n# Hướng dẫn phong cách\n{content}"
-    if assets_context.strip():
-        prompts["main"] += assets_context
+    # Dùng ProjectContextService thay vì đọc hardcode
+    from backend.infrastructure.config.project_context_service import ProjectContextService
+    context_service = ProjectContextService()
+    context_data = context_service.load_context(pdir)
+    prompts["main"] = context_service.render_prompt(prompts.get("main", ""), context_data)
 
     # Glossary paths
     glossary_filenames = ["glossary.txt", "relationship.txt"]
@@ -1267,21 +1270,25 @@ def translate_project_file(slug):
         pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
     ]
 
+    # Dùng AppConfigService để lấy cấu hình hệ thống
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+
     config = {
         "provider_type": "", # Sẽ được điền bên trong worker
         "base_url": "", # Sẽ được điền bên trong worker
         "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
         "qa_model": data.get("model", ""),
-        "temperature": float(data.get("temperature", 1.0)),
-        "chunk_size": int(data.get("chunk_size", get_default_chunk_size())),
-        "use_cache": data.get("use_cache", True),
+        "temperature": float(data.get("temperature", config_service.get_temperature())),
+        "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
+        "force_retranslate": force_retranslate,
         "prompts": prompts,
         "max_refinement_attempts": 2,
         "min_length_ratio": 0.5,
         "max_length_ratio": 5.0,
-        "context_char_count": 500,
+        "context_char_count": config_service.get_context_char_count(),
     }
-
+    
     while not progress_queue.empty():
         progress_queue.get()
 
@@ -1390,19 +1397,22 @@ def spellcheck_project_file(slug):
     style_guide = style_guide_path.read_text(encoding="utf-8") if style_guide_path.exists() else ""
     sp_prompt = sp_prompt.replace("{translation_guidelines}", style_guide)
 
+    # Dùng AppConfigService để lấy cấu hình hệ thống
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+
     config = {
         "provider_type": "", # Sẽ được điền bên trong worker
         "base_url": "", # Sẽ được điền bên trong worker
         "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
         "qa_model": data.get("model", ""),
-        "temperature": float(data.get("temperature", 1.0)),
-        "chunk_size": int(data.get("chunk_size", get_default_chunk_size())),
-        "use_cache": data.get("use_cache", True),
+        "temperature": float(data.get("temperature", config_service.get_temperature())),
+        "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
         "prompts": {"main": sp_prompt, "chinh_ta": sp_prompt},
         "max_refinement_attempts": 2,
         "min_length_ratio": 0.5,
         "max_length_ratio": 5.0,
-        "context_char_count": 500,
+        "context_char_count": config_service.get_context_char_count(),
     }
 
     while not progress_queue.empty():
@@ -1467,6 +1477,26 @@ def spellcheck_project_file(slug):
 # ============================================================
 # Translation Memory APIs
 # ============================================================
+
+
+@projects_bp.route("/api/projects/<slug>/tm/clear", methods=["POST"])
+def clear_project_tm(slug):
+    """Xóa TM riêng của project (không phải global TM)."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    try:
+        from services.translation_memory import TranslationMemory
+        tm = TranslationMemory(
+            tm_dir=str(pdir / "assets" / "translation_memory"),
+            enabled=True,
+        )
+        count = tm.clear()
+        return jsonify({"success": True, "deleted": count})
+    except Exception as e:
+        logger.error(f"Lỗi xóa TM project: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/tm/stats")

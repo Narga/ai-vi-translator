@@ -188,7 +188,6 @@ def main():
             "qa_model": config_service.get("MODEL", "QA_MODEL", fallback="gemini-3-flash-preview"),
             "temperature": config_service.get("PROCESSING", "TEMPERATURE", fallback=0.75, value_type=float),
             "chunk_size": config_service.get("PROCESSING", "MAX_CHARS_PER_CHUNK", fallback=22000, value_type=int),
-            "use_cache": config_service.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool),
             "prompts": load_prompts(pdir),
             "context_char_count": config_service.get("PROCESSING", "CONTEXT_CHAR_COUNT", fallback=500, value_type=int),
         }

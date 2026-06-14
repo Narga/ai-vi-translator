@@ -66,9 +66,10 @@
                     <p id="pm-project-desc" class="f7 gray ma0 mt1">Mô tả dự án...</p>
                 </div>
             </div>
-            <div class="flex gap-2">
-                <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.showProjectInfoModal()" title="Thông tin dự án">Thông tin</button>
-            </div>
+                    <div class="flex gap-2">
+                        <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.showProjectInfoModal()" title="Thông tin dự án">Thông tin</button>
+                        <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="ProjectManager.clearProjectTM()" title="Xóa Translation Memory riêng của dự án này">Xóa TM dự án</button>
+                    </div>
         </div>
         
         <!-- Sub-tabs -->
@@ -87,7 +88,7 @@
                     <div class="file-list-sidebar" id="pm-file-sidebar">
                         <div class="file-list-sidebar-header">
                             <div class="flex items-center gap-2">
-                                <span class="f7 fw6 dark-gray uppercase tracked">Tập tin</span>
+                                <input type="checkbox" id="chk-select-all-sidebar" onclick="ProjectManager.selectAllSidebarFiles()" class="pointer" title="Chọn tất cả">
                             </div>
                             <div class="icon-toolbar">
                                 <input type="file" id="pm-upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
@@ -95,6 +96,7 @@
                                 <button onclick="ProjectManager.showChunkConfig()" title="Chia chunk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/></svg></button>
                                 <button onclick="TranslationWorker.translateSelectedInProject()" title="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
                                 <button onclick="ProjectManager.mergeTranslatedFiles()" title="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+                                <button onclick="ProjectManager.deleteSelectedSidebarFiles()" title="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -152,7 +154,11 @@
                         <span>Bản gốc: <strong id="pm-token-char-count">0</strong> ký tự | <strong id="pm-token-word-count">0</strong> từ | <strong id="pm-token-estimate" class="blue">~0</strong> tokens</span>
                         <span id="pm-selected-files-info" class="dn blue fw6"></span>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 items-center">
+                        <label class="flex items-center gap-1 f7 gray pointer" title="Bỏ qua checkpoint, cache và TM cho lần dịch này">
+                            <input type="checkbox" id="force-retranslate" class="pointer">
+                            <span>Dịch lại từ đầu</span>
+                        </label>
                         <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copyResult()">Sao chép</button>
                         <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadResult()">Tải về</button>
                         <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.startTranslation()">Dịch lại</button>
@@ -166,13 +172,13 @@
                     <div class="file-list-sidebar" id="pm-spell-file-sidebar">
                         <div class="file-list-sidebar-header">
                             <div class="flex items-center gap-2">
-                                <span class="f7 fw6 dark-gray uppercase tracked">Tập tin</span>
+                                <input type="checkbox" id="chk-select-all-spellcheck" onclick="ProjectManager.selectAllSpellcheckFiles()" class="pointer" title="Chọn tất cả">
                             </div>
                             <div class="icon-toolbar">
                                 <input type="file" id="pm-upload-spell-file" class="dn" multiple onchange="uploadProjectFile()">
                                 <button onclick="document.getElementById('pm-upload-spell-file').click()" title="Tải lên"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
                                 <button onclick="TranslationWorker.spellcheckSelectedInProject()" title="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="m5 12 5 5 10-10"/></svg></button>
-                                <button onclick="ProjectManager.deleteSelectedSpellFiles()" title="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                                <button onclick="ProjectManager.deleteSelectedSpellSidebarFiles()" title="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -247,15 +253,18 @@
             <div x-show="wsTab === 'info'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;">
                 <div class="flex items-center justify-between gap-2 mb3 bb b--black-10 pb2 flex-shrink-0">
                     <div class="flex flex-wrap gap2">
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="ProjectManager.showPmInfoTab('style-guide')">Hướng dẫn</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('relationship')">Mối quan hệ</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('glossary')">Thuật ngữ</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('summary')">Tóm tắt</button>
+                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="ProjectManager.showPmInfoTab('style-guide')" data-info-tab="style_guide">Hướng dẫn</button>
+                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('relationship')" data-info-tab="relationship">Mối quan hệ</button>
+                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('glossary')" data-info-tab="glossary">Thuật ngữ</button>
+                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('summary')" data-info-tab="summary">Tóm tắt</button>
                     </div>
                     <div class="flex items-center gap-2">
-                        <select id="pm-style-guide-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0" style="width: 150px;"><option value="">— Chọn Model —</option></select>
-                        <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="PromptManager.aiGenerateContent('style_guide')">Generate</button>
-                        <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="PromptManager.saveGuidelineField('style_guide')">Lưu</button>
+                        <select id="pm-info-source-file" class="f7 ba b--black-10 br2 ph2 bg-white outline-0" style="width: 140px;">
+                            <option value="">— Chọn file nguồn —</option>
+                        </select>
+                        <select id="pm-info-model" class="model-select-sm f7 ba b--black-10 br2 ph2 bg-white outline-0" style="width: 150px;"><option value="">— Chọn Model —</option></select>
+                        <button class="pointer ph3 pv1 f7 bn white bg-purple br2 fw6 nowrap" onclick="PromptManager.aiGenerateFromInfoTab()">Generate</button>
+                        <button class="pointer ph3 pv1 f7 bn white bg-green br2 fw6" onclick="PromptManager.saveGuidelineFromInfoTab()">Lưu</button>
                     </div>
                 </div>
                 <div class="flex-auto flex flex-column overflow-hidden">
@@ -320,17 +329,9 @@
     <template id="tpl-project-card">
         <div class="project-card">
             <div class="project-card-header">
-                <div class="flex-auto">
-                    <h3 class="project-card-title pointer hover-blue js-title" style="cursor: pointer;"></h3>
-                    <p class="project-card-author js-author"></p>
-                    <p class="project-card-desc js-desc"></p>
-                </div>
-                <div class="project-card-actions">
-                    <button class="bn white bg-blue hover-bg-dark-blue fw6 js-btn-open">Mở dự án</button>
-                    <button class="ba b--silver bg-white hover-bg-near-white js-btn-archive">📦 Lưu trữ</button>
-                    <button class="ba b--green green bg-white hover-bg-washed-green js-btn-export">💾 Tải về</button>
-                    <button class="ba b--red red bg-white hover-bg-washed-red js-btn-delete">🗑️ Xóa</button>
-                </div>
+                <h3 class="project-card-title pointer hover-blue js-title" style="cursor: pointer;"></h3>
+                <p class="project-card-author js-author"></p>
+                <p class="project-card-desc js-desc"></p>
             </div>
             <div class="project-card-meta">
                 <span class="project-card-meta-item js-meta-files"></span>
@@ -338,6 +339,12 @@
                 <span class="project-card-meta-item js-meta-date"></span>
                 <span class="project-card-meta-item js-meta-genre" style="display: none;"></span>
                 <span class="project-card-status js-status"></span>
+                <div class="project-card-actions">
+                    <button class="bg-white hover-bg-washed-blue js-btn-info" title="Thông tin dự án">ℹ️</button>
+                    <button class="bg-white hover-bg-washed-green js-btn-export" title="Tải về">💾</button>
+                    <button class="bg-white hover-bg-near-white js-btn-archive" title="Lưu trữ">📦</button>
+                    <button class="bg-white hover-bg-washed-red js-btn-delete" title="Xóa">🗑️</button>
+                </div>
             </div>
         </div>
     </template>

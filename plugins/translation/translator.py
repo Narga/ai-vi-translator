@@ -18,7 +18,6 @@ from services.genai_client import GenAIClient, SDKType
 
 # Import services
 from services.api_service import ApiManager
-from services.cache_service import TranslationCache
 
 # Import emergency stop module
 from services.emergency_stop import check_emergency_stop, EmergencyStopError
@@ -165,26 +164,21 @@ def _call_api(
 def robust_translate(
     original_chunk: str,
     api_manager: ApiManager,
-    cache: TranslationCache,
     prompts: Dict[str, str],
     config_params: Dict[str, Any],
     previous_chunk_context: str = "",
     normalizer: Any = None,
 ) -> Tuple[str, str, str]:
     """
-    Quy trình dịch chuẩn cho mỗi chunk (v6.5.0 - Single Pass):
+    Quy trình dịch chuẩn cho mỗi chunk (v7.0.0):
 
-    1) Cache (khóa theo thành phần đầy đủ)
-    2) Dịch 1 lần duy nhất bằng main prompt
-    3) Chuẩn hóa văn bản
-    4) Lưu cache & trả kết quả
-
-    Không còn bước dịch lại tự động hay sửa lỗi ký tự — người dùng tự kiểm tra và dịch lại thủ công nếu cần.
+    1) Dịch 1 lần duy nhất bằng main prompt
+    2) Chuẩn hóa văn bản
+    3) Trả kết quả
 
     Args:
         original_chunk (str): Nội dung chunk gốc cần dịch
         api_manager (ApiManager): Quản lý API keys
-        cache (TranslationCache): Quản lý cache
         prompts (Dict[str, str]): Dictionary chứa các prompt
         config_params (Dict[str, Any]): Cấu hình (model, temp,...)
         previous_chunk_context (str): Ngữ cảnh chunk trước
@@ -198,15 +192,6 @@ def robust_translate(
     main_prompt = main_prompt_template.replace(
         "{previous_chunk_context}", previous_chunk_context
     )
-
-    # Cache với khóa theo thành phần đầy đủ
-    cached_translation = cache.get_by_components(
-        original_chunk, prompts, config_params, previous_chunk_context
-    )
-
-    if cached_translation:
-        logging.info("✅ Sử dụng bản dịch từ cache.")
-        return cached_translation, "success", "cache"
 
     logging.info("Bắt đầu dịch chunk...")
 
@@ -228,9 +213,5 @@ def robust_translate(
             logging.warning(f"⚠️ Lỗi khi chuẩn hóa văn bản: {e}")
 
     logging.info("✅ Chunk được dịch thành công!")
-
-    cache.set_by_components(
-        original_chunk, prompts, config_params, previous_chunk_context, translated_text
-    )
 
     return translated_text, "success", api_key_used

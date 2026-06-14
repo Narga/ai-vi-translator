@@ -277,10 +277,6 @@ def calculate_stats():
     """Tính toán thống kê hệ thống (project-based)."""
     from webui import translation_memory
 
-    cache_dir = Path("workspace/cache")
-    cache_files = list(cache_dir.glob("*.pkl*")) if cache_dir.exists() else []
-    cache_size = sum(f.stat().st_size for f in cache_files) if cache_files else 0
-
     # Count projects
     projects_dir = Path("workspace/projects")
     project_count = 0
@@ -311,8 +307,8 @@ def calculate_stats():
         "archive_count": archive_count,
         "total_sources": total_sources,
         "total_translated": total_translated,
-        "cache_files": len(cache_files),
-        "cache_size_mb": round(cache_size / 1024 / 1024, 2),
+        "cache_files": 0,
+        "cache_size_mb": 0,
         "default_model": get_default_model(),
         "default_chunk_size": get_default_chunk_size(),
         "tm_entries": tm_stats.get("total_entries", 0),

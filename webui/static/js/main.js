@@ -222,9 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Core action buttons
-    const btnClearCache = document.getElementById('btn-clear-cache');
-    if (btnClearCache) btnClearCache.addEventListener('click', ApiClient.clearCache);
+    // Cache button removed: Translation Cache is deprecated
 
     // Prompt Manager buttons
     const btnDelGenre = document.getElementById('btn-delete-genre');
@@ -294,7 +292,6 @@ function switchProvider(p) { UiHelpers.switchProvider(p); }
 function saveAppConfig() { ApiClient.saveAppConfig(); }
 function saveApiKeys() { ApiClient.saveApiKeys(); }
 function saveOpenAIConfig() { UiHelpers.saveOpenAIConfig(); }
-function clearCache() { ApiClient.clearCache(); }
 function restartServer() { ApiClient.restartServer(); }
 function uploadProjectFile() { ProjectManager.uploadProjectFile(); }
 function markModel() { ApiClient.markModel(); }

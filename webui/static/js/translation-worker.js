@@ -14,9 +14,11 @@ const TranslationWorker = {
         UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
 
         if (window.currentProject && window.currentProjectFile) {
+            const forceRetranslateEl = document.getElementById('force-retranslate');
+            const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
             fetch(`/api/projects/${window.currentProject.slug}/translate`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: [window.currentProjectFile.name] })
+                body: JSON.stringify({ files: [window.currentProjectFile.name], force_retranslate: forceRetranslate })
             }).then(r => r.json()).then(data => {
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else TranslationWorker.connectToProgress(btn);
@@ -28,7 +30,6 @@ const TranslationWorker = {
                     text, model: document.getElementById('model').value,
                     temperature: parseFloat(document.getElementById('temperature').value),
                     chunk_size: parseInt(document.getElementById('chunk-size').value),
-                    use_cache: document.getElementById('use-cache').checked,
                     prompts: window.prompts
                 })
             }).then(r => r.json()).then(data => {
@@ -40,9 +41,11 @@ const TranslationWorker = {
 
     translateFileInProject(filename) {
         if (!window.currentProject) return;
+        const forceRetranslateEl = document.getElementById('force-retranslate');
+        const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
         fetch(`/api/projects/${window.currentProject.slug}/translate`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: [filename] })
+            body: JSON.stringify({ files: [filename], force_retranslate: forceRetranslate })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') {
                 TranslationWorker.connectToProgress();
@@ -53,14 +56,20 @@ const TranslationWorker = {
     translateSelectedInProject() {
         if (!window.currentProject || window.selectedFiles.size === 0) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
         const files = Array.from(window.selectedFiles);
+        const forceRetranslateEl = document.getElementById('force-retranslate');
+        const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
         fetch(`/api/projects/${window.currentProject.slug}/translate`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files })
+            body: JSON.stringify({ files, force_retranslate: forceRetranslate })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') TranslationWorker.connectToProgress(document.getElementById('btn-translate-selected'), true);
             else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
+
+
+
+
 
     spellcheckSelectedInProject() {
         if (!window.currentProject || window.selectedFiles.size === 0) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
@@ -85,6 +94,8 @@ const TranslationWorker = {
             } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
+
+
 
     runSpellcheck() {
         if (!window.currentProject || !window.currentProjectFile) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
@@ -141,7 +152,7 @@ const TranslationWorker = {
                 // Hiện nút Hoàn thành
                 if (btnDone) {
                     btnDone.classList.remove('dn');
-                    btnDone.textContent = '✓ Hoàn thành';
+                    btnDone.textContent = '✓ Xong';
                     btnDone.onclick = function() {
                         TranslationWorker.closeProgress();
                     };
@@ -161,66 +172,42 @@ const TranslationWorker = {
                 evtSource.close();
                 UiHelpers.addLog(data.message, 'error');
                 TranslationWorker.resetButton(btn, isBatch);
+                TranslationWorker.updateProgress(0, 'Lỗi: ' + data.message);
             }
         };
-        evtSource.onerror = function () { evtSource.close(); };
+
+        evtSource.onerror = function () {
+            evtSource.close();
+            TranslationWorker.resetButton(btn, isBatch);
+        };
     },
 
-    updateProgress(percent, text) {
-        const bar = document.getElementById('progress-bar');
-        if (bar) bar.style.width = percent + '%';
-        const num = document.getElementById('progress-percent');
-        if (num) num.textContent = percent + '%';
-        const txt = document.getElementById('progress-text');
-        if (txt) txt.textContent = text;
-    },
-
-    closeProgress() {
-        // Xóa auto-close timer nếu có
-        if (window._autoCloseTimer) {
-            clearTimeout(window._autoCloseTimer);
-            window._autoCloseTimer = null;
+    updateProgress(percent, message) {
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        if (progressBar) {
+            progressBar.style.width = percent + '%';
+            progressBar.setAttribute('aria-valuenow', percent);
         }
-
-        if (window.selectedFiles) {
-            window.selectedFiles.clear();
-            ProjectManager.updateSelectAllButton();
-        }
-
-        if (window.currentProject) {
-            ProjectManager.openProject(window.currentProject.slug);
-        }
-
-        if (window._autoReturnTimer) {
-            clearInterval(window._autoReturnTimer);
-            window._autoReturnTimer = null;
-        }
-
-        ModalManager.hide('translation-progress-modal');
+        if (progressText) progressText.textContent = message || '';
     },
 
     resetButton(btn, isBatch = false) {
         if (btn) {
             btn.disabled = false;
-            if (btn.id === 'btn-translate-selected') {
-                btn.innerHTML = `🚀 Dịch đã chọn`;
-            } else if (btn.id === 'btn-spellcheck-selected') {
-                btn.innerHTML = `🔤 Soát được chọn`;
-            } else {
-                btn.innerHTML = '🚀 Dịch Nội Dung';
-            }
-        } else if (isBatch) {
-            const batchBtn = document.getElementById('btn-translate-selected');
-            if (batchBtn) {
-                batchBtn.disabled = false;
-                batchBtn.innerHTML = `🚀 Dịch đã chọn`;
-            }
-        } else {
-            const singleBtn = document.getElementById('translate-btn');
-            if (singleBtn) {
-                singleBtn.disabled = false;
-                singleBtn.innerHTML = '🚀 Dịch Nội Dung';
-            }
+            btn.innerHTML = isBatch ? 'Dịch đã chọn' : 'Dịch';
+        }
+    },
+
+    closeProgress() {
+        ModalManager.hide('translation-progress-modal');
+        if (window._autoCloseTimer) {
+            clearTimeout(window._autoCloseTimer);
+            window._autoCloseTimer = null;
+        }
+        if (window._autoReturnTimer) {
+            clearInterval(window._autoReturnTimer);
+            window._autoReturnTimer = null;
         }
     }
 };

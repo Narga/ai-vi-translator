@@ -128,7 +128,6 @@ class TestHelpersBasicFunctions:
         stats = calculate_stats()
         assert isinstance(stats, dict)
         assert "project_count" in stats
-        assert "cache_files" in stats
         assert "default_model" in stats
 
 
@@ -162,11 +161,6 @@ class TestCoreImports:
         """Test import ConfigService."""
         from services.config_service import ConfigService
         assert ConfigService is not None
-
-    def test_import_cache_service(self):
-        """Test import TranslationCache."""
-        from services.cache_service import TranslationCache
-        assert TranslationCache is not None
 
     def test_import_checkpoint_service(self):
         """Test import CheckpointService."""

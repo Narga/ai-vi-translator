@@ -65,12 +65,7 @@ class TestAppConfigServiceMethods:
         assert isinstance(count, int)
         assert count > 0
 
-    def test_is_cache_enabled(self):
-        """Test is_cache_enabled trả về bool."""
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        service = AppConfigService()
-        enabled = service.is_cache_enabled()
-        assert isinstance(enabled, bool)
+
 
     def test_get_openai_model(self):
         """Test get_openai_model trả về string."""

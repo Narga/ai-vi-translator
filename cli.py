@@ -194,9 +194,6 @@ Ví dụ sử dụng:
             "--api-keys", action="store_true", help="Hiển thị thông tin API keys"
         )
 
-        status_parser.add_argument(
-            "--cache", action="store_true", help="Hiển thị thống kê cache"
-        )
 
     def _add_resume_command(self, subparsers) -> None:
         """Thêm lệnh resume."""
@@ -434,16 +431,6 @@ Ví dụ sử dụng:
                     self.logger.info(f"  ... và {len(keys) - 5} keys khác")
             except Exception as e:
                 self.logger.error(f"❌ Lỗi đọc API keys: {e}")
-
-        # Check cache
-        if args.cache:
-            from pathlib import Path
-            cache_dir = Path(config_service.get_cache_dir())
-            if cache_dir.exists():
-                cache_files = list(cache_dir.glob("*.pkl*"))
-                self.logger.info(f"📦 Cache: {len(cache_files)} items")
-            else:
-                self.logger.info("📦 Cache: Chưa khởi tạo")
 
         # Check workspace
         pdir = ws_service.get_project_dir("default-project")

@@ -172,13 +172,7 @@ class AppConfigService:
         from backend.infrastructure.providers.provider_service import ProviderService
         return ProviderService(self._config_dir).get_active_default_model()
 
-    def is_cache_enabled(self) -> bool:
-        """Kiểm tra cache có enabled không."""
-        return self.get("CACHE", "ENABLE_CACHE", fallback=True, value_type=bool)
 
-    def get_cache_dir(self) -> str:
-        """Lấy cache directory path."""
-        return self.get("DIRECTORIES", "CACHE_DIR", fallback="workspace/cache")
 
     def get_logs_dir(self) -> str:
         """Lấy logs directory path."""

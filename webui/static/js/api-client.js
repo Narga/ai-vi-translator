@@ -4,9 +4,16 @@
 
 const ApiClient = {
     fetchJson(url, options) {
-        return fetch(url, options).then(r => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-            return r.json();
+        return fetch(url, options).then(async r => {
+            const text = await r.text();
+            let data;
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                throw new Error(`Server không trả JSON (${r.status}): ${text.slice(0, 120)}`);
+            }
+            if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+            return data;
         });
     },
 
@@ -45,16 +52,13 @@ const ApiClient = {
             sel.disabled = true;
         }
 
-        // Xác định provider đang active
-        const activeProvider = document.querySelector('input[name="active_provider"]:checked');
-        const provider = activeProvider ? activeProvider.value : 'gemini';
+        // Dùng endpoint thống nhất — backend tự detect active provider
+        const url = '/api/models?full=true';
 
-        const url = provider === 'openai' ? '/api/openai/models?full=true' : '/api/models?full=true';
-
-        fetch(url)
-            .then(r => r.json())
+        ApiClient.fetchJson(url)
             .then(data => {
                 if (sel) sel.disabled = false;
+                window.activeProvider = data.provider || 'gemini';
 
                 const renderOptions = (models, currentDefault) => {
                     let saved = localStorage.getItem('nt_marked_models');
@@ -101,6 +105,9 @@ const ApiClient = {
                 const mainSel = document.getElementById('model');
                 if (mainSel) {
                     mainSel.innerHTML = renderOptions(window.availableModels, defaultModelVal);
+                    if (!mainSel.value && mainSel.options.length > 0) {
+                        mainSel.selectedIndex = 0;
+                    }
                     ApiClient.onModelChange(mainSel.value);
                 }
 
@@ -114,13 +121,13 @@ const ApiClient = {
                     sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(window.availableModels, '');
                 }
 
-                const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model', 'pm-style-guide-model'];
+                const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model', 'pm-style-guide-model', 'pm-info-model'];
                 contentTabModels.forEach(selId => {
                     const s = document.getElementById(selId);
                     if (s) s.innerHTML = '<option value="">— Chọn Model —</option>' + renderOptions(window.availableModels, '');
                 });
 
-                ApiClient.loadAppConfig();
+                ApiClient.loadAppConfig(data.provider || 'gemini');
             })
             .catch(err => {
                 console.error('Error loading models:', err);
@@ -155,7 +162,8 @@ const ApiClient = {
         ApiClient.fetchModelInfo(modelName);
     },
 
-    fetchModelInfo(modelName) {
+    fetchModelInfo(modelName, provider) {
+        if (!modelName) return;
         const panel = document.getElementById('model-info-panel');
         if (!panel) return;
 
@@ -169,8 +177,10 @@ const ApiClient = {
         const sel = document.getElementById('model');
         if (sel) sel.style.color = '';
 
-        fetch('/api/model-info/' + encodeURIComponent(modelName))
-            .then(r => r.json())
+        const activeProvider = provider || window.activeProvider || 'gemini';
+        const url = '/api/model-info/' + encodeURIComponent(modelName) + '?provider=' + encodeURIComponent(activeProvider);
+
+        ApiClient.fetchJson(url)
             .then(info => {
                 if (info.error) {
                     document.getElementById('model-input-limit').textContent = '❌ N/A';
@@ -212,7 +222,7 @@ const ApiClient = {
             });
     },
 
-    loadAppConfig() {
+    loadAppConfig(provider) {
         fetch('/api/settings/app')
             .then(r => r.json())
             .then(data => {
@@ -223,13 +233,18 @@ const ApiClient = {
                         if (m.MODEL) {
                             const sel = document.getElementById('model');
                             if (sel) {
-                                sel.value = m.MODEL;
-                                ApiClient.onModelChange(m.MODEL);
+                                const hasSavedModel = Array.from(sel.options).some(opt => opt.value === m.MODEL);
+                                if (hasSavedModel) {
+                                    sel.value = m.MODEL;
+                                    ApiClient.fetchModelInfo(m.MODEL, provider || window.activeProvider);
+                                }
                             }
                         }
                         if (m.QA_MODEL) {
                             const qaSel = document.getElementById('cfg-qa-model');
-                            if (qaSel) qaSel.value = m.QA_MODEL;
+                            if (qaSel && Array.from(qaSel.options).some(opt => opt.value === m.QA_MODEL)) {
+                                qaSel.value = m.QA_MODEL;
+                            }
                         }
                         if (m.THINKING_LEVEL) {
                             const thinkSel = document.getElementById('cfg-thinking');
@@ -254,10 +269,7 @@ const ApiClient = {
                         const delayEl = document.getElementById('cfg-delay');
                         if (delayEl && p.REQUEST_DELAY) delayEl.value = p.REQUEST_DELAY;
                     }
-                    if (conf.CACHE && conf.CACHE.ENABLE_CACHE) {
-                        const cacheCheck = document.getElementById('use-cache');
-                        if (cacheCheck) cacheCheck.checked = conf.CACHE.ENABLE_CACHE.toLowerCase() === 'true';
-                    }
+                    // Cache config removed: Translation Cache is deprecated
                 }
             })
             .catch(e => console.error('Failed to load App Config:', e));
@@ -275,9 +287,6 @@ const ApiClient = {
                 CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
                 TEMPERATURE: document.getElementById('temperature').value,
                 REQUEST_DELAY: document.getElementById('cfg-delay').value
-            },
-            CACHE: {
-                ENABLE_CACHE: document.getElementById('use-cache').checked ? 'true' : 'false'
             }
         };
 
@@ -299,13 +308,9 @@ const ApiClient = {
 
     loadStats() {
         fetch('/api/stats').then(r => r.json()).then(data => {
-            const cacheCountEl = document.getElementById('cache-count');
-            const cacheSizeEl = document.getElementById('cache-size');
             const projCountEl = document.getElementById('project-count');
             const archiveCountEl = document.getElementById('archive-count');
 
-            if (cacheCountEl) cacheCountEl.textContent = data.cache_files || 0;
-            if (cacheSizeEl) cacheSizeEl.textContent = data.cache_size_mb || 0;
             if (projCountEl) projCountEl.textContent = data.project_count || 0;
             if (archiveCountEl) archiveCountEl.textContent = data.archive_count || 0;
         });
@@ -383,11 +388,7 @@ const ApiClient = {
     },
 
     async clearCache() {
-        if (!await showConfirm('Xóa sạch bộ nhớ Cache dịch thuật?', { danger: true })) return;
-        fetch('/api/cache/clear', { method: 'POST' }).then(r => r.json()).then(data => {
-            UiHelpers.showToast('Đã dọn dẹp ' + data.deleted + ' files nháp.', 'success');
-            ApiClient.loadStats();
-        });
+        UiHelpers.showToast('Translation Cache đã bị loại bỏ khỏi luồng dịch.', 'info');
     },
 
     async restartServer() {

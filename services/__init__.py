@@ -2,7 +2,6 @@
 # Service exports for plugin architecture
 
 from .api_service import ApiManager, AdaptiveRateLimiter, SmartRateLimiter
-from .cache_service import TranslationCache
 from .config_service import ConfigService
 from .file_service import FileService
 from .statistics_service import StatisticsService, print_api_status
@@ -31,7 +30,6 @@ __all__ = [
     'SDKType',
     
     # Core services
-    'TranslationCache',
     'ConfigService',
     'FileService',
     'StatisticsService',

@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.5.0)
+# 📚 Content Translator (v7.6.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v7.5.0):** Sửa lỗi API Key Invalid - hệ thống giờ nhận diện key bị từ chối, đưa vào cooldown 24 giờ, và tránh kẹt key vô hạn.
+**Tính năng mới (v7.6.0):** Loại bỏ Translation Cache — hệ thống giờ dùng Translation Memory thay thế. Thêm Force Retranslate (dịch lại từ đầu) và Clear Project TM.
 
 ---
 
@@ -71,7 +71,7 @@ main.py       ├── application/    # Use cases + DTOs + Progress ports
               ├── facade/         # AppService (singleton entry point)
               └── __init__.py     # create_app_service() factory
               core/               # Core pipeline (TranslationExecutor, plugins)
-              services/           # Cache, TranslationMemory, Health
+              services/           # TranslationMemory, Health, Checkpoint
               webui/static/js/    # 7 ES modules: api-client, provider-manager, project-manager,
                                   #   editor-component, prompt-manager, translation-worker, ui-helpers
 ```
@@ -84,5 +84,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.4.1  
-**Ngày:** 11/06/2026
+**Phiên bản:** 7.6.0  
+**Ngày:** 14/06/2026

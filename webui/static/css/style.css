@@ -450,10 +450,7 @@ button.bg-green:hover {
     border-color: #cbd5e1;
 }
 .project-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
 }
 .project-card-title {
     font-size: 1.15rem;
@@ -480,7 +477,8 @@ button.bg-green:hover {
 .project-card-meta {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px;
+    align-items: center;
+    gap: 12px;
     font-size: 0.8rem;
     color: #64748b;
     padding-top: 12px;
@@ -493,17 +491,17 @@ button.bg-green:hover {
 }
 .project-card-actions {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    min-width: 110px;
+    gap: 4px;
+    margin-left: auto;
 }
 .project-card-actions button {
-    width: 100%;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
+    line-height: 1;
 }
 .project-card-status {
     display: inline-flex;
@@ -547,11 +545,6 @@ button.bg-green:hover {
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 12px;
-}
-.project-card-actions {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
 }
 
 /* ============================================================ */
