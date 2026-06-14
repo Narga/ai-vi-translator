@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.6.0)
+# 📚 Content Translator (v7.7.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v7.6.0):** Loại bỏ Translation Cache — hệ thống giờ dùng Translation Memory thay thế. Thêm Force Retranslate (dịch lại từ đầu) và Clear Project TM.
+**Tính năng mới (v7.7.0):** Hợp nhất giao diện Biên tập & Kiểm chính tả — workspace thống nhất với sidebar 3 mini-tab (Nội dung nguồn, Bản dịch, Soát chính tả). Đặt lại bộ nhớ dịch thay vì xóa TM.
 
 ---
 
@@ -84,5 +84,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.6.0  
+**Phiên bản:** 7.7.0  
 **Ngày:** 14/06/2026

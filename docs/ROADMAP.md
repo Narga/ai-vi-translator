@@ -124,6 +124,12 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] **Clear Project TM**: API `POST /api/projects/<slug>/tm/clear` + nút "Xóa TM dự án"
 - [x] **Frontend Improvements**: Select all checkbox, batch delete, project card redesign, tab state preservation
 
+### ✅ Đã hoàn thành (v7.7.0)
+- [x] **Hợp nhất giao diện Biên tập & Kiểm chính tả**: Workspace thống nhất, sidebar 3 mini-tab (Nội dung nguồn, Bản dịch, Soát chính tả)
+- [x] **Xoá sidebar spellcheck riêng**: `#pm-spell-file-sidebar`, các hàm JavaScript không dùng
+- [x] **Toolbar & Icons mới**: Nút soát lỗi đã chọn, CSS tooltip scoped, icon A kèm dấu tích
+- [x] **Đặt lại bộ nhớ dịch**: Đổi tên + confirm message mới cho nút Clear TM
+
 ### 🔴 Cần làm (tương lai)
 - [ ] **Unit Tests**: executor force_retranslate, route tm/clear, route translate with force_retranslate
 
@@ -194,4 +200,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-14*
+*Cập nhật lần cuối: 2026-06-14 (v7.7.0)

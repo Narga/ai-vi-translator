@@ -109,8 +109,13 @@ Hệ thống sử dụng cơ chế lưu trữ Cache hiện đại:
 - **Định dạng an toàn**: Toàn bộ dữ liệu được lưu dưới dạng `JSON` nén (Gzip) thay vì `pickle` cũ, giúp ngăn chặn các rủi ro bảo mật và dễ dàng kiểm tra nội dung.
 - **Tự động hóa**: Cache được tự động nén để tiết kiệm dung lượng đĩa cứng. Bạn có thể xóa Cache thông qua tab Cấu hình trên WebUI.
 
-### 🛠️ Công cụ Editor & Ghép tập tin
-Giao diện Editor tích hợp các công cụ giúp tối ưu hóa việc kiểm soát chất lượng bản dịch:
+### 🛠️ Công cụ Biên tập & Soát lỗi (v7.7.0+)
+Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-tab:
+- **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Click file để mở editor 2 cột (Nguồn + Bản dịch). Row actions: Dịch, Soát lỗi AI, Đổi tên, Xóa.
+- **Bản dịch**: File đã dịch xong. Click file để xem song song nguồn và bản dịch.
+- **Soát chính tả**: File đã được AI soát lỗi xong (chỉ hiển thị output, không hiển thị file nguồn chưa soát).
+- **Tự động clear selection**: Khi chuyển mini-tab, mọi lựa chọn đều được xoá để tránh thao tác nhầm.
+- **Toolbar icons**: Upload, Chia nhỏ, Dịch đã chọn, Soát lỗi đã chọn, Ghép tập tin, Xóa đã chọn — hiển thị tuỳ theo mini-tab.
 - **↩️ Wrap (Ngắt dòng)**: Tự động xuống dòng văn bản để hiển thị vừa vặn trong khung soạn thảo mà không cần cuộn ngang. Hữu ích khi làm việc với các đoạn văn dài.
 - **📊 Diff (So sánh)**: Hiển thị sự khác biệt giữa nội dung nguồn và nội dung đích trong một cửa sổ modal chuyên biệt, giúp bạn dễ dàng đối soát các thay đổi hoặc lỗi mất đoạn.
 - **🧩 Ghép tập tin (Smart Merge)**: 

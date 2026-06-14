@@ -4,8 +4,37 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.7.0] - 2026-06-14
+### Hợp nhất Giao diện Biên tập & Kiểm chính tả
+
+**UI Merging & Workspace Redesign:**
+- Hợp nhất tab "Kiểm chính tả" cấp workspace vào tab "Biên tập" — loại bỏ 1 workspace tab
+- Sidebar duy nhất với 3 mini-tab: "Nội dung nguồn", "Bản dịch", "Soát chính tả"
+- Xoá sidebar spellcheck riêng (`#pm-spell-file-sidebar`, `#pm-spellcheck-file-list`, v.v.)
+- Selection tự động clear khi chuyển mini-tab để tránh thao tác nhầm
+- Workspace translation (`#pm-translation-workspace`) và spellcheck (`#pm-spellcheck-workspace`) tách biệt, show/hide theo mini-tab
+
+**Toolbar & Icons:**
+- Thêm nút "Soát lỗi đã chọn" vào toolbar sidebar
+- Thêm nút "Soát lỗi AI" trong row actions của file list (Nội dung nguồn)
+- Biểu tượng soát lỗi mới (chữ A kèm dấu tích)
+- CSS tooltip scoped chỉ áp dụng cho icon toolbar (`.icon-toolbar`, `.editor-icon-toolbar`)
+- Convert toolbar buttons từ `title` sang `data-tooltip` + `aria-label`
+
+**Terminology & UX:**
+- Đổi "Bản gốc" → "Nội dung nguồn" (mini-tab)
+- Đổi "Xóa TM dự án" → "Đặt lại bộ nhớ dịch" với confirm message mới
+- Đổi "Soát lỗi đã chọn" icon từ chữ T → chữ A
+- Xoá `<span class="silver">|</span>` separator trước "Bản gốc:" trong bottom bars
+
+**Code Cleanup:**
+- Xoá các hàm spellcheck sidebar không dùng: `switchPmSpellTab`, `selectAllSpellcheckFiles`, `deleteSelectedSpellSidebarFiles`, v.v.
+- Xoá `COL_MAP['spell-file']` và logic `updateColumnLayout` cho spell-file
+- Đơn giản hoá `uploadProjectFile()` — chỉ dùng `pm-upload-source-file`
+
+---
+
 ## [7.6.0] - 2026-06-14
-### Loại bỏ Translation Cache & Thêm Force Retranslate
 
 **Translation Cache Removal:**
 - Xoá hoàn toàn `services/cache_service.py` (170 dòng) — không còn cache kết quả dịch

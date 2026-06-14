@@ -303,3 +303,56 @@ function openProject(slug) { ProjectManager.openProject(slug); }
 function exportProject(slug) { ProjectManager.exportProject(slug); }
 function importProject() { ProjectManager.importProject(); }
 function closeProgress() { TranslationWorker.closeProgress(); }
+
+// Automatically convert native tooltips (title, alt) on hover to custom CSS tooltips
+document.addEventListener('mouseover', function(e) {
+    const target = e.target.closest('button, a, .pointer, [title], [alt], [data-tooltip]');
+    if (target) {
+        // Convert title/alt if present
+        if (target.hasAttribute('title')) {
+            const titleVal = target.getAttribute('title');
+            if (titleVal && titleVal.trim() !== '') {
+                target.setAttribute('data-tooltip', titleVal);
+                if (!target.hasAttribute('aria-label')) {
+                    target.setAttribute('aria-label', titleVal);
+                }
+                target.removeAttribute('title');
+            }
+        } else if (target.hasAttribute('alt') && target.tagName !== 'IMG') {
+            const altVal = target.getAttribute('alt');
+            if (altVal && altVal.trim() !== '') {
+                target.setAttribute('data-tooltip', altVal);
+                if (!target.hasAttribute('aria-label')) {
+                    target.setAttribute('aria-label', altVal);
+                }
+                target.removeAttribute('alt');
+            }
+        }
+
+        // Dynamically adjust alignment to prevent screen edge overflow clipping
+        if (target.hasAttribute('data-tooltip')) {
+            const rect = target.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const tooltipText = target.getAttribute('data-tooltip') || '';
+
+            // Approximate tooltip width (6px padding on sides + ~7px per char at 0.75rem font size)
+            const approxWidth = Math.max(120, tooltipText.length * 7 + 20);
+            const halfWidth = approxWidth / 2;
+
+            // Check right edge clearance
+            if (rect.left + rect.width / 2 + halfWidth > viewportWidth - 16) {
+                target.classList.add('tooltip-align-right');
+                target.classList.remove('tooltip-align-left');
+            }
+            // Check left edge clearance
+            else if (rect.left + rect.width / 2 - halfWidth < 16) {
+                target.classList.add('tooltip-align-left');
+                target.classList.remove('tooltip-align-right');
+            }
+            // Reset to centered otherwise
+            else {
+                target.classList.remove('tooltip-align-right', 'tooltip-align-left');
+            }
+        }
+    }
+});
