@@ -1,0 +1,46 @@
+<!-- OCR Toolbox Workspace (formerly OCR Reader) -->
+<div x-show="$store.workspace.wsTab === 'ocr-toolbox'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;" x-cloak>
+    <div class="ba b--black-10 br2 bg-white pa4 mb3 shadow-1 w-100 mw8 center overflow-y-auto">
+        <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
+            <div>
+                <h2 class="f4 mt0 mb1 fw6 dark-gray">OCR Toolbox</h2>
+                <p class="f7 mt0 mb0 silver">Nhận dạng ký tự từ PDF / Ảnh (Tesseract + AI cleanup) vào thư mục dự án</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap mhn2 pt2">
+            <div class="w-100 ph2 mb3">
+                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file PDF/Ảnh *</label>
+                <input type="text" id="ocr-input" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/document.pdf">
+            </div>
+            <div class="w-50-ns ph2 mb3">
+                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file xuất</label>
+                <input type="text" id="ocr-output" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="Mặc định: Thư mục output của dự án">
+            </div>
+            <div class="w-50-ns ph2 mb3">
+                <label class="db fw6 f7 mb2 gray uppercase tracked">Chế độ xử lý</label>
+                <select id="ocr-mode" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
+                    <option value="process">Xử lý đầy đủ (OCR + Cleanup + Spell)</option>
+                    <option value="cleanup-only">Chỉ Cleanup (AI sửa lỗi)</option>
+                    <option value="spellcheck-only">Chỉ Spell Check</option>
+                </select>
+            </div>
+            <div class="w-50-ns ph2 mb3">
+                <label class="db fw6 f7 mb2 gray uppercase tracked">Trang cần xử lý (PDF)</label>
+                <input type="text" id="ocr-pages" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="VD: 1-5,8,10 (để trống = tất cả)">
+            </div>
+            <div class="w-100 ph2 mb3 flex items-center pt2">
+                <label class="flex items-center pointer">
+                    <input type="checkbox" id="ocr-skip-cleanup" class="mr2 pointer"><span class="dark-gray f7 fw6">Bỏ qua AI cleanup</span>
+                </label>
+                <label class="flex items-center pointer ml4">
+                    <input type="checkbox" id="ocr-skip-spell" class="mr2 pointer"><span class="dark-gray f7 fw6">Bỏ qua Spell check</span>
+                </label>
+            </div>
+        </div>
+
+        <button id="btn-run-ocr" class="pointer w-100 pv3 bn white bg-green br2 fw6 shadow-1 hover-bg-dark-green f6 mt3" onclick="UiHelpers.runProjectOcr()">Chạy OCR Toolbox</button>
+
+        <div id="ocr-log" class="mt4 f7 ba b--black-10 br2 pa3 bg-near-black near-white code overflow-y-auto dn" style="height: 200px"></div>
+    </div>
+</div>

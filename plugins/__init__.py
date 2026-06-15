@@ -10,9 +10,9 @@ Each subdirectory represents a plugin with the following structure:
 
 Built-in plugins:
 - translation: Core translation functionality
+- spellcheck: Core spell checking functionality
 - epub_converter: EPUB ↔ Text conversion
-- consistency_check: Translation consistency verification
-- content_analysis: Content analysis tools
+- ocr: OCR text extraction and cleanup
 """
 
 __version__ = "3.0.0"

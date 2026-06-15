@@ -58,7 +58,7 @@ class Plugin(ConverterPlugin):
     def convert(
         self,
         input_path: Path,
-        output_path: Path,
+        output_path: Path = None,
         **options
     ) -> bool:
         """
@@ -73,7 +73,19 @@ class Plugin(ConverterPlugin):
             bool: True if successful
         """
         try:
+            if output_path is None:
+                default_out = self.config.get('out_dir', 'workspace/output')
+                if input_path.is_file():
+                    output_path = Path(default_out)
+                else:
+                    output_path = Path(default_out)
+
             from_format = self.detect_format(input_path)
+            
+            # For text_to_epub, if output_path doesn't have an extension, assume we need one
+            if from_format in ['txt', 'md'] and not output_path.suffix:
+                output_path = output_path / f"{input_path.name}.epub"
+
             to_format = self.detect_format(output_path)
             
             if from_format == 'epub' and to_format in ['txt', 'md']:

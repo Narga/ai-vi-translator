@@ -170,6 +170,11 @@ document.querySelectorAll('.nt-tab-radio').forEach(radio => {
 document.addEventListener('DOMContentLoaded', function () {
     initTabs();
     UiHelpers.initDialogs();
+    
+    // Load plugin configuration early
+    if (window.PluginManager) {
+        PluginManager.ensureLoaded();
+    }
 
     ProjectManager.loadProjectCards();
     ApiClient.loadStats();
@@ -234,8 +239,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnUseGenre = document.getElementById('btn-use-genre');
     if (btnUseGenre) btnUseGenre.addEventListener('click', PromptManager.useGenre);
 
-    // Setup Alpine.js workspace tab watcher
+    // Setup Alpine.js workspace store and watcher
     document.addEventListener('alpine:init', () => {
+        Alpine.store('workspace', { wsTab: 'editor' });
+        
         Alpine.effect(() => {
             const workspaceEl = document.querySelector('[x-data*="activeTab"]');
             if (workspaceEl && workspaceEl._x_dataStack) {
@@ -285,9 +292,6 @@ function archiveProjectFromList(slug) { ProjectManager.archiveProjectFromList(sl
 function downloadArchive(filename) { ProjectManager.downloadArchive(filename); }
 function deleteSelectedLogs() { UiHelpers.deleteSelectedLogs(); }
 function deleteCurrentLog() { UiHelpers.deleteCurrentLog(); }
-function runEpubConverter() { UiHelpers.runEpubConverter(); }
-function runOcr() { UiHelpers.runOcr(); }
-function toggleEpubForm() { UiHelpers.toggleEpubForm(); }
 function switchProvider(p) { UiHelpers.switchProvider(p); }
 function saveAppConfig() { ApiClient.saveAppConfig(); }
 function saveApiKeys() { ApiClient.saveApiKeys(); }

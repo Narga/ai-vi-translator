@@ -1,0 +1,34 @@
+<div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3" x-data="{ plugins: window.pluginState ? window.pluginState.plugins : [], loading: !window.pluginState || !window.pluginState.loaded }" @alpine:init="PluginManager.ensureLoaded().then(p => { plugins = p; loading = false; })">
+    <h3 class="f5 fw6 mt0 mb3 dark-gray">Quản lý Plugin</h3>
+    
+    <div x-show="loading" class="tc pa3 gray">Đang tải danh sách plugin...</div>
+    
+    <div x-show="!loading" class="flex flex-column gap-3">
+        <template x-for="plugin in plugins" :key="plugin.id">
+            <div class="flex items-start justify-between ba b--black-10 br2 pa3" :class="plugin.enabled ? 'bg-near-white' : 'bg-white o-60'">
+                <!-- Left side: Info -->
+                <div class="flex-auto pr3">
+                    <div class="flex items-center gap-2 mb1">
+                        <span class="f5 fw6 dark-gray" x-text="(plugin.icon || '') + ' ' + plugin.name"></span>
+                        <span x-show="plugin.is_core" class="f7 ba b--blue blue br-pill ph2 pv1">Core</span>
+                        <span class="f7 gray">v<span x-text="plugin.version"></span></span>
+                    </div>
+                    <div class="f7 gray mb2" x-text="plugin.description"></div>
+                    <div class="f7 silver">Bởi <span x-text="plugin.author"></span></div>
+                </div>
+                
+                <!-- Right side: Controls -->
+                <div class="flex flex-column items-end gap-2">
+                    <label class="flex items-center pointer">
+                        <span class="f7 mr2" :class="plugin.enabled ? 'blue fw6' : 'gray'" x-text="plugin.enabled ? 'Bật' : 'Tắt'"></span>
+                        <input type="checkbox" class="toggle-checkbox" 
+                               :checked="plugin.enabled" 
+                               :disabled="plugin.is_core"
+                               @change="PluginManager.togglePlugin(plugin.id, $event.target.checked).then(updated => plugin.enabled = updated.enabled)">
+                    </label>
+                    <button x-show="plugin.has_settings" class="ba b--black-10 bg-white pa1 br2 pointer f7 hover-bg-near-white" @click="UiHelpers.showPluginSettings(plugin.id)">⚙️ Settings</button>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>

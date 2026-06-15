@@ -79,7 +79,7 @@ class Plugin(ConverterPlugin):
     def convert(
         self,
         input_path: Path,
-        output_path: Path,
+        output_path: Path = None,
         **options
     ) -> bool:
         """
@@ -98,6 +98,10 @@ class Plugin(ConverterPlugin):
             bool: True if successful
         """
         try:
+            if output_path is None:
+                default_out = self.config.get('out_dir', 'workspace/output')
+                output_path = Path(default_out) / f"{input_path.stem}.txt"
+
             from_format = self.detect_format(input_path)
             to_format = self.detect_format(output_path)
             
