@@ -467,7 +467,7 @@ wheels = [
 
 [[package]]
 name = "content-translator"
-version = "7.6.0"
+version = "7.7.0"
 source = { virtual = "." }
 dependencies = [
     { name = "chardet" },
