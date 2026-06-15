@@ -239,20 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnUseGenre = document.getElementById('btn-use-genre');
     if (btnUseGenre) btnUseGenre.addEventListener('click', PromptManager.useGenre);
 
-    // Setup Alpine.js workspace store and watcher
-    document.addEventListener('alpine:init', () => {
-        Alpine.store('workspace', { wsTab: 'editor' });
-        
-        Alpine.effect(() => {
-            const workspaceEl = document.querySelector('[x-data*="activeTab"]');
-            if (workspaceEl && workspaceEl._x_dataStack) {
-                const activeTab = Alpine.evaluate(workspaceEl, 'activeTab');
-                if (activeTab && window.currentProject) {
-                    switchProjectTab(activeTab);
-                }
-            }
-        });
-    });
+
 });
 
 // ============================================================

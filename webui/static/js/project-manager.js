@@ -284,6 +284,18 @@ const ProjectManager = {
             window.currentProject = data;
             localStorage.setItem('nt_active_project_slug', slug);
             
+            try {
+                if (window.Alpine && Alpine.store('workspace')) {
+                    Alpine.store('workspace').wsTab = 'editor';
+                }
+            } catch (e) {}
+
+            if (window.PluginManager) {
+                PluginManager.ensureLoaded()
+                    .then(() => PluginManager.renderWorkspaceTabs())
+                    .catch(e => console.warn("Failed to load plugins:", e));
+            }
+            
             // Update header
             const titleEl = document.getElementById('pm-project-title');
             const descEl = document.getElementById('pm-project-desc');
@@ -356,6 +368,13 @@ const ProjectManager = {
         
         window.currentProject = null;
         window.currentProjectFile = null;
+
+        if (window.PluginManager) {
+            PluginManager.setWorkspaceTab('editor');
+        }
+        const pluginTabs = document.getElementById('pm-plugin-workspace-tabs');
+        if (pluginTabs) pluginTabs.innerHTML = '';
+
         ProjectManager.loadProjectCards();
     },
     

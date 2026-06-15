@@ -1,7 +1,10 @@
-<div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3" x-data="{ plugins: window.pluginState ? window.pluginState.plugins : [], loading: !window.pluginState || !window.pluginState.loaded }" @alpine:init="PluginManager.ensureLoaded().then(p => { plugins = p; loading = false; })">
+<div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3" 
+     x-data="{ plugins: [], loading: true, error: null }" 
+     x-init="PluginManager.ensureLoaded().then(p => { plugins = p; loading = false; }).catch(e => { error = e; loading = false; })">
     <h3 class="f5 fw6 mt0 mb3 dark-gray">Quản lý Plugin</h3>
     
     <div x-show="loading" class="tc pa3 gray">Đang tải danh sách plugin...</div>
+    <div x-show="error" class="tc pa3 red" x-text="error"></div>
     
     <div x-show="!loading" class="flex flex-column gap-3">
         <template x-for="plugin in plugins" :key="plugin.id">
@@ -24,7 +27,7 @@
                         <input type="checkbox" class="toggle-checkbox" 
                                :checked="plugin.enabled" 
                                :disabled="plugin.is_core"
-                               @change="PluginManager.togglePlugin(plugin.id, $event.target.checked).then(updated => plugin.enabled = updated.enabled)">
+                               @change="PluginManager.togglePlugin(plugin.id, $event.target.checked).then(updated => Object.assign(plugin, updated)).catch(() => { $event.target.checked = plugin.enabled; })">
                     </label>
                     <button x-show="plugin.has_settings" class="ba b--black-10 bg-white pa1 br2 pointer f7 hover-bg-near-white" @click="UiHelpers.showPluginSettings(plugin.id)">⚙️ Settings</button>
                 </div>

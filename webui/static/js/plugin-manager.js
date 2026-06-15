@@ -46,29 +46,53 @@ window.PluginManager = {
         return window.pluginState.plugins.filter(p => p.enabled && p.workspace_tab);
     },
 
+    getWorkspaceStore() {
+        try {
+            if (!window.Alpine) return null;
+            return Alpine.store('workspace') || null;
+        } catch (e) {
+            return null;
+        }
+    },
+
     renderWorkspaceTabs() {
         if (!window.currentProject) return;
 
         const container = document.getElementById('pm-plugin-workspace-tabs');
         if (!container) return;
 
-        const plugins = this.getEnabledWorkspacePlugins();
-        let html = '';
-
-        plugins.forEach(p => {
-            // Render the tab button
-            html += `<button class="tab-button pv2 ph3 bn bg-transparent pointer dim" 
-                            x-bind:class="$store.workspace.wsTab === '${p.workspace_tab}' ? 'blue bb bw2 b--blue fw6' : 'gray'" 
-                            x-on:click="$store.workspace.wsTab = '${p.workspace_tab}'">${p.name}</button>`;
+        container.innerHTML = '';
+        this.getEnabledWorkspacePlugins().forEach(plugin => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim gray';
+            btn.dataset.workspaceTab = plugin.workspace_tab;
+            btn.textContent = plugin.name;
+            btn.addEventListener('click', () => this.setWorkspaceTab(plugin.workspace_tab));
+            container.appendChild(btn);
         });
 
-        container.innerHTML = html;
+        this.syncWorkspaceTabButtons();
+    },
+
+    syncWorkspaceTabButtons() {
+        const store = this.getWorkspaceStore();
+        const active = store ? store.wsTab : 'editor';
+        document.querySelectorAll('#pm-plugin-workspace-tabs [data-workspace-tab]').forEach(btn => {
+            if (btn.dataset.workspaceTab === active) {
+                btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim blue bb bw2 b--blue fw6';
+            } else {
+                btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim gray';
+            }
+        });
     },
 
     setWorkspaceTab(tabName) {
-        if (window.Alpine) {
-            Alpine.store('workspace').wsTab = tabName;
-        }
+        const store = this.getWorkspaceStore();
+        if (!store) return false;
+        store.wsTab = tabName;
+        this.syncWorkspaceTabButtons();
+        return true;
     },
 
     async togglePlugin(pluginId, enabled) {
@@ -99,7 +123,8 @@ window.PluginManager = {
                 this.renderWorkspaceTabs();
                 
                 // Nếu đang đứng ở tab vừa tắt, quay về editor
-                if (!enabled && window.Alpine && Alpine.store('workspace').wsTab === updatedPlugin.workspace_tab) {
+                const store = this.getWorkspaceStore();
+                if (!enabled && store && store.wsTab === updatedPlugin.workspace_tab) {
                     this.setWorkspaceTab('editor');
                 }
             }

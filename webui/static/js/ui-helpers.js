@@ -395,8 +395,14 @@ const UiHelpers = {
     },
 
     // Plugins
+    getCurrentProjectSlug() {
+        if (!window.currentProject) return null;
+        return typeof window.currentProject === 'string' ? window.currentProject : window.currentProject.slug;
+    },
+
     runEpubToText() {
-        if (!window.currentProject) {
+        const slug = UiHelpers.getCurrentProjectSlug();
+        if (!slug) {
             UiHelpers.showToast('Vui lòng mở một dự án trước khi chạy eBook Kit', 'error');
             return;
         }
@@ -425,7 +431,7 @@ const UiHelpers = {
 
         UiHelpers.pluginLog('epub-log', '🔄 Đang gửi yêu cầu...', 'info');
 
-        fetch(`/api/projects/${window.currentProject}/plugins/epub-converter`, {
+        fetch(`/api/projects/${encodeURIComponent(slug)}/plugins/epub-converter`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {
@@ -444,7 +450,8 @@ const UiHelpers = {
     },
 
     runTextToEpub() {
-        if (!window.currentProject) {
+        const slug = UiHelpers.getCurrentProjectSlug();
+        if (!slug) {
             UiHelpers.showToast('Vui lòng mở một dự án trước khi chạy eBook Kit', 'error');
             return;
         }
@@ -463,7 +470,7 @@ const UiHelpers = {
 
         UiHelpers.pluginLog('epub-log', '🔄 Đang gửi yêu cầu...', 'info');
 
-        fetch(`/api/projects/${window.currentProject}/plugins/epub-converter`, {
+        fetch(`/api/projects/${encodeURIComponent(slug)}/plugins/epub-converter`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {
@@ -482,7 +489,8 @@ const UiHelpers = {
     },
 
     runProjectOcr() {
-        if (!window.currentProject) {
+        const slug = UiHelpers.getCurrentProjectSlug();
+        if (!slug) {
             UiHelpers.showToast('Vui lòng mở một dự án trước khi chạy OCR Toolbox', 'error');
             return;
         }
@@ -518,7 +526,7 @@ const UiHelpers = {
 
         UiHelpers.pluginLog('ocr-log', '🔄 Đang gửi yêu cầu OCR...', 'info');
 
-        fetch(`/api/projects/${window.currentProject}/plugins/ocr`, {
+        fetch(`/api/projects/${encodeURIComponent(slug)}/plugins/ocr`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {

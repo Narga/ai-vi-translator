@@ -10,6 +10,12 @@
         // Fallback: remove x-cloak after 3s if Alpine fails to init
         setTimeout(function() { document.querySelectorAll('[x-cloak]').forEach(function(el) { el.removeAttribute('x-cloak'); }); }, 3000);
     </script>
+    <script>
+        // Init workspace store before Alpine starts
+        document.addEventListener('alpine:init', function() {
+            Alpine.store('workspace', { wsTab: 'editor' });
+        });
+    </script>
     <!-- Alpine.js: Persist plugin PHẢI load TRƯỚC Alpine core -->
     <script src="{{ url_for('static', filename='js/alpine-persist.min.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/alpine.min.js') }}?v={{ app_version }}"></script>

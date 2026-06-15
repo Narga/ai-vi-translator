@@ -1,9 +1,8 @@
 | Task | Status | Details |
 |---|---|---|
-| Phase 1: core.interfaces + Plugin registry + API | [x] Completed | Created interface classes, plugin registry, and updated plugins API paths |
-| Phase 2: Split UI + Workspace integration | [x] Completed | Created workspace tab logic, updated layouts, and removed obsolete partials |
-| Phase 3: Rework plugin logic using interface | [x] Completed | eBook Kit and OCR Toolbox updated to conform to core interfaces |
-| Phase 4: eBook Kit subtabs | [x] Completed | Split EPUB conversion into EPUB -> Text and Text -> EPUB subtabs |
-| Phase 5: Settings stub | [x] Completed | Added plugin settings APIs and settings buttons in UI |
-| Phase 6: Testing & Regression | [x] Completed | Conducted code review, verified API structures, and local UI changes |
-| Option 1: Merge local branch & cleanup | [x] Completed | Merged feature branch to master, deleted branch, and removed worktree |
+| Phase 1: Khôi phục workspace project trước | [x] | Fix Alpine workspace store initialization |
+| Phase 2: Sửa plugin list trong Cấu hình | [x] | Fix plugin management lifecycle and toggle logic |
+| Phase 3: Sửa PluginManager workspace tabs | [x] | Refactor PluginManager to not use innerHTML for Alpine directives |
+| Phase 4: Sửa frontend API dùng project slug | [x] | Use slug instead of object for frontend fetch calls |
+| Phase 5: Sửa backend plugin execution | [x] | Update plugins.py route to use direct implementations and validate project slug |
+| Phase 6: Test hồi quy bắt buộc | [x] | Verify APIs and UI flow |
