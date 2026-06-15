@@ -82,3 +82,4 @@ uv.lock
 # Linter caches
 .ruff_cache/
 .stylelint_cache/
+.worktrees/
