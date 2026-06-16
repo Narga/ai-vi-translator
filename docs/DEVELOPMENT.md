@@ -49,12 +49,13 @@ novel-translator/
 │   │   ├── prompts.py     # Prompt Sets CRUD
 │   │   ├── projects.py    # Project workspace + TM APIs
 │   │   └── plugins.py     # EPUB Converter + OCR
-│   ├── static/js/         # 7 ES modules (Alpine.js 3.x)
+│   ├── static/js/         # 8 ES modules (Alpine.js 3.x)
 │   │   ├── api-client.js       # API calls, model loading
 │   │   ├── project-manager.js  # Project CRUD, 3-column workspace
 │   │   ├── editor-component.js # Editor, token estimate, diff view
 │   │   ├── prompt-manager.js   # Prompt genres & prompts CRUD
 │   │   ├── provider-manager.js # Provider CRUD, dropdown, Gemini/OpenAI switch
+│   │   ├── plugin-manager.js   # Plugin list, toggle, workspace tabs (v7.8.0)
 │   │   ├── translation-worker.js # SSE, progress, spellcheck
 │   │   └── ui-helpers.js       # Toast, modals, provider switching
 │   └── templates/partials/ # Jinja2 partials cho từng tab
@@ -70,6 +71,7 @@ novel-translator/
 │   ├── spellcheck/        # Kiểm chính tả AI
 │   ├── epub_converter/    # Chuyển đổi EPUB
 │   └── ocr/               # Nhận diện ảnh/PDF
+├── core/interfaces/        # PluginBase, ConverterPlugin (v7.8.0)
 ├── config/                 # Cấu hình app.ini và API keys
     └── docs/                   # Tài liệu
         ├── ROADMAP.md         # Lộ trình phát triển
@@ -151,4 +153,4 @@ Dự án sử dụng `uv` để quản lý package.
 - Cập nhật lock file: `uv lock`
 
 ---
-*Phiên bản: 2.1 - Ngày cập nhật: 11/06/2026*
+*Phiên bản: 2.2 - Ngày cập nhật: 16/06/2026*

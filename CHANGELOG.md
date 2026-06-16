@@ -4,6 +4,47 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.8.0] - 2026-06-16
+### Tái cấu trúc Plugin Navigation & Quản lý Plugin
+
+**Plugin Navigation Restructuring:**
+- Xoá thẻ **Công cụ** khỏi main navigation — chuyển EPUB Converter & OCR Reader thành workspace tabs (`eBook Kit`, `OCR Toolbox`)
+- Thêm khối **Quản lý Plugin** dưới cùng tab Cấu hình — danh sách plugin, bật/tắt, hiển thị trạng thái
+- Plugin workspace tabs tự động hiện/ẩn theo trạng thái enabled của plugin
+- Core plugins (Translation, Spellcheck) mặc định bật, không tắt được
+- `PluginManager` ES module mới: `webui/static/js/plugin-manager.js` (135 dòng)
+
+**New Partial Templates:**
+- `plugin_management.html` — Giao diện quản lý plugin với Alpine.js x-data
+- `workspace_ebook_kit.html` — eBook Kit workspace tab (EPUB↔Text với multi-mode)
+- `workspace_ocr_toolbox.html` — OCR Toolbox workspace tab (PDF/Image OCR)
+- `footer.html` — Alpine store init, script loading ordering, persist plugin
+
+**Backend Plugin Routes Overhaul (`webui/routes/plugins.py`):**
+- Route mới: `POST /api/projects/<slug>/plugins/epub-converter` — project-scoped EPUB conversion
+- Route mới: `POST /api/projects/<slug>/plugins/ocr` — project-scoped OCR processing
+- Route mới: `POST /api/plugins/toggle` — bật/tắt plugin, lưu vào `config/plugins.json`
+- Route mới: `POST /api/projects/<slug>/plugins/epub-converter/text-to-epub` — Text→EPUB
+- Middleware `@require_plugin_enabled()` kiểm tra trạng thái plugin trước khi xử lý
+- Plugin progress cleanup tự động (xóa progress >30 phút)
+- Legacy route `POST /api/plugins/epub-converter` vẫn giữ để tương thích ngược
+
+**Core Interfaces:**
+- `core/interfaces/__init__.py` mới: `PluginBase`, `ConverterPlugin` abstract classes
+- Plugin interface chuẩn hoá: `name`, `version`, `display_name`, `initialize`, `cleanup`, `get_capabilities`
+
+**Plugin Integration Regression Fixes (Phases 1-5):**
+- Phase 1: Sửa Alpine workspace store init (`footer.html` init trước Alpine core)
+- Phase 2: Sửa plugin list lifecycle (`x-init` thay `@alpine:init`, guard store)
+- Phase 3: Sửa workspace tab buttons (class đồng bộ `workspace-sub-tab`)
+- Phase 4: Sửa frontend API URL (`encodeURIComponent(slug)`, đổi OCR Reader → OCR Toolbox)
+- Phase 5: Sửa backend plugin execution (route project-scoped, validate slug)
+
+**UI/UX Improvements:**
+- Giảm font-size bottom status bar để khớp với re-translate label
+
+---
+
 ## [7.7.0] - 2026-06-14
 ### Hợp nhất Giao diện Biên tập & Kiểm chính tả
 

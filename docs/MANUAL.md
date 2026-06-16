@@ -109,6 +109,29 @@ Hệ thống sử dụng cơ chế lưu trữ Cache hiện đại:
 - **Định dạng an toàn**: Toàn bộ dữ liệu được lưu dưới dạng `JSON` nén (Gzip) thay vì `pickle` cũ, giúp ngăn chặn các rủi ro bảo mật và dễ dàng kiểm tra nội dung.
 - **Tự động hóa**: Cache được tự động nén để tiết kiệm dung lượng đĩa cứng. Bạn có thể xóa Cache thông qua tab Cấu hình trên WebUI.
 
+## 5a. Quản lý Plugin (v7.8.0+)
+
+### 🔌 Plugin Management
+Từ v7.8.0, thẻ **Công cụ** trên main navigation đã được thay thế bằng hệ thống plugin tích hợp:
+
+- **Quản lý Plugin**: Vào tab **Cấu hình** → cuối trang → khối **Quản lý Plugin**
+- **Danh sách plugin**: Hiển thị tất cả plugin (Core + Tool) kèm tên, mô tả, phiên bản, tác giả
+- **Bật/Tắt**: Tool plugins (eBook Kit, OCR Toolbox) có thể bật/tắt bằng toggle switch
+- **Core plugins** (Translation, Spellcheck) mặc định bật, không thể tắt
+
+### 📚 eBook Kit (Workspace Tab)
+Khi plugin eBook Kit được bật, workspace project hiển thị tab **eBook Kit**:
+- **EPUB → Text**: Trích xuất nội dung từ file EPUB, hỗ trợ Single/Multi/Both mode, xuất TXT hoặc Markdown
+- **Text → EPUB**: Đóng gói lại thành EPUB, giữ cấu trúc chương hồi, hỗ trợ Markdown nguồn
+
+### 🖼️ OCR Toolbox (Workspace Tab)
+Khi plugin OCR Toolbox được bật, workspace project hiển thị tab **OCR Toolbox**:
+- Nhận dạng ký tự từ PDF/Ảnh bằng Tesseract + AI Cleanup + Spellcheck
+- Chế độ xử lý: Đầy đủ (OCR+Cleanup+Spell), Chỉ Cleanup, Chỉ Spell Check
+- Hỗ trợ chọn trang PDF, bỏ qua Cleanup/Spellcheck riêng lẻ
+
+---
+
 ### 🛠️ Công cụ Biên tập & Soát lỗi (v7.7.0+)
 Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-tab:
 - **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Click file để mở editor 2 cột (Nguồn + Bản dịch). Row actions: Dịch, Soát lỗi AI, Đổi tên, Xóa.
@@ -152,4 +175,4 @@ Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập ch�
 - **Xử lý Dependency**: Nếu một module báo thiếu thư viện (ví dụ: `pdfplumber`), hệ thống sẽ cố gắng tự động cài đặt qua `lazy_import_and_install`. Nếu thất bại, hãy chạy `pip install pdfplumber`.
 
 ---
-*Phiên bản tài liệu: 2.3 - Ngày cập nhật: 09/05/2026*
+*Phiên bản tài liệu: 2.4 - Ngày cập nhật: 16/06/2026*

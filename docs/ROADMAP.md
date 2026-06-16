@@ -130,8 +130,16 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] **Toolbar & Icons mới**: Nút soát lỗi đã chọn, CSS tooltip scoped, icon A kèm dấu tích
 - [x] **Đặt lại bộ nhớ dịch**: Đổi tên + confirm message mới cho nút Clear TM
 
+### ✅ Đã hoàn thành (v7.8.0)
+- [x] **Tái cấu trúc Plugin Navigation**: Xoá thẻ "Công cụ", chuyển EPUB Converter & OCR Reader thành workspace tabs
+- [x] **Quản lý Plugin**: Khối quản lý plugin trong tab Cấu hình, bật/tắt, phân loại Core vs Tool
+- [x] **PluginManager ES Module**: `plugin-manager.js` mới + `PluginBase`/`ConverterPlugin` interfaces
+- [x] **Backend Plugin Routes**: Routes project-scoped cho EPUB/OCR, `config/plugins.json`, middleware kiểm tra trạng thái
+- [x] **Plugin Integration Regression Fixes**: Sửa Alpine store, lifecycle, tab UI, API URL, backend execution
+
 ### 🔴 Cần làm (tương lai)
 - [ ] **Unit Tests**: executor force_retranslate, route tm/clear, route translate with force_retranslate
+- [ ] **Plugin Manager Unit Tests**: test toggle, list, enabled/disabled workflow
 
 ### 📋 Ưu tiên trung bình (tương lai)
 - [ ] **Interactive Glossary**: Highlight thuật ngữ glossary trong Editor, cho phép áp dụng nhanh
@@ -200,4 +208,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-14 (v7.7.0)
+*Cập nhật lần cuối: 2026-06-16 (v7.8.0)

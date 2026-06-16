@@ -12,7 +12,7 @@ Hệ thống được chia thành 5 phân vùng chính:
 ### A. WebUI & Routes (Giao diện & Điều hướng)
 - **Clusters**: `Webui`, `Routes`
 - **Nhiệm vụ**: Cung cấp giao diện người dùng Flask, quản lý các điểm cuối API.
-- **UI Structure (v6.9.3)**: Hệ thống 5-Tab hợp nhất (Nội dung gốc, Nội dung dịch, Kiểm chính tả, Thông tin, Chỉ dẫn) với cơ chế Sub-tabs (radio-based) cho phần Thông tin.
+- **UI Structure (v7.8.0)**: Main navigation: Dự án, Cấu hình, Chỉ dẫn AI, Nhật ký, Lưu trữ. Workspace project: Biên tập, Thông tin, Chỉ dẫn, eBook Kit (plugin), OCR Toolbox (plugin).
 - **State Persistence**: Sử dụng `localStorage` để duy trì trạng thái làm việc (active tabs, project selection) xuyên suốt các phiên làm việc.
 - **Files chính**: `webui/__init__.py`, `webui/routes/*.py`, `webui/static/js/main.js`.
 
@@ -27,9 +27,10 @@ Hệ thống được chia thành 5 phân vùng chính:
 - **Files chính**: `services/genai_client.py`, `services/checkpoint_service.py`, `services/config_service.py`.
 
 ### D. Plugins & Logic (Tiện ích mở rộng)
-- **Clusters**: `Translation`, `Ocr`
-- **Nhiệm vụ**: Thực hiện các tác vụ chuyên biệt như chia nhỏ văn bản (Chunking), xử lý dịch thô, và soát lỗi chính tả AI.
-- **Files chính**: `plugins/translation/chunker.py`, `plugins/spellcheck/spellchecker.py`.
+- **Clusters**: `Translation`, `Ocr`, `PluginManagement`
+- **Nhiệm vụ**: Thực hiện các tác vụ chuyên biệt như chia nhỏ văn bản (Chunking), xử lý dịch thô, soát lỗi chính tả AI, chuyển đổi EPUB, OCR.
+- **Plugin System (v7.8.0)**: `PluginBase`/`ConverterPlugin` interfaces trong `core/interfaces/__init__.py`. Quản lý plugin tập trung qua `config/plugins.json` + `PluginManager` JS module.
+- **Files chính**: `plugins/translation/chunker.py`, `plugins/spellcheck/spellchecker.py`, `webui/static/js/plugin-manager.js`, `webui/routes/plugins.py`.
 
 ### E. Text Processing (Xử lý văn bản)
 - **Clusters**: `Text_to_epub`, `Epub_to_text`, `Epub_converter`
@@ -107,6 +108,12 @@ graph TB
         SP[Spellcheck Plugin]
         OC[OCR Engine]
         EP[EPUB Converter]
+        PM[PluginManager JS Module]
+    end
+
+    subgraph "Plugin Config"
+        PJ[config/plugins.json]
+        PI[core/interfaces/ PluginBase]
     end
 
     UI --> PR & SR & TR
@@ -118,13 +125,17 @@ graph TB
     PR --> EP
     SR --> CS
     SX --> OC
+    UI --> PM
+    PM --> PJ
+    EP --> PI
+    OC --> PI
 ```
 
 ## 5. Summary Statistics
-- **Files**: 86
-- **Symbols**: 1040
-- **Execution Flows**: 92
+- **Files**: 90+
+- **Symbols**: 1040+
+- **Execution Flows**: 92+
 - **Key Cluster**: `Services` (Chứa logic lõi của hệ thống)
 
 ---
-*Tài liệu được tạo tự động bởi GitNexus Knowledge Graph.*
+*Tài liệu được tạo tự động bởi GitNexus Knowledge Graph — cập nhật lần cuối: v7.8.0.*

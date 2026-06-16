@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.7.0)
+# 📚 Content Translator (v7.8.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v7.7.0):** Hợp nhất giao diện Biên tập & Kiểm chính tả — workspace thống nhất với sidebar 3 mini-tab (Nội dung nguồn, Bản dịch, Soát chính tả). Đặt lại bộ nhớ dịch thay vì xóa TM.
+**Tính năng mới (v7.8.0):** Tái cấu trúc Plugin Navigation — xoá thẻ Công cụ, tích hợp eBook Kit và OCR Toolbox vào workspace dự án, thêm khung Quản lý Plugin trong tab Cấu hình với giao diện bật/tắt trực quan.
 
 ---
 
@@ -20,6 +20,7 @@ Content Translator được thiết kế đặc biệt để xử lý khối lư
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
 - 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers.
+- 🔌 **Plugin Management**: Quản lý plugin tập trung trong tab Cấu hình. eBook Kit và OCR Toolbox tích hợp vào workspace dự án.
 
 ---
 
@@ -72,8 +73,8 @@ main.py       ├── application/    # Use cases + DTOs + Progress ports
               └── __init__.py     # create_app_service() factory
               core/               # Core pipeline (TranslationExecutor, plugins)
               services/           # TranslationMemory, Health, Checkpoint
-              webui/static/js/    # 7 ES modules: api-client, provider-manager, project-manager,
-                                  #   editor-component, prompt-manager, translation-worker, ui-helpers
+              webui/static/js/    # 8 ES modules: api-client, provider-manager, project-manager,
+                                  #   editor-component, prompt-manager, translation-worker, ui-helpers, plugin-manager
 ```
 
 ---
@@ -84,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.7.0  
-**Ngày:** 14/06/2026
+**Phiên bản:** 7.8.0  
+**Ngày:** 16/06/2026
