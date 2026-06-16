@@ -15,7 +15,10 @@ window.PluginManager = {
         }
 
         this._loadPromise = fetch('/api/plugins/list')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
             .then(plugins => {
                 window.pluginState = {
                     plugins: plugins || [],

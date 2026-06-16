@@ -1,6 +1,12 @@
 <div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3" 
      x-data="{ plugins: [], loading: true, error: null }" 
-     x-init="PluginManager.ensureLoaded().then(p => { plugins = p; loading = false; }).catch(e => { error = e; loading = false; })">
+     x-init="Promise.resolve()
+         .then(() => {
+             if (!window.PluginManager) throw new Error('PluginManager chưa được tải');
+             return PluginManager.ensureLoaded();
+         })
+         .then(p => { plugins = p; loading = false; })
+         .catch(e => { error = e.message || String(e); loading = false; })">
     <h3 class="f5 fw6 mt0 mb3 dark-gray">Quản lý Plugin</h3>
     
     <div x-show="loading" class="tc pa3 gray">Đang tải danh sách plugin...</div>

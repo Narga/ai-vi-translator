@@ -10,6 +10,9 @@
         // Fallback: remove x-cloak after 3s if Alpine fails to init
         setTimeout(function() { document.querySelectorAll('[x-cloak]').forEach(function(el) { el.removeAttribute('x-cloak'); }); }, 3000);
     </script>
+    <script src="{{ url_for('static', filename='js/ui-helpers.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/plugin-manager.js') }}?v={{ app_version }}"></script>
+
     <script>
         // Init workspace store before Alpine starts
         document.addEventListener('alpine:init', function() {
@@ -21,8 +24,6 @@
     <script src="{{ url_for('static', filename='js/alpine.min.js') }}?v={{ app_version }}"></script>
 
     <!-- ES Modules (Namespace Pattern) -->
-    <script src="{{ url_for('static', filename='js/ui-helpers.js') }}?v={{ app_version }}"></script>
-    <script src="{{ url_for('static', filename='js/plugin-manager.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/api-client.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/provider-manager.js') }}?v={{ app_version }}"></script>
     <script src="{{ url_for('static', filename='js/project-manager.js') }}?v={{ app_version }}"></script>
