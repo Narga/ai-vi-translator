@@ -29,6 +29,91 @@ Phạm vi hotfix:
 4. Sửa frontend API URL dùng project slug.
 5. Sửa backend project-scoped plugin execution để gọi implementation trực tiếp đã có, không gọi wrapper chưa tương thích.
 
+## 2.1. Review sau khi đã áp dụng hotfix lần 1
+
+Ngày review: 2026-06-15
+
+Trạng thái hiện tại theo source:
+
+- [x] Phase 1 đã thực hiện phần code chính: `footer.html` đã init `Alpine.store('workspace')` trước Alpine core; `main.js` đã bỏ listener `alpine:init` muộn; `ProjectManager.openProject()` đã reset `wsTab = 'editor'`.
+- [~] Phase 2 đã đổi `@alpine:init` sang `x-init`, nhưng vẫn lỗi runtime: `PluginManager` chưa tồn tại tại thời điểm Alpine chạy `x-init`, nên khối `Quản lý Plugin` bị kẹt ở `Đang tải danh sách plugin...`.
+- [~] Phase 3 đã chuyển plugin tabs sang DOM API và thêm guard store, nhưng class/style của plugin tabs vẫn dùng `tab-button pv2 ph3...`, không dùng cùng class `workspace-sub-tab` với `Biên tập/Thông tin/Chỉ dẫn`, gây lệch font/height/case.
+- [~] Phase 4 đã sửa URL dùng `encodeURIComponent(slug)`, nhưng còn text fallback/log `OCR Reader` trong `ui-helpers.js`; cần đổi đồng bộ thành `OCR Toolbox`.
+- [ ] Phase 5 chưa được thực hiện: `webui/routes/plugins.py` vẫn gọi `plugins.epub_converter.plugin.Plugin().convert(...)` và `plugins.ocr.plugin.Plugin().convert(...)`; lỗi wrapper EPUB/OCR vẫn còn.
+- [ ] Phase 7 chưa đủ điều kiện chạy pass vì Phase 2, Phase 5 và Phase 6 còn lỗi/chưa xong.
+
+Root cause hiện tại của lỗi plugin list:
+
+- `plugin_management.html` đang có:
+
+```html
+x-init="PluginManager.ensureLoaded().then(...)"
+```
+
+- Nhưng `footer.html` load Alpine core trước `plugin-manager.js`:
+
+```html
+<script src="... alpine-persist.min.js"></script>
+<script src="... alpine.min.js"></script>
+...
+<script src="... ui-helpers.js"></script>
+<script src="... plugin-manager.js"></script>
+```
+
+- Alpine scan DOM và chạy `x-init` ngay khi core start. Lúc đó `window.PluginManager` chưa được định nghĩa. Expression lỗi, `loading` không đổi về `false`, nên UI chỉ hiện mãi `Đang tải danh sách plugin...`.
+
+Phương án xử lý ưu tiên:
+
+1. Load các dependency mà Alpine expression cần trước Alpine core:
+
+```html
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/plugin-manager.js') }}?v={{ app_version }}"></script>
+<script>
+    document.addEventListener('alpine:init', function() {
+        Alpine.store('workspace', { wsTab: 'editor' });
+    });
+</script>
+<script src="{{ url_for('static', filename='js/alpine-persist.min.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/alpine.min.js') }}?v={{ app_version }}"></script>
+```
+
+Sau đó chỉ giữ các app script còn lại sau Alpine:
+
+```html
+<script src="{{ url_for('static', filename='js/api-client.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/provider-manager.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/project-manager.js') }}?v={{ app_version }}"></script>
+...
+```
+
+2. Giữ `plugin_management.html` dùng `x-init`, nhưng viết guard rõ để không kẹt loading nếu có lỗi:
+
+```html
+x-init="Promise.resolve()
+    .then(() => {
+        if (!window.PluginManager) throw new Error('PluginManager chưa được tải');
+        return PluginManager.ensureLoaded();
+    })
+    .then(p => { plugins = p; loading = false; })
+    .catch(e => { error = e.message || String(e); loading = false; })"
+```
+
+3. Trong `PluginManager.ensureLoaded()`, kiểm tra `res.ok` trước khi `res.json()` để lỗi API không bị nuốt thành dữ liệu sai:
+
+```js
+this._loadPromise = fetch('/api/plugins/list')
+    .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+    })
+    ...
+```
+
+Phương án dự phòng nếu không muốn đổi thứ tự script:
+
+- Không gọi `PluginManager` trực tiếp trong `x-init`. Thay bằng một hàm inline defer đến `DOMContentLoaded` hoặc một custom event `plugin-manager-ready`. Tuy nhiên hướng này phức tạp hơn và dễ tạo race condition mới; ưu tiên vẫn là load `plugin-manager.js` trước Alpine vì Alpine component đang phụ thuộc global này.
+
 ## 3. Root causes
 
 ### 3.1. P0 — Alpine workspace store được đăng ký quá muộn
@@ -209,7 +294,7 @@ Ghi nhận:
 
 ## 4. Phương án sửa theo phase
 
-### Phase 1 — Khôi phục workspace project trước
+### Phase 1 — Khôi phục workspace project trước `[x] code done, cần verify UI`
 
 Mục tiêu:
 
@@ -284,7 +369,14 @@ Kiểm tra sau phase:
 - Bấm mini-tabs `Bản gốc/Bản dịch/Soát lỗi` vẫn hoạt động.
 - Bấm các nút upload/chia nhỏ/dịch/soát lỗi không bị bất hoạt do lỗi JS global.
 
-### Phase 2 — Sửa plugin list trong Cấu hình
+Ghi nhận review 2026-06-15:
+
+- [x] `footer.html` đã có inline listener `alpine:init` trước `alpine.min.js`.
+- [x] `main.js` đã bỏ block `document.addEventListener('alpine:init', ...)` muộn.
+- [x] `ProjectManager.openProject()` đã reset `wsTab = 'editor'`.
+- [ ] Chưa có bằng chứng test UI thủ công sau phase; cần verify lại sau khi sửa Phase 2.
+
+### Phase 2 — Sửa plugin list trong Cấu hình `[~] partial, còn lỗi script order`
 
 Mục tiêu:
 
@@ -324,6 +416,49 @@ Gợi ý cấu trúc:
     .catch(() => { $event.target.checked = plugin.enabled; })"
 ```
 
+5. Bổ sung bắt buộc sau review: đảm bảo `window.PluginManager` đã tồn tại trước khi Alpine chạy `x-init`.
+
+Thực hiện bằng cách sửa thứ tự script trong `footer.html`:
+
+- Load `ui-helpers.js` trước `plugin-manager.js` vì `PluginManager.ensureLoaded()` có dùng `UiHelpers.showToast(...)` khi lỗi.
+- Load `plugin-manager.js` trước `alpine.min.js` vì `plugin_management.html` gọi `PluginManager.ensureLoaded()` trong `x-init`.
+- Giữ `api-client.js`, `provider-manager.js`, `project-manager.js`, `editor-component.js`, `prompt-manager.js`, `translation-worker.js`, `main.js` sau Alpine nếu các file này không được Alpine expression gọi lúc init.
+
+Thứ tự mong muốn:
+
+```html
+<script src="{{ url_for('static', filename='js/ui-helpers.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/plugin-manager.js') }}?v={{ app_version }}"></script>
+<script>
+    document.addEventListener('alpine:init', function() {
+        Alpine.store('workspace', { wsTab: 'editor' });
+    });
+</script>
+<script src="{{ url_for('static', filename='js/alpine-persist.min.js') }}?v={{ app_version }}"></script>
+<script src="{{ url_for('static', filename='js/alpine.min.js') }}?v={{ app_version }}"></script>
+```
+
+6. Sửa `x-init` có guard lỗi để spinner không kẹt vô hạn nếu dependency/API fail:
+
+```html
+x-init="Promise.resolve()
+    .then(() => {
+        if (!window.PluginManager) throw new Error('PluginManager chưa được tải');
+        return PluginManager.ensureLoaded();
+    })
+    .then(p => { plugins = p; loading = false; })
+    .catch(e => { error = e.message || String(e); loading = false; })"
+```
+
+7. Sửa `PluginManager.ensureLoaded()` check HTTP status:
+
+```js
+.then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+})
+```
+
 Kiểm tra sau phase:
 
 - Vào `Cấu hình`.
@@ -332,7 +467,14 @@ Kiểm tra sau phase:
 - Toggle một plugin, reload trang, state vẫn giữ.
 - Toggle lỗi phải revert checkbox hoặc báo toast.
 
-### Phase 3 — Sửa PluginManager workspace tabs
+Ghi nhận review 2026-06-15:
+
+- [x] `plugin_management.html` đã đổi sang `x-init`.
+- [x] Toggle đã dùng `Object.assign(plugin, updated)` và revert checkbox khi lỗi.
+- [ ] Còn lỗi P0: `plugin-manager.js` vẫn load sau Alpine nên `x-init` gọi `PluginManager` quá sớm.
+- [ ] Cần thêm guard lỗi trong `x-init` và `ensureLoaded()` để không kẹt loading.
+
+### Phase 3 — Sửa PluginManager workspace tabs `[~] partial, logic ổn hơn nhưng style chưa thống nhất`
 
 Mục tiêu:
 
@@ -439,6 +581,22 @@ const pluginTabs = document.getElementById('pm-plugin-workspace-tabs');
 if (pluginTabs) pluginTabs.innerHTML = '';
 ```
 
+8. Bổ sung bắt buộc sau review: plugin tabs phải dùng đúng class `workspace-sub-tab`, không dùng `tab-button pv2 ph3...`.
+
+Sửa `renderWorkspaceTabs()`:
+
+```js
+btn.className = 'workspace-sub-tab';
+```
+
+Sửa `syncWorkspaceTabButtons()`:
+
+```js
+btn.classList.toggle('active', btn.dataset.workspaceTab === active);
+```
+
+Không set lại toàn bộ `className` thành chuỗi Tachyons khác nhau vì sẽ làm lệch font/height/case với các tab gốc.
+
 Kiểm tra sau phase:
 
 - Bật eBook Kit/OCR Toolbox trong `Cấu hình`.
@@ -448,7 +606,16 @@ Kiểm tra sau phase:
 - Click lại `Biên tập`, file list/editors hiện lại.
 - Tắt eBook Kit khi đang đứng ở tab eBook Kit, workspace tự về `Biên tập`.
 
-### Phase 4 — Sửa frontend API dùng project slug
+Ghi nhận review 2026-06-15:
+
+- [x] `PluginManager.getWorkspaceStore()` đã có guard.
+- [x] `setWorkspaceTab()` không throw khi store thiếu.
+- [x] `renderWorkspaceTabs()` đã dùng DOM API, không inject Alpine directives.
+- [x] `ProjectManager.openProject()` đã gọi `PluginManager.ensureLoaded().then(...renderWorkspaceTabs())`.
+- [x] `ProjectManager.backToList()` đã reset tab và clear plugin tab container.
+- [ ] Còn lỗi UI: plugin tabs vẫn dùng class `tab-button ...`, không dùng `workspace-sub-tab`; cần sửa để thống nhất typography.
+
+### Phase 4 — Sửa frontend API dùng project slug `[~] mostly done, còn text OCR Reader`
 
 Mục tiêu:
 
@@ -497,7 +664,13 @@ Kiểm tra sau phase:
 - Request URL phải có dạng `/api/projects/<slug>/plugins/...`.
 - Không có request `/api/projects/[object Object]/...`.
 
-### Phase 5 — Sửa backend plugin execution project-scoped
+Ghi nhận review 2026-06-15:
+
+- [x] `UiHelpers.getCurrentProjectSlug()` đã được thêm.
+- [x] `runEpubToText()`, `runTextToEpub()`, `runProjectOcr()` đã dùng `encodeURIComponent(slug)`.
+- [ ] Còn text `OCR Reader` tại các trạng thái button/log trong `runProjectOcr()`; cần đổi thành `OCR Toolbox`.
+
+### Phase 5 — Sửa backend plugin execution project-scoped `[ ] not done`
 
 Mục tiêu:
 
@@ -614,6 +787,14 @@ Unknown plugin update:
 
 1. Trong `update_plugin(plugin_id)`, nếu plugin id không nằm trong danh sách metadata hợp lệ và không phải core, trả 404 thay vì tạo entry mới.
 
+Ghi nhận review 2026-06-15:
+
+- [ ] `run_epub_converter(slug)` vẫn import `from plugins.epub_converter.plugin import Plugin` và gọi `plugin.convert(...)`.
+- [ ] `run_ocr(slug)` vẫn import `from plugins.ocr.plugin import Plugin` và gọi `plugin.convert(...)`.
+- [ ] `cleanup_plugin_progress()` vẫn duyệt trực tiếp `plugin_progress.items()`.
+- [ ] `update_plugin(plugin_id)` vẫn có thể tạo state cho plugin id lạ rồi trả `null`.
+- [ ] Chưa validate project slug trước khi tạo `plugin_id`/background thread.
+
 Kiểm tra sau phase:
 
 - `GET /api/plugins/list` trả đủ metadata.
@@ -622,7 +803,82 @@ Kiểm tra sau phase:
 - Bật eBook Kit, chạy EPUB -> Text với file test nhỏ, progress done/error rõ ràng.
 - Bật OCR Toolbox, gọi OCR với input không tồn tại trả progress error rõ ràng, không crash server.
 
-### Phase 6 — Test hồi quy bắt buộc
+### Phase 6 — Chuẩn hóa typography workspace tabs và bottom status bar `[ ] new after review`
+
+Mục tiêu:
+
+- `Biên tập`, `Thông tin`, `Chỉ dẫn`, `eBook Kit`, `OCR Toolbox` có cùng font size, weight, line-height, height, casing.
+- Giữ đúng casing tự nhiên theo nhãn: `Biên tập`, `Thông tin`, `Chỉ dẫn`, `eBook Kit`, `OCR Toolbox`. Không ép uppercase.
+- Khu vực status bar `Bản gốc: 0 ký tự | 0 từ | ~0 tokens` có cỡ chữ tương ứng với text phụ/button trong cùng workspace, không lớn hơn hẳn các khu vực khác.
+
+Root cause UI hiện tại:
+
+- `.workspace-sub-tab` trong `webui/static/css/style.css` đang có `text-transform: uppercase` và `letter-spacing: 0.03em`, làm 3 tab gốc bị ép kiểu khác nhãn plugin.
+- Plugin tabs do `PluginManager.renderWorkspaceTabs()` tạo lại dùng class `tab-button pv2 ph3...`, không dùng `.workspace-sub-tab`, nên font/height/active style lệch với tab gốc.
+- Status bar trong `tab_projects.html` dòng `Bản gốc: ...` không có class font size (`f7`) và không có CSS riêng, nên inherit lớn hơn so với label/button xung quanh.
+
+Thao tác:
+
+1. Sửa `.workspace-sub-tab` trong `webui/static/css/style.css`:
+
+```css
+.workspace-sub-tab {
+    padding: 0.65rem 0.9rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+    ...
+}
+```
+
+2. Sửa `PluginManager.renderWorkspaceTabs()` để plugin tabs dùng cùng class:
+
+```js
+btn.className = 'workspace-sub-tab';
+```
+
+3. Sửa `PluginManager.syncWorkspaceTabButtons()` để chỉ toggle class `active`, không rewrite className bằng Tachyons:
+
+```js
+btn.classList.toggle('active', btn.dataset.workspaceTab === active);
+```
+
+4. Thêm class/CSS cho bottom status bar. Ưu tiên CSS để tránh rải Tachyons inline:
+
+```css
+.workspace-bottom-status {
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    color: var(--text-muted);
+}
+
+.workspace-bottom-status strong {
+    font-size: inherit;
+    line-height: inherit;
+}
+```
+
+5. Trong `webui/templates/partials/tab_projects.html`, thêm class vào các wrapper hoặc span status:
+
+```html
+<div id="pm-translation-bottom-bar" class="... workspace-bottom-status">
+...
+<div id="pm-spellcheck-bottom-bar" class="... workspace-bottom-status">
+```
+
+6. Kiểm tra không có tab nào bị cao/thấp khác nhau khi bật/tắt plugin.
+
+Kiểm tra sau phase:
+
+- Mở project với cả hai plugin enabled.
+- Nhìn cùng hàng tab: 5 nhãn có cùng baseline/height/font weight.
+- Không có nhãn bị ép uppercase.
+- `Bản gốc: 0 ký tự | 0 từ | ~0 tokens` cùng cỡ với text phụ/button quanh nó, không nổi quá lớn.
+- Resize browser hẹp hơn, tab không wrap/đè lên toolbar.
+
+### Phase 7 — Test hồi quy bắt buộc `[ ] blocked until Phase 2/5/6 pass`
 
 Mục tiêu:
 
