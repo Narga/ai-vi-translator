@@ -506,7 +506,7 @@ const UiHelpers = {
         if (!input_path) {
             UiHelpers.pluginLog('ocr-log', '❌ Vui lòng nhập đường dẫn file PDF/Ảnh!', 'error');
             btn.disabled = false;
-            btn.textContent = '🚀 Chạy OCR Reader';
+            btn.textContent = '🚀 Chạy OCR Toolbox';
             return;
         }
 
@@ -531,16 +531,16 @@ const UiHelpers = {
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(data => {
             if (data.plugin_id) {
-                UiHelpers.pollPluginProgress(data.plugin_id, 'ocr-log', btn, '🚀 Chạy OCR Reader');
+                UiHelpers.pollPluginProgress(data.plugin_id, 'ocr-log', btn, '🚀 Chạy OCR Toolbox');
             } else {
                 UiHelpers.pluginLog('ocr-log', '❌ ' + (data.error || 'Lỗi không xác định'), 'error');
                 btn.disabled = false;
-                btn.textContent = '🚀 Chạy OCR Reader';
+                btn.textContent = '🚀 Chạy OCR Toolbox';
             }
         }).catch(e => {
             UiHelpers.pluginLog('ocr-log', '❌ Lỗi kết nối: ' + e.message, 'error');
             btn.disabled = false;
-            btn.textContent = '🚀 Chạy OCR Reader';
+            btn.textContent = '🚀 Chạy OCR Toolbox';
         });
     },
 

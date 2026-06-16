@@ -65,7 +65,7 @@ window.PluginManager = {
         this.getEnabledWorkspacePlugins().forEach(plugin => {
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim gray';
+            btn.className = 'workspace-sub-tab';
             btn.dataset.workspaceTab = plugin.workspace_tab;
             btn.textContent = plugin.name;
             btn.addEventListener('click', () => this.setWorkspaceTab(plugin.workspace_tab));
@@ -79,11 +79,7 @@ window.PluginManager = {
         const store = this.getWorkspaceStore();
         const active = store ? store.wsTab : 'editor';
         document.querySelectorAll('#pm-plugin-workspace-tabs [data-workspace-tab]').forEach(btn => {
-            if (btn.dataset.workspaceTab === active) {
-                btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim blue bb bw2 b--blue fw6';
-            } else {
-                btn.className = 'tab-button pv2 ph3 bn bg-transparent pointer dim gray';
-            }
+            btn.classList.toggle('active', btn.dataset.workspaceTab === active);
         });
     },
 
