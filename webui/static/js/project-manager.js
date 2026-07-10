@@ -110,7 +110,8 @@ const Icons = {
     delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
     spellcheck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/></svg>',
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-    wrap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg>'
+    wrap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg>',
+    convert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13l-4 4-4-4"/></svg>'
 };
 
 window.Icons = Icons;
@@ -471,7 +472,9 @@ const ProjectManager = {
                     </div>
                 </div>
                 <div class="file-item-meta">
-                    <span>${f.size_display || ''}</span>
+                    <div class="flex items-center gap-1">
+                        <span>${f.size_display || ''}</span>
+                    </div>
                     <div class="file-item-actions">
                         <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Đổi tên">${Icons.rename}</button>
                         <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Xóa" class="red">${Icons.delete}</button>
@@ -517,8 +520,10 @@ const ProjectManager = {
                             </div>
                         </div>
                         <div class="file-item-meta">
-                            <span>${f.size_display || ''}</span>
-                            <span class="file-done-dot" title="Đã soát xong"></span>
+                            <div class="flex items-center gap-1">
+                                <span>${f.size_display || ''}</span>
+                                <span class="file-done-dot" title="Đã soát xong"></span>
+                            </div>
                             <div class="file-item-actions">
                                 <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'spelling')" title="Xóa" class="red">${Icons.delete}</button>
                             </div>
@@ -757,13 +762,19 @@ const ProjectManager = {
         ProjectManager.updateSelectAllTranslatedButton();
     },
 
-    selectAllProjectFiles() {
+    selectAllProjectFiles(checked) {
         if (!window.currentProject) return;
         const allSources = window.currentProject.sources || [];
-        if (window.selectedFiles.size === allSources.length && allSources.length > 0) {
-            window.selectedFiles.clear();
-        } else {
+        
+        // If checked is not boolean, toggle based on current size
+        if (typeof checked !== 'boolean') {
+            checked = !(window.selectedFiles.size === allSources.length && allSources.length > 0);
+        }
+        
+        if (checked) {
             allSources.forEach(f => window.selectedFiles.add(f.name));
+        } else {
+            allSources.forEach(f => window.selectedFiles.delete(f.name));
         }
         ProjectManager.updateSelectAllButton();
         ProjectManager.renderPmFileList(allSources);
@@ -904,7 +915,13 @@ const ProjectManager = {
         return this.deleteSelectedSpellFiles();
     },
 
-    selectAllSidebarFiles() {
+    selectAllSidebarFiles(checked) {
+        // If checked is not boolean, read it from checkbox
+        if (typeof checked !== 'boolean') {
+            const chk = document.getElementById('chk-select-all-sidebar');
+            checked = chk ? chk.checked : false;
+        }
+
         const sourcesBtn = document.getElementById('pm-tab-sources');
         const translatedBtn = document.getElementById('pm-tab-translated');
         const spellingBtn = document.getElementById('pm-tab-spelling');
@@ -914,7 +931,7 @@ const ProjectManager = {
         const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
         
         if (isTranslatedActive) {
-            ProjectManager.selectAllTranslatedFiles();
+            ProjectManager.selectAllTranslatedFiles(checked);
         } else if (isSpellingActive) {
             // For spelling tab, select all visible spelling files
             if (!window.currentProject) return;
@@ -923,17 +940,17 @@ const ProjectManager = {
                 .then(r => r.json())
                 .then(files => {
                     const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
-                    if (window.selectedFiles.size === visibleFiles.length && visibleFiles.length > 0) {
-                        window.selectedFiles.clear();
-                    } else {
+                    if (checked) {
                         visibleFiles.forEach(f => window.selectedFiles.add(f.name));
+                    } else {
+                        visibleFiles.forEach(f => window.selectedFiles.delete(f.name));
                     }
                     ProjectManager.updateSelectAllButton();
                     ProjectManager.renderPmSpellcheckedList();
                 });
         } else {
             // Default to sources
-            ProjectManager.selectAllProjectFiles();
+            ProjectManager.selectAllProjectFiles(checked);
         }
     },
 
@@ -1087,7 +1104,7 @@ const ProjectManager = {
             const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
             const dot = options.getDot ? options.getDot(f, isActive) : '';
             const dirty = options.getDirty ? options.getDirty(f, isActive) : '';
-            const actions = options.getActions();
+            const actions = options.getActions(f);
             return `
             <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="${options.getOnclick()}">
                 <div class="flex items-center gap-2">
@@ -1097,8 +1114,10 @@ const ProjectManager = {
                     </div>
                 </div>
                 <div class="file-item-meta">
-                    <span>${f.size_display || ''}</span>
-                    ${dot}
+                    <div class="flex items-center gap-1">
+                        <span>${f.size_display || ''}</span>
+                        ${dot}
+                    </div>
                     <div class="file-item-actions">${actions}</div>
                 </div>
             </div>`;
@@ -1110,11 +1129,17 @@ const ProjectManager = {
             getOnclick: () => `EditorComponent.loadPmProjectFile(this.dataset.filename,'sources')`,
             getDirty: (f, isActive) => isActive && DirtyState.isDirty('pm-result-text') ? '<span class="red fw6 ml1">*</span>' : '',
             getDot: f => f.has_translation ? '<span class="file-done-dot" title="Đã dịch xong"></span>' : '',
-            getActions: () => `
+            getActions: (f) => {
+                const nameLower = f.name.toLowerCase();
+                const isHtml = nameLower.endsWith('.html') || nameLower.endsWith('.htm') || nameLower.endsWith('.xhtml');
+                const convertBtn = isHtml ? `<button onclick="event.stopPropagation();ProjectManager.convertSingleFileToMarkdown(this.closest('.file-item-compact').dataset.filename)" title="Chuyển Markdown">${Icons.convert}</button>` : '';
+                return `
                 <button onclick="event.stopPropagation();TranslationWorker.translateFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Dịch">${Icons.translate}</button>
+                ${convertBtn}
                 <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Soát lỗi AI">${Icons.spellcheck}</button>
                 <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Đổi tên">${Icons.rename}</button>
-                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`
+                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`;
+            }
         });
     },
 
@@ -1412,13 +1437,19 @@ const ProjectManager = {
             }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
     },
 
-    selectAllTranslatedFiles() {
+    selectAllTranslatedFiles(checked) {
         if (!window.currentProject) return;
         const allTranslated = window.currentProject.translated || [];
-        if (window.selectedTranslatedFiles.size === allTranslated.length && allTranslated.length > 0) {
-            window.selectedTranslatedFiles.clear();
-        } else {
+        
+        // If checked is not boolean, toggle based on current size
+        if (typeof checked !== 'boolean') {
+            checked = !(window.selectedTranslatedFiles.size === allTranslated.length && allTranslated.length > 0);
+        }
+        
+        if (checked) {
             allTranslated.forEach(f => window.selectedTranslatedFiles.add(f.name));
+        } else {
+            allTranslated.forEach(f => window.selectedTranslatedFiles.delete(f.name));
         }
         ProjectManager.updateSelectAllTranslatedButton();
         ProjectManager.renderPmTranslatedList(allTranslated);
@@ -1454,6 +1485,86 @@ const ProjectManager = {
             if (data.slug) ProjectManager.openProject(data.slug);
         })
         .catch(e => UiHelpers.showToast('Lỗi tạo dự án: ' + e.message, 'error'));
+    },
+
+    async convertSelectedToMarkdown() {
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án', 'error');
+            return;
+        }
+
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const translatedBtn = document.getElementById('pm-tab-translated');
+        const spellingBtn = document.getElementById('pm-tab-spelling');
+
+        const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
+        const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
+
+        let selected = window.selectedFiles;
+        if (isTranslatedActive) {
+            selected = window.selectedTranslatedFiles;
+        }
+
+        if (!selected || selected.size === 0) {
+            UiHelpers.showToast('Chưa chọn tập tin HTML/XHTML nào để chuyển đổi', 'error');
+            return;
+        }
+
+        const htmlFiles = [...selected].filter(f => f.toLowerCase().endsWith('.html') || f.toLowerCase().endsWith('.htm') || f.toLowerCase().endsWith('.xhtml'));
+        if (htmlFiles.length === 0) {
+            UiHelpers.showToast('Các tập tin đã chọn không phải định dạng HTML/XHTML (.html, .htm, .xhtml)', 'error');
+            return;
+        }
+
+        const slug = window.currentProject.slug;
+        UiHelpers.showToast(`Đang chuyển đổi ${htmlFiles.length} tập tin sang Markdown...`, 'info');
+
+        try {
+            const response = await fetch(`/api/projects/${slug}/convert-markdown`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filenames: htmlFiles })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                UiHelpers.showToast(`Đã chuyển đổi thành công sang Markdown`, 'success');
+                selected.clear();
+                ProjectManager.openProject(slug);
+            } else {
+                UiHelpers.showToast(result.errors ? result.errors.join(', ') : 'Lỗi khi chuyển đổi', 'error');
+            }
+        } catch (err) {
+            console.error('Convert markdown error:', err);
+            UiHelpers.showToast('Lỗi kết nối khi gửi yêu cầu chuyển đổi', 'error');
+        }
+    },
+
+    async convertSingleFileToMarkdown(filename) {
+        if (!window.currentProject) {
+            UiHelpers.showToast('Chưa chọn dự án', 'error');
+            return;
+        }
+        const slug = window.currentProject.slug;
+        UiHelpers.showToast(`Đang chuyển đổi ${filename} sang Markdown...`, 'info');
+        try {
+            const response = await fetch(`/api/projects/${slug}/convert-markdown`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filenames: [filename] })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                UiHelpers.showToast(`Đã chuyển đổi thành công sang Markdown`, 'success');
+                ProjectManager.openProject(slug);
+            } else {
+                UiHelpers.showToast(result.errors ? result.errors.join(', ') : 'Lỗi khi chuyển đổi', 'error');
+            }
+        } catch (err) {
+            console.error('Convert markdown error:', err);
+            UiHelpers.showToast('Lỗi kết nối khi gửi yêu cầu chuyển đổi', 'error');
+        }
     }
 };
 

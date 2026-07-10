@@ -137,6 +137,11 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 - [x] **Backend Plugin Routes**: Routes project-scoped cho EPUB/OCR, `config/plugins.json`, middleware kiểm tra trạng thái
 - [x] **Plugin Integration Regression Fixes**: Sửa Alpine store, lifecycle, tab UI, API URL, backend execution
 
+### ✅ Đã hoàn thành (v7.9.0)
+- [x] **Tiền xử lý HTML/XHTML sang Markdown**: Module `core/source_normalizer.py` bóc tách body, convert ruby `漢字《かな》`, giữ nguyên `<u>` và dọn dẹp rác CSS offline.
+- [x] **API Route & UI Integration**: POST API `/api/projects/<slug>/convert-markdown`, thêm nút bấm Chuyển Markdown hàng loạt và nút đơn lẻ tại mini toolbar của từng file.
+- [x] **Cải tiến Sidebar & Status Bar**: Cấu trúc lại metadata dòng file tránh xô lệch layout, sửa lỗi checkbox chọn/bỏ chọn tất cả hoạt động sai, và hiển thị file đang mở trên status bar dưới cùng.
+
 ### 🔴 Cần làm (tương lai)
 - [ ] **Unit Tests**: executor force_retranslate, route tm/clear, route translate with force_retranslate
 - [ ] **Plugin Manager Unit Tests**: test toggle, list, enabled/disabled workflow
@@ -208,4 +213,4 @@ Tài liệu này theo dõi các giai đoạn phát triển của dự án, tập
 
 ---
 
-*Cập nhật lần cuối: 2026-06-16 (v7.8.0)
+*Cập nhật lần cuối: 2026-07-10 (v7.9.0)

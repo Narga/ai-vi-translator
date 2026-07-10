@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.8.0)
+# 📚 Content Translator (v7.9.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v7.8.0):** Tái cấu trúc Plugin Navigation — xoá thẻ Công cụ, tích hợp eBook Kit và OCR Toolbox vào workspace dự án, thêm khung Quản lý Plugin trong tab Cấu hình với giao diện bật/tắt trực quan.
+**Tính năng mới (v7.9.0):** Tiền xử lý HTML/XHTML sang Markdown offline bằng BeautifulSoup/html2text, hỗ trợ convert trực tiếp trên UI, sửa lỗi chọn/bỏ chọn checkbox hàng loạt và hiển thị thông tin file đang mở trên thanh trạng thái.
 
 ---
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.8.0  
-**Ngày:** 16/06/2026
+**Phiên bản:** 7.9.0  
+**Ngày:** 10/07/2026

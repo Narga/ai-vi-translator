@@ -209,7 +209,7 @@ def detect_source_type(file_path: Path) -> bool:
     """
     if file_path.suffix.lower() == '.txt':
         return True
-    elif file_path.suffix.lower() in ['.md', '.markdown']:
+    elif file_path.suffix.lower() in ['.md', '.markdown', '.html', '.htm', '.xhtml']:
         return False
     else:
         # Mặc định coi như file text thuần túy

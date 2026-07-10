@@ -4,6 +4,20 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [7.9.0] - 2026-07-10
+### Tiền xử lý HTML/XHTML sang Markdown offline & Cải tiến UI Workspace
+
+**Tính năng Tiền xử lý Offline (HTML/XHTML → Markdown):**
+- Thêm module tiền xử lý `core/source_normalizer.py` hỗ trợ bóc tách nội dung trong thẻ `<body>`, chuyển đổi thẻ `<ruby>` sang định dạng `漢字《かな》`, giữ nguyên thẻ gạch chân `<u>` qua placeholder, và dọn dẹp các dòng trống/comment/CSS rác.
+- Tích hợp API route `POST /api/projects/<slug>/convert-markdown` trong `webui/routes/projects.py` hỗ trợ xử lý file `.html`, `.htm` và `.xhtml` ngoại tuyến (offline).
+- Cập nhật normalizer của dự án trong `plugins/translation/normalizer.py` để không loại bỏ định dạng Markdown đối với tệp `.html`, `.htm`, `.xhtml`, `.md` và `.markdown`.
+
+**Cải tiến Giao diện (WebUI Workspace):**
+- Thêm nút "Chuyển Markdown" (Batch convert) trên thanh công cụ đầu danh sách file tại `webui/templates/partials/tab_projects.html` và nút "Chuyển Markdown" riêng lẻ trên mini-toolbar dưới tên mỗi tệp.
+- Sửa lỗi không deselect (bỏ chọn tất cả) khi bỏ tích checkbox "Chọn tất cả" (`chk-select-all-sidebar`) trên các danh sách file (Sources, Translated, Spelling) trong `webui/static/js/project-manager.js`.
+- Cải thiện layout `.file-item-meta` trong `webui/static/css/style.css` sử dụng `justify-content: space-between` đẩy mini-toolbar sang sát lề phải, tránh xê dịch layout khi tên file quá dài.
+- Hiển thị tên file đang mở cùng trạng thái/thống kê ở thanh trạng thái (status bar) dưới cùng khi tải file trong `webui/static/js/editor-component.js`.
+
 ## [7.8.0] - 2026-06-16
 ### Tái cấu trúc Plugin Navigation & Quản lý Plugin
 

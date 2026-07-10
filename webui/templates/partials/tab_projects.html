@@ -108,12 +108,13 @@
                     <div class="file-list-sidebar" id="pm-file-sidebar">
                         <div class="file-list-sidebar-header">
                             <div class="flex items-center gap-2">
-                                <input type="checkbox" id="chk-select-all-sidebar" onclick="ProjectManager.selectAllSidebarFiles()" class="pointer" title="Chọn tất cả">
+                                <input type="checkbox" id="chk-select-all-sidebar" onclick="ProjectManager.selectAllSidebarFiles(this.checked)" class="pointer" title="Chọn tất cả">
                             </div>
                             <div class="icon-toolbar">
                                 <input type="file" id="pm-upload-source-file" class="dn" multiple onchange="uploadProjectFile()">
                                 <button id="pm-btn-upload-source" onclick="document.getElementById('pm-upload-source-file').click()" data-tooltip="Tải lên" aria-label="Tải lên"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
                                 <button id="pm-btn-chunk-source" onclick="ProjectManager.showChunkConfig()" data-tooltip="Chia nhỏ" aria-label="Chia nhỏ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/></svg></button>
+                                <button id="pm-btn-convert-markdown" onclick="ProjectManager.convertSelectedToMarkdown()" data-tooltip="Chuyển Markdown" aria-label="Chuyển Markdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13l-4 4-4-4"/></svg></button>
                                 <button id="pm-btn-translate-selected" onclick="TranslationWorker.translateSelectedInProject()" data-tooltip="Dịch đã chọn" aria-label="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
                                 <button id="pm-btn-spellcheck-selected" onclick="TranslationWorker.spellcheckSelectedInProject()" data-tooltip="Soát lỗi đã chọn" aria-label="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/></svg></button>
                                 <button id="pm-btn-merge-files" onclick="ProjectManager.mergeTranslatedFiles()" data-tooltip="Ghép tập tin" aria-label="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
@@ -202,7 +203,7 @@
                 <!-- Bottom bar dịch thuật -->
                 <div id="pm-translation-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0">
                     <div class="flex items-center gap-2 f7 gray">
-                        <span>Bản gốc: <strong id="pm-token-char-count">0</strong> ký tự | <strong id="pm-token-word-count">0</strong> từ | <strong id="pm-token-estimate" class="blue">~0</strong> tokens</span>
+                        <span><span id="pm-opened-file-status"></span>gồm có: <strong id="pm-token-char-count">0</strong> ký tự | <strong id="pm-token-word-count">0</strong> từ | ước lượng <strong id="pm-token-estimate" class="blue">~0</strong> tokens</span>
                         <span id="pm-selected-files-info" class="dn blue fw6"></span>
                     </div>
                     <div class="flex gap-2 items-center">
@@ -219,7 +220,7 @@
                 <!-- Bottom bar soát chính tả -->
                 <div id="pm-spellcheck-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0" style="display: none;">
                     <div class="flex items-center gap-2 f7 gray">
-                        <span>Bản gốc: <strong id="pm-spell-char-count">0</strong> ký tự | <strong id="pm-spell-word-count">0</strong> từ</span>
+                        <span><span id="pm-spell-opened-file-status"></span>gồm có: <strong id="pm-spell-char-count">0</strong> ký tự | <strong id="pm-spell-word-count">0</strong> từ</span>
                         <span id="pm-selected-spellcheck-info" class="dn blue fw6"></span>
                     </div>
                     <div class="flex gap-2">

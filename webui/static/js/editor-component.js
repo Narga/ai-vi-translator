@@ -28,6 +28,11 @@ const EditorComponent = {
         DirtyState.clean(prefix + 'spell-result-text');
         const slug = window.currentProject.slug;
 
+        const statusEl = document.getElementById(prefix + 'opened-file-status');
+        if (statusEl) {
+            statusEl.innerHTML = `<strong>Tập tin:</strong> <em>${filename}</em> | `;
+        }
+
         if (section === 'sources') {
             fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
                 document.getElementById(prefix + 'source-text').value = data.content || '';
@@ -63,6 +68,12 @@ const EditorComponent = {
         if (!window.currentProject) return;
         const slug = window.currentProject.slug;
         const infoName = EditorComponent.getSpellcheckInfoFilename(filename);
+
+        const statusEl = document.getElementById(prefix + 'spell-opened-file-status');
+        if (statusEl) {
+            statusEl.innerHTML = `<strong>Tập tin:</strong> <em>${filename}</em> | `;
+        }
+
         fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
             document.getElementById(prefix + 'spell-result-text').value = data.content || '';
             window.currentProjectFile = { name: filename, section: 'spelling' };

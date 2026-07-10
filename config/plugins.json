@@ -1,0 +1,8 @@
+{
+    "epub_converter": {
+        "enabled": true
+    },
+    "ocr": {
+        "enabled": true
+    }
+}

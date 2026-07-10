@@ -134,11 +134,12 @@ Khi plugin OCR Toolbox được bật, workspace project hiển thị tab **OCR 
 
 ### 🛠️ Công cụ Biên tập & Soát lỗi (v7.7.0+)
 Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-tab:
-- **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Click file để mở editor 2 cột (Nguồn + Bản dịch). Row actions: Dịch, Soát lỗi AI, Đổi tên, Xóa.
+- **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Click file để mở editor 2 cột (Nguồn + Bản dịch). Row actions: Dịch, Chuyển Markdown (đối với HTML/XHTML), Soát lỗi AI, Đổi tên, Xóa.
+- **📝 Tiền xử lý HTML/XHTML → Markdown**: Hỗ trợ chuyển đổi các tệp `.html`, `.htm`, và `.xhtml` sang định dạng Markdown sạch (`.md`) ngoại tuyến trực tiếp ngay trên WebUI (bằng nút "Chuyển Markdown" trên toolbar chính hoặc mini-toolbar của từng tệp). Quá trình này dùng BeautifulSoup/html2text để bóc tách thẻ `<body>`, dọn dẹp CSS/script/style rác, chuyển `<ruby>` sang `漢字《かな》`, giữ nguyên `<u>` và inlining reference links.
 - **Bản dịch**: File đã dịch xong. Click file để xem song song nguồn và bản dịch.
 - **Soát chính tả**: File đã được AI soát lỗi xong (chỉ hiển thị output, không hiển thị file nguồn chưa soát).
 - **Tự động clear selection**: Khi chuyển mini-tab, mọi lựa chọn đều được xoá để tránh thao tác nhầm.
-- **Toolbar icons**: Upload, Chia nhỏ, Dịch đã chọn, Soát lỗi đã chọn, Ghép tập tin, Xóa đã chọn — hiển thị tuỳ theo mini-tab.
+- **Toolbar icons**: Upload, Chia nhỏ, Chuyển Markdown, Dịch đã chọn, Soát lỗi đã chọn, Ghép tập tin, Xóa đã chọn — hiển thị tuỳ theo mini-tab.
 - **↩️ Wrap (Ngắt dòng)**: Tự động xuống dòng văn bản để hiển thị vừa vặn trong khung soạn thảo mà không cần cuộn ngang. Hữu ích khi làm việc với các đoạn văn dài.
 - **📊 Diff (So sánh)**: Hiển thị sự khác biệt giữa nội dung nguồn và nội dung đích trong một cửa sổ modal chuyên biệt, giúp bạn dễ dàng đối soát các thay đổi hoặc lỗi mất đoạn.
 - **🧩 Ghép tập tin (Smart Merge)**: 
