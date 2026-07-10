@@ -1,4 +1,4 @@
-# 📚 Content Translator (v7.9.0)
+# 📚 Content Translator (v8.0.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v7.9.0):** Tiền xử lý HTML/XHTML sang Markdown offline bằng BeautifulSoup/html2text, hỗ trợ convert trực tiếp trên UI, sửa lỗi chọn/bỏ chọn checkbox hàng loạt và hiển thị thông tin file đang mở trên thanh trạng thái.
+**Tính năng mới (v8.0.0):** Xóa Genre + Viết lại Prompt Subsystem (Library + Project copy), nút dừng tiến trình dịch, validate model theo provider, đổi tên hàng loạt file.
 
 ---
 

@@ -385,7 +385,6 @@ def ensure_default_project():
         "name": "Dịch nhanh",
         "slug": slug,
         "description": "Dự án mặc định cho các tác vụ dịch lẻ",
-        "genre": "",
         "status": "active",
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),

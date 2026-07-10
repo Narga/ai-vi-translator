@@ -12,7 +12,6 @@ window.availableGeminiModels = [];
 window.availableOpenAIModels = [];
 window.defaultModel = window.initialDefaultModel || '';
 window.currentDoneFile = '';
-window.currentGenre = '';
 window.currentProject = null;
 window.currentProjectFile = null;
 window.currentModelInfo = null;
@@ -65,7 +64,7 @@ function initTabs() {
             if (targetId === 'archive') ApiClient.loadArchiveList();
             if (targetId === 'logs') ApiClient.loadLogList();
             if (targetId === 'projects') ProjectManager.loadProjectCards();
-            if (targetId === 'prompts') PromptManager.loadGenres();
+            if (targetId === 'prompts') PromptManager.loadLibrary();
             if (targetId === 'config') {
                 ApiClient.loadApiKeys();
                 if (typeof OpenAIProvider !== 'undefined') OpenAIProvider.loadProviders();
@@ -179,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
     ProjectManager.loadProjectCards();
     ApiClient.loadStats();
     ApiClient.loadModels();
-    PromptManager.loadGenres();
+    PromptManager.loadLibrary();
     ApiClient.loadApiKeys();
     UiHelpers.initProvider();
     UiHelpers.restoreAppState();
@@ -229,15 +228,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Cache button removed: Translation Cache is deprecated
 
-    // Prompt Manager buttons
-    const btnDelGenre = document.getElementById('btn-delete-genre');
-    if (btnDelGenre) btnDelGenre.addEventListener('click', PromptManager.deleteGenre);
-    const btnCloneGenre = document.getElementById('btn-clone-genre');
-    if (btnCloneGenre) btnCloneGenre.addEventListener('click', PromptManager.cloneGenre);
-    const btnSaveGenre = document.getElementById('btn-save-genre');
-    if (btnSaveGenre) btnSaveGenre.addEventListener('click', PromptManager.saveGenre);
-    const btnUseGenre = document.getElementById('btn-use-genre');
-    if (btnUseGenre) btnUseGenre.addEventListener('click', PromptManager.useGenre);
+    // Library buttons
+    const btnNewLibrary = document.getElementById('btn-new-library');
+    if (btnNewLibrary) btnNewLibrary.addEventListener('click', () => PromptManager.showNewLibraryModal());
+    const btnSaveProjectPrompts = document.getElementById('btn-save-project-prompts');
+    if (btnSaveProjectPrompts) btnSaveProjectPrompts.addEventListener('click', () => PromptManager.saveProjectPrompts());
+    const btnResetProjectPrompts = document.getElementById('btn-reset-project-prompts');
+    if (btnResetProjectPrompts) btnResetProjectPrompts.addEventListener('click', () => PromptManager.resetProjectPrompts());
 
 
 });

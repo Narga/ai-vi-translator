@@ -86,9 +86,9 @@ class TestWebUIRoutesBasic:
         data = response.get_json()
         assert isinstance(data, list)
 
-    def test_api_prompt_sets_route(self, flask_client):
-        """Test rằng route /api/prompt-sets trả về 200."""
-        response = flask_client.get("/api/prompt-sets")
+    def test_api_prompt_library_route(self, flask_client):
+        """Test rằng route /api/prompts/library trả về 200."""
+        response = flask_client.get("/api/prompts/library")
         assert response.status_code == 200
         data = response.get_json()
         assert isinstance(data, list)

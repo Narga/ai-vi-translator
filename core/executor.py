@@ -99,6 +99,10 @@ class TranslationExecutor:
         logging.root.addHandler(ui_log_handler)
 
         try:
+            # Reset cancel state trước khi chạy
+            from backend.infrastructure.progress.runtime_state import RuntimeState
+            RuntimeState().reset_cancel()
+
             # 1. Chunking
             emit("progress", percent=5, message="Đang chia nhỏ văn bản...")
             chunk_size = self.config.get("chunk_size", 22000)
@@ -147,6 +151,12 @@ class TranslationExecutor:
 
             for i in range(start_index, len(chunks)):
                 chunk = chunks[i]
+
+                # Check cancel request
+                from backend.infrastructure.progress.runtime_state import RuntimeState
+                if RuntimeState().is_cancelled():
+                    emit("info", message="Đã dừng theo yêu cầu")
+                    break
                 
                 # Granular progress within a chunk
                 base_percent = 10 + int((i / len(chunks)) * 90)

@@ -37,7 +37,7 @@ python webui.py --port 7860
 Sau đó truy cập địa chỉ `http://localhost:7860` trên trình duyệt. Tại đây bạn có thể:
 - Quản lý các dự án dịch thuật (Project-based Workspace).
 - Xem tiến độ dịch thời gian thực (SSE Streaming).
-- Chỉnh sửa Prompt cho từng thể loại truyện (Genre-based Prompt Sets).
+- Quản lý Thư viện Prompt và Chỉ dẫn tùy chỉnh cho từng dự án.
 - Sử dụng Translation Memory tự động ghi nhớ bản dịch.
 - Chạy EPUB Converter và OCR trực tiếp từ giao diện.
 
@@ -79,8 +79,8 @@ my-novel/
 ### 🧠 Bộ nhớ Dịch thuật (Translation Memory)
 Hệ thống tự động ghi nhớ các câu đã dịch. Nếu gặp lại câu tương tự ≥85%, hệ thống sẽ gợi ý hoặc tự động áp dụng để tiết kiệm API và đảm bảo tính nhất quán.
 
-### 🎭 Prompt theo Thể loại (Genre-based Prompt Sets)
-Tạo các bộ prompt riêng cho từng thể loại truyện (Tiên hiệp, Đô thị, Ngôn tình...) và chuyển đổi linh hoạt.
+### 📚 Thư viện Prompt (Prompt Library)
+Tạo và quản lý các bộ prompt mẫu (Fantasy, Sci-Fi, Romance...). Nạp từng prompt từ thư viện vào dự án để tùy chỉnh.
 
 ### ⚙️ Cấu hình Tối ưu (config/app.ini)
 Bạn có thể tinh chỉnh các thông số kỹ thuật:
@@ -158,7 +158,7 @@ Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập ch�
 
 ### Các thao tác Quản lý
 1. **💾 Lưu chỉ dẫn dự án**: Khi bạn chỉnh sửa nội dung prompt và nhấn nút này, hệ thống sẽ tự động tạo một bản sao riêng cho dự án và lưu lại. Trạng thái sẽ chuyển từ "Hệ thống" sang "Dự án".
-2. **📥 Áp dụng vào dự án (Import)**: Chọn một thể loại truyện từ Thư viện (ví dụ: Tiên Hiệp) và nhấn nút này. Toàn bộ các prompt mẫu tối ưu cho thể loại đó sẽ được chép vào dự án của bạn.
+2. **📥 Nạp từ Thư viện**: Chọn một bộ prompt từ Thư viện (ví dụ: Fantasy) và chọn prompt cụ thể cần nạp. Prompt đó sẽ được sao chép vào dự án của bạn.
 3. **🗑️ Xóa chỉ dẫn riêng (Reset)**: Nếu bạn muốn dự án quay về sử dụng các quy tắc mặc định ban đầu, hãy nhấn nút này. Hệ thống sẽ xóa bản sao riêng và khôi phục trạng thái "Hệ thống".
 
 ---

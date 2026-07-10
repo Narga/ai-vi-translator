@@ -4,6 +4,48 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.0.0] - 2026-07-10
+### Cải tiến lớn: Xóa Genre, Viết lại Prompt Subsystem, Nút Dừng Dịch, Batch Rename
+
+**Issue 1: Sửa thông tin dự án không cập nhật danh sách**
+- Đổi priority hiển thị tên dự án từ `book_title || name` sang `name || book_title` trong `project-manager.js`.
+
+**Issue 8: Thống nhất nút Info**
+- Xóa nút "Thông tin" ở workspace header (tab_projects.html), chỉ giữ nút Info ở danh sách dự án.
+
+**Issue 5+6: XÓA TRIỆT ĐỂ GENRE + VIẾT LẠI PROMPT SUBSYSTEM**
+- **Xóa hoàn toàn concept "Genre"** khỏi toàn bộ codebase (17+ điểm dính genre).
+- **Kiến trúc mới:** `default/` (gốc hệ thống) → `library/<slug>/` (thư viện bộ prompt mẫu) → `projects/<slug>/prompt/` (copy tùy chỉnh).
+- **Backend:** Viết lại `PromptService` với library CRUD, merge logic default + project override. Viết lại `webui/routes/prompts.py` với API mới: `/api/prompts/library/*` và `/api/projects/<slug>/prompts/*`.
+- **Frontend:** Viết lại `tab_prompts.html` với UI Library + Project editors. Viết lại `prompt-manager.js` với `loadLibrary()`, `selectLibrarySet()`, `importFromLibrary()`, `saveProjectPrompts()`, `resetProjectPrompts()`.
+- **Dọn genre:** Xóa genre modal, genre form, genre badge, genre listeners khỏi `modals.html`, `tab_projects.html`, `main.js`, `ui-helpers.js`, `project-manager.js`.
+- **Clear logic:** File rỗng → unlink (quay về default). Project mới KHÔNG auto-copy default.
+- Cập nhật `MANUAL.md`, `DEVELOPMENT.md`.
+
+**Issue 3: Nút dừng tiến trình dịch**
+- Thêm `cancel state` (`_cancel`, `request_cancel()`, `is_cancelled()`, `reset_cancel()`) trong `RuntimeState`.
+- Thêm endpoint `POST /api/translate/cancel` trong `translation.py`.
+- Check cancel trong `executor.py` sau mỗi chunk.
+- Thêm nút "Dừng" trong progress modal, `stopTranslation()` trong `translation-worker.js`.
+- Double-click guard: disable nút Dịch 3s sau khi bấm.
+
+**Issue 4: Config model sai (Gemini → chạy OpenAI)**
+- Validate `default_model` thuộc danh sách model của `provider_type` trong `projects.py` (translate + spellcheck). Sai → fallback model đúng + log warning.
+- Fix `settings_facade.get_provider_info` trả provider **active** thay vì provider openai đầu tiên khi Gemini đang active.
+
+**Issue 2+7: Toolbar refactor + Đổi tên hàng loạt**
+- Thêm nút "Đổi tên hàng loạt" vào `icon-toolbar` trong `tab_projects.html`.
+- Thêm modal `batch-rename-modal` trong `modals.html` với pattern `{N}`, start, zero-pad.
+- Thêm backend endpoint `POST /api/projects/<slug>/rename-batch` trong `projects.py`.
+- Thêm `showBatchRenameModal()` và `executeBatchRename()` trong `project-manager.js`.
+
+**Files changed (20 files, -756/+717 lines):**
+- Backend: `prompt_service.py`, `prompts.py`, `projects.py`, `project_service.py`, `runtime_state.py`, `executor.py`, `translation.py`, `settings_facade.py`, `helpers.py`
+- Frontend: `tab_prompts.html`, `prompt-manager.js`, `main.js`, `ui-helpers.js`, `project-manager.js`, `translation-worker.js`, `modals.html`, `tab_projects.html`
+- Docs: `MANUAL.md`, `DEVELOPMENT.md`, `test_webui_app_factory.py`
+
+---
+
 ## [7.9.0] - 2026-07-10
 ### Tiền xử lý HTML/XHTML sang Markdown offline & Cải tiến UI Workspace
 

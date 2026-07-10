@@ -583,26 +583,7 @@ const UiHelpers = {
 
     // Init dialogs
     initDialogs() {
-        document.getElementById('btn-new-genre').addEventListener('click', () => {
-            ModalManager.show('new-genre-modal');
-        });
-
-        document.getElementById('btn-cancel-genre').addEventListener('click', () => {
-            ModalManager.hide('new-genre-modal');
-        });
-
-        document.getElementById('btn-confirm-new-genre').addEventListener('click', (e) => {
-            PromptManager.createGenre(e);
-            ModalManager.hide('new-genre-modal');
-        });
-
-        document.getElementById('new-genre-name').addEventListener('input', function () {
-            const slug = this.value.toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-                .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-            document.getElementById('new-genre-slug').value = slug;
-        });
+        // Genre dialogs removed - library managed via prompt-manager.js
     },
 
     // Restore app state

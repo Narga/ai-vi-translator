@@ -50,6 +50,7 @@ class RuntimeState:
             "tm_hits": 0,
         }
         self.translation_memory = None
+        self._cancel = False
 
         logger.info("RuntimeState initialized")
 
@@ -69,6 +70,18 @@ class RuntimeState:
     def get_translation_result(self) -> Dict[str, Any]:
         """Get translation result."""
         return self.translation_result
+
+    def request_cancel(self) -> None:
+        """Yêu cầu dừng dịch."""
+        self._cancel = True
+
+    def is_cancelled(self) -> bool:
+        """Kiểm tra có yêu cầu dừng không."""
+        return self._cancel
+
+    def reset_cancel(self) -> None:
+        """Reset cancel state trước khi chạy job mới."""
+        self._cancel = False
 
     @classmethod
     def reset(cls) -> None:

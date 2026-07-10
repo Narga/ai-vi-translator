@@ -68,33 +68,31 @@ class SettingsFacade:
             "providers": providers_list,
         }
 
-        # openai_config: trả full key cho UI cấu hình nội bộ
-        if active_type == "openai" and active_config:
-            result["openai_config"] = {
-                "provider_id": active_config["id"],
-                "provider_name": active_config.get("name", ""),
-                "base_url": active_config.get("base_url", ""),
-                "model": active_config.get("default_model", ""),
-                "has_key": bool(active_config.get("api_key")),
-                "api_key": active_config.get("api_key", ""),
-            }
-        else:
-            # Gemini active: trả openai_config từ provider openai đầu tiên
-            openai_providers = provider_service.get_providers_by_type("openai")
-            if openai_providers:
-                first = openai_providers[0]
+        # Trả config của provider đang active
+        if active_config:
+            if active_type == "openai":
                 result["openai_config"] = {
-                    "provider_id": first["id"],
-                    "provider_name": first.get("name", ""),
-                    "base_url": first.get("base_url", ""),
-                    "model": first.get("default_model", ""),
-                    "has_key": bool(first.get("api_key")),
-                    "api_key": first.get("api_key", ""),
+                    "provider_id": active_config["id"],
+                    "provider_name": active_config.get("name", ""),
+                    "base_url": active_config.get("base_url", ""),
+                    "model": active_config.get("default_model", ""),
+                    "has_key": bool(active_config.get("api_key")),
+                    "api_key": active_config.get("api_key", ""),
                 }
             else:
+                # Gemini active: trả config từ provider đang active
                 result["openai_config"] = {
-                    "base_url": "", "model": "", "has_key": False, "api_key": "",
+                    "provider_id": active_config["id"],
+                    "provider_name": active_config.get("name", ""),
+                    "base_url": active_config.get("base_url", ""),
+                    "model": active_config.get("default_model", ""),
+                    "has_key": bool(active_config.get("api_keys")),
+                    "api_key": "",
                 }
+        else:
+            result["openai_config"] = {
+                "base_url": "", "model": "", "has_key": False, "api_key": "",
+            }
 
         return result
 

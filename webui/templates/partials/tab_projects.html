@@ -18,12 +18,6 @@
                     <input type="text" id="new-project-author" class="w-100 pa2 ba b--black-20 br2 f6 outline-0" placeholder="Nhập tên tác giả...">
                 </div>
                 <div>
-                    <label class="f7 fw6 gray db mb1">Thể loại</label>
-                    <select id="new-project-genre-new" class="w-100 pa2 ba b--black-20 br2 f6 outline-0">
-                        <option value="">— Chọn thể loại —</option>
-                    </select>
-                </div>
-                <div>
                     <label class="f7 fw6 gray db mb1">Mô tả</label>
                     <textarea id="new-project-desc-new" class="w-100 pa2 ba b--black-20 br2 f6 outline-0 no-resize" rows="3" placeholder="Mô tả ngắn về dự án..."></textarea>
                 </div>
@@ -67,7 +61,6 @@
                 </div>
             </div>
                     <div class="flex gap-2">
-                        <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.showProjectInfoModal()" title="Thông tin dự án">Thông tin</button>
                         <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="ProjectManager.clearProjectTM()" title="Đặt lại bộ nhớ dịch riêng của dự án này">Đặt lại bộ nhớ dịch</button>
                     </div>
         </div>
@@ -119,6 +112,7 @@
                                 <button id="pm-btn-spellcheck-selected" onclick="TranslationWorker.spellcheckSelectedInProject()" data-tooltip="Soát lỗi đã chọn" aria-label="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/></svg></button>
                                 <button id="pm-btn-merge-files" onclick="ProjectManager.mergeTranslatedFiles()" data-tooltip="Ghép tập tin" aria-label="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
                                 <button id="pm-btn-delete-selected" onclick="ProjectManager.deleteSelectedSidebarFiles()" data-tooltip="Xóa đã chọn" aria-label="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                                <button id="pm-btn-rename-batch" onclick="ProjectManager.showBatchRenameModal()" data-tooltip="Đổi tên hàng loạt" aria-label="Đổi tên hàng loạt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -323,7 +317,6 @@
                 <span class="project-card-meta-item js-meta-files"></span>
                 <span class="project-card-meta-item js-meta-translated"></span>
                 <span class="project-card-meta-item js-meta-date"></span>
-                <span class="project-card-meta-item js-meta-genre" style="display: none;"></span>
                 <span class="project-card-status js-status"></span>
                 <div class="project-card-actions">
                     <button class="bg-white hover-bg-washed-blue js-btn-info" title="Thông tin dự án">ℹ️</button>

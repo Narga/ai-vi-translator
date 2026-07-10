@@ -1,183 +1,95 @@
 // ============================================================
-// prompt-manager.js — Genre-based prompt management
+// prompt-manager.js — Library + Project prompt management
 // ============================================================
 
 const PromptManager = {
-    currentGenre: '',
+    currentLibrarySet: '',
+    PROMPT_KEYS: ['main', 'summary', 'relationships', 'glossary', 'chinh_ta'],
 
-    loadGenres() {
-        fetch('/api/prompt-sets')
+    // ------------------------------------------------------------------
+    // Library CRUD
+    // ------------------------------------------------------------------
+
+    loadLibrary() {
+        fetch('/api/prompts/library')
             .then(r => r.json())
             .then(sets => {
-                const el = document.getElementById('genre-list');
-                if (!sets.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có Thể Loại nào</div>'; return; }
+                const el = document.getElementById('library-list');
+                if (!el) return;
+                if (!sets.length) { el.innerHTML = '<div class="pa4 tc silver i">Chưa có bộ prompt nào</div>'; return; }
                 el.innerHTML = sets.map(s =>
-                    `<div class="nt-genre-item pointer pa3 bb b--black-10 flex items-center justify-between transition-colors ${s.slug === PromptManager.currentGenre ? 'bg-light-blue bl bw2 b--blue' : ''}" onclick="PromptManager.selectGenre('${s.slug}')">
+                    `<div class="nt-library-item pointer pa3 bb b--black-10 flex items-center justify-between transition-colors ${s.slug === PromptManager.currentLibrarySet ? 'bg-light-blue bl bw2 b--blue' : ''}" onclick="PromptManager.selectLibrarySet('${s.slug}')">
                         <div>
-                            <div class="fw6 dark-gray">${s.name}</div>
+                            <div class="fw6 dark-gray">${s.name || s.slug}</div>
                             <div class="f7 silver mt1">${s.description || 'Không mô tả'}</div>
                         </div>
                         <span class="f7 fw6 br2 ph2 pv1 ${s.has_main ? '' : 'bg-light-gray silver'}">${s.has_main ? '🟢' : 'Trống'}</span>
                     </div>`
                 ).join('');
-
-                if (!PromptManager.currentGenre && sets.length > 0) {
-                    PromptManager.selectGenre(sets[0].slug);
-                }
             });
     },
 
-    selectGenre(slug) {
-        PromptManager.currentGenre = slug;
+    selectLibrarySet(slug) {
+        PromptManager.currentLibrarySet = slug;
+        this.loadLibrary();
 
-        const isDefault = (slug === 'default');
-        document.getElementById('btn-delete-genre').disabled = isDefault || !slug;
-        const btnUse = document.getElementById('btn-use-genre');
-        if (btnUse) btnUse.classList.toggle('dn', isDefault);
-
-        if (isDefault) {
-            document.getElementById('btn-delete-genre').title = 'Không thể xóa bộ mặc định';
-        } else {
-            document.getElementById('btn-delete-genre').title = '';
-        }
-
-        document.getElementById('genre-editor').classList.remove('dn');
-        document.getElementById('genre-editor').classList.add('flex');
-
-        fetch('/api/prompt-sets/' + slug)
-            .then(r => r.json())
-            .then(data => {
-                document.getElementById('genre-editor-title').innerHTML = '<span class="mr2">📝</span> ' + (data.meta.name || slug);
-                document.getElementById('genre-editor-desc').textContent = data.meta.description || '';
-                document.getElementById('genre-main-text').value = data.prompts.main || '';
-                document.getElementById('genre-summary-text').value = data.prompts.summary || '';
-                document.getElementById('genre-relationships-text').value = data.prompts.relationships || '';
-                document.getElementById('genre-glossary-text').value = data.prompts.glossary || '';
-                document.getElementById('genre-chinh-ta-text').value = data.prompts.chinh_ta || '';
-                PromptManager.loadGenres();
+        // Populate import dropdowns
+        this.PROMPT_KEYS.forEach(key => {
+            const sel = document.getElementById(`proj-${key}-import`);
+            if (!sel) return;
+            let opts = '<option value="">— Nạp từ thư viện —</option>';
+            // Fetch library list to populate
+            fetch('/api/prompts/library').then(r => r.json()).then(sets => {
+                sets.forEach(s => {
+                    opts += `<option value="${s.slug}">${s.name || s.slug}</option>`;
+                });
+                sel.innerHTML = opts;
             });
+        });
     },
 
-    async useGenre() {
-        if (!PromptManager.currentGenre || PromptManager.currentGenre === 'default') return;
-        if (!await showConfirm('Sử dụng bộ prompt "' + PromptManager.currentGenre + '" làm mặc định cho dịch thuật?')) return;
+    showNewLibraryModal() {
+        const name = prompt('Tên bộ prompt mới:');
+        if (!name) return;
+        const slug = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-        fetch('/api/prompt-sets/' + PromptManager.currentGenre + '/use', { method: 'POST' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    UiHelpers.showToast('Đã kích hoạt bộ prompt cho dịch thuật!', 'success');
-                    fetch('/api/prompt-sets/default')
-                        .then(r => r.json())
-                        .then(d => { window.prompts = d.prompts || {}; });
-                } else {
-                    UiHelpers.showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
-                }
-            });
-    },
-
-    cloneGenre() {
-        if (!PromptManager.currentGenre) return;
-        document.getElementById('new-genre-name').value = 'Bản sao ' + PromptManager.currentGenre;
-        document.getElementById('new-genre-slug').value = 'ban-sao-' + PromptManager.currentGenre;
-        document.getElementById('new-genre-desc').value = 'Nhân bản từ ' + PromptManager.currentGenre;
-        window.isCloning = true;
-        document.getElementById('new-genre-modal').style.display = 'flex';
-    },
-
-    createGenre(e) {
-        if (e) e.preventDefault();
-        const name = document.getElementById('new-genre-name').value.trim();
-        const slug = document.getElementById('new-genre-slug').value.trim() ||
-            name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        const desc = document.getElementById('new-genre-desc').value.trim();
-
-        if (!name) { UiHelpers.showToast('Tên thể loại không được rỗng!', 'error'); return; }
-
-        const promptsData = window.isCloning ? {
-            main: document.getElementById('genre-main-text').value,
-            summary: document.getElementById('genre-summary-text').value,
-            relationships: document.getElementById('genre-relationships-text').value,
-            glossary: document.getElementById('genre-glossary-text').value,
-            chinh_ta: document.getElementById('genre-chinh-ta-text').value,
-        } : { main: '', summary: '', relationships: '', glossary: '', chinh_ta: '' };
-        window.isCloning = false;
-
-        fetch('/api/prompt-sets', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, slug, description: desc, prompts: promptsData })
+        fetch('/api/prompts/library', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, slug, prompts: {} })
         }).then(r => r.json()).then(data => {
             if (data.success) {
-                document.getElementById('new-genre-name').value = '';
-                document.getElementById('new-genre-slug').value = '';
-                document.getElementById('new-genre-desc').value = '';
-                PromptManager.loadGenres();
-                PromptManager.selectGenre(data.slug);
                 UiHelpers.showToast(`Đã tạo bộ prompt: ${name}`, 'success');
+                PromptManager.loadLibrary();
+                PromptManager.selectLibrarySet(data.slug);
             } else {
-                UiHelpers.showToast('Lỗi khởi tạo: ' + (data.error || 'Unknown Error'), 'error');
+                UiHelpers.showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
             }
         });
     },
 
-    saveGenre() {
-        if (!PromptManager.currentGenre) {
-            UiHelpers.showToast('Vui lòng chọn một bộ prompt trước khi lưu!', 'error');
+    async deleteLibrarySet() {
+        if (!PromptManager.currentLibrarySet) return;
+        if (PromptManager.currentLibrarySet === 'default') {
+            UiHelpers.showToast('Không thể xóa bộ mặc định', 'error');
             return;
         }
-        const btn = document.getElementById('btn-save-genre');
-        const originalText = btn.textContent;
-        btn.textContent = '...Đang lưu...';
-        btn.disabled = true;
+        if (!await showConfirm('Xóa bộ prompt "' + PromptManager.currentLibrarySet + '"?', { danger: true })) return;
 
-        const payload = {
-            prompts: {
-                main: document.getElementById('genre-main-text').value,
-                summary: document.getElementById('genre-summary-text').value,
-                relationships: document.getElementById('genre-relationships-text').value,
-                glossary: document.getElementById('genre-glossary-text').value,
-                chinh_ta: document.getElementById('genre-chinh-ta-text').value,
-            }
-        };
-
-        fetch('/api/prompt-sets/' + PromptManager.currentGenre, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(r => { if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`); return r.json(); })
-        .then(data => {
-            if (data.success) UiHelpers.showToast('Lưu prompt hoàn tất!', 'success');
-            else UiHelpers.showToast('Lỗi lưu: ' + (data.error || 'Unknown'), 'error');
-        })
-        .catch(err => {
-            console.error('saveGenre error:', err);
-            UiHelpers.showToast('Lỗi kết nối server khi lưu prompt!', 'error');
-        })
-        .finally(() => {
-            btn.textContent = originalText;
-            btn.disabled = false;
-        });
-    },
-
-    async deleteGenre() {
-        if (!PromptManager.currentGenre) return;
-        if (!await showConfirm('Hành động này KHÔNG THỂ KHÔI PHỤC. Chắc chắn xóa "' + PromptManager.currentGenre + '"?', { danger: true })) return;
-        fetch('/api/prompt-sets/' + PromptManager.currentGenre, { method: 'DELETE' })
+        fetch('/api/prompts/library/' + PromptManager.currentLibrarySet, { method: 'DELETE' })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    PromptManager.currentGenre = '';
-                    const editorEl = document.getElementById('genre-editor');
-                    if (editorEl) {
-                        editorEl.classList.add('dn');
-                        editorEl.classList.remove('flex');
-                    }
-                    const btnDel = document.getElementById('btn-delete-genre');
-                    if (btnDel) btnDel.disabled = true;
-                    PromptManager.loadGenres();
+                    PromptManager.currentLibrarySet = '';
+                    PromptManager.loadLibrary();
+                    UiHelpers.showToast('Đã xóa bộ prompt', 'success');
                 }
             });
     },
+
+    // ------------------------------------------------------------------
+    // Project Prompts
+    // ------------------------------------------------------------------
 
     loadProjectPrompts() {
         if (!window.currentProject) return;
@@ -185,50 +97,44 @@ const PromptManager = {
         fetch(`/api/projects/${slug}/prompts`)
             .then(r => r.json())
             .then(data => {
-                const fields = {
-                    'pm-proj-prompt-main': data.main,
-                    'pm-proj-prompt-summary': data.summary,
-                    'pm-proj-prompt-relationships': data.relationships,
-                    'pm-proj-prompt-glossary': data.glossary,
-                    'pm-proj-prompt-chinh-ta': data.chinh_ta
-                };
-                for (const [id, val] of Object.entries(fields)) {
-                    const el = document.getElementById(id);
-                    if (el) el.value = val || '';
-                }
-                PromptManager._updatePromptStatusBadge(data.is_custom || false);
+                this.PROMPT_KEYS.forEach(key => {
+                    const el = document.getElementById(`proj-${key}-text`);
+                    if (el) el.value = data[key] || '';
+                    const status = document.getElementById(`proj-${key}-status`);
+                    if (status) {
+                        const isCustom = data.status && data.status[key];
+                        status.textContent = isCustom ? '✏️ Tùy chỉnh' : 'Mặc định';
+                        status.className = isCustom ? 'f7 fw6 blue' : 'f7 silver';
+                    }
+                });
+                this._updatePromptStatusBadge(data.is_custom || false);
+
+                // Populate import dropdowns
+                fetch('/api/prompts/library').then(r => r.json()).then(sets => {
+                    this.PROMPT_KEYS.forEach(key => {
+                        const sel = document.getElementById(`proj-${key}-import`);
+                        if (!sel) return;
+                        let opts = '<option value="">— Nạp từ thư viện —</option>';
+                        sets.forEach(s => {
+                            opts += `<option value="${s.slug}">${s.name || s.slug}</option>`;
+                        });
+                        sel.innerHTML = opts;
+                    });
+                });
             })
             .catch(err => console.error('Error loading project prompts:', err));
-
-        const sel = document.getElementById('pm-prompt-library-select');
-        if (sel) {
-            fetch('/api/prompt-sets').then(r => r.json()).then(data => {
-                const genres = (data || []).filter(g => g.slug !== 'default');
-                let opts = '<option value="">— Chọn bộ prompt —</option>';
-                opts += '<option value="default">📌 Mặc định (Hệ thống)</option>';
-                genres.forEach(g => { opts += `<option value="${g.slug}">📁 ${g.name}</option>`; });
-                sel.innerHTML = opts;
-            }).catch(() => {});
-        }
     },
 
     saveProjectPrompts() {
         if (!window.currentProject) {
-            UiHelpers.showToast('Không tìm thấy thông tin dự án hiện tại!', 'error');
+            UiHelpers.showToast('Không tìm thấy dự án!', 'error');
             return;
         }
-        const fields = {
-            main: document.getElementById('pm-proj-prompt-main'),
-            summary: document.getElementById('pm-proj-prompt-summary'),
-            relationships: document.getElementById('pm-proj-prompt-relationships'),
-            glossary: document.getElementById('pm-proj-prompt-glossary'),
-            chinh_ta: document.getElementById('pm-proj-prompt-chinh-ta')
-        };
-        
         const payload = {};
-        for (const [key, el] of Object.entries(fields)) {
+        this.PROMPT_KEYS.forEach(key => {
+            const el = document.getElementById(`proj-${key}-text`);
             payload[key] = el ? el.value : '';
-        }
+        });
 
         const btn = document.getElementById('btn-save-project-prompts');
         if (btn) { btn.disabled = true; btn.textContent = '...Đang lưu...'; }
@@ -240,43 +146,39 @@ const PromptManager = {
         .then(r => { if (!r.ok) throw new Error(`HTTP error! status: ${r.status}`); return r.json(); })
         .then(data => {
             if (data.success) {
-                UiHelpers.showToast('Đã lưu Chỉ dẫn của dự án!', 'success');
-                PromptManager._updatePromptStatusBadge(true);
+                UiHelpers.showToast('Đã lưu Chỉ dẫn dự án!', 'success');
+                PromptManager.loadProjectPrompts();
             } else {
                 UiHelpers.showToast('Lỗi: ' + (data.error || 'Unknown'), 'error');
             }
         })
         .catch(err => {
             console.error('saveProjectPrompts error:', err);
-            UiHelpers.showToast('Lỗi kết nối server khi lưu prompts!', 'error');
+            UiHelpers.showToast('Lỗi kết nối server!', 'error');
         })
         .finally(() => {
-            if (btn) { btn.disabled = false; btn.innerHTML = '💾 Lưu chỉ dẫn dự án'; }
+            if (btn) { btn.disabled = false; btn.textContent = 'Lưu'; }
         });
     },
 
-    async importPromptFromLibrary() {
-        if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
-        // Tìm dropdown đang active (có thể là old workspace hoặc projects tab)
-        const sel = document.getElementById('pm-prompt-library-select') || document.getElementById('prompt-library-select');
-        const genre = sel ? sel.value : '';
-        if (!genre) { UiHelpers.showToast('Chọn bộ prompt từ thư viện trước!', 'error'); return; }
-
-        const displayName = sel.options[sel.selectedIndex]?.text || genre;
-        if (!await showConfirm('Áp dụng bộ "' + displayName + '" vào dự án?')) return;
+    importFromLibrary(key, librarySlug) {
+        if (!window.currentProject || !librarySlug) return;
 
         fetch(`/api/projects/${window.currentProject.slug}/prompts/import`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ genre })
+            body: JSON.stringify({ library: librarySlug, key })
         })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
                 UiHelpers.showToast(data.message, 'success');
                 PromptManager.loadProjectPrompts();
+                // Reset dropdown
+                const sel = document.getElementById(`proj-${key}-import`);
+                if (sel) sel.value = '';
             } else {
-                UiHelpers.showToast(data.error || 'Lỗi khi nạp prompt', 'error');
+                UiHelpers.showToast(data.error || 'Lỗi nạp prompt', 'error');
             }
         })
         .catch(err => UiHelpers.showToast('Lỗi kết nối: ' + err.message, 'error'));
@@ -286,7 +188,7 @@ const PromptManager = {
         if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
         if (!await showConfirm('Xóa toàn bộ chỉ dẫn riêng của dự án?')) return;
 
-        fetch(`/api/projects/${window.currentProject.slug}/prompts`, { method: 'DELETE' })
+        fetch(`/api/projects/${window.currentProject.slug}/prompts/reset`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
             if (data.success) {
@@ -300,26 +202,23 @@ const PromptManager = {
     },
 
     _updatePromptStatusBadge(isCustom) {
-        const badges = ['prompt-status-badge', 'pm-prompt-status-badge'];
-        const resetBtns = ['btn-reset-project-prompts'];
-        
-        badges.forEach(badgeId => {
-            const badge = document.getElementById(badgeId);
-            if (!badge) return;
+        const badge = document.getElementById('prompt-status-badge');
+        if (badge) {
             if (isCustom) {
                 badge.innerHTML = '✏️ Chỉ dẫn Dự án';
                 badge.className = 'f7 fw6 blue ba b--blue pa1 br2 bg-washed-blue';
             } else {
-                badge.innerHTML = '📌 Chỉ dẫn Hệ thống';
+                badge.innerHTML = '📌 Mặc định';
                 badge.className = 'f7 fw6 silver ba b--black-10 pa1 br2';
             }
-        });
-        
-        resetBtns.forEach(btnId => {
-            const resetBtn = document.getElementById(btnId);
-            if (resetBtn) resetBtn.style.display = isCustom ? '' : 'none';
-        });
+        }
+        const resetBtn = document.getElementById('btn-reset-project-prompts');
+        if (resetBtn) resetBtn.style.display = isCustom ? '' : 'none';
     },
+
+    // ------------------------------------------------------------------
+    // Guidelines (giữ nguyên từ cũ)
+    // ------------------------------------------------------------------
 
     GUIDELINE_TAB_MAP: {
         'style-guide':  { field: 'style_guide',  elId: 'pm-guide-style-guide',  modelId: 'style-guide-model' },
@@ -453,7 +352,7 @@ const PromptManager = {
         const modelSel = document.getElementById('pm-info-model');
         const model = modelSel ? modelSel.value : '';
         const fieldKey = window.pmActiveInfoTab || 'style_guide';
-        
+
         const outputElMap = {
             'style_guide': 'pm-guide-style-guide',
             'relationship': 'pm-guide-relationship',

@@ -111,7 +111,7 @@ def progress_stream():
                 data = progress_queue.get(timeout=60)
                 yield f"data: {json.dumps(data)}\n\n"
 
-                if data["type"] in ["complete", "error"]:
+                if data["type"] in ["complete", "error", "cancelled"]:
                     break
             except Exception:
                 yield f"data: {json.dumps({'type': 'ping'})}\n\n"
@@ -121,6 +121,17 @@ def progress_stream():
         mimetype="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@translation_bp.route("/api/translate/cancel", methods=["POST"])
+def cancel_translation():
+    """Yêu cầu dừng tiến trình dịch."""
+    from backend.infrastructure.progress.runtime_state import RuntimeState
+    state = RuntimeState()
+    state.request_cancel()
+    from webui import progress_queue
+    progress_queue.put({"type": "cancelled", "message": "Đã dừng theo yêu cầu"})
+    return jsonify({"success": True, "message": "Đã gửi yêu cầu dừng"})
 
 
 @translation_bp.route("/api/translate-text", methods=["POST"])

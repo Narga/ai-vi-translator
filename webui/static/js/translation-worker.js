@@ -3,6 +3,17 @@
 // ============================================================
 
 const TranslationWorker = {
+    _evtSource: null,
+
+    stopTranslation() {
+        fetch('/api/translate/cancel', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                UiHelpers.addLog('Đã gửi yêu cầu dừng...', 'info');
+            })
+            .catch(e => UiHelpers.addLog('Lỗi gửi yêu cầu dừng: ' + e.message, 'error'));
+    },
+
     startTranslation() {
         const btn = document.getElementById('translate-btn');
         const text = document.getElementById('source-text').value;
@@ -10,6 +21,13 @@ const TranslationWorker = {
 
         btn.disabled = true;
         btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang dịch...';
+
+        // Double-click guard: re-enable sau 3s nếu không có response
+        const guardTimer = setTimeout(() => {
+            if (btn.disabled && btn.innerHTML.includes('Đang dịch')) {
+                TranslationWorker.resetButton(btn);
+            }
+        }, 3000);
 
         UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
 
@@ -20,9 +38,10 @@ const TranslationWorker = {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: [window.currentProjectFile.name], force_retranslate: forceRetranslate })
             }).then(r => r.json()).then(data => {
+                clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else TranslationWorker.connectToProgress(btn);
-            }).catch(e => { UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
+            }).catch(e => { clearTimeout(guardTimer); UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
         } else {
             fetch('/api/translate', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -33,9 +52,10 @@ const TranslationWorker = {
                     prompts: window.prompts
                 })
             }).then(r => r.json()).then(data => {
+                clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else TranslationWorker.connectToProgress(btn);
-            }).catch(e => { UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
+            }).catch(e => { clearTimeout(guardTimer); UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
         }
     },
 
@@ -106,6 +126,7 @@ const TranslationWorker = {
 
     connectToProgress(btn = null, isBatch = false) {
         const evtSource = new EventSource('/api/progress');
+        TranslationWorker._evtSource = evtSource;
         
         const logEl = document.getElementById('log-container');
         if (logEl) logEl.innerHTML = '';
@@ -114,6 +135,8 @@ const TranslationWorker = {
 
         const btnDone = document.getElementById('btn-progress-done');
         if (btnDone) btnDone.classList.add('dn');
+        const btnStop = document.getElementById('btn-progress-stop');
+        if (btnStop) btnStop.classList.remove('dn');
 
         if (window._autoReturnTimer) {
             clearInterval(window._autoReturnTimer);
@@ -136,7 +159,9 @@ const TranslationWorker = {
             }
             else if (data.type === 'complete') {
                 evtSource.close();
+                TranslationWorker._evtSource = null;
                 TranslationWorker.updateProgress(100, 'Tất cả hoàn tất! 🚀');
+                if (btnStop) btnStop.classList.add('dn');
 
                 if (data.translated_text) {
                     const resText = document.getElementById('result-text');
@@ -170,15 +195,31 @@ const TranslationWorker = {
             }
             else if (data.type === 'error') {
                 evtSource.close();
+                TranslationWorker._evtSource = null;
                 UiHelpers.addLog(data.message, 'error');
                 TranslationWorker.resetButton(btn, isBatch);
                 TranslationWorker.updateProgress(0, 'Lỗi: ' + data.message);
+                if (btnStop) btnStop.classList.add('dn');
+            }
+            else if (data.type === 'cancelled') {
+                evtSource.close();
+                TranslationWorker._evtSource = null;
+                UiHelpers.addLog(data.message || 'Đã dừng theo yêu cầu', 'info');
+                TranslationWorker.resetButton(btn, isBatch);
+                TranslationWorker.updateProgress(0, 'Đã dừng');
+                if (btnStop) btnStop.classList.add('dn');
+                if (btnDone) {
+                    btnDone.classList.remove('dn');
+                    btnDone.textContent = '✓ Đóng';
+                }
             }
         };
 
         evtSource.onerror = function () {
             evtSource.close();
+            TranslationWorker._evtSource = null;
             TranslationWorker.resetButton(btn, isBatch);
+            if (btnStop) btnStop.classList.add('dn');
         };
     },
 

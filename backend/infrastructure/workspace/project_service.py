@@ -126,7 +126,7 @@ class ProjectService:
         if meta is None:
             return None
 
-        for key in ["name", "description", "genre", "status"]:
+        for key in ["name", "description", "status"]:
             if key in updates:
                 meta[key] = updates[key]
 
@@ -163,7 +163,6 @@ class ProjectService:
         self,
         name: str,
         description: str = "",
-        genre: str = "",
     ) -> Dict:
         """
         Tạo project mới.
@@ -171,7 +170,6 @@ class ProjectService:
         Args:
             name: Tên project
             description: Mô tả
-            genre: Thể loại
 
         Returns:
             Dict chứa slug và metadata
@@ -213,7 +211,6 @@ class ProjectService:
             "name": name,
             "slug": slug,
             "description": description,
-            "genre": genre,
             "status": "active",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
@@ -360,7 +357,6 @@ class ProjectService:
             "name": "Dịch nhanh",
             "slug": slug,
             "description": "Dự án mặc định cho các tác vụ dịch lẻ",
-            "genre": "",
             "status": "active",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),

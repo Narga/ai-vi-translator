@@ -53,7 +53,7 @@ novel-translator/
 │   │   ├── api-client.js       # API calls, model loading
 │   │   ├── project-manager.js  # Project CRUD, 3-column workspace
 │   │   ├── editor-component.js # Editor, token estimate, diff view
-│   │   ├── prompt-manager.js   # Prompt genres & prompts CRUD
+│   │   ├── prompt-manager.js   # Prompt library & project prompts CRUD
 │   │   ├── provider-manager.js # Provider CRUD, dropdown, Gemini/OpenAI switch
 │   │   ├── plugin-manager.js   # Plugin list, toggle, workspace tabs (v7.8.0)
 │   │   ├── translation-worker.js # SSE, progress, spellcheck

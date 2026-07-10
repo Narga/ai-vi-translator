@@ -2,38 +2,37 @@
         <section id="tab-prompts" class="nt-tab-content">
             <div class="workspace-wrapper flex flex-column items-center" style="min-height: 100%;">
                 <div class="w-100 mw8 flex gap-3">
-                    
-                    <!-- Sidebar Genres -->
+
+                    <!-- Sidebar: Thư viện -->
                     <div class="w-30-l flex flex-column" style="min-height: 500px">
                         <div class="ba b--black-10 br2 bg-white flex flex-column shadow-1 h-100">
                             <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">
-                                <h2 class="f5 ma0 fw6 dark-gray">Thể loại</h2>
-                                <button id="btn-new-genre" class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6">+ Thêm mới</button>
+                                <h2 class="f5 ma0 fw6 dark-gray">Thư viện</h2>
+                                <button id="btn-new-library" class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6">+ Thêm bộ</button>
                             </div>
                             <div class="pa3 flex-auto flex flex-column overflow-hidden">
-                                <div class="flex-auto overflow-y-auto ba b--black-10 br2 bg-near-white" id="genre-list">
-                                    <div class="pa3 tc silver i">Đang tải data...</div>
+                                <div class="flex-auto overflow-y-auto ba b--black-10 br2 bg-near-white" id="library-list">
+                                    <div class="pa3 tc silver i">Đang tải...</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Editor -->
+                    <!-- Editor: Prompt của dự án -->
                     <div class="w-70-l flex flex-column" style="min-height: 500px">
-                        <div id="genre-editor" class="ba b--black-10 br2 bg-white flex-auto flex flex-column relative dn shadow-1">
+                        <div id="project-prompt-editor" class="ba b--black-10 br2 bg-white flex-auto flex flex-column relative shadow-1">
                             <!-- Top header -->
                             <div class="pa3 flex justify-between items-center bb b--black-10 bg-near-white">
                                 <div>
-                                    <h2 id="genre-editor-title" class="f5 ma0 fw6 dark-gray flex items-center">
-                                        Prompt Editor
+                                    <h2 id="project-prompt-title" class="f5 ma0 fw6 dark-gray flex items-center">
+                                        Chỉ dẫn Dự án
                                     </h2>
-                                    <p id="genre-editor-desc" class="f7 ma0 mt1 gray">...</p>
+                                    <p id="project-prompt-desc" class="f7 ma0 mt1 gray">Chọn dự án để chỉnh sửa prompt</p>
                                 </div>
                                 <div class="flex gap-2">
-                                    <button id="btn-delete-genre" class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red">Xóa</button>
-                                    <button id="btn-clone-genre" class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white gray">Nhân bản</button>
-                                    <button id="btn-use-genre" class="pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 dn">Sử dụng ngay</button>
-                                    <button id="btn-save-genre" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6">Lưu Prompt</button>
+                                    <span id="prompt-status-badge" class="f7 fw6 silver ba b--black-10 pa1 br2">📌 Mặc định</span>
+                                    <button id="btn-reset-project-prompts" class="pointer ph3 pv1 f7 ba b--silver bg-white br2 shadow-sm hover-bg-near-white gray dn">Khôi phục mặc định</button>
+                                    <button id="btn-save-project-prompts" class="pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6">Lưu</button>
                                 </div>
                             </div>
 
@@ -54,36 +53,66 @@
 
                                 <div class="nt-tab-panels flex-auto">
                                     <section id="system-panel-main" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-main">
-                                        <textarea id="genre-main-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt dịch thuật chính..."></textarea>
+                                        <div class="flex items-center gap2 mb2">
+                                            <select id="proj-main-import" class="f7 pa1 ba b--black-10 br2" onchange="PromptManager.importFromLibrary('main', this.value)">
+                                                <option value="">— Nạp từ thư viện —</option>
+                                            </select>
+                                            <span id="proj-main-status" class="f7 silver">Mặc định</span>
+                                        </div>
+                                        <textarea id="proj-main-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt dịch thuật chính..."></textarea>
                                     </section>
                                     <section id="system-panel-summary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-summary">
-                                        <textarea id="genre-summary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt tóm tắt..."></textarea>
+                                        <div class="flex items-center gap2 mb2">
+                                            <select id="proj-summary-import" class="f7 pa1 ba b--black-10 br2" onchange="PromptManager.importFromLibrary('summary', this.value)">
+                                                <option value="">— Nạp từ thư viện —</option>
+                                            </select>
+                                            <span id="proj-summary-status" class="f7 silver">Mặc định</span>
+                                        </div>
+                                        <textarea id="proj-summary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt tóm tắt..."></textarea>
                                     </section>
                                     <section id="system-panel-relationships" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-relationships">
-                                        <textarea id="genre-relationships-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt mối quan hệ..."></textarea>
+                                        <div class="flex items-center gap2 mb2">
+                                            <select id="proj-relationships-import" class="f7 pa1 ba b--black-10 br2" onchange="PromptManager.importFromLibrary('relationships', this.value)">
+                                                <option value="">— Nạp từ thư viện —</option>
+                                            </select>
+                                            <span id="proj-relationships-status" class="f7 silver">Mặc định</span>
+                                        </div>
+                                        <textarea id="proj-relationships-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt mối quan hệ..."></textarea>
                                     </section>
                                     <section id="system-panel-glossary" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-glossary">
-                                        <textarea id="genre-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt thuật ngữ..."></textarea>
+                                        <div class="flex items-center gap2 mb2">
+                                            <select id="proj-glossary-import" class="f7 pa1 ba b--black-10 br2" onchange="PromptManager.importFromLibrary('glossary', this.value)">
+                                                <option value="">— Nạp từ thư viện —</option>
+                                            </select>
+                                            <span id="proj-glossary-status" class="f7 silver">Mặc định</span>
+                                        </div>
+                                        <textarea id="proj-glossary-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt thuật ngữ..."></textarea>
                                     </section>
-                                     <section id="system-panel-chinh-ta" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-chinh-ta">
-                                         <textarea id="genre-chinh-ta-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt kiểm tra chính tả..."></textarea>
-                                     </section>
-                                 </div>
-                                 <div class="prompt-help-block">
-                                     <h3>Thông tin</h3>
-                                     <div class="placeholder-grid">
-                                         <div class="placeholder-item"><span class="placeholder-tag">{source_text}</span> Văn bản gốc cần xử lý hiện tại.</div>
-                                         <div class="placeholder-item"><span class="placeholder-tag">{translation_guidelines}</span> Chỉ dẫn phong cách, bối cảnh và ghi chú dự án.</div>
-                                         <div class="placeholder-item"><span class="placeholder-tag">{previous_chunk_context}</span> Tóm tắt và đoạn kết của phần đã dịch trước.</div>
-                                         <div class="placeholder-item"><span class="placeholder-tag">{glossary}</span> Các thuật ngữ phù hợp tìm thấy trong bộ từ điển.</div>
-                                         <div class="placeholder-item"><span class="placeholder-tag">{relationships}</span> Thông tin nhân vật và các mối quan hệ liên quan.</div>
-                                         <div class="placeholder-item"><span class="placeholder-tag">{summary}</span> Bản tóm tắt tổng thể toàn bộ dự án.</div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
+                                    <section id="system-panel-chinh-ta" class="nt-tab-panel" role="tabpanel" aria-labelledby="system-tab-chinh-ta">
+                                        <div class="flex items-center gap2 mb2">
+                                            <select id="proj-chinh_ta-import" class="f7 pa1 ba b--black-10 br2" onchange="PromptManager.importFromLibrary('chinh_ta', this.value)">
+                                                <option value="">— Nạp từ thư viện —</option>
+                                            </select>
+                                            <span id="proj-chinh_ta-status" class="f7 silver">Mặc định</span>
+                                        </div>
+                                        <textarea id="proj-chinh_ta-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" placeholder="Prompt kiểm tra chính tả..."></textarea>
+                                    </section>
+                                </div>
+                                <div class="prompt-help-block">
+                                    <h3>Thông tin</h3>
+                                    <div class="placeholder-grid">
+                                        <div class="placeholder-item"><span class="placeholder-tag">{source_text}</span> Văn bản gốc cần xử lý hiện tại.</div>
+                                        <div class="placeholder-item"><span class="placeholder-tag">{translation_guidelines}</span> Chỉ dẫn phong cách, bối cảnh và ghi chú dự án.</div>
+                                        <div class="placeholder-item"><span class="placeholder-tag">{previous_chunk_context}</span> Tóm tắt và đoạn kết của phần đã dịch trước.</div>
+                                        <div class="placeholder-item"><span class="placeholder-tag">{glossary}</span> Các thuật ngữ phù hợp tìm thấy trong bộ từ điển.</div>
+                                        <div class="placeholder-item"><span class="placeholder-tag">{relationships}</span> Thông tin nhân vật và các mối quan hệ liên quan.</div>
+                                        <div class="placeholder-item"><span class="placeholder-tag">{summary}</span> Bản tóm tắt tổng thể toàn bộ dự án.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-             </div>
-         </section>
+            </div>
+        </section>

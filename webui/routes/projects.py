@@ -208,7 +208,6 @@ def create_project():
         "author": author if author else (name.split(" - ", 1)[1] if " - " in name else ""),
         "slug": slug,
         "description": data.get("description", ""),
-        "genre": data.get("genre", ""),
         "status": "active",
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
@@ -324,7 +323,7 @@ def update_project(slug):
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     data = request.json
-    for key in ["name", "description", "genre", "status"]:
+    for key in ["name", "description", "status"]:
         if key in data:
             meta[key] = data[key]
     meta["updated_at"] = datetime.now().isoformat()
@@ -880,7 +879,71 @@ def rename_project_file(slug):
         return jsonify({"error": str(e)}), 500
 
 
-@projects_bp.route("/api/projects/<slug>/move-done", methods=["POST"])
+@projects_bp.route("/api/projects/<slug>/rename-batch", methods=["POST"])
+def rename_batch(slug):
+    """Đổi tên hàng loạt file trong dự án."""
+    data = request.json
+    section = data.get("section", "sources")
+    pattern = data.get("pattern", "")
+    start = int(data.get("start", 1))
+    zeropad = int(data.get("zeropad", 2))
+    old_names = data.get("old_names", [])
+
+    if not pattern or not old_names:
+        return jsonify({"error": "Thiếu pattern hoặc danh sách file"}), 400
+
+    pdir = _get_project_dir(slug)
+    if not pdir:
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    results = []
+    for idx, old_name in enumerate(old_names):
+        num = start + idx
+        num_str = str(num).zfill(zeropad) if zeropad > 0 else str(num)
+
+        # Tạo tên mới từ pattern
+        new_name = pattern.replace("{N}", num_str)
+
+        # Giữ đuôi file gốc nếu pattern không có đuôi
+        if "." not in new_name and "." in old_name:
+            ext = old_name.rsplit(".", 1)[-1]
+            new_name = f"{new_name}.{ext}"
+
+        old_path = (pdir / section / old_name).resolve()
+        new_path = (pdir / section / new_name).resolve()
+
+        # Validate paths
+        if not str(old_path).startswith(str((pdir / section).resolve())):
+            results.append({"old": old_name, "new": new_name, "error": "Invalid path"})
+            continue
+        if not str(new_path).startswith(str((pdir / section).resolve())):
+            results.append({"old": old_name, "new": new_name, "error": "Invalid path"})
+            continue
+        if not old_path.exists():
+            results.append({"old": old_name, "new": new_name, "error": "File không tồn tại"})
+            continue
+        if new_path.exists():
+            results.append({"old": old_name, "new": new_name, "error": "Tên file đã tồn tại"})
+            continue
+
+        try:
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            old_path.rename(new_path)
+
+            # Nếu đổi tên ở sources, tự động đổi tên ở translated nếu có
+            if section == "sources":
+                old_trans = pdir / "translated" / old_name
+                new_trans = pdir / "translated" / new_name
+                if old_trans.exists() and not new_trans.exists():
+                    new_trans.parent.mkdir(parents=True, exist_ok=True)
+                    old_trans.rename(new_trans)
+
+            results.append({"old": old_name, "new": new_name, "success": True})
+        except Exception as e:
+            results.append({"old": old_name, "new": new_name, "error": str(e)})
+
+    success_count = sum(1 for r in results if r.get("success"))
+    return jsonify({"success": True, "results": results, "renamed": success_count})
 def project_move_done(slug):
     """Chuyển file source sang translated."""
     data = request.json
@@ -1006,47 +1069,6 @@ def reset_project_prompts(slug):
     if prompt_dir.exists():
         _shutil.rmtree(prompt_dir)
     return jsonify({"success": True, "message": "Đã khôi phục chỉ dẫn hệ thống"})
-
-
-@projects_bp.route("/api/projects/<slug>/prompts/import", methods=["POST"])
-def import_project_prompts(slug):
-    """Copy bộ prompt từ thư viện hệ thống vào thư mục riêng của dự án."""
-    import shutil as _shutil
-    data = request.json or {}
-    genre_slug = data.get("genre", "default")
-
-    pdir = _get_project_dir(slug)
-    dest_dir = pdir / "prompt"
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    # Xác định nguồn prompt
-    src_dir = Path("workspace/prompts") / genre_slug
-    if not src_dir.exists():
-        src_dir = Path("workspace/prompts/default")
-
-    if not src_dir.exists():
-        # Fallback: ghi từ load_prompts() DEFAULTS
-        global_prompts = load_prompts()
-        key_fname_map = {
-            "main": "main_prompt.txt",
-            "summary": "summary_prompt.txt",
-            "relationships": "relationship_prompt.txt",
-            "glossary": "glossary_prompt.txt",
-            "chinh_ta": "chinh_ta_prompt.txt",
-        }
-        for key, fname in key_fname_map.items():
-            if key in global_prompts and global_prompts[key]:
-                (dest_dir / fname).write_text(global_prompts[key], encoding="utf-8")
-        return jsonify({"success": True, "message": f"Đã nạp chỉ dẫn mặc định hệ thống"})
-
-    # Copy tất cả file .txt từ thư viện vào dự án
-    copied = 0
-    for f in src_dir.glob("*.txt"):
-        _shutil.copy2(f, dest_dir / f.name)
-        copied += 1
-
-    display_name = genre_slug if genre_slug != "default" else "Mặc định (Hệ thống)"
-    return jsonify({"success": True, "message": f"Đã nạp chỉ dẫn \"{display_name}\" ({copied} file)", "count": copied})
 
 
 # ============================================================
@@ -1186,17 +1208,16 @@ def summarize_project(slug):
     if len(content) > max_chars:
         content = content[:max_chars] + "\n\n[... nội dung tiếp theo bị cắt ...]"
 
-    # Nạp prompt chuyên biệt từ thư viện
+    # Nạp prompt: project override → default → hardcoded
     PROMPTS_DIR = Path("workspace/prompts")
-    meta = _load_project_meta(slug) or {}
-    genre = (meta.get("genre") or "").strip()
+    pdir = _get_project_dir(slug)
 
     prompt_text = ""
-    # Thử tìm prompt theo thể loại dự án trước
-    if genre:
-        genre_prompt = PROMPTS_DIR / genre / prompt_filename
-        if genre_prompt.exists():
-            prompt_text = genre_prompt.read_text(encoding="utf-8")
+    # Thử prompt tùy chỉnh của project trước
+    if pdir:
+        project_prompt = pdir / "prompt" / prompt_filename
+        if project_prompt.exists():
+            prompt_text = project_prompt.read_text(encoding="utf-8")
 
     # Fallback về bộ default
     if not prompt_text:
@@ -1336,11 +1357,13 @@ def translate_project_file(slug):
         try:
             from services.translation_memory import TranslationMemory
             from backend.infrastructure.providers.provider_service import ProviderService
+            from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
 
             provider_service = ProviderService()
             active_provider = provider_service.get_active_provider_config() or {}
             provider_type = active_provider.get("type", "gemini")
             base_url = active_provider.get("base_url")
+
             # Fallback model tùy theo provider type
             provider_default_model = active_provider.get("default_model")
             if provider_default_model:
@@ -1349,6 +1372,13 @@ def translate_project_file(slug):
                 default_model = "gpt-4o-mini"
             else:
                 default_model = get_default_model()
+
+            # Validate model thuộc provider type
+            catalog = ModelCatalogService()
+            valid_models = catalog.get_models(provider_type)
+            if valid_models and default_model not in valid_models:
+                logger.warning(f"Model '{default_model}' không thuộc provider '{provider_type}', fallback sang '{valid_models[0]}'")
+                default_model = valid_models[0]
 
             if provider_type == "gemini":
                 api_keys = active_provider.get("api_keys", [])
@@ -1461,6 +1491,7 @@ def spellcheck_project_file(slug):
         """Worker dùng backend use case."""
         try:
             from backend.infrastructure.providers.provider_service import ProviderService
+            from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
             
             provider_service = ProviderService()
             active_provider = provider_service.get_active_provider_config() or {}
@@ -1474,6 +1505,13 @@ def spellcheck_project_file(slug):
                 default_model = "gpt-4o-mini"
             else:
                 default_model = get_default_model()
+
+            # Validate model thuộc provider type
+            catalog = ModelCatalogService()
+            valid_models = catalog.get_models(provider_type)
+            if valid_models and default_model not in valid_models:
+                logger.warning(f"Model '{default_model}' không thuộc provider '{provider_type}', fallback sang '{valid_models[0]}'")
+                default_model = valid_models[0]
 
             if provider_type == "gemini":
                 api_keys = active_provider.get("api_keys", [])

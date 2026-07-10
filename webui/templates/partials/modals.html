@@ -31,6 +31,7 @@
                 <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
             </div>
             <div class="flex items-center gap-2">
+                <button id="btn-progress-stop" class="pointer ph3 pv1 f7 bn white bg-red br2 shadow-1 hover-bg-dark-red fw6" onclick="TranslationWorker.stopTranslation()">Dừng</button>
                 <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="TranslationWorker.closeProgress()">Xong</button>
             </div>
         </div>
@@ -88,10 +89,6 @@
                 <label class="db f7 gray mb1 fw6 uppercase tracked">Mô tả</label>
                 <textarea id="proj-info-desc" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 lh-copy" rows="5" placeholder="Mô tả chi tiết về dự án, thể loại, nội dung..."></textarea>
             </div>
-            <div class="mb3">
-                <label class="db f7 gray mb1 fw6 uppercase tracked">Thể loại / Slug</label>
-                <input type="text" id="proj-info-genre" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 gray" placeholder="e.g. fantasy, romance..." readonly>
-            </div>
             <!-- Stats -->
             <div class="flex gap-3 mb1">
                 <div class="flex-auto ba b--black-05 br2 pa2 bg-near-white tc">
@@ -137,13 +134,6 @@
             <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả</label>
             <input type="text" id="new-project-desc" class="nt-input w-100" placeholder="Mô tả ngắn về dự án (tùy chọn)">
         </div>
-        <div class="mb3">
-            <label class="db fw6 lh-copy f6 mb2 dark-gray">Thể loại</label>
-            <select id="new-project-genre" class="nt-input w-100">
-                <option value="">— Không chọn —</option>
-            </select>
-            <small class="db mt1 silver">Liên kết với bộ prompt theo thể loại. Có thể đổi sau.</small>
-        </div>
         <div class="flex justify-end gap-3 pt3 bt b--black-10">
             <button type="button" id="btn-cancel-project" class="nt-btn nt-btn-outline">Hủy bỏ</button>
             <button type="button" id="btn-confirm-new-project" class="nt-btn nt-btn-success">✅ Tạo Dự án</button>
@@ -151,26 +141,30 @@
     </div>
 </div>
 
-<!-- New Genre Modal -->
-<div id="new-genre-modal" class="fixed absolute--fill bg-black-50 z-max items-center justify-center" style="display: none;">
+<!-- Batch Rename Modal -->
+<div id="batch-rename-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
     <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
-        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">Tạo bộ Prompt Mới</h3>
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">Đổi tên hàng loạt</h3>
         <div class="mb3">
-            <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên thể loại *</label>
-            <input type="text" id="new-genre-name" class="nt-input w-100" placeholder="VD: Tiên Hiệp, Đô Thị...">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Pattern đổi tên</label>
+            <input type="text" id="batch-rename-pattern" class="nt-input w-100" placeholder="VD: Chuong{N} (tăng từ 1, zero-pad theo số digits)">
+            <small class="db mt1 silver">Dùng {N} để đánh số thứ tự. VD: Chuong{N} → Chuong01, Chuong02, ...</small>
         </div>
         <div class="mb3">
-            <label class="db fw6 lh-copy f6 mb2 dark-gray">Slug nhận dạng</label>
-            <input type="text" id="new-genre-slug" class="nt-input w-100" placeholder="tien-hiep">
-            <small class="db mt1 silver">Đường dẫn folder tạo tự động từ tên.</small>
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Bắt đầu từ</label>
+            <input type="number" id="batch-rename-start" class="nt-input w-100" value="1" min="0">
         </div>
         <div class="mb3">
-            <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả khái quát</label>
-            <input type="text" id="new-genre-desc" class="nt-input w-100" placeholder="Mở rộng bối cảnh...">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Zero-pad (số chữ số)</label>
+            <input type="number" id="batch-rename-zeropad" class="nt-input w-100" value="2" min="0" max="10">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">File đã chọn (<span id="batch-rename-count">0</span> file)</label>
+            <div id="batch-rename-preview" class="ba b--black-10 br2 pa2 bg-near-white f7 overflow-y-auto" style="max-height: 150px;"></div>
         </div>
         <div class="flex justify-end gap-3 pt3 bt b--black-10">
-            <button type="button" id="btn-cancel-genre" class="nt-btn nt-btn-outline">Hủy bỏ</button>
-            <button type="button" id="btn-confirm-new-genre" class="nt-btn nt-btn-success">Xác nhận Tạo</button>
+            <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('batch-rename-modal')">Hủy bỏ</button>
+            <button type="button" id="btn-confirm-batch-rename" class="nt-btn nt-btn-success" onclick="ProjectManager.executeBatchRename()">Đổi tên</button>
         </div>
     </div>
 </div>

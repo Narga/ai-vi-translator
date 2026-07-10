@@ -183,7 +183,7 @@ const ProjectManager = {
                 
                 // Title
                 const titleEl = clone.querySelector('.js-title');
-                titleEl.textContent = p.book_title || p.name;
+                titleEl.textContent = p.name || p.book_title;
                 titleEl.onclick = () => ProjectManager.openProject(p.slug);
                 
                 // Author
@@ -213,12 +213,6 @@ const ProjectManager = {
                 clone.querySelector('.js-meta-translated').textContent = `✅ ${p.translated_count || 0} đã xong`;
                 clone.querySelector('.js-meta-date').textContent = `📅 ${createdDate}`;
                 
-                const genreEl = clone.querySelector('.js-meta-genre');
-                if (p.genre) {
-                    genreEl.textContent = `📖 ${p.genre}`;
-                    genreEl.style.display = '';
-                }
-                
                 // Status
                 const statusEl = clone.querySelector('.js-status');
                 statusEl.textContent = `${statusIcon} ${statusText}`;
@@ -238,7 +232,6 @@ const ProjectManager = {
     createNewProject() {
         const bookTitle = document.getElementById('new-project-book-title')?.value?.trim() || '';
         const author = document.getElementById('new-project-author')?.value?.trim() || '';
-        const genre = document.getElementById('new-project-genre-new')?.value?.trim() || '';
         const description = document.getElementById('new-project-desc-new')?.value?.trim() || '';
 
         if (!bookTitle) {
@@ -249,7 +242,7 @@ const ProjectManager = {
         fetch('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_title: bookTitle, author, genre, description })
+            body: JSON.stringify({ book_title: bookTitle, author, description })
         })
         .then(r => r.json())
         .then(data => {
@@ -260,8 +253,6 @@ const ProjectManager = {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            const genreEl = document.getElementById('new-project-genre-new');
-            if (genreEl) genreEl.value = '';
             // Reload cards and open new project
             ProjectManager.loadProjectCards();
             if (data.slug) ProjectManager.openProject(data.slug);
@@ -975,6 +966,82 @@ const ProjectManager = {
         });
     },
 
+    showBatchRenameModal() {
+        if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
+        if (window.selectedFiles.size === 0) { UiHelpers.showToast('Chọn file cần đổi tên trước!', 'error'); return; }
+
+        const files = Array.from(window.selectedFiles);
+        const countEl = document.getElementById('batch-rename-count');
+        const previewEl = document.getElementById('batch-rename-preview');
+        const patternEl = document.getElementById('batch-rename-pattern');
+
+        if (countEl) countEl.textContent = files.length;
+        if (previewEl) previewEl.innerHTML = files.map(f => `<div class="pa1 bb b--black-05">${f}</div>`).join('');
+
+        // Auto-detect pattern from first file
+        if (patternEl && files.length > 0) {
+            const first = files[0];
+            const match = first.match(/^(.*?)(\d+)(.*)$/);
+            if (match) {
+                const prefix = match[1];
+                const num = match[2];
+                const suffix = match[3];
+                patternEl.value = prefix + '{N}' + suffix;
+                document.getElementById('batch-rename-start').value = parseInt(num);
+                document.getElementById('batch-rename-zeropad').value = num.length;
+            } else {
+                patternEl.value = '{N}';
+            }
+        }
+
+        ModalManager.show('batch-rename-modal');
+    },
+
+    executeBatchRename() {
+        if (!window.currentProject || window.selectedFiles.size === 0) return;
+
+        const pattern = document.getElementById('batch-rename-pattern')?.value || '';
+        const start = parseInt(document.getElementById('batch-rename-start')?.value || '1');
+        const zeropad = parseInt(document.getElementById('batch-rename-zeropad')?.value || '2');
+        const oldNames = Array.from(window.selectedFiles);
+
+        if (!pattern) { UiHelpers.showToast('Nhập pattern đổi tên!', 'error'); return; }
+
+        // Determine current section
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const translatedBtn = document.getElementById('pm-tab-translated');
+        const spellingBtn = document.getElementById('pm-tab-spelling');
+        let section = 'sources';
+        if (translatedBtn && translatedBtn.classList.contains('active')) section = 'translated';
+        else if (spellingBtn && spellingBtn.classList.contains('active')) section = 'spelling';
+
+        const btn = document.getElementById('btn-confirm-batch-rename');
+        if (btn) { btn.disabled = true; btn.textContent = 'Đang đổi tên...'; }
+
+        fetch(`/api/projects/${window.currentProject.slug}/rename-batch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ section, pattern, start, zeropad, old_names: oldNames })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const renamed = data.renamed || 0;
+                const errors = (data.results || []).filter(r => r.error);
+                UiHelpers.showToast(`Đã đổi tên ${renamed}/${oldNames.length} file`, errors.length > 0 ? 'warning' : 'success');
+                ModalManager.hide('batch-rename-modal');
+                window.selectedFiles.clear();
+                ProjectManager.openProject(window.currentProject.slug);
+            } else {
+                UiHelpers.showToast(data.error || 'Lỗi đổi tên', 'error');
+            }
+        })
+        .catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'))
+        .finally(() => {
+            if (btn) { btn.disabled = false; btn.textContent = 'Đổi tên'; }
+        });
+    },
+
     async moveBackInProject(filename) {
         if (!await showConfirm('Trả "' + filename + '" về sources?')) return;
         fetch(`/api/projects/${window.currentProject.slug}/move-back`, {
@@ -1162,13 +1229,11 @@ const ProjectManager = {
         const p = window.currentProject;
         const nameEl = document.getElementById('proj-info-name');
         const descEl = document.getElementById('proj-info-desc');
-        const genreEl = document.getElementById('proj-info-genre');
         const srcCountEl = document.getElementById('proj-info-src-count');
         const trCountEl = document.getElementById('proj-info-tr-count');
         const createdEl = document.getElementById('proj-info-created');
         if (nameEl) nameEl.value = p.name || '';
         if (descEl) descEl.value = p.description || '';
-        if (genreEl) genreEl.value = p.genre || '';
         if (srcCountEl) srcCountEl.textContent = (p.sources || []).length;
         if (trCountEl) trCountEl.textContent = (p.translated || []).length;
         if (createdEl) createdEl.textContent = p.created_at || '—';
@@ -1183,12 +1248,11 @@ const ProjectManager = {
         if (!window.currentProject) return;
         const name = document.getElementById('proj-info-name')?.value?.trim();
         const description = document.getElementById('proj-info-desc')?.value?.trim() || '';
-        const genre = document.getElementById('proj-info-genre')?.value?.trim() || '';
         if (!name) { UiHelpers.showToast('Tên dự án không được trống', 'error'); return; }
         fetch(`/api/projects/${window.currentProject.slug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description, genre })
+            body: JSON.stringify({ name, description })
         }).then(r => r.json()).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã cập nhật thông tin dự án', 'success');
@@ -1453,38 +1517,6 @@ const ProjectManager = {
         }
         ProjectManager.updateSelectAllTranslatedButton();
         ProjectManager.renderPmTranslatedList(allTranslated);
-    },
-
-    createNewProject() {
-        const bookTitle = document.getElementById('new-project-book-title')?.value?.trim() || '';
-        const author = document.getElementById('new-project-author')?.value?.trim() || '';
-        const genre = document.getElementById('new-project-genre-new')?.value?.trim() || '';
-        const description = document.getElementById('new-project-desc-new')?.value?.trim() || '';
-
-        if (!bookTitle) {
-            UiHelpers.showToast('Chưa nhập tên tác phẩm', 'error');
-            return;
-        }
-
-        fetch('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ book_title: bookTitle, author, genre, description })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
-            UiHelpers.showToast('Đã tạo dự án: ' + (data.name || bookTitle), 'success');
-            ['new-project-book-title', 'new-project-author', 'new-project-desc-new'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            const genreEl = document.getElementById('new-project-genre-new');
-            if (genreEl) genreEl.value = '';
-            ProjectManager.loadProjectCards();
-            if (data.slug) ProjectManager.openProject(data.slug);
-        })
-        .catch(e => UiHelpers.showToast('Lỗi tạo dự án: ' + e.message, 'error'));
     },
 
     async convertSelectedToMarkdown() {
