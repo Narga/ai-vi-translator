@@ -994,81 +994,8 @@ def project_move_back(slug):
     src.rename(dest)
     return jsonify({"success": True})
 
+# Project prompt APIs moved to webui/routes/prompts.py
 
-# ============================================================
-# Project Prompt APIs
-# ============================================================
-
-
-@projects_bp.route("/api/projects/<slug>/prompts")
-def get_project_prompts(slug):
-    """Load prompt dự án. CHỈ trả về nếu có prompt riêng của dự án, không nạp mặc định hệ thống vào form."""
-    pdir = _get_project_dir(slug)
-    prompts = {
-        "main": "",
-        "summary": "",
-        "relationships": "",
-        "glossary": "",
-        "chinh_ta": "",
-        "is_custom": False,
-    }
-
-    prompt_dir = pdir / "prompt"
-    has_any_custom = False
-    if prompt_dir.exists():
-        for key, fname in [
-            ("main", "main_prompt.txt"),
-            ("summary", "summary_prompt.txt"),
-            ("relationships", "relationship_prompt.txt"),
-            ("glossary", "glossary_prompt.txt"),
-            ("chinh_ta", "chinh_ta_prompt.txt"),
-        ]:
-            fp = prompt_dir / fname
-            if fp.exists():
-                content = fp.read_text(encoding="utf-8").strip()
-                if content:
-                    prompts[key] = content
-                    has_any_custom = True
-
-    prompts["is_custom"] = has_any_custom
-    return jsonify(prompts)
-
-
-@projects_bp.route("/api/projects/<slug>/prompts", methods=["PUT"])
-def save_project_prompts(slug):
-    """Lưu prompt dự án."""
-    pdir = _get_project_dir(slug)
-    prompt_dir = pdir / "prompt"
-    prompt_dir.mkdir(parents=True, exist_ok=True)
-
-    data = request.json
-
-    key_fname_map = {
-        "main": "main_prompt.txt",
-        "summary": "summary_prompt.txt",
-        "relationships": "relationship_prompt.txt",
-        "glossary": "glossary_prompt.txt",
-        "chinh_ta": "chinh_ta_prompt.txt",
-    }
-
-    for key, fname in key_fname_map.items():
-        if key in data and data[key] is not None:
-            fp = prompt_dir / fname
-            with open(fp, "w", encoding="utf-8") as f:
-                f.write(str(data[key]))
-
-    return jsonify({"success": True})
-
-
-@projects_bp.route("/api/projects/<slug>/prompts", methods=["DELETE"])
-def reset_project_prompts(slug):
-    """Xóa tất cả prompt tùy chỉnh của dự án, khôi phục về mặc định hệ thống."""
-    import shutil as _shutil
-    pdir = _get_project_dir(slug)
-    prompt_dir = pdir / "prompt"
-    if prompt_dir.exists():
-        _shutil.rmtree(prompt_dir)
-    return jsonify({"success": True, "message": "Đã khôi phục chỉ dẫn hệ thống"})
 
 
 # ============================================================

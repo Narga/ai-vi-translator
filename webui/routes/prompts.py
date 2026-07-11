@@ -43,7 +43,7 @@ def create_library():
         return jsonify({"error": "Thiếu name hoặc slug"}), 400
 
     # Kiểm tra trùng
-    lib_dir = Path("workspace/prompts/library") / slug
+    lib_dir = Path("workspace/prompts") / slug
     if lib_dir.exists():
         return jsonify({"error": "Bộ prompt đã tồn tại"}), 409
 
@@ -60,8 +60,17 @@ def update_library(slug):
     """Cập nhật bộ prompt trong thư viện."""
     data = request.json
     prompts = data.get("prompts", {})
-    name = data.get("name", slug)
-    description = data.get("description", "")
+    
+    # Load existing metadata first
+    existing = {}
+    try:
+        existing = _prompt_service.get_library_set(slug).get("meta", {})
+    except Exception:
+        pass
+        
+    name = data.get("name") or existing.get("name") or slug
+    description = data.get("description") if "description" in data else (existing.get("description") or "")
+    
     _prompt_service.save_library_set(
         slug=slug, name=name, prompts=prompts, description=description
     )
@@ -86,16 +95,16 @@ def delete_library(slug):
 
 @prompts_bp.route("/api/projects/<slug>/prompts")
 def get_project_prompts(slug):
-    """Lấy prompts của dự án (đã merge default + project override)."""
+    """Load prompt riêng của dự án, không nạp mặc định hệ thống vào form."""
     from webui.routes.projects import _get_project_dir
     pdir = _get_project_dir(slug)
     if not pdir or not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    merged = _prompt_service.load_merged_prompts(pdir)
+    project_prompts = _prompt_service.load_project_prompts(pdir)
     status = _prompt_service.get_project_prompt_status(pdir)
     is_custom = any(status.values())
-    return jsonify({**merged, "is_custom": is_custom, "status": status})
+    return jsonify({**project_prompts, "is_custom": is_custom, "status": status})
 
 
 @prompts_bp.route("/api/projects/<slug>/prompts", methods=["PUT"])
@@ -151,13 +160,3 @@ def import_from_library(slug):
     return jsonify({"success": True, "message": f"Đã nạp '{key}' từ '{library_slug}'"})
 
 
-@prompts_bp.route("/api/projects/<slug>/prompts/reset", methods=["POST"])
-def reset_project_prompts(slug):
-    """Khôi phục prompts dự án về mặc định (xóa tất cả file tùy chỉnh)."""
-    from webui.routes.projects import _get_project_dir
-    pdir = _get_project_dir(slug)
-    if not pdir or not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
-
-    _prompt_service.reset_project_prompts(pdir)
-    return jsonify({"success": True, "message": "Đã khôi phục chỉ dẫn hệ thống"})

@@ -110,9 +110,9 @@
                                 <button id="pm-btn-convert-markdown" onclick="ProjectManager.convertSelectedToMarkdown()" data-tooltip="Chuyển Markdown" aria-label="Chuyển Markdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13l-4 4-4-4"/></svg></button>
                                 <button id="pm-btn-translate-selected" onclick="TranslationWorker.translateSelectedInProject()" data-tooltip="Dịch đã chọn" aria-label="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
                                 <button id="pm-btn-spellcheck-selected" onclick="TranslationWorker.spellcheckSelectedInProject()" data-tooltip="Soát lỗi đã chọn" aria-label="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/></svg></button>
+                                <button id="pm-btn-rename-batch" onclick="ProjectManager.showBatchRenameModal()" data-tooltip="Đổi tên hàng loạt" aria-label="Đổi tên hàng loạt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
                                 <button id="pm-btn-merge-files" onclick="ProjectManager.mergeTranslatedFiles()" data-tooltip="Ghép tập tin" aria-label="Ghép tập tin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
                                 <button id="pm-btn-delete-selected" onclick="ProjectManager.deleteSelectedSidebarFiles()" data-tooltip="Xóa đã chọn" aria-label="Xóa đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-                                <button id="pm-btn-rename-batch" onclick="ProjectManager.showBatchRenameModal()" data-tooltip="Đổi tên hàng loạt" aria-label="Đổi tên hàng loạt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
                             </div>
                         </div>
                         <div class="file-list-sidebar-content">
@@ -228,11 +228,11 @@
             <!-- TAB THÔNG TIN -->
             <div x-show="$store.workspace.wsTab === 'info'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;">
                 <div class="flex items-center justify-between gap-2 mb3 bb b--black-10 pb2 flex-shrink-0">
-                    <div class="flex flex-wrap gap2">
-                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="ProjectManager.showPmInfoTab('style-guide')" data-info-tab="style_guide">Hướng dẫn</button>
-                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('relationship')" data-info-tab="relationship">Mối quan hệ</button>
-                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('glossary')" data-info-tab="glossary">Thuật ngữ</button>
-                        <button class="pm-info-tab-btn ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmInfoTab('summary')" data-info-tab="summary">Tóm tắt</button>
+                    <div class="flex flex-wrap" style="margin-bottom: -1px;">
+                        <button class="pm-info-tab-btn pointer bg-transparent bn dib ph3 pv2 dark-gray f7 fw6 tracked uppercase active" onclick="ProjectManager.showPmInfoTab('style-guide')" data-info-tab="style_guide">Hướng dẫn</button>
+                        <button class="pm-info-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmInfoTab('relationship')" data-info-tab="relationship">Mối quan hệ</button>
+                        <button class="pm-info-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmInfoTab('glossary')" data-info-tab="glossary">Thuật ngữ</button>
+                        <button class="pm-info-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmInfoTab('summary')" data-info-tab="summary">Tóm tắt</button>
                     </div>
                     <div class="flex items-center gap-2">
                         <select id="pm-info-source-file" class="f7 ba b--black-10 br2 ph2 bg-white outline-0" style="width: 140px;">
@@ -261,23 +261,22 @@
             
             <!-- TAB CHỈ DẪN -->
             <div x-show="$store.workspace.wsTab === 'prompt'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;">
-                <div class="flex items-center justify-between gap-2 mb3 flex-shrink-0">
-                    <div class="flex flex-wrap gap2">
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="ProjectManager.showPmPromptTab('main')">Dịch thuật</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmPromptTab('summary')">Tóm tắt</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmPromptTab('relationships')">Quan hệ</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmPromptTab('glossary')">Thuật ngữ</button>
-                        <button class="ph3 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="ProjectManager.showPmPromptTab('chinh-ta')">Chính tả</button>
+                <div class="flex items-center justify-between gap-2 mb3 bb b--black-10 pb2 flex-shrink-0">
+                    <div class="flex flex-wrap" style="margin-bottom: -1px;">
+                        <button class="pm-prompt-tab-btn pointer bg-transparent bn dib ph3 pv2 dark-gray f7 fw6 tracked uppercase active" onclick="ProjectManager.showPmPromptTab('main')">Dịch thuật</button>
+                        <button class="pm-prompt-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmPromptTab('summary')">Tóm tắt</button>
+                        <button class="pm-prompt-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmPromptTab('relationships')">Quan hệ</button>
+                        <button class="pm-prompt-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmPromptTab('glossary')">Thuật ngữ</button>
+                        <button class="pm-prompt-tab-btn pointer bg-transparent bn dib ph3 pv2 gray f7 fw6 tracked uppercase" onclick="ProjectManager.showPmPromptTab('chinh-ta')">Chính tả</button>
                     </div>
                     <div class="flex items-center gap-2">
                         <select id="pm-prompt-library-select" class="pa1 f7 ba b--black-10 br2 outline-0" style="width: 150px;">
                             <option value="">— Chọn bộ prompt —</option>
                             <option value="default">Mặc định (Hệ thống)</option>
                         </select>
-                        <button class="pointer ph2 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 nowrap" onclick="PromptManager.importPromptFromLibrary()">Áp dụng</button>
-                        <span id="pm-prompt-status-badge" class="f7 fw6 silver ba b--black-10 pa1 br2">Hệ thống</span>
-                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 nowrap" onclick="PromptManager.saveProjectPrompts()">Lưu</button>
-                        <button class="pointer ph2 pv1 f7 bn dark-red br2 shadow-1 fw6 nowrap" onclick="PromptManager.resetProjectPrompts()" style="background:#ffe4e4; border: 1px solid #f5c6c6;">Xóa riêng</button>
+                        <button class="pointer ph1 pv1 f7 ba b--black-10 bg-white br2 hover-bg-near-white shadow-sm flex items-center justify-center" onclick="PromptManager.loadProjectPromptsFromWorkspace()" title="Làm mới danh sách" style="height: 24px; padding: 2px 6px;">🔄</button>
+                        <button class="pointer ph2 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 nowrap" onclick="PromptManager.importFromLibraryToWorkspace()">Nhập Prompt</button>
+                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 nowrap" onclick="PromptManager.saveProjectPromptsFromWorkspace()">Lưu</button>
                     </div>
                 </div>
                 <div class="flex-auto flex flex-column overflow-hidden">

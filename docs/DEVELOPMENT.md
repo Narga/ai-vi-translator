@@ -74,7 +74,6 @@ novel-translator/
 ├── core/interfaces/        # PluginBase, ConverterPlugin (v7.8.0)
 ├── config/                 # Cấu hình app.ini và API keys
     └── docs/                   # Tài liệu
-        ├── ROADMAP.md         # Lộ trình phát triển
         ├── DEVELOPMENT.md     # Hướng dẫn phát triển
         └── MANUAL.md          # Hướng dẫn sử dụng
 ```
@@ -153,4 +152,4 @@ Dự án sử dụng `uv` để quản lý package.
 - Cập nhật lock file: `uv lock`
 
 ---
-*Phiên bản: 2.2 - Ngày cập nhật: 16/06/2026*
+*Phiên bản: 2.3 - Ngày cập nhật: 11/07/2026*

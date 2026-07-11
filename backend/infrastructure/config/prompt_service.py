@@ -46,7 +46,7 @@ class PromptService:
     def __init__(self, workspace_dir: Optional[Path] = None):
         self._workspace_dir = workspace_dir or Path("workspace")
         self._global_prompts_dir = self._workspace_dir / "prompts" / "default"
-        self._library_dir = self._workspace_dir / "prompts" / "library"
+        self._library_dir = self._workspace_dir / "prompts"
 
     # ------------------------------------------------------------------
     # Global prompts (default/)
@@ -83,7 +83,7 @@ class PromptService:
         return ""
 
     # ------------------------------------------------------------------
-    # Library (workspace/prompts/library/)
+    # Library (workspace/prompts/)
     # ------------------------------------------------------------------
 
     def list_library_sets(self) -> List[dict]:
@@ -93,6 +93,9 @@ class PromptService:
         for d in sorted(self._library_dir.iterdir()):
             if not d.is_dir():
                 continue
+            # Bỏ qua folder library cũ nếu còn tồn tại để tránh rác dữ liệu
+            if d.name == "library":
+                continue
             meta = {}
             mf = d / "meta.json"
             if mf.exists():
@@ -101,6 +104,9 @@ class PromptService:
                 except (json.JSONDecodeError, OSError):
                     meta = {}
             meta["slug"] = d.name
+            if d.name == "default" and "name" not in meta:
+                meta["name"] = "Mặc định (Hệ thống)"
+                meta["description"] = "Bộ chỉ dẫn gốc của hệ thống"
             for key, filename in PROMPT_KEY_FILE_MAP.items():
                 meta[f"has_{key}"] = (d / filename).exists()
             sets.append(meta)
@@ -119,6 +125,9 @@ class PromptService:
             except (json.JSONDecodeError, OSError):
                 meta = {}
         meta["slug"] = slug
+        if slug == "default" and "name" not in meta:
+            meta["name"] = "Mặc định (Hệ thống)"
+            meta["description"] = "Bộ chỉ dẫn gốc của hệ thống"
         prompts = {}
         for key, filename in PROMPT_KEY_FILE_MAP.items():
             fpath = d / filename
@@ -185,12 +194,6 @@ class PromptService:
                 filepath.write_text(content, encoding="utf-8")
         logger.info(f"Saved {len(prompts)} project prompts to {project_dir}")
 
-    def reset_project_prompts(self, project_dir: Path) -> None:
-        """Xóa tất cả prompt tùy chỉnh của project (quay về dùng default)."""
-        prompt_dir = project_dir / "prompt"
-        if prompt_dir.exists():
-            shutil.rmtree(prompt_dir)
-            logger.info(f"Reset project prompts for {project_dir}")
 
     # ------------------------------------------------------------------
     # Merged prompts (default + project override)

@@ -231,10 +231,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Library buttons
     const btnNewLibrary = document.getElementById('btn-new-library');
     if (btnNewLibrary) btnNewLibrary.addEventListener('click', () => PromptManager.showNewLibraryModal());
+    const btnSaveLibrarySet = document.getElementById('btn-save-library-set');
+    if (btnSaveLibrarySet) btnSaveLibrarySet.addEventListener('click', () => PromptManager.saveLibrarySet());
+    const btnDeleteLibrarySet = document.getElementById('btn-delete-library-set');
+    if (btnDeleteLibrarySet) btnDeleteLibrarySet.addEventListener('click', () => PromptManager.deleteLibrarySet());
+    const btnInfoLibrarySet = document.getElementById('btn-info-library-set');
+    if (btnInfoLibrarySet) btnInfoLibrarySet.addEventListener('click', () => PromptManager.showEditLibraryModal());
     const btnSaveProjectPrompts = document.getElementById('btn-save-project-prompts');
     if (btnSaveProjectPrompts) btnSaveProjectPrompts.addEventListener('click', () => PromptManager.saveProjectPrompts());
-    const btnResetProjectPrompts = document.getElementById('btn-reset-project-prompts');
-    if (btnResetProjectPrompts) btnResetProjectPrompts.addEventListener('click', () => PromptManager.resetProjectPrompts());
 
 
 });

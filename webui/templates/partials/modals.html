@@ -168,3 +168,41 @@
         </div>
     </div>
 </div>
+
+<!-- New Library Set Modal -->
+<div id="new-library-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+    <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">➕ Thêm Bộ Prompt Mới</h3>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên bộ prompt *</label>
+            <input type="text" id="new-library-name" class="nt-input w-100" placeholder="VD: Thần thoại, Khoa học viễn tưởng, ...">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả</label>
+            <textarea id="new-library-desc" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 lh-copy no-resize" rows="3" placeholder="Mô tả ngắn về bộ prompt này..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt3 bt b--black-10">
+            <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('new-library-modal')">Hủy bỏ</button>
+            <button type="button" id="btn-confirm-new-library" class="nt-btn nt-btn-success" onclick="PromptManager.confirmCreateLibrary()">Tạo bộ</button>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Library Set Modal -->
+<div id="edit-library-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+    <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">ℹ️ Thông tin Bộ Prompt</h3>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Tên bộ prompt *</label>
+            <input type="text" id="edit-library-name" class="nt-input w-100" placeholder="VD: Thần thoại, Khoa học viễn tưởng, ...">
+        </div>
+        <div class="mb3">
+            <label class="db fw6 lh-copy f6 mb2 dark-gray">Mô tả</label>
+            <textarea id="edit-library-desc" class="w-100 pa2 ba b--black-10 br2 f6 outline-0 lh-copy no-resize" rows="3" placeholder="Mô tả ngắn về bộ prompt này..."></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt3 bt b--black-10">
+            <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('edit-library-modal')">Hủy bỏ</button>
+            <button type="button" id="btn-confirm-edit-library" class="nt-btn nt-btn-success" onclick="PromptManager.confirmEditLibrary()">Cập nhật</button>
+        </div>
+    </div>
+</div>

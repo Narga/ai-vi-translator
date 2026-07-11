@@ -4,6 +4,50 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.1.0] - 2026-07-11
+### Cải tiến Prompt UI & Dọn mã Prompt trùng
+
+**Thay đổi chính:**
+- **Hợp nhất path lưu thư viện prompt**: `workspace/prompts/library/` → `workspace/prompts/` (xóa bỏ folder `library/` trung gian). Bỏ qua folder `library` cũ nếu còn tồn tại để tránh dữ liệu rác.
+- **Xoá route `/api/projects/<slug>/prompts/reset`** — cơ chế reset prompt cũ (xóa toàn bộ folder prompt) được loại bỏ. Thay vào đó, dự án chỉ cần lưu prompt rỗng cho từng key để fallback về mặc định.
+- **Xoá `PromptService.reset_project_prompts()`** khỏi backend.
+- **Dọn route trùng trong `projects.py`**: Xoá toàn bộ khối project prompt APIs cũ (GET/PUT/DELETE `/api/projects/<slug>/prompts`) đã được chuyển sang `prompts.py` từ v8.0.0.
+- **Migration dữ liệu**: Không cần migration — dự án chưa chạy thực tế.
+
+**Cải thiện Prompt Library (Thư viện Chỉ dẫn AI):**
+- UI Library mới: modal tạo bộ prompt (Tên + Mô tả), modal sửa thông tin bộ prompt, nút Xóa bộ (ẩn nếu là `default`).
+- Editor thư viện: giao diện 2 cột (danh sách bên trái, editor bên phải) với tab-switching giống workspace.
+- Hiển thị tên/mô tả bộ prompt ở header editor.
+- Nút Lưu hoạt động trực tiếp trên editor thư viện (không cần mở modal riêng).
+- Xóa bộ prompt: lọc qua modal xác nhận, clear editor, load lại danh sách.
+
+**Cải thiện Prompt dự án (Workspace):**
+- Tab-style cho prompt tabs (Dịch thuật, Tóm tắt, Quan hệ, Thuật ngữ, Chính tả) — giao diện đồng bộ với Info tabs.
+- Import từ thư viện theo từng tab riêng biệt: chọn bộ prompt nguồn → nhập nội dung vào textarea đang mở (có dirty flag chờ lưu).
+- Bỏ nút "Xóa riêng" (reset) — thay bằng cơ chế lưu trống cho từng key.
+- Bỏ badge trạng thái "Mặc định/Tùy chỉnh" — không còn cần thiết vì dự án không có prompt riêng sẽ tự dùng default.
+
+**Sửa Batch Rename:**
+- `getSelectedFilesForCurrentTab()`: batch rename giờ hoạt động đúng trên cả 3 mini-tab (Nội dung nguồn, Bản dịch, Soát chính tả) thay vì chỉ tab Nguồn.
+- `clearSelectionForCurrentTab()`: dọn selection đúng tab sau khi rename.
+
+**Backend cleanup:**
+- `PromptService`: bỏ `reset_project_prompts()`, thêm fallback name/description cho bộ `default`, thêm filter bỏ folder `library` cũ.
+- `prompts.py`: sửa `update_library()` load metadata cũ khi không gửi đủ field, API project prompts trả về `load_project_prompts()` (riêng dự án, không merged).
+
+**Frontend cleanup:**
+- Xoá các wrapper tương thích ngược (`loadProjectPrompts`, `saveProjectPrompts`, `importFromLibrary`) — giờ gọi thẳng `loadProjectPromptsFromWorkspace`, `saveProjectPromptsFromWorkspace`, `importFromLibraryToWorkspace`.
+- Xoá `_updatePromptStatusBadge()` — badge không còn dùng.
+- Xoá `resetProjectPrompts()` frontend.
+- Xoá event listener `btn-reset-project-prompts`.
+
+**Files changed (11 files, +490/-325):**
+- Backend: `prompt_service.py`, `prompts.py`, `projects.py`
+- Frontend: `tab_prompts.html`, `prompt-manager.js`, `main.js`, `project-manager.js`, `tab_projects.html`, `modals.html`, `style.css`
+- Docs: `MANUAL.md`
+
+---
+
 ## [8.0.0] - 2026-07-10
 ### Cải tiến lớn: Xóa Genre, Viết lại Prompt Subsystem, Nút Dừng Dịch, Batch Rename
 

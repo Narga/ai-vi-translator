@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.0.0)
+# 📚 Content Translator (v8.1.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.0.0):** Xóa Genre + Viết lại Prompt Subsystem (Library + Project copy), nút dừng tiến trình dịch, validate model theo provider, đổi tên hàng loạt file.
+**Tính năng mới (v8.1.0):** Prompt UI đại tu (mượt mà hơn, import theo tab, xoá nút reset), dọn path thư viện prompt phẳng, batch rename đa mini-tab.
 
 ---
 
@@ -53,7 +53,7 @@ python cli.py translate -i input/novel.txt  # CLI mode
 | Tài liệu | Mô tả |
 |-----------|--------|
 | [📗 Hướng dẫn sử dụng](docs/MANUAL.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
-| [🗺️ Lộ trình (Roadmap)](docs/ROADMAP.md) | Lộ trình phát triển và kế hoạch tương lai |
+| [🗺️ Lộ trình (Roadmap)](roadmap.md) | Lộ trình phát triển và kế hoạch tương lai |
 | [🛠️ Hướng dẫn phát triển](docs/DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
 | [📋 Lịch sử thay đổi](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 7.9.0  
-**Ngày:** 10/07/2026
+**Phiên bản:** 8.1.0  
+**Ngày:** 11/07/2026

@@ -904,3 +904,18 @@ button.bg-green:hover {
 [data-tooltip].tooltip-align-left:hover::after {
     transform: scale(1);
 }
+
+/* Workspace sub-tab active style */
+.pm-prompt-tab-btn, .pm-info-tab-btn {
+    background: transparent !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    outline: none;
+    transition: all 0.2s ease;
+}
+.pm-prompt-tab-btn.active, .pm-info-tab-btn.active {
+    border-bottom: 2px solid var(--primary) !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+}

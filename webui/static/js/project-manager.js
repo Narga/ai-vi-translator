@@ -549,9 +549,17 @@ const ProjectManager = {
         };
         window.pmActiveInfoTab = tabToContentType[tabName] || 'style_guide';
 
-        // Toggle active class trên các nút subtab
+        // Toggle active class và màu chữ trên các nút subtab
         document.querySelectorAll('.pm-info-tab-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.infoTab === window.pmActiveInfoTab);
+            const isActive = btn.dataset.infoTab === window.pmActiveInfoTab;
+            btn.classList.toggle('active', isActive);
+            if (isActive) {
+                btn.classList.remove('gray');
+                btn.classList.add('dark-gray');
+            } else {
+                btn.classList.add('gray');
+                btn.classList.remove('dark-gray');
+            }
         });
 
         // Load nội dung từ backend nếu cần
@@ -773,6 +781,19 @@ const ProjectManager = {
 
     showPmPromptTab(tabName) {
         this._showPanel('pm-prompt-panel-', ['main', 'summary', 'relationships', 'glossary', 'chinh-ta'], tabName);
+        window.activeWorkspacePromptTab = tabName;
+        document.querySelectorAll('.pm-prompt-tab-btn').forEach(btn => {
+            const onclick = btn.getAttribute('onclick') || '';
+            const isActive = onclick.includes(`'${tabName}'`);
+            btn.classList.toggle('active', isActive);
+            if (isActive) {
+                btn.classList.remove('gray');
+                btn.classList.add('dark-gray');
+            } else {
+                btn.classList.add('gray');
+                btn.classList.remove('dark-gray');
+            }
+        });
     },
 
     exportProject(slug) {
@@ -947,6 +968,21 @@ const ProjectManager = {
 
     selectAllSpellcheckFiles() {},
 
+    getSelectedFilesForCurrentTab() {
+        // Determine based on active tab
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const translatedBtn = document.getElementById('pm-tab-translated');
+        const spellingBtn = document.getElementById('pm-tab-spelling');
+        
+        if (translatedBtn && translatedBtn.classList.contains('active')) {
+            return window.selectedTranslatedFiles;
+        }
+        if (spellingBtn && spellingBtn.classList.contains('active')) {
+            return window.selectedTranslatedFiles;
+        }
+        return window.selectedFiles;
+    },
+
     async renameProjectFile(filename, section) {
         if (!window.currentProject) return;
         const newName = await showPrompt('Đổi tên file thành:', filename);
@@ -968,9 +1004,10 @@ const ProjectManager = {
 
     showBatchRenameModal() {
         if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
-        if (window.selectedFiles.size === 0) { UiHelpers.showToast('Chọn file cần đổi tên trước!', 'error'); return; }
+        const selected = this.getSelectedFilesForCurrentTab();
+        if (selected.size === 0) { UiHelpers.showToast('Chọn file cần đổi tên trước!', 'error'); return; }
 
-        const files = Array.from(window.selectedFiles);
+        const files = Array.from(selected);
         const countEl = document.getElementById('batch-rename-count');
         const previewEl = document.getElementById('batch-rename-preview');
         const patternEl = document.getElementById('batch-rename-pattern');
@@ -998,12 +1035,14 @@ const ProjectManager = {
     },
 
     executeBatchRename() {
-        if (!window.currentProject || window.selectedFiles.size === 0) return;
+        if (!window.currentProject) return;
+        const selected = this.getSelectedFilesForCurrentTab();
+        if (selected.size === 0) return;
 
         const pattern = document.getElementById('batch-rename-pattern')?.value || '';
         const start = parseInt(document.getElementById('batch-rename-start')?.value || '1');
         const zeropad = parseInt(document.getElementById('batch-rename-zeropad')?.value || '2');
-        const oldNames = Array.from(window.selectedFiles);
+        const oldNames = Array.from(selected);
 
         if (!pattern) { UiHelpers.showToast('Nhập pattern đổi tên!', 'error'); return; }
 
@@ -1030,7 +1069,7 @@ const ProjectManager = {
                 const errors = (data.results || []).filter(r => r.error);
                 UiHelpers.showToast(`Đã đổi tên ${renamed}/${oldNames.length} file`, errors.length > 0 ? 'warning' : 'success');
                 ModalManager.hide('batch-rename-modal');
-                window.selectedFiles.clear();
+                ProjectManager.clearSelectionForCurrentTab();
                 ProjectManager.openProject(window.currentProject.slug);
             } else {
                 UiHelpers.showToast(data.error || 'Lỗi đổi tên', 'error');
@@ -1040,6 +1079,13 @@ const ProjectManager = {
         .finally(() => {
             if (btn) { btn.disabled = false; btn.textContent = 'Đổi tên'; }
         });
+    },
+
+    clearSelectionForCurrentTab() {
+        const selected = this.getSelectedFilesForCurrentTab();
+        selected.clear();
+        ProjectManager.updateSelectAllButton();
+        ProjectManager.updateSelectAllTranslatedButton();
     },
 
     async moveBackInProject(filename) {

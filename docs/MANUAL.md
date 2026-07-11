@@ -61,8 +61,8 @@ Mỗi dự án dịch thuật được tổ chức riêng biệt trong `workspac
 my-novel/
 ├── sources/           # File nguồn cần dịch (.txt)
 ├── translated/        # File đã dịch xong
-├── prompt/            # Prompt riêng cho dự án
-├── profile/           # Glossary, Characters, Style guide
+├── prompt/            # Prompt riêng cho dự án (nếu có)
+├── assets/            # Glossary, Style guide, Relationship, Summary
 │   └── translation_memory/  # TM riêng dự án
 └── project.json       # Metadata dự án
 ```
@@ -73,14 +73,14 @@ my-novel/
 
 ### 📚 Từ điển Thuật ngữ (Glossary)
 Để đảm bảo tên nhân vật và chiêu thức nhất quán:
-- Đặt file `glossary.txt` vào thư mục `profile/` của dự án.
+- Đặt file `glossary.txt` vào thư mục `assets/` của dự án.
 - Hệ thống sẽ tự động nhúng các thuật ngữ liên quan vào prompt khi dịch.
 
 ### 🧠 Bộ nhớ Dịch thuật (Translation Memory)
 Hệ thống tự động ghi nhớ các câu đã dịch. Nếu gặp lại câu tương tự ≥85%, hệ thống sẽ gợi ý hoặc tự động áp dụng để tiết kiệm API và đảm bảo tính nhất quán.
 
 ### 📚 Thư viện Prompt (Prompt Library)
-Tạo và quản lý các bộ prompt mẫu (Fantasy, Sci-Fi, Romance...). Nạp từng prompt từ thư viện vào dự án để tùy chỉnh.
+Tạo và quản lý các bộ prompt mẫu. Mỗi bộ prompt lưu tại `workspace/prompts/<slug>/`. Bộ `default` là mặc định hệ thống, không thể xóa.
 
 ### ⚙️ Cấu hình Tối ưu (config/app.ini)
 Bạn có thể tinh chỉnh các thông số kỹ thuật:
@@ -98,82 +98,75 @@ Hệ thống tích hợp sẵn bộ chuyển đổi dành cho sách điện tử
 - **Text → EPUB**: Đóng gói lại thành file sách hoàn chỉnh sau khi dịch xong, bảo toàn Metadata và cấu trúc chương hồi.
 
 ### 🖼️ OCR Engine (Plugin)
-Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét. Kể từ phiên bản 6.9.0, OCR Engine được tái cấu trúc thành kiến trúc mô-đun lớp (Layered Architecture):
-- **Cấu trúc mới**: Logic được tách bạch thành các module `config`, `image`, `pdf`, `tables`, `formats`, và `ai_processor` trong thư mục `plugins/ocr/modules/`.
-- **Nhận diện nâng cao**: Tích hợp các công cụ mạnh mẽ như `pytesseract`, `ocrmypdf`, `pdfplumber` và `PyMuPDF`.
-- **AI Post-Processing**: Tự động làm sạch văn bản (AI Cleanup) và sửa lỗi chính tả (AI Spellcheck) sau khi quét để đạt độ chính xác cao nhất.
-- **Tính tương thích**: File `ocr_engine.py` đóng vai trò là "Cửa ngõ" (Facade), đảm bảo các script cũ vẫn hoạt động bình thường.
-
-### 💾 Hệ thống Cache JSON
-Hệ thống sử dụng cơ chế lưu trữ Cache hiện đại:
-- **Định dạng an toàn**: Toàn bộ dữ liệu được lưu dưới dạng `JSON` nén (Gzip) thay vì `pickle` cũ, giúp ngăn chặn các rủi ro bảo mật và dễ dàng kiểm tra nội dung.
-- **Tự động hóa**: Cache được tự động nén để tiết kiệm dung lượng đĩa cứng. Bạn có thể xóa Cache thông qua tab Cấu hình trên WebUI.
+Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét. OCR Engine có kiến trúc mô-đun lớp (Layered Architecture):
+- **Cấu trúc**: Logic được tách bạch thành các module `config`, `image`, `pdf`, `tables`, `formats`, và `ai_processor` trong `plugins/ocr/modules/`.
+- **AI Post-Processing**: Tự động làm sạch văn bản (AI Cleanup) và sửa lỗi chính tả (AI Spellcheck) sau khi quét.
+- **Tính tương thích**: File `ocr_engine.py` đóng vai trò Facade, đảm bảo các script cũ vẫn hoạt động.
 
 ## 5a. Quản lý Plugin (v7.8.0+)
 
 ### 🔌 Plugin Management
-Từ v7.8.0, thẻ **Công cụ** trên main navigation đã được thay thế bằng hệ thống plugin tích hợp:
-
-- **Quản lý Plugin**: Vào tab **Cấu hình** → cuối trang → khối **Quản lý Plugin**
-- **Danh sách plugin**: Hiển thị tất cả plugin (Core + Tool) kèm tên, mô tả, phiên bản, tác giả
-- **Bật/Tắt**: Tool plugins (eBook Kit, OCR Toolbox) có thể bật/tắt bằng toggle switch
+- **Quản lý Plugin**: Tab **Cấu hình** → cuối trang → khối **Quản lý Plugin**
+- **Bật/Tắt**: Tool plugins (eBook Kit, OCR Toolbox) bật/tắt bằng toggle switch
 - **Core plugins** (Translation, Spellcheck) mặc định bật, không thể tắt
 
 ### 📚 eBook Kit (Workspace Tab)
-Khi plugin eBook Kit được bật, workspace project hiển thị tab **eBook Kit**:
-- **EPUB → Text**: Trích xuất nội dung từ file EPUB, hỗ trợ Single/Multi/Both mode, xuất TXT hoặc Markdown
-- **Text → EPUB**: Đóng gói lại thành EPUB, giữ cấu trúc chương hồi, hỗ trợ Markdown nguồn
+Khi plugin eBook Kit được bật, workspace hiển thị tab **eBook Kit**:
+- **EPUB → Text**: Trích xuất nội dung từ EPUB, hỗ trợ Single/Multi/Both mode
+- **Text → EPUB**: Đóng gói lại thành EPUB, giữ cấu trúc chương hồi
 
 ### 🖼️ OCR Toolbox (Workspace Tab)
-Khi plugin OCR Toolbox được bật, workspace project hiển thị tab **OCR Toolbox**:
+Khi plugin OCR Toolbox được bật, workspace hiển thị tab **OCR Toolbox**:
 - Nhận dạng ký tự từ PDF/Ảnh bằng Tesseract + AI Cleanup + Spellcheck
-- Chế độ xử lý: Đầy đủ (OCR+Cleanup+Spell), Chỉ Cleanup, Chỉ Spell Check
 - Hỗ trợ chọn trang PDF, bỏ qua Cleanup/Spellcheck riêng lẻ
 
 ---
 
 ### 🛠️ Công cụ Biên tập & Soát lỗi (v7.7.0+)
 Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-tab:
-- **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Click file để mở editor 2 cột (Nguồn + Bản dịch). Row actions: Dịch, Chuyển Markdown (đối với HTML/XHTML), Soát lỗi AI, Đổi tên, Xóa.
-- **📝 Tiền xử lý HTML/XHTML → Markdown**: Hỗ trợ chuyển đổi các tệp `.html`, `.htm`, và `.xhtml` sang định dạng Markdown sạch (`.md`) ngoại tuyến trực tiếp ngay trên WebUI (bằng nút "Chuyển Markdown" trên toolbar chính hoặc mini-toolbar của từng tệp). Quá trình này dùng BeautifulSoup/html2text để bóc tách thẻ `<body>`, dọn dẹp CSS/script/style rác, chuyển `<ruby>` sang `漢字《かな》`, giữ nguyên `<u>` và inlining reference links.
-- **Bản dịch**: File đã dịch xong. Click file để xem song song nguồn và bản dịch.
-- **Soát chính tả**: File đã được AI soát lỗi xong (chỉ hiển thị output, không hiển thị file nguồn chưa soát).
-- **Tự động clear selection**: Khi chuyển mini-tab, mọi lựa chọn đều được xoá để tránh thao tác nhầm.
-- **Toolbar icons**: Upload, Chia nhỏ, Chuyển Markdown, Dịch đã chọn, Soát lỗi đã chọn, Ghép tập tin, Xóa đã chọn — hiển thị tuỳ theo mini-tab.
-- **↩️ Wrap (Ngắt dòng)**: Tự động xuống dòng văn bản để hiển thị vừa vặn trong khung soạn thảo mà không cần cuộn ngang. Hữu ích khi làm việc với các đoạn văn dài.
-- **📊 Diff (So sánh)**: Hiển thị sự khác biệt giữa nội dung nguồn và nội dung đích trong một cửa sổ modal chuyên biệt, giúp bạn dễ dàng đối soát các thay đổi hoặc lỗi mất đoạn.
-- **🧩 Ghép tập tin (Smart Merge)**: 
-    - Cho phép gộp tất cả các file đã dịch lẻ tẻ thành một tập tin duy nhất (thường dùng để xuất bản chương/truyện hoàn chỉnh).
-    - **Logic sắp xếp**: Hệ thống sử dụng thuật toán **Natural Sort** (sắp xếp tự nhiên), đảm bảo thứ tự "Chương 2" luôn nằm trước "Chương 10", thay vì sắp xếp theo kiểu chữ cái truyền thống.
+- **Nội dung nguồn**: File gốc cần dịch hoặc soát lỗi. Row actions: Dịch, Chuyển Markdown (HTML/XHTML), Soát lỗi AI, Đổi tên, Xóa.
+- **📝 Tiền xử lý HTML/XHTML → Markdown**: Chuyển đổi file `.html`, `.htm`, `.xhtml` → Markdown sạch bằng nút "Chuyển Markdown".
+- **Bản dịch**: File đã dịch xong. Click để xem song song nguồn + bản dịch.
+- **Soát chính tả**: File đã AI soát lỗi xong.
+- **↩️ Wrap**: Ngắt dòng tự động, không cần cuộn ngang.
+- **📊 Diff (So sánh)**: Xem khác biệt giữa nguồn và đích trong modal.
+- **🧩 Ghép tập tin (Smart Merge)**: Gộp file đã dịch thành một, dùng Natural Sort.
 
 ---
 
 ## 6. Quản Lý Chỉ Dẫn (Prompt Management)
 
-Kể từ phiên bản 6.7.0, hệ thống hỗ trợ cơ chế biệt lập chỉ dẫn (Prompt) cực kỳ mạnh mẽ cho từng dự án:
+### Hai khu vực quản lý prompt riêng biệt
 
-### Phân loại Trạng thái
-- **📌 Chỉ dẫn Hệ thống (Mặc định)**: Dự án sử dụng chung bộ luật lệ mặc định của hệ thống. Bất kỳ thay đổi nào tại đây (nếu lưu vào hệ thống) sẽ ảnh hưởng đến các dự án mới khác.
-- **✏️ Chỉ dẫn Dự án (Tùy chỉnh)**: Dự án có một bản sao prompt riêng nằm trong thư mục `prompt/` của dự án đó. Bạn có thể tự do chỉnh sửa prompt dịch thuật, tóm tắt... cho dự án này mà không sợ ảnh hưởng đến dự án khác hay cài đặt chung của hệ thống.
+#### A. Thư viện Chỉ dẫn AI (cấp hệ thống)
+- Tab **Chỉ dẫn AI** → bên trái danh sách bộ prompt, bên phải editor.
+- Bộ `default` là mặc định hệ thống, có thể sửa nội dung nhưng **không thể xóa**.
+- **Tạo bộ mới**: Nút "+ Thêm bộ" → modal nhập Tên + Mô tả → tự động tạo thư mục `workspace/prompts/<slug>/` với 5 file prompt rỗng.
+- **Editor**: Click bộ prompt → load nội dung vào 5 tab (Dịch thuật, Tóm tắt, Quan hệ, Thuật ngữ, Chính tả). Chỉnh sửa và bấm **Lưu**.
+- **Thông tin bộ prompt**: Nút "Thông tin" → modal sửa Tên + Mô tả.
+- **Xóa bộ prompt**: Nút "Xóa bộ" → confirm → xóa thư mục (ẩn với bộ `default`).
+- Vị trí lưu: `workspace/prompts/<slug>/` (mỗi slug là một thư mục chứa `meta.json` + 5 file `.txt`).
 
-### Các thao tác Quản lý
-1. **💾 Lưu chỉ dẫn dự án**: Khi bạn chỉnh sửa nội dung prompt và nhấn nút này, hệ thống sẽ tự động tạo một bản sao riêng cho dự án và lưu lại. Trạng thái sẽ chuyển từ "Hệ thống" sang "Dự án".
-2. **📥 Nạp từ Thư viện**: Chọn một bộ prompt từ Thư viện (ví dụ: Fantasy) và chọn prompt cụ thể cần nạp. Prompt đó sẽ được sao chép vào dự án của bạn.
-3. **🗑️ Xóa chỉ dẫn riêng (Reset)**: Nếu bạn muốn dự án quay về sử dụng các quy tắc mặc định ban đầu, hãy nhấn nút này. Hệ thống sẽ xóa bản sao riêng và khôi phục trạng thái "Hệ thống".
+#### B. Chỉ dẫn của Dự án (Project Override)
+- Trong workspace dự án, tab **Chỉ dẫn**.
+- 5 tab prompt (Dịch thuật, Tóm tắt, Quan hệ, Thuật ngữ, Chính tả) — giao diện tab-style.
+- **📥 Nhập từ Thư viện**: Chọn bộ prompt nguồn từ dropdown + tab đang mở → bấm "Nhập Prompt" → nội dung được copy vào textarea (chưa lưu, có dirty flag).
+- **💾 Lưu**: Lưu nội dung prompt hiện tại vào `workspace/projects/<slug>/prompt/`. Hệ thống ưu tiên prompt dự án trước; nếu file prompt rỗng → dùng prompt mặc định từ bộ `default`.
+- **Cơ chế fallback**: Không cần nút "Reset" hay "Xóa riêng". Chỉ cần lưu textarea trống → file prompt rỗng → hệ thống tự dùng mặc định.
 
 ---
 
 ## 7. Giải Quyết Sự Cố (Troubleshooting)
 
-- **Lỗi 429 (Rate Limit):** Đừng lo lắng, hệ thống sẽ tự động chờ hoặc chuyển sang API Key khác nhờ cơ chế `AdaptiveRateLimiter`.
-- **Bản dịch bị cắt dòng:** Kiểm tra lại tham số `chunk_size` hoặc dùng model mạnh hơn.
-- **Lỗi Encoding:** Luôn đảm bảo file đầu vào định dạng UTF-8.
-- **Port bị chiếm:** Dùng `python webui.py --port 8080` để đổi port.
+- **Lỗi 429 (Rate Limit):** Hệ thống tự động chờ hoặc chuyển API Key nhờ `AdaptiveRateLimiter`.
+- **Bản dịch bị cắt dòng:** Kiểm tra `chunk_size` hoặc dùng model mạnh hơn.
+- **Lỗi Encoding:** File đầu vào phải UTF-8.
+- **Port bị chiếm:** Dùng `python webui.py --port 8080`.
 
----
 ### Lỗi Phân mảnh Module OCR (v6.9.0+)
-- Nếu gặp lỗi `ImportError` liên quan đến `plugins.ocr.modules`, hãy đảm bảo bạn đang chạy ứng dụng từ thư mục gốc của dự án.
-- **Xử lý Dependency**: Nếu một module báo thiếu thư viện (ví dụ: `pdfplumber`), hệ thống sẽ cố gắng tự động cài đặt qua `lazy_import_and_install`. Nếu thất bại, hãy chạy `pip install pdfplumber`.
+- Lỗi `ImportError` liên quan `plugins.ocr.modules`: chạy từ thư mục gốc dự án.
+- Module báo thiếu thư viện: hệ thống tự động cài qua `lazy_import_and_install`. Nếu thất bại, chạy `pip install <package>`.
 
 ---
-*Phiên bản tài liệu: 2.4 - Ngày cập nhật: 16/06/2026*
+
+*Phiên bản tài liệu: 2.5 — Ngày cập nhật: 11/07/2026*

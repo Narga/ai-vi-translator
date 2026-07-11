@@ -2,6 +2,15 @@
 
 ## Hoàn thành
 
+### v8.1.0 (2026-07-11)
+- [x] Prompt UI đại tu: editor 2 cột + tab-style + import per-tab
+- [x] Hợp nhất path thư viện prompt: `workspace/prompts/library/` → `workspace/prompts/`
+- [x] Xoá route reset prompt + `PromptService.reset_project_prompts()`
+- [x] Dọn route prompt trùng trong `projects.py` (chuyển hết sang `prompts.py`)
+- [x] Modal tạo/sửa thông tin bộ prompt (Tên + Mô tả)
+- [x] Batch rename hoạt động trên cả 3 mini-tab (Nguồn, Dịch, Soát lỗi)
+- [x] Xoá badge trạng thái prompt, bỏ nút "Xóa riêng" (reset)
+
 ### v8.0.0 (2026-07-10)
 - [x] Issue 1: Sửa thông tin dự án không cập nhật danh sách (priority `name > book_title`)
 - [x] Issue 8: Thống nhất nút Info (chỉ giữ ở danh sách dự án)
@@ -23,23 +32,22 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.1.0 (planned)
-- [ ] Per-project model override (cho phép mỗi dự án dùng model khác nhau)
+### v8.2.0 (planned)
 - [ ] Batch translate (dịch nhiều file cùng lúc với progress riêng)
 - [ ] Translation Memory improvements (fuzzy match threshold tuning)
-
-### v8.2.0 (planned)
 - [ ] Advanced search & filter trong danh sách file
+
+### v8.3.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
-- [ ] Collaboration features (multi-user)
+- [ ] Frontend bundle optimization (tree-shaking, code splitting)
 
 ### Tối ưu hóa
-- [ ] Frontend bundle optimization (tree-shaking, code splitting)
-- [ ] Backend caching layer (Redis/Memcached cho prompt cache)
+- [ ] Backend caching layer
 - [ ] WebSocket thay thế SSE cho real-time progress
 
 ---
 
 ## Đã hoãn (YAGNI)
-- Per-project model override (v8.1.0)
-- Migration script từ genre sang library (không cần - dự án chưa chạy thực tế)
+- Per-project model override (quyết định sau khi có nhu cầu thực tế)
+- Migration script từ genre sang library (không cần - dự án chưa có dữ liệu cũ)
+- Collaboration features (multi-user) — quá sớm
