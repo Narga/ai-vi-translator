@@ -2,6 +2,15 @@
 
 ## Hoàn thành
 
+### v8.2.0 (2026-07-11)
+- [x] 🔍 Tìm kiếm & Thay thế nâng cao (3 chế độ: normal, case-sensitive, regex)
+- [x] 💾 Nút Lưu file nguồn (PUT `/api/projects/.../file/sources/...`)
+- [x] 🔄 Làm mới Workspace (nút toolbar duy nhất, reload toàn bộ)
+- [x] ✏️ Đổi tên dự án (rename slug + thư mục trên đĩa)
+- [x] Sửa AutoSave sai editor ID (`result-text` → `pm-result-text`)
+- [x] Sửa `saveChunkTranslation` lấy đúng textarea
+- [x] Sửa Tải về 404 (thay route backend bằng Blob download)
+
 ### v8.1.0 (2026-07-11)
 - [x] Prompt UI đại tu: editor 2 cột + tab-style + import per-tab
 - [x] Hợp nhất path thư viện prompt: `workspace/prompts/library/` → `workspace/prompts/`
@@ -32,12 +41,12 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.2.0 (planned)
+### v8.3.0 (planned)
 - [ ] Batch translate (dịch nhiều file cùng lúc với progress riêng)
 - [ ] Translation Memory improvements (fuzzy match threshold tuning)
 - [ ] Advanced search & filter trong danh sách file
 
-### v8.3.0 (planned)
+### v8.4.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
 

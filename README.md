@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.1.0)
+# 📚 Content Translator (v8.2.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.1.0):** Prompt UI đại tu (mượt mà hơn, import theo tab, xoá nút reset), dọn path thư viện prompt phẳng, batch rename đa mini-tab.
+**Tính năng mới (v8.2.0):** Tìm kiếm & Thay thế nâng cao (3 chế độ: thường, case-sensitive, regex), Lưu file nguồn, Làm mới workspace, Đổi tên dự án (đổi slug + thư mục), sửa lỗi AutoSave và Tải về.
 
 ---
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.1.0  
+**Phiên bản:** 8.2.0  
 **Ngày:** 11/07/2026

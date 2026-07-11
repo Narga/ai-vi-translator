@@ -31,9 +31,9 @@ const AutoSave = {
     async save() {
         if (this._isSaving) return;
         if (!window.currentProject || !window.currentProjectFile) return;
-        if (!DirtyState.isDirty('result-text')) return;
+        if (!DirtyState.isDirty('pm-result-text')) return;
 
-        const editor = document.getElementById('result-text');
+        const editor = document.getElementById('pm-result-text');
         if (!editor) return;
 
         this._isSaving = true;
@@ -52,7 +52,7 @@ const AutoSave = {
 
             const data = await response.json();
             if (data.success) {
-                DirtyState.clean('result-text');
+                DirtyState.clean('pm-result-text');
                 this.showIndicator('Đã lưu tự động');
                 setTimeout(() => this.hideIndicator(), 2000);
             } else {
@@ -72,7 +72,7 @@ const AutoSave = {
             el = document.createElement('span');
             el.id = 'auto-save-indicator';
             el.className = 'f7 gray ml2';
-            const header = document.querySelector('#result-text')?.closest('.editor-pane-3col')?.querySelector('.pa2');
+            const header = document.querySelector('#pm-result-text')?.closest('.editor-pane-3col')?.querySelector('.pa2');
             if (header) header.appendChild(el);
         }
         el.textContent = text;
@@ -98,9 +98,7 @@ const AutoSave = {
 
 window.AutoSave = AutoSave;
 
-// ============================================================
-// SVG Icons (simple line style)
-// ============================================================
+// ===== PROJECT WORKSPACE FUNCTIONS =====
 const Icons = {
     upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
     chunk: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/><line x1="6" y1="12" x2="18" y2="12"/></svg>',
@@ -128,6 +126,18 @@ const COL_MAP = {
 const ProjectManager = {
     // ===== PROJECT CARD FUNCTIONS =====
     
+    refreshWorkspace() {
+        if (!window.currentProject) return;
+        const slug = window.currentProject.slug;
+        
+        // Reload tất cả: project data, file lists, guidelines, prompts
+        this.openProject(slug);
+        PromptManager.loadProjectPrompts();
+        PromptManager.loadGuidelineTab(window.pmActiveInfoTab || 'style_guide');
+        
+        UiHelpers.showToast('Đã làm mới workspace', 'success');
+    },
+
     async refreshProjectCards(options = {}) {
         const btn = document.getElementById('btn-refresh-projects');
         if (btn) {
@@ -1303,11 +1313,12 @@ const ProjectManager = {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã cập nhật thông tin dự án', 'success');
             ProjectManager.hideProjectInfoModal();
+            const newSlug = data.slug || window.currentProject.slug;
             const listView = document.getElementById('projects-list-view');
             if (listView && listView.style.display !== 'none') {
                 ProjectManager.loadProjectCards();
             } else {
-                ProjectManager.openProject(window.currentProject.slug);
+                ProjectManager.openProject(newSlug);
             }
         }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
     },

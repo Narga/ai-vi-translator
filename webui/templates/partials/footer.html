@@ -17,6 +17,191 @@
         // Init workspace store before Alpine starts
         document.addEventListener('alpine:init', function() {
             Alpine.store('workspace', { wsTab: 'editor' });
+            
+            Alpine.data('searchReplace', () => ({
+                isOpen: false,
+                searchTerm: '',
+                replaceTerm: '',
+                searchMode: 'normal',
+                statusText: '',
+                textareaId: null,
+                currentIndex: -1,
+                matches: [],
+                
+                open(textareaId) {
+                    this.textareaId = textareaId;
+                    this.searchTerm = '';
+                    this.replaceTerm = '';
+                    this.currentIndex = -1;
+                    this.matches = [];
+                    this.statusText = '';
+                    this.isOpen = true;
+                },
+                
+                closeModal() {
+                    this.isOpen = false;
+                },
+                
+                getTextarea() {
+                    return document.getElementById(this.textareaId);
+                },
+                
+                buildMatches() {
+                    const ta = this.getTextarea();
+                    if (!ta || !this.searchTerm) {
+                        this.matches = [];
+                        this.statusText = '';
+                        return;
+                    }
+                    const text = ta.value;
+                    const term = this.searchTerm;
+                    this.matches = [];
+                    
+                    if (this.searchMode === 'regex') {
+                        try {
+                            const regex = new RegExp(term, 'g');
+                            let match;
+                            regex.lastIndex = 0;
+                            while ((match = regex.exec(text)) !== null) {
+                                this.matches.push({
+                                    index: match.index,
+                                    length: match[0].length,
+                                    text: match[0]
+                                });
+                                if (match.index === regex.lastIndex) {
+                                    regex.lastIndex++;
+                                }
+                            }
+                            this.statusText = `Tìm thấy ${this.matches.length} kết quả`;
+                        } catch (e) {
+                            this.matches = [];
+                            this.statusText = 'Lỗi Regex: ' + e.message;
+                        }
+                    } else {
+                        const isCaseSensitive = this.searchMode === 'case-sensitive';
+                        const searchText = isCaseSensitive ? text : text.toLowerCase();
+                        const searchStr = isCaseSensitive ? term : term.toLowerCase();
+                        
+                        let idx = searchText.indexOf(searchStr);
+                        while (idx !== -1) {
+                            this.matches.push({
+                                index: idx,
+                                length: term.length,
+                                text: text.substring(idx, idx + term.length)
+                            });
+                            idx = searchText.indexOf(searchStr, idx + 1);
+                        }
+                        this.statusText = `Tìm thấy ${this.matches.length} kết quả`;
+                    }
+                },
+                
+                findNext() {
+                    this.buildMatches();
+                    if (this.matches.length === 0) {
+                        this.statusText = 'Không tìm thấy kết quả';
+                        return;
+                    }
+                    this.currentIndex = (this.currentIndex + 1) % this.matches.length;
+                    this.highlightMatch();
+                },
+                
+                findPrev() {
+                    this.buildMatches();
+                    if (this.matches.length === 0) {
+                        this.statusText = 'Không tìm thấy kết quả';
+                        return;
+                    }
+                    this.currentIndex = this.currentIndex <= 0 ? this.matches.length - 1 : this.currentIndex - 1;
+                    this.highlightMatch();
+                },
+                
+                highlightMatch() {
+                    const ta = this.getTextarea();
+                    if (!ta) return;
+                    const match = this.matches[this.currentIndex];
+                    if (!match) return;
+                    ta.focus();
+                    ta.setSelectionRange(match.index, match.index + match.length);
+                    
+                    // Tự động scroll đến vị trí highlight
+                    const linesBefore = ta.value.substring(0, match.index).split('\n').length;
+                    ta.scrollTop = Math.max(0, (linesBefore - 5) * 20);
+                    
+                    this.statusText = `Kết quả ${this.currentIndex + 1}/${this.matches.length}`;
+                },
+                
+                replaceOne() {
+                    if (this.currentIndex === -1 || this.matches.length === 0) {
+                        this.findNext();
+                        return;
+                    }
+                    const ta = this.getTextarea();
+                    if (!ta) return;
+                    const match = this.matches[this.currentIndex];
+                    if (!match) return;
+                    
+                    const text = ta.value;
+                    const before = text.substring(0, match.index);
+                    const after = text.substring(match.index + match.length);
+                    
+                    let replacement = this.replaceTerm;
+                    if (this.searchMode === 'regex') {
+                        try {
+                            const regex = new RegExp(this.searchTerm);
+                            replacement = match.text.replace(regex, this.replaceTerm);
+                        } catch (e) {}
+                    }
+                    
+                    ta.value = before + replacement + after;
+                    DirtyState.mark(this.textareaId);
+                    
+                    this.buildMatches();
+                    if (this.matches.length > 0) {
+                        this.currentIndex = this.currentIndex % this.matches.length;
+                        this.highlightMatch();
+                        this.statusText = 'Đã thay thế và chuyển đến kết quả tiếp theo';
+                    } else {
+                        this.currentIndex = -1;
+                        this.statusText = 'Đã thay thế kết quả cuối cùng';
+                    }
+                },
+                
+                replaceAll() {
+                    const ta = this.getTextarea();
+                    if (!ta || !this.searchTerm) return;
+                    const original = ta.value;
+                    const term = this.searchTerm;
+                    const replacement = this.replaceTerm;
+                    
+                    try {
+                        let regex;
+                        if (this.searchMode === 'regex') {
+                            regex = new RegExp(term, 'g');
+                        } else {
+                            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const isCaseSensitive = this.searchMode === 'case-sensitive';
+                            const flags = isCaseSensitive ? 'g' : 'gi';
+                            regex = new RegExp(escapedTerm, flags);
+                        }
+                        
+                        const matches = original.match(regex);
+                        const count = matches ? matches.length : 0;
+                        
+                        if (count === 0) {
+                            this.statusText = 'Không tìm thấy kết quả để thay thế';
+                            return;
+                        }
+                        
+                        ta.value = original.replace(regex, replacement);
+                        DirtyState.mark(this.textareaId);
+                        this.matches = [];
+                        this.currentIndex = -1;
+                        this.statusText = `Đã thay thế ${count} kết quả`;
+                    } catch (e) {
+                        this.statusText = 'Lỗi Regex: ' + e.message;
+                    }
+                }
+            }));
         });
     </script>
     <!-- Alpine.js: Persist plugin PHẢI load TRƯỚC Alpine core -->

@@ -190,6 +190,41 @@ const EditorComponent = {
         }
     },
 
+    openSearchReplaceModal(textareaId) {
+        const el = document.querySelector('[x-data="searchReplace()"]');
+        if (el && el._x_dataStack) {
+            const component = Alpine.$data(el);
+            if (component && component.open) {
+                component.open(textareaId);
+            }
+        }
+    },
+
+    saveSourceFile() {
+        if (!window.currentProject || !window.currentProjectFile) {
+            UiHelpers.showToast('Không xác định dự án/file', 'error');
+            return;
+        }
+        const slug = window.currentProject.slug;
+        const filename = window.currentProjectFile.name;
+        const content = document.getElementById('pm-source-text').value;
+        
+        fetch(`/api/projects/${slug}/file/sources/${filename}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                UiHelpers.showToast('Đã lưu file nguồn', 'success');
+                DirtyState.clean('pm-source-text');
+            } else {
+                UiHelpers.showToast('Lỗi: ' + (res.error || 'Unknown'), 'error');
+            }
+        });
+    },
+
     async findInText(textareaId) {
         var ta = document.getElementById(textareaId);
         if (!ta || !ta.value) return;
@@ -308,15 +343,14 @@ const EditorComponent = {
     },
 
     downloadResult() {
-        if (window.currentOutputFile) window.open('/api/download/' + window.currentOutputFile, '_blank');
-        else {
-            const text = document.getElementById('pm-result-text').value;
-            if (!text) { UiHelpers.showToast('Chưa có nội dung để tải!', 'error'); return; }
-            const fname = window.currentProjectFile ? window.currentProjectFile.name : 'translated.txt';
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-            a.download = fname; a.click();
-        }
+        const text = document.getElementById('pm-result-text').value;
+        if (!text) { UiHelpers.showToast('Chưa có nội dung để tải!', 'error'); return; }
+        const fname = window.currentProjectFile ? window.currentProjectFile.name : 'translated.txt';
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+        a.download = fname;
+        a.click();
+        URL.revokeObjectURL(a.href);
     },
 
     copySpellcheckResult() {
@@ -338,7 +372,7 @@ const EditorComponent = {
 
         const slug = window.currentProject.slug;
         const filename = window.currentProjectFile.name;
-        const content = document.getElementById('result-text').value;
+        const content = document.getElementById('pm-result-text').value;
 
         if (!content.trim()) {
             UiHelpers.showToast('Nội dung dịch trống, không thể lưu.', 'warning');
@@ -361,7 +395,7 @@ const EditorComponent = {
                 btn.disabled = false;
                 if (res.success) {
                     UiHelpers.showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
-                    DirtyState.clean('result-text');
+                    DirtyState.clean('pm-result-text');
                 } else {
                     UiHelpers.showToast('Lỗi lưu file: ' + (res.error || 'Unknown'), 'error');
                 }

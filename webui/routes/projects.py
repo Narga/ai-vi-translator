@@ -323,12 +323,40 @@ def update_project(slug):
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     data = request.json
-    for key in ["name", "description", "status"]:
+    new_name = data.get("name", "").strip() if "name" in data else None
+    
+    if new_name is not None:
+        if not new_name:
+            return jsonify({"error": "Tên dự án không được trống"}), 400
+        meta["name"] = new_name
+
+    for key in ["description", "status"]:
         if key in data:
             meta[key] = data[key]
+            
     meta["updated_at"] = datetime.now().isoformat()
-    _save_project_meta(slug, meta)
-    return jsonify({"success": True, "meta": meta})
+
+    new_slug = slug
+    if new_name is not None:
+        new_slug = re.sub(r"[^\w\-]", "-", new_name.lower()).strip("-")
+        new_slug = re.sub(r"-+", "-", new_slug)
+        if not new_slug:
+            new_slug = "project"
+
+    if new_slug != slug:
+        new_dir = _get_project_dir(new_slug)
+        if new_dir.exists():
+            return jsonify({"error": f"Dự án với tên '{new_name}' (slug: '{new_slug}') đã tồn tại"}), 409
+        
+        old_dir = _get_project_dir(slug)
+        try:
+            old_dir.rename(new_dir)
+        except Exception as e:
+            logger.exception("Failed to rename project directory")
+            return jsonify({"error": f"Không thể đổi tên thư mục dự án: {str(e)}"}), 500
+
+    _save_project_meta(new_slug, meta)
+    return jsonify({"success": True, "meta": meta, "slug": new_slug})
 
 
 VALID_FILE_STATUSES = {"Chờ", "Xong"}

@@ -138,4 +138,4 @@ graph TB
 - **Key Cluster**: `Services` (Chứa logic lõi của hệ thống)
 
 ---
-*Tài liệu được tạo tự động bởi GitNexus Knowledge Graph — cập nhật lần cuối: v7.8.0.*
+*Tài liệu được tạo tự động bởi GitNexus Knowledge Graph — cập nhật lần cuối: v8.2.0.*

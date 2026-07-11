@@ -4,6 +4,30 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.2.0] - 2026-07-11
+### Sửa lỗi Biên tập & Tìm kiếm/Thay thế nâng cao
+
+**Sửa lỗi Biên tập:**
+- **Sửa AutoSave sai editor ID**: `result-text` → `pm-result-text` — AutoSave giờ lưu đúng nội dung textarea đang hiển thị thay vì lưu rỗng.
+- **Sửa Lưu phiên dịch (`saveChunkTranslation`)**: lấy `pm-result-text` thay vì `result-text` cũ, đảm bảo lưu đúng nội dung hiện tại.
+- **Sửa Tải về 404**: Xoá route `/api/download/<filename>` không tồn tại — dùng Blob download thuần front-end, không cần gọi backend.
+
+**Tính năng mới:**
+- **🔍 Tìm kiếm & Thay thế (Search & Replace)**: Modal Alpine.js với 3 chế độ — Bình thường, Phân biệt chữ hoa/thường, Biểu thức chính quy (Regex). Tìm tiến/lùi, thay thế 1 hoặc tất cả. Tích hợp trên cả 4 textarea (Nguồn, Dịch, Soát nguồn, Soát kết quả).
+- **💾 Lưu file nguồn (`saveSourceFile`)**: Nút "Lưu" mới ở cột Nguồn — PUT `/api/projects/<slug>/file/sources/<filename>`.
+- **🔄 Làm mới Workspace**: Nút "Làm mới trang" duy nhất trên toolbar (thay vì nút 🔄 cục bộ trong tab Chỉ dẫn) — reload toàn bộ project data, file lists, prompts.
+- **✏️ Đổi tên dự án (Rename slug)**: Sửa tên dự án tự động đổi tên thư mục + slug. Kiểm tra trùng tên, báo lỗi 409 nếu slug mới đã tồn tại.
+
+**Cải tiến khác:**
+- Toolbar workspace: sắp xếp lại thứ tự nút (Chia nhỏ chuyển xuống cuối).
+- Tích hợp `Alpine.data('searchReplace')` trong `footer.html` thay vì inline script.
+
+**Files changed (5 files, +350/-29):**
+- Backend: `projects.py`
+- Frontend: `editor-component.js`, `project-manager.js`, `tab_projects.html`, `footer.html`
+
+---
+
 ## [8.1.0] - 2026-07-11
 ### Cải tiến Prompt UI & Dọn mã Prompt trùng
 
