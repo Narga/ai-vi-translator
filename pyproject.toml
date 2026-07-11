@@ -23,7 +23,6 @@ dependencies = [
     "google-genai>=1.0.0",
     "chardet",
     "tqdm",
-    "psutil",
     "python-dotenv",
     "flask>=2.0.0",
     "flask-sock",
@@ -47,9 +46,6 @@ ocr = [
     "python-docx>=1.0.0",
     "ocrmypdf>=15.0.0",
     "PyYAML",
-]
-async = [
-    "aiohttp",
 ]
 dev = [
     "pytest",
