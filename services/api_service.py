@@ -83,93 +83,6 @@ class GlobalRPMRateLimiter:
             }
 
 
-class TokenBudgetLimiter:
-    """
-    Token Budget Limiter để tránh vượt quá giới hạn TPM (Tokens Per Minute).
-
-    Gemini API Free Tier: 1M TPM
-    Ước tính: 1 ký tự ≈ 2-4 tokens (tiếng Trung/Anh nhiều hơn, tiếng Việt ít hơn)
-    """
-
-    CHARS_PER_TOKEN = 2.5  # Average chars per token estimate
-
-    def __init__(self, max_tpm: int = 1_000_000, window_seconds: int = 60):
-        """
-        Args:
-            max_tpm: Số tokens tối đa mỗi phút (mặc định 1M cho Free Tier)
-            window_seconds: Kích thước cửa sổ trượt
-        """
-        self.max_tpm = max_tpm
-        self.window_seconds = window_seconds
-        self._lock = Lock()
-        self._token_times: deque = deque()  # (timestamp, tokens_used)
-        self._total_tokens = 0
-        self._logger = logging.getLogger(__name__)
-
-    def estimate_tokens(self, text: str) -> int:
-        """Ước tính số tokens từ text."""
-        if not text:
-            return 0
-        return int(len(text) / self.CHARS_PER_TOKEN)
-
-    def _clean_old_requests(self, current_time: float) -> None:
-        """Loại bỏ các request cũ khỏi cửa sổ."""
-        cutoff = current_time - self.window_seconds
-        while self._token_times and self._token_times[0][0] < cutoff:
-            self._token_times.popleft()
-
-    def acquire(
-        self, estimated_tokens: int, blocking: bool = True, timeout: float = 60.0
-    ) -> bool:
-        """
-        Kiểm tra và chờ nếu cần để giữ TPM trong giới hạn.
-
-        Args:
-            estimated_tokens: Số tokens ước tính cho request
-            blocking: Có chờ nếu vượt limit hay trả về ngay
-            timeout: Thời gian tối đa chờ
-
-        Returns:
-            True nếu được phép request, False nếu timeout
-        """
-        start_time = time.time()
-
-        while True:
-            with self._lock:
-                current_time = time.time()
-                self._clean_old_requests(current_time)
-
-                # Tính tổng tokens trong cửa sổ hiện tại
-                current_tokens = sum(t[1] for t in self._token_times)
-
-                if current_tokens + estimated_tokens <= self.max_tpm:
-                    self._token_times.append((current_time, estimated_tokens))
-                    self._total_tokens += estimated_tokens
-                    return True
-
-            if not blocking:
-                return False
-
-            if time.time() - start_time >= timeout:
-                self._logger.warning(f"Token budget timeout sau {timeout}s")
-                return False
-
-            time.sleep(0.5)
-
-    def get_stats(self) -> Dict[str, Any]:
-        """Trả về thống kê token limiter."""
-        with self._lock:
-            current_time = time.time()
-            self._clean_old_requests(current_time)
-            current_tokens = sum(t[1] for t in self._token_times)
-            return {
-                "current_tpm": current_tokens,
-                "max_tpm": self.max_tpm,
-                "total_tokens": self._total_tokens,
-                "utilization_pct": current_tokens / self.max_tpm * 100,
-            }
-
-
 class AdaptiveRateLimiter:
     """
     Rate limiter thông minh, đọc RPD từ config.
@@ -434,13 +347,9 @@ class AdaptiveRateLimiter:
             }
 
 
-# Alias cũ để backward compatibility
-SmartRateLimiter = AdaptiveRateLimiter
-
-
 class ApiManager:
     """
-    Quản lý API key, tích hợp SmartRateLimiter để xoay vòng key thông minh.
+    Quản lý API key, tích hợp AdaptiveRateLimiter để xoay vòng key thông minh.
     Bao gồm Global RPM Limiter để tránh vượt quá giới hạn IP.
 
     Thuộc tính:
@@ -448,7 +357,7 @@ class ApiManager:
         _key_list (List[str]): Danh sách các API keys
         _current_key_index (int): Chỉ số key hiện tại trong vòng xoay
         _lock (Lock): Lock để thread-safe khi truy cập _keys và _current_key_index
-        _rate_limiter (SmartRateLimiter): Đối tượng điều tiết tần suất per-key
+        _rate_limiter (AdaptiveRateLimiter): Đối tượng điều tiết tần suất per-key
         _rpm_limiter (GlobalRPMRateLimiter): Đối tượng giới hạn RPM toàn cục
     """
 
@@ -480,11 +389,10 @@ class ApiManager:
         self._current_key_index = 0
         self._lock = Lock()
         self._key_strategy = key_strategy
-        self._rate_limiter = SmartRateLimiter(
+        self._rate_limiter = AdaptiveRateLimiter(
             daily_limit=rpd_per_key, daily_token_limit=tpd_per_key
         )
         self._rpm_limiter = GlobalRPMRateLimiter(max_rpm=max_rpm)
-        self._token_limiter = TokenBudgetLimiter(max_tpm=1_000_000)
         logging.info(
             f"🔑 Đã nạp {len(self._keys)} API key. "
             f"RPM={max_rpm}, RPD/key={rpd_per_key}, strategy={key_strategy}"
@@ -541,7 +449,7 @@ class ApiManager:
 
     def handle_api_error(self, api_key: str, error_msg: str) -> Tuple[bool, float]:
         """
-        Ủy quyền xử lý lỗi cho SmartRateLimiter.
+        Ủy quyền xử lý lỗi cho AdaptiveRateLimiter.
 
         Args:
             api_key (str): API key gặp lỗi
@@ -554,7 +462,7 @@ class ApiManager:
 
     def mark_success(self, api_key: str) -> None:
         """
-        Báo thành công cho SmartRateLimiter.
+        Báo thành công cho AdaptiveRateLimiter.
 
         Args:
             api_key (str): API key đã thực hiện request thành công
@@ -579,31 +487,6 @@ class ApiManager:
     def get_rpm_stats(self) -> Dict[str, Any]:
         """Trả về thống kê RPM limiter."""
         return self._rpm_limiter.get_stats()
-
-    def acquire_token_budget(
-        self, text: str, blocking: bool = True, timeout: float = 60.0
-    ) -> bool:
-        """
-        Kiểm tra và chờ nếu cần để giữ TPM trong giới hạn.
-
-        Ước tính tokens từ text đầu vào.
-
-        Args:
-            text: Text cần ước tính tokens
-            blocking: Có chờ nếu vượt limit hay trả về ngay
-            timeout: Thời gian tối đa chờ
-
-        Returns:
-            True nếu được phép request, False nếu timeout
-        """
-        estimated_tokens = self._token_limiter.estimate_tokens(text)
-        return self._token_limiter.acquire(
-            estimated_tokens, blocking=blocking, timeout=timeout
-        )
-
-    def get_token_stats(self) -> Dict[str, Any]:
-        """Trả về thống kê token limiter."""
-        return self._token_limiter.get_stats()
 
     def all_keys_exhausted(self) -> bool:
         """

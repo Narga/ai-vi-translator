@@ -129,61 +129,7 @@ def get_emergency_info() -> Dict[str, Any]:
             }
 
 
-def wait_for_emergency_clear(timeout: float = 5.0) -> bool:
-    """
-    Đợi cho đến khi emergency stop được clear.
-    
-    Args:
-        timeout (float): Thời gian tối đa chờ (giây)
-    
-    Returns:
-        bool: True nếu đã clear, False nếu vẫn active sau timeout
-    """
-    if not _emergency_stop_event.is_set():
-        return True
-    
-    _logger.info(f"⏳ Waiting for emergency stop to clear (timeout: {timeout}s)")
-    
-    # Đợi cho event clear
-    start = time.time()
-    while time.time() - start < timeout:
-        if not _emergency_stop_event.is_set():
-            return True
-        time.sleep(0.1)
-    
-    return not _emergency_stop_event.is_set()
 
-
-# ====================================================================== 
-# DECORATOR
-# ======================================================================
-
-def emergency_check(phase_name: str = "operation"):
-    """
-    Decorator để tự động kiểm tra emergency stop trước khi thực thi function.
-    
-    Args:
-        phase_name (str): Tên phase/operation để logging
-    
-    Raises:
-        EmergencyStopError: Khi emergency stop đang active
-    
-    Usage:
-        @emergency_check("translation")
-        def translate_chunk(chunk):
-            ...
-    """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            if check_emergency_stop():
-                info = get_emergency_info()
-                raise EmergencyStopError(
-                    f"🚨 {phase_name} blocked by emergency stop: {info['reason']}"
-                )
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
 
 
 class EmergencyStopError(Exception):
