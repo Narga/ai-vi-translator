@@ -4,6 +4,29 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.4.0] - 2026-07-12
+### Tích hợp Tab Tài liệu dự án & Tối ưu hóa Offline hoàn toàn
+
+**Tab "Tài liệu" mới (Project Docs Reader):**
+- **Trình đọc tài liệu dự án trực tiếp**: Cho phép duyệt và đọc toàn bộ tệp tin `.txt`, `.md`, `.html` trong thư mục `docs/` đệ quy ngay trên WebUI.
+  - Sidebar bên trái hiển thị danh mục tệp tin được phân nhóm theo thư mục con đệ quy.
+  - Reader bên phải hiển thị nội dung tệp tin đã chọn.
+  - Cache danh sách tài liệu trong session JS giúp chuyển tab nhanh không cần gọi lại API.
+- **Bảo mật tuyệt đối**: Ngăn chặn Path Traversal bằng resolve đường dẫn và kiểm tra `startswith(docs_root)`.
+
+**Lưu trữ tài nguyên Offline hoàn toàn (Tự host local):**
+- **Chuyển đổi CDN sang Offline**:
+  - Tải CSS Tachyons về [tachyons.min.css](file:///Users/narga/Briefcase/Projects/Novel-Translator/webui/static/css/tachyons.min.css).
+  - Tải JS Marked.js (v12.0.0) về [marked.min.js](file:///Users/narga/Briefcase/Projects/Novel-Translator/webui/static/js/marked.min.js) để render Markdown phía client.
+  - Cập nhật các thẻ stylesheet và script trong [header.html](file:///Users/narga/Briefcase/Projects/Novel-Translator/webui/templates/partials/header.html) và [footer.html](file:///Users/narga/Briefcase/Projects/Novel-Translator/webui/templates/partials/footer.html) để tải offline, không sử dụng mạng.
+
+**Phục hồi & Tinh chỉnh trợ giúp Chỉ dẫn AI:**
+- **Phục hồi khối trợ giúp**: Đưa phần trợ giúp về placeholders và chỉ dẫn biên soạn trở lại bên dưới Prompt editor.
+- **Tinh chỉnh Placeholders**: Xóa các placeholders tĩnh không hoạt động trực tiếp (`{glossary}` và `{relationships}`) khỏi phần mô tả để tránh gây nhầm lẫn cho người dùng.
+- **Tài liệu hóa cơ chế**: Cập nhật chi tiết tệp cấu hình Assets trong `workspace/projects/<slug>/assets/` và AI summarize API trong [MANUAL.md](file:///Users/narga/Briefcase/Projects/Novel-Translator/docs/MANUAL.md).
+
+---
+
 ## [8.3.0] - 2026-07-12
 ### Dọn dẹp over-engineering (Ponytail Audit) — không đổi behavior người dùng
 

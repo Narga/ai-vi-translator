@@ -63,6 +63,7 @@ function initTabs() {
 
             if (targetId === 'archive') ApiClient.loadArchiveList();
             if (targetId === 'logs') ApiClient.loadLogList();
+            if (targetId === 'docs') DocManager.loadDocList();
             if (targetId === 'projects') ProjectManager.loadProjectCards();
             if (targetId === 'prompts') PromptManager.loadLibrary();
             if (targetId === 'config') {

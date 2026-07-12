@@ -1,0 +1,31 @@
+<!-- ==================== TAB: TÀI LIỆU ==================== -->
+<section id="tab-docs" class="nt-tab-content">
+    <div class="docs-layout">
+
+        <!-- SIDEBAR: Danh sách tài liệu -->
+        <aside class="docs-sidebar ba b--black-10 bg-white shadow-1 flex flex-column">
+            <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center flex-shrink-0">
+                <h2 class="f5 ma0 fw6 dark-gray">Tài liệu dự án</h2>
+                <button class="pointer ph2 pv1 f7 ba b--black-10 bg-white br2 hover-bg-near-white"
+                        onclick="DocManager.loadDocList()" title="Làm mới danh sách">↻</button>
+            </div>
+            <nav id="doc-list" class="flex-auto overflow-y-auto pa2">
+                <p class="pa3 tc silver i f7">Đang tải danh sách...</p>
+            </nav>
+        </aside>
+
+        <!-- MAIN: Khung đọc tài liệu -->
+        <main class="docs-reader ba b--black-10 bg-white shadow-1 flex flex-column">
+            <div class="pa3 bb b--black-10 bg-near-white flex-shrink-0 flex items-center justify-between">
+                <div>
+                    <span id="doc-reader-title" class="f5 fw6 dark-gray">Chưa chọn tài liệu</span>
+                    <span id="doc-reader-path" class="f7 silver ml2"></span>
+                </div>
+            </div>
+            <div id="doc-reader-content" class="doc-reader-body flex-auto overflow-y-auto pa4">
+                <p class="tc silver i mt5">← Chọn tài liệu từ danh sách bên trái để bắt đầu đọc.</p>
+            </div>
+        </main>
+
+    </div>
+</section>

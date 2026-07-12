@@ -49,14 +49,20 @@
 
 ---
 
+### v8.4.0 (2026-07-12)
+- [x] 📄 Tích hợp Tab Tài liệu dự án (trình duyệt đọc đệ quy, cache dữ liệu)
+- [x] 🔒 Bảo mật chống Path Traversal cho file reader API
+- [x] 🔌 Tự động lưu trữ offline toàn bộ các thư viện CSS/JS (Tachyons, Marked.js)
+- [x] 💡 Phục hồi & Tinh chỉnh trợ giúp Chỉ dẫn AI (Placeholders cleanup)
+
 ## Đang phát triển / Sắp tới
 
-### v8.4.0 (planned)
+### v8.5.0 (planned)
 - [ ] Batch translate (dịch nhiều file cùng lúc với progress riêng)
 - [ ] Translation Memory improvements (fuzzy match threshold tuning)
 - [ ] Advanced search & filter trong danh sách file
 
-### v8.5.0 (planned)
+### v8.6.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
 

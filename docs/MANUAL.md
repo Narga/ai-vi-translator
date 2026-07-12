@@ -169,4 +169,48 @@ Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-
 
 ---
 
-*Phiên bản tài liệu: 2.5 — Ngày cập nhật: 11/07/2026*
+## 8. Cấu hình Tài nguyên (Assets) & Hướng dẫn Sử dụng Biến (Placeholders)
+
+### A. Cơ chế quản lý tài nguyên của Dự án
+Mỗi dự án lưu trữ các tệp cấu hình bổ trợ riêng trong thư mục `workspace/projects/<project_slug>/assets/`. 
+
+Nếu tạo thủ công hoặc muốn chỉnh sửa trực tiếp qua tệp tin, bạn phải đặt đúng tên tệp dưới đây (định dạng tệp là văn bản thường UTF-8):
+
+| Tài nguyên | Tên tệp tin chính xác | Định dạng dữ liệu bên trong |
+| :--- | :--- | :--- |
+| **Bản tóm tắt** | `summary.txt` | Văn bản tóm tắt nội dung/bối cảnh chung. |
+| **Chỉ dẫn phong cách** | `style_guide.txt` | Các quy tắc dịch thuật, giọng điệu, xưng hô. |
+| **Bảng thuật ngữ** | `glossary.txt` | Dòng phân tách bằng dấu gạch đứng:<br>`từ_gốc \| từ_dịch \| ghi_chú` |
+| **Nhân vật & Quan hệ** | `relationship.txt` | Dòng phân tách bằng dấu gạch đứng:<br>`tên_gốc \| tên_dịch \| vai_trò \| quan_hệ` |
+| **Ghi chú thêm** | `additional_notes.txt` | Các thông tin ghi chú tự do khác. |
+
+### B. Tính năng dùng AI tự động tạo Tài nguyên (AI Summarize)
+Hệ thống tích hợp sẵn tính năng tự động trích xuất và phân tích tài nguyên bằng AI:
+- **Cơ chế hoạt động**: Sử dụng mô hình AI được cấu hình (Gemini hoặc OpenAI) để đọc qua các tệp nguồn (`.txt` hoặc `.md` trong thư mục `sources/` của dự án) với độ dài tối đa là 50,000 ký tự. AI sẽ chạy phân tích theo yêu cầu và ghi đè nội dung kết quả trực tiếp vào các tệp tương ứng (`summary.txt`, `style_guide.txt`, `glossary.txt`, `relationship.txt`).
+- **Cách sử dụng trên UI**: Trong Workspace dự án, chuyển sang tab **Thông tin**, chọn tệp nguồn, chọn Mô hình, sau đó chọn loại tài nguyên và bấm **✨ AI Generate**. Kết quả tạo xong sẽ tự động hiển thị trong khung và lưu lại khi bấm **Lưu**.
+
+### C. Bảng cơ chế hoạt động của các biến (Placeholders) trong Prompt dịch
+Khi biên soạn prompt hệ thống hoặc prompt dự án, bạn có thể sử dụng các biến sau để chèn dữ liệu động. 
+
+> [!WARNING]
+> Không viết các chuỗi `{glossary}` hoặc `{relationships}` vào prompt vì backend không hỗ trợ thay thế các từ khóa này trực tiếp (chúng sẽ bị gửi đi dưới dạng chữ tĩnh).
+
+| Biến (Placeholder) | Trạng thái hỗ trợ | Cơ chế hoạt động của hệ thống | Cách sử dụng |
+| :--- | :--- | :--- | :--- |
+| **`{source_text}`** | Không cần viết | Hệ thống luôn tự động ghép văn bản gốc của chương/chunk hiện tại vào cuối prompt gửi đi (`prompt + "\n\n" + text_to_process`). | Không viết biến này vào prompt của bạn. |
+| **`{translation_guidelines}`** | Có hoạt động | Thay thế bằng nội dung tệp `style_guide.txt`. Nếu prompt không chứa biến này, hệ thống sẽ tự động ghép nội dung phong cách vào cuối prompt. | Viết `{translation_guidelines}` ở vị trí bạn muốn hiển thị quy tắc dịch. |
+| **`{previous_chunk_context}`** | Có hoạt động | Thay thế bằng bản dịch và ngữ cảnh tóm tắt của chương/chunk đã dịch trước đó để đảm bảo tính liên kết. | Viết `{previous_chunk_context}` ở phần đầu hoặc phần ngữ cảnh của prompt. |
+| **`{project_summary}`** | Có hoạt động | Thay thế bằng nội dung tệp tóm tắt tổng thể `summary.txt`. | Viết `{project_summary}` để cung cấp bối cảnh toàn tác phẩm cho mô hình. |
+| **`{project_context}`** | Có hoạt động | Thay thế bằng tổ hợp gộp chung của cả tóm tắt (`summary.txt`) và chỉ dẫn phong cách (`style_guide.txt`). | Viết `{project_context}` nếu muốn chèn gộp nhanh tất cả bối cảnh. |
+| **Bảng Thuật ngữ & Nhân vật** | Tự động ghép | Hệ thống tự động quét văn bản gốc hiện tại, tìm các thuật ngữ xuất hiện trong `glossary.txt` và `relationship.txt`, đóng gói chúng thành bảng và tự động ghép vào cuối prompt gửi đi. | Không cần viết bất kỳ biến nào, hệ thống tự động xử lý. |
+
+```python
+# Ví dụ về thứ tự prompt được gửi tới LLM thực tế:
+# 1. [Nội dung Prompt Dịch thuật của bạn] (Sau khi đã replace các biến hoạt động)
+# 2. [Bảng thuật ngữ quét được động từ glossary.txt / relationship.txt] (Nếu có)
+# 3. [Văn bản gốc cần dịch]
+```
+
+---
+
+*Phiên bản tài liệu: 2.6 — Ngày cập nhật: 12/07/2026*

@@ -68,6 +68,17 @@
                                 <textarea id="set-chinh_ta-text" class="ba b--black-10 br2 pa3 w-100 code f7 outline-0 prompt-textarea" style="height: 350px;" placeholder="Prompt kiểm tra chính tả của bộ..."></textarea>
                             </section>
                         </div>
+                        <div class="prompt-help-block">
+                            <h3>Thông tin</h3>
+                            <div class="placeholder-grid">
+                                <div class="placeholder-item"><span class="placeholder-tag">{source_text}</span> Văn bản gốc cần dịch (Tự động ghép ở cuối prompt gửi đi).</div>
+                                <div class="placeholder-item"><span class="placeholder-tag">{translation_guidelines}</span> Chỉ dẫn phong cách dịch (Thay thế trực tiếp hoặc ghép ở cuối).</div>
+                                <div class="placeholder-item"><span class="placeholder-tag">{previous_chunk_context}</span> Tóm tắt/ngữ cảnh từ đoạn dịch trước (Thay thế trực tiếp).</div>
+                                <div class="placeholder-item"><span class="placeholder-tag">{project_summary}</span> Bản tóm tắt tổng thể dự án (Thay thế trực tiếp).</div>
+                                <div class="placeholder-item"><span class="placeholder-tag">{project_context}</span> Gộp tất cả tóm tắt và chỉ dẫn phong cách (Thay thế trực tiếp).</div>
+                                <div class="placeholder-item"><span class="placeholder-tag">Thuật ngữ & Nhân vật</span> Tự động quét và ghép bảng thuật ngữ/quan hệ phù hợp vào cuối prompt.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
