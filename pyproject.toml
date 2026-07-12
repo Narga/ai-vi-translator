@@ -54,7 +54,7 @@ dev = [
 ]
 
 [project.scripts]
-content-translator = "main:main"
+content-translator = "cli:main"
 nt = "cli:main"
 
 [project.urls]
