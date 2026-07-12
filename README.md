@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.2.0)
+# 📚 Content Translator (v8.3.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -72,7 +72,7 @@ main.py       ├── application/    # Use cases + DTOs + Progress ports
               ├── facade/         # AppService (singleton entry point)
               └── __init__.py     # create_app_service() factory
               core/               # Core pipeline (TranslationExecutor, plugins)
-              services/           # TranslationMemory, Health, Checkpoint
+               services/           # ApiService, OpenAIClient, GenAIClient, TranslationMemory, EmergencyStop, Checkpoint
               webui/static/js/    # 8 ES modules: api-client, provider-manager, project-manager,
                                   #   editor-component, prompt-manager, translation-worker, ui-helpers, plugin-manager
 ```

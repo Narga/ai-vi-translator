@@ -158,9 +158,9 @@ class TestCoreImports:
         assert SpellcheckExecutor is not None
 
     def test_import_config_service(self):
-        """Test import ConfigService."""
-        from services.config_service import ConfigService
-        assert ConfigService is not None
+        """Test import AppConfigService."""
+        from backend.infrastructure.config.app_config_service import AppConfigService
+        assert AppConfigService is not None
 
     def test_import_checkpoint_service(self):
         """Test import CheckpointService."""

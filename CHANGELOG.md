@@ -4,6 +4,24 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.3.0] - 2026-07-12
+### Dọn dẹp over-engineering (Ponytail Audit) — không đổi behavior người dùng
+
+**Xóa mã chết (zero caller, verified bằng GitNexus + grep):**
+- **Phase 1 — 7 file services chết**: `async_genai_client.py`, `health_monitor.py`, `circuit_breaker.py`, `statistics_service.py`, `monitoring_service.py`, `file_service.py`, `io_service.py` (tổng ~1.225 dòng). Dọn `services/__init__.py` barrel (bỏ 7 export + alias `SmartRateLimiter`).
+- **Phase 2 — dead code trong file đang dùng**: xóa class `AsyncOpenAIClient`, alias `SmartRateLimiter`, class `TokenBudgetLimiter` + field `_token_limiter` + methods `acquire_token_budget`/`get_token_stats`, hàm `wait_for_emergency_clear`/`emergency_check`, class `ChunkTranslationMemory`.
+- **Phase 3 — dirs rỗng + deps**: xóa 4 thư mục backend rỗng (`project_archive`, `project_files`, `project_prompts`, `project_tm`), xóa `requirements.txt` (trùng `pyproject.toml`), xóa 2 dependencies thừa `psutil` + `aiohttp`.
+- **Phase 4.1 — gom config trùng lặp**: migrate `main.py` sang `AppConfigService` (drop-in, cùng signature `.get()`), xóa `services/config_service.py` (duplicate của `AppConfigService`).
+
+**Kết quả:**
+- **~−2.300 dòng** (bao gồm `uv.lock` −697) + **−2 dependencies**, **0 regression**.
+- Test baseline giữ nguyên: 158 passed / 26 failed (26 failure đều là lỗi môi trường — thiếu `flask` trong runner `rtk pytest` + 2 test `PromptService` attribute mismatch có từ trước, không liên quan đợt cắt này).
+- `python webui.py` không bị ảnh hưởng (không import `config_service`/`main.py`).
+
+**Files changed:** `main.py`, `services/__init__.py`, `services/config_service.py` (xóa), `pyproject.toml`, `uv.lock`, + 11 file services/backend đã dọn.
+
+---
+
 ## [8.2.0] - 2026-07-11
 ### Sửa lỗi Biên tập & Tìm kiếm/Thay thế nâng cao
 

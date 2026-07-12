@@ -2,7 +2,6 @@
 # Service exports used across the codebase.
 
 from .api_service import ApiManager, AdaptiveRateLimiter
-from .config_service import ConfigService
 from .genai_client import GenAIClient, SDKType
 from .emergency_stop import (
     emergency_stop,
@@ -16,7 +15,6 @@ from .emergency_stop import (
 __all__ = [
     'ApiManager',
     'AdaptiveRateLimiter',
-    'ConfigService',
     'GenAIClient',
     'SDKType',
     'emergency_stop',

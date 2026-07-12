@@ -14,7 +14,7 @@ from typing import List, Dict
 from tqdm import tqdm
 
 from core.executor import TranslationExecutor
-from services.config_service import ConfigService
+from backend.infrastructure.config.app_config_service import AppConfigService
 from services.emergency_stop import setup_signal_handlers, reset_emergency_stop
 
 
@@ -166,7 +166,7 @@ def main():
         setup_signal_handlers()
         reset_emergency_stop()
 
-        config_service = ConfigService(Path("config"))
+        config_service = AppConfigService(Path("config"))
         setup_logging(
             Path(config_service.get("DIRECTORIES", "LOGS_DIR", fallback="workspace/logs"))
         )

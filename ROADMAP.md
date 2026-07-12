@@ -29,6 +29,16 @@
 - [x] Issue 2: Toolbar refactor (nút Đổi tên hàng loạt)
 - [x] Issue 7: Đổi tên hàng loạt (pattern `{N}`, zero-pad, batch endpoint)
 
+### v8.3.0 (2026-07-12) — Dọn dẹp over-engineering
+- [x] Xóa 7 file services chết (async_genai_client, health_monitor, circuit_breaker, statistics_service, monitoring_service, file_service, io_service)
+- [x] Xóa dead code trong file sống (AsyncOpenAIClient, SmartRateLimiter, TokenBudgetLimiter, wait_for_emergency_clear, emergency_check, ChunkTranslationMemory)
+- [x] Xóa 4 thư mục backend rỗng + `requirements.txt` + deps `psutil`/`aiohttp`
+- [x] Migrate `main.py` → `AppConfigService`, xóa `config_service.py` (duplicate)
+- [x] Dọn `services/__init__.py` barrel export
+- [ ] (tùy chọn) Gom `_get_client()` trùng lặp → shared helper
+- [ ] (tùy chọn) Inline `file_utils.py` vào call site
+- [ ] (tùy chọn) Dùng `model_catalog_service` thay hardcoded model list
+
 ### v7.9.0 (2026-07-10)
 - [x] Tiền xử lý HTML/XHTML → Markdown offline
 - [x] Cải tiến UI workspace (batch convert, deselect, status bar)
@@ -41,12 +51,12 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.3.0 (planned)
+### v8.4.0 (planned)
 - [ ] Batch translate (dịch nhiều file cùng lúc với progress riêng)
 - [ ] Translation Memory improvements (fuzzy match threshold tuning)
 - [ ] Advanced search & filter trong danh sách file
 
-### v8.4.0 (planned)
+### v8.5.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
 
