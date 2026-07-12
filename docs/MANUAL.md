@@ -30,9 +30,9 @@ Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuy
 ### 🖥️ Chế độ Giao diện Web (WebUI)
 Đây là cách dễ nhất để sử dụng cho người dùng cuối.
 ```bash
-python webui.py
+python main.py
 # Hoặc chỉ định port:
-python webui.py --port 7860
+python main.py --port 7860
 ```
 Sau đó truy cập địa chỉ `http://localhost:7860` trên trình duyệt. Tại đây bạn có thể:
 - Quản lý các dự án dịch thuật (Project-based Workspace).
@@ -161,7 +161,7 @@ Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-
 - **Lỗi 429 (Rate Limit):** Hệ thống tự động chờ hoặc chuyển API Key nhờ `AdaptiveRateLimiter`.
 - **Bản dịch bị cắt dòng:** Kiểm tra `chunk_size` hoặc dùng model mạnh hơn.
 - **Lỗi Encoding:** File đầu vào phải UTF-8.
-- **Port bị chiếm:** Dùng `python webui.py --port 8080`.
+- **Port bị chiếm:** Dùng `python main.py --port 8080`.
 
 ### Lỗi Phân mảnh Module OCR (v6.9.0+)
 - Lỗi `ImportError` liên quan `plugins.ocr.modules`: chạy từ thư mục gốc dự án.

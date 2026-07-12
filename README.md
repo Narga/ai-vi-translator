@@ -42,7 +42,7 @@ uv sync
 
 ### Chạy ứng dụng
 ```bash
-python webui.py              # Web UI tại http://localhost:7860
+python main.py              # Web UI tại http://localhost:7860
 python cli.py translate -i input/novel.txt  # CLI mode
 ```
 
@@ -62,19 +62,19 @@ python cli.py translate -i input/novel.txt  # CLI mode
 ## 🏗️ Kiến Trúc (v7.0+)
 
 ```
-webui.py ──→ webui/               # Flask App (Blueprints, Static, Templates)
-cli.py   ──→ backend/             # Backend chung cho CLI & WebUI
-main.py       ├── application/    # Use cases + DTOs + Progress ports
-              │   ├── use_cases/  # TranslateText, TranslateProjectFiles, SpellcheckProjectFiles
-              │   └── dto/        # Request/Response DTOs
-              ├── domain/         # Domain models
-              ├── infrastructure/ # Services: Config, API Keys, Workspace, Project, File, Provider
-              ├── facade/         # AppService (singleton entry point)
-              └── __init__.py     # create_app_service() factory
-              core/               # Core pipeline (TranslationExecutor, plugins)
-               services/           # ApiService, OpenAIClient, GenAIClient, TranslationMemory, EmergencyStop, Checkpoint
-              webui/static/js/    # 8 ES modules: api-client, provider-manager, project-manager,
-                                  #   editor-component, prompt-manager, translation-worker, ui-helpers, plugin-manager
+main.py ──→ webui/               # Flask App (Blueprints, Static, Templates)
+cli.py  ──→ backend/             # Backend chung cho CLI & WebUI
+            ├── application/    # Use cases + DTOs + Progress ports
+            │   ├── use_cases/  # TranslateText, TranslateProjectFiles, SpellcheckProjectFiles
+            │   └── dto/        # Request/Response DTOs
+            ├── domain/         # Domain models
+            ├── infrastructure/ # Services: Config, API Keys, Workspace, Project, File, Provider
+            ├── facade/         # AppService (singleton entry point)
+            └── __init__.py     # create_app_service() factory
+            core/               # Core pipeline (TranslationExecutor, plugins)
+            services/           # ApiService, OpenAIClient, GenAIClient, TranslationMemory, EmergencyStop, Checkpoint
+            webui/static/js/    # 8 ES modules: api-client, provider-manager, project-manager,
+                                #   editor-component, prompt-manager, translation-worker, ui-helpers, plugin-manager
 ```
 
 ---

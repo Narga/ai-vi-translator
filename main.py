@@ -1,5 +1,4 @@
-# webui.py - v6.2.0
-# Entry point cho Novel Translator Web UI
+# main.py - Entry point chính cho Novel Translator Web UI
 # Logic đã được module hóa trong package webui/
 
 """
@@ -8,36 +7,39 @@ Novel Translator Web UI
 Web interface cho dịch thuật với Flask.
 
 Usage:
-    uv run python webui.py
-    python webui.py --port 7860
+    python main.py
+    python main.py --port 7860
 """
 
+import sys
+import argparse
+import socket
+import time
 from webui import create_app
 
 app = create_app()
 
-if __name__ == "__main__":
-    import argparse
 
+def is_port_in_use(host, port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex((host, port)) == 0
+
+
+def main():
     parser = argparse.ArgumentParser(description="Novel Translator Web UI")
     parser.add_argument(
         "--port", "-p", type=int, default=7860, help="Port to run server (default: 7860)"
     )
-    parser.add_argument("--host", default="127.0.0.1", help="Host to bind (use 0.0.0.0 for network access)")
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="Host to bind (use 0.0.0.0 for network access)"
+    )
     args = parser.parse_args()
 
     print("=" * 60)
-    print("📚 Novel Translator Web UI v6.2.0")
+    print("📚 Novel Translator Web UI")
     print("=" * 60)
-    print(f"\n🌐 Mở trình duyệt và truy cập: http://localhost:{args.port}")
+    print(f"\n🌐 Mở trình duyệt và truy cập: http://{args.host}:{args.port}")
     print("\nNhấn Ctrl+C để dừng\n")
-
-    import time
-    import socket
-
-    def is_port_in_use(port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(('localhost', port)) == 0
 
     max_retries = 5
     for i in range(max_retries):
@@ -57,3 +59,9 @@ if __name__ == "__main__":
                 raise e
     else:
         print(f"❌ Không thể khởi động server trên cổng {args.port} sau {max_retries} lần thử.")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

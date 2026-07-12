@@ -37,9 +37,8 @@ So sánh tập hợp N-gram để tìm kiếm câu tương đồng trong bộ nh
 
 ```
 novel-translator/
-├── main.py                 # Entry point cho CLI script
-├── cli.py                  # Giao diện dòng lệnh (argparse)
-├── webui.py                # Entry point cho Web UI (35 dòng)
+├── main.py                 # Entry point cho Web UI (Flask)
+├── cli.py                  # Entry point cho CLI (argparse)
 ├── webui/                  # 📦 Flask App Package
 │   ├── __init__.py        # App Factory + global state
 │   ├── helpers.py         # Utilities dùng chung
@@ -100,7 +99,7 @@ Mọi plugin mới phải kế thừa từ `core.interfaces.ProcessorPlugin`.
             # Logic xử lý chính
             return result, "success"
     ```
-3.  **Tự động nhận diện**: Plugin Manager sẽ tự động phát hiện và nạp plugin khi khởi chạy `main.py` hoặc `webui.py`.
+3.  **Tự động nhận diện**: Plugin Manager sẽ tự động phát hiện và nạp plugin khi khởi chạy `main.py` hoặc `cli.py`.
 
 ---
 
