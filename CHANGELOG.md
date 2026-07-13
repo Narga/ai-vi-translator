@@ -4,6 +4,27 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.5.0] - 2026-07-13
+### Bộ lọc File List & Nâng cấp Tab Tài liệu
+
+**Bộ lọc File List (Filter Toolbar):**
+- **Nút bộ lọc mới** trong mini toolbar cột danh sách tập tin, nằm giữa nút "Tải lên" và "Chuyển Markdown".
+- **Mini context menu** với 3 nhóm điều khiển:
+  - Sắp xếp theo: Tên file / Định dạng
+  - Thứ tự: Tăng dần / Giảm dần
+  - Lọc theo tên: nhập keyword lọc real-time
+- Áp dụng đồng bộ cho cả 3 tab: Nguồn, Bản dịch, Soát lỗi.
+- Checkbox "chọn tất cả" hoạt động đúng trên danh sách đã lọc (không chọn nhầm file bị ẩn).
+- Click-outside và phím Escape để đóng menu. Giữ nguyên filter khi chuyển tab, reset khi mở project mới.
+
+**Nâng cấp Tab Tài liệu:**
+- **Cấu hình đường dẫn quét**: Panel cấu hình mới trong sidebar cho phép tùy chỉnh thư mục quét (mặc định: `docs, .agent, .agents, .cloud`) và chọn có quét file ở thư mục gốc hay không.
+- **API cấu hình**: `GET/POST /api/docs/config` để đọc/ghi cấu hình đường dẫn.
+- **Tìm kiếm nhanh**: Ô tìm kiếm filter danh sách tài liệu real-time, hiển thị nút xóa nhanh khi có keyword.
+- **Phân quyền truy cập**: Kiểm tra tệp tin thuộc vùng tài liệu được cấp quyền trước khi hiển thị.
+
+---
+
 ## [8.4.0] - 2026-07-12
 ### Tích hợp Tab Tài liệu dự án & Tối ưu hóa Offline hoàn toàn
 

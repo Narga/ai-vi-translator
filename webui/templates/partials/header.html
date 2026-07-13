@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Translator {{ app_version }}</title>
     <!-- Tachyons CSS Framework -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/tachyons.min.css') }}?v={{ app_version }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tachyons.min.css') }}" crossorigin="anonymous">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ app_version }}-f">
     <script>
         window.initialPrompts = {{ prompts_json | safe }};
         window.initialAvailableModels = {{ available_models | safe }};
@@ -30,8 +30,8 @@
             <a href="#config" class="nav-link" data-tab="config">Cấu hình</a>
             <a href="#prompts" class="nav-link" data-tab="prompts">Chỉ dẫn AI</a>
             <a href="#logs" class="nav-link" data-tab="logs">Nhật ký</a>
-            <a href="#docs" class="nav-link" data-tab="docs">Tài liệu</a>
             <a href="#archive" class="nav-link" data-tab="archive">Lưu trữ</a>
+            <a href="#docs" class="nav-link" data-tab="docs">Tài liệu</a>
         </nav>
 
         <!-- Stats (Right) -->

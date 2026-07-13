@@ -5,7 +5,7 @@ import os
 import logging
 from queue import Queue
 
-from flask import Flask
+from flask import Flask, request
 
 # Setup logging
 from datetime import datetime
@@ -66,6 +66,10 @@ except Exception as e:
 
 def create_app():
     """Flask Application Factory."""
+    import mimetypes
+    mimetypes.add_type('text/css', '.css')
+    mimetypes.add_type('application/javascript', '.js')
+    
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.urandom(24)
 
@@ -87,5 +91,15 @@ def create_app():
     # Đảm bảo dự án mặc định tồn tại
     from webui.helpers import ensure_default_project
     ensure_default_project()
+
+    @app.after_request
+    def force_static_mimetypes(response):
+        # Force correct Content-Type for CSS/JS to prevent browser MIME-type blocking
+        path = request.path.lower()
+        if path.endswith('.css'):
+            response.headers['Content-Type'] = 'text/css'
+        elif path.endswith('.js'):
+            response.headers['Content-Type'] = 'application/javascript'
+        return response
 
     return app

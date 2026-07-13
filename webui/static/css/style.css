@@ -887,6 +887,75 @@ button.bg-green:hover {
     top: 125%;
 }
 
+/* ============================================================ */
+/* File Filter Menu                                              */
+/* ============================================================ */
+.file-filter-menu-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.pm-file-filter-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+    padding: 10px 12px;
+    width: 230px;
+    z-index: 1000;
+}
+.pm-file-filter-section {
+    margin-bottom: 10px;
+}
+.pm-file-filter-section:last-child {
+    margin-bottom: 0;
+}
+.pm-file-filter-label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+.pm-file-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    color: #334155;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.pm-file-filter-option:hover {
+    background: #f1f5f9;
+}
+.pm-file-filter-option input[type="radio"] {
+    margin: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+.pm-file-filter-input {
+    width: 100%;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.pm-file-filter-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
 /* Align tooltips to the right/left to avoid screen edge clipping */
 [data-tooltip].tooltip-align-right::after {
     left: auto;

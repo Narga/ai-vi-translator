@@ -9,9 +9,42 @@
                 <button class="pointer ph2 pv1 f7 ba b--black-10 bg-white br2 hover-bg-near-white"
                         onclick="DocManager.loadDocList()" title="Làm mới danh sách">↻</button>
             </div>
+            <div class="pa2 bb b--black-10 flex-shrink-0 bg-white">
+                <div class="relative w-100">
+                    <input id="doc-search-filter" type="text" class="w-100 pa2 ba b--black-10 br2 f7 input-reset pr4" 
+                           placeholder="🔍 Tìm nhanh tài liệu..." oninput="DocManager.filterList()">
+                    <span id="doc-search-clear" onclick="DocManager.clearFilter()" 
+                          class="dn select-none" 
+                          style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); line-height: 1; cursor: pointer; color: #999; font-size: 1.25rem; font-weight: bold; transition: color 0.1s;" 
+                          onmouseover="this.style.color='#333'" 
+                          onmouseout="this.style.color='#999'" 
+                          title="Xóa tìm kiếm">×</span>
+                </div>
+            </div>
             <nav id="doc-list" class="flex-auto overflow-y-auto pa2">
                 <p class="pa3 tc silver i f7">Đang tải danh sách...</p>
             </nav>
+            <!-- Config panel at bottom of sidebar -->
+            <div class="bt b--black-10 pa2 bg-near-white flex-shrink-0">
+                <details class="f7">
+                    <summary class="pointer pv1 gray hover-dark-gray fw6 outline-0 select-none">⚙️ Cấu hình thư mục</summary>
+                    <div class="pt2 flex flex-column gap-1">
+                        <label class="silver db">Đường dẫn quét (cách nhau bằng dấu phẩy):</label>
+                        <input id="doc-config-paths" type="text" class="w-100 pa1 ba b--black-10 br2 f7 input-reset" 
+                               value="docs, .agent, .agents, .cloud" placeholder="docs, .agent...">
+                        
+                        <div class="flex items-center mt1">
+                            <input id="doc-config-root" type="checkbox" checked class="mr1 pointer">
+                            <label for="doc-config-root" class="pointer silver select-none">Quét tệp ở thư mục gốc</label>
+                        </div>
+                        
+                        <button onclick="DocManager.saveConfig()" 
+                                class="mt2 w-100 pv1 pointer bn bg-primary white br2 hover-bg-primary-dark f7 fw6">
+                            Lưu cấu hình
+                        </button>
+                    </div>
+                </details>
+            </div>
         </aside>
 
         <!-- MAIN: Khung đọc tài liệu -->

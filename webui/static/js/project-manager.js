@@ -124,8 +124,16 @@ const COL_MAP = {
 };
 
 const ProjectManager = {
+    // ===== FILE FILTER STATE =====
+    fileFilters: {
+        isOpen: false,
+        sortBy: 'name',
+        sortOrder: 'asc',
+        keyword: ''
+    },
+
     // ===== PROJECT CARD FUNCTIONS =====
-    
+
     refreshWorkspace() {
         if (!window.currentProject) return;
         const slug = window.currentProject.slug;
@@ -285,6 +293,9 @@ const ProjectManager = {
             
             window.currentProject = data;
             localStorage.setItem('nt_active_project_slug', slug);
+
+            // Reset file filters when opening a new project
+            ProjectManager._resetFileFilters();
             
             try {
                 if (window.Alpine && Alpine.store('workspace')) {
@@ -341,6 +352,9 @@ const ProjectManager = {
             
             // Khởi tạo drag-and-drop cho sidebar
             setTimeout(() => ProjectManager.initDragDrop(), 100);
+
+            // Khởi tạo file filter events (click-outside, escape)
+            ProjectManager.initFileFilterEvents();
             
             // Clear editors
             ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'].forEach(id => {
@@ -381,6 +395,9 @@ const ProjectManager = {
     },
     
     switchPmFileTab(tab) {
+        // Close filter menu when switching tabs (keep filter values)
+        ProjectManager.closeFileFilterMenu();
+
         const sourcesBtn = document.getElementById('pm-tab-sources');
         const translatedBtn = document.getElementById('pm-tab-translated');
         const spellingBtn = document.getElementById('pm-tab-spelling');
@@ -453,13 +470,15 @@ const ProjectManager = {
     renderPmTranslatedList(translated) {
         const el = document.getElementById('pm-file-list');
         if (!el) return;
-        
-        if (!translated || !translated.length) {
+
+        const filtered = this.applyFileFilters(translated);
+
+        if (!filtered || !filtered.length) {
             el.innerHTML = '<div class="pa3 tc silver i f7">Chưa có file dịch</div>';
             return;
         }
-        
-        el.innerHTML = translated.map(f => {
+
+        el.innerHTML = filtered.map(f => {
             const esc = escapeHtml(f.name);
             const isActive = window.currentProjectFile === f.name;
             const checked = window.selectedTranslatedFiles.has(f.name) ? 'checked' : '';
@@ -502,12 +521,13 @@ const ProjectManager = {
             .then(files => {
                 // Phòng thủ: lọc bỏ file _info.txt nếu backend chưa kịp lọc
                 const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
-                if (!visibleFiles.length) {
+                const filtered = ProjectManager.applyFileFilters(visibleFiles);
+                if (!filtered.length) {
                     el.innerHTML = '<div class="pa3 tc silver i f7">Chưa có file đã soát</div>';
                     ProjectManager.updateSelectAllButton();
                     return;
                 }
-                el.innerHTML = visibleFiles.map(f => {
+                el.innerHTML = filtered.map(f => {
                     const esc = escapeHtml(f.name);
                     const isActive = window.currentProjectFile === f.name;
                     const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
@@ -692,7 +712,7 @@ const ProjectManager = {
                 countSpan.classList.add('dn');
             }
         });
-        
+
         infoSpans.forEach(infoSpan => {
             if (window.selectedFiles.size > 0) {
                 infoSpan.textContent = `Đã chọn ${window.selectedFiles.size} tập tin`;
@@ -714,7 +734,8 @@ const ProjectManager = {
                 const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
 
                 if (isSourcesActive) {
-                    const total = window.currentProject.sources.length;
+                    const filtered = this.applyFileFilters(window.currentProject.sources);
+                    const total = filtered.length;
                     chkSidebar.checked = total > 0 && window.selectedFiles.size === total;
                     chkSidebar.indeterminate = window.selectedFiles.size > 0 && window.selectedFiles.size < total;
                 } else if (isSpellingActive) {
@@ -729,8 +750,9 @@ const ProjectManager = {
                         chkSidebar.indeterminate = false;
                     }
                 } else {
-                    // Translated tab - use selectedTranslatedFiles
-                    const total = window.currentProject.translated ? window.currentProject.translated.length : 0;
+                    // Translated tab - use filtered count
+                    const filtered = this.applyFileFilters(window.currentProject.translated || []);
+                    const total = filtered.length;
                     chkSidebar.checked = total > 0 && window.selectedTranslatedFiles.size === total;
                     chkSidebar.indeterminate = window.selectedTranslatedFiles.size > 0 && window.selectedTranslatedFiles.size < total;
                 }
@@ -741,13 +763,14 @@ const ProjectManager = {
     updateSelectAllTranslatedButton() {
         const chkSidebar = document.getElementById('chk-select-all-sidebar');
         if (!window.currentProject) return;
-        
+
         // Update Project translated sidebar select-all checkbox
         if (chkSidebar && window.currentProject.translated) {
             const translatedBtn = document.getElementById('pm-tab-translated');
             const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
             if (isTranslatedActive) {
-                const total = window.currentProject.translated.length;
+                const filtered = this.applyFileFilters(window.currentProject.translated);
+                const total = filtered.length;
                 chkSidebar.checked = total > 0 && window.selectedTranslatedFiles.size === total;
                 chkSidebar.indeterminate = window.selectedTranslatedFiles.size > 0 && window.selectedTranslatedFiles.size < total;
             }
@@ -951,28 +974,46 @@ const ProjectManager = {
         const isSourcesActive = sourcesBtn && sourcesBtn.classList.contains('active');
         const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
         const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
-        
+
         if (isTranslatedActive) {
-            ProjectManager.selectAllTranslatedFiles(checked);
+            // Use filtered list for translated tab
+            const allTranslated = window.currentProject?.translated || [];
+            const filtered = ProjectManager.applyFileFilters(allTranslated);
+            if (checked) {
+                filtered.forEach(f => window.selectedTranslatedFiles.add(f.name));
+            } else {
+                filtered.forEach(f => window.selectedTranslatedFiles.delete(f.name));
+            }
+            ProjectManager.updateSelectAllTranslatedButton();
+            ProjectManager.renderPmTranslatedList(allTranslated);
         } else if (isSpellingActive) {
-            // For spelling tab, select all visible spelling files
+            // For spelling tab, select all visible spelling files (filtered)
             if (!window.currentProject) return;
             const slug = window.currentProject.slug;
             fetch(`/api/projects/${slug}/files/spelling`)
                 .then(r => r.json())
                 .then(files => {
                     const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
+                    const filtered = ProjectManager.applyFileFilters(visibleFiles);
                     if (checked) {
-                        visibleFiles.forEach(f => window.selectedFiles.add(f.name));
+                        filtered.forEach(f => window.selectedFiles.add(f.name));
                     } else {
-                        visibleFiles.forEach(f => window.selectedFiles.delete(f.name));
+                        filtered.forEach(f => window.selectedFiles.delete(f.name));
                     }
                     ProjectManager.updateSelectAllButton();
                     ProjectManager.renderPmSpellcheckedList();
                 });
         } else {
-            // Default to sources
-            ProjectManager.selectAllProjectFiles(checked);
+            // Default to sources - use filtered list
+            const allSources = window.currentProject?.sources || [];
+            const filtered = ProjectManager.applyFileFilters(allSources);
+            if (checked) {
+                filtered.forEach(f => window.selectedFiles.add(f.name));
+            } else {
+                filtered.forEach(f => window.selectedFiles.delete(f.name));
+            }
+            ProjectManager.updateSelectAllButton();
+            ProjectManager.renderPmFileList(allSources);
         }
     },
 
@@ -1248,7 +1289,8 @@ const ProjectManager = {
     },
 
     renderPmFileList(sources) {
-        this._renderFileItems(document.getElementById('pm-file-list'), sources, {
+        const filtered = this.applyFileFilters(sources);
+        this._renderFileItems(document.getElementById('pm-file-list'), filtered, {
             getOnclick: () => `EditorComponent.loadPmProjectFile(this.dataset.filename,'sources')`,
             getDirty: (f, isActive) => isActive && DirtyState.isDirty('pm-result-text') ? '<span class="red fw6 ml1">*</span>' : '',
             getDot: f => f.has_translation ? '<span class="file-done-dot" title="Đã dịch xong"></span>' : '',
@@ -1267,6 +1309,121 @@ const ProjectManager = {
     },
 
     renderPmSpellcheckFileList() {},
+
+    // ===== FILE FILTER METHODS =====
+
+    toggleFileFilterMenu() {
+        this.fileFilters.isOpen = !this.fileFilters.isOpen;
+        const menu = document.getElementById('pm-file-filter-menu');
+        if (menu) {
+            menu.classList.toggle('dn', !this.fileFilters.isOpen);
+        }
+        if (this.fileFilters.isOpen) {
+            this.syncFileFilterMenuState();
+        }
+    },
+
+    closeFileFilterMenu() {
+        if (!this.fileFilters.isOpen) return;
+        this.fileFilters.isOpen = false;
+        const menu = document.getElementById('pm-file-filter-menu');
+        if (menu) menu.classList.add('dn');
+    },
+
+    syncFileFilterMenuState() {
+        const sortByRadios = document.querySelectorAll('input[name="pm-filter-sort-by"]');
+        sortByRadios.forEach(r => { r.checked = r.value === this.fileFilters.sortBy; });
+        const sortOrderRadios = document.querySelectorAll('input[name="pm-filter-sort-order"]');
+        sortOrderRadios.forEach(r => { r.checked = r.value === this.fileFilters.sortOrder; });
+        const kwInput = document.getElementById('pm-filter-keyword-input');
+        if (kwInput) kwInput.value = this.fileFilters.keyword;
+    },
+
+    setFileFilterSortBy(value) {
+        this.fileFilters.sortBy = value;
+        this._reRenderActiveFileTab();
+    },
+
+    setFileFilterSortOrder(value) {
+        this.fileFilters.sortOrder = value;
+        this._reRenderActiveFileTab();
+    },
+
+    setFileFilterKeyword(value) {
+        this.fileFilters.keyword = value;
+        this._reRenderActiveFileTab();
+    },
+
+    _reRenderActiveFileTab() {
+        const sourcesBtn = document.getElementById('pm-tab-sources');
+        const translatedBtn = document.getElementById('pm-tab-translated');
+        const spellingBtn = document.getElementById('pm-tab-spelling');
+
+        if (sourcesBtn && sourcesBtn.classList.contains('active')) {
+            this.renderPmFileList(window.currentProject?.sources || []);
+            this.updateSelectAllButton();
+        } else if (translatedBtn && translatedBtn.classList.contains('active')) {
+            this.renderPmTranslatedList(window.currentProject?.translated || []);
+            this.updateSelectAllTranslatedButton();
+        } else if (spellingBtn && spellingBtn.classList.contains('active')) {
+            this.renderPmSpellcheckedList();
+        }
+    },
+
+    applyFileFilters(files) {
+        if (!files || !files.length) return [];
+        const { sortBy, sortOrder, keyword } = this.fileFilters;
+        let result = [...files];
+
+        if (keyword) {
+            const kw = keyword.toLowerCase();
+            result = result.filter(f => f.name.toLowerCase().includes(kw));
+        }
+
+        result.sort((a, b) => {
+            let cmp = 0;
+            if (sortBy === 'ext') {
+                const extA = (a.name.split('.').pop() || '').toLowerCase();
+                const extB = (b.name.split('.').pop() || '').toLowerCase();
+                cmp = extA.localeCompare(extB, 'vi');
+                if (cmp === 0) cmp = a.name.localeCompare(b.name, 'vi');
+            } else {
+                cmp = a.name.localeCompare(b.name, 'vi');
+            }
+            return sortOrder === 'desc' ? -cmp : cmp;
+        });
+
+        return result;
+    },
+
+    _getFileFilterEventsBound: false,
+    initFileFilterEvents() {
+        if (this._getFileFilterEventsBound) return;
+        this._getFileFilterEventsBound = true;
+
+        document.addEventListener('click', (e) => {
+            if (!this.fileFilters.isOpen) return;
+            const wrap = document.querySelector('.file-filter-menu-wrap');
+            if (wrap && !wrap.contains(e.target)) {
+                this.closeFileFilterMenu();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.fileFilters.isOpen) {
+                this.closeFileFilterMenu();
+            }
+        });
+    },
+
+    _resetFileFilters() {
+        this.fileFilters.sortBy = 'name';
+        this.fileFilters.sortOrder = 'asc';
+        this.fileFilters.keyword = '';
+        this.fileFilters.isOpen = false;
+        const menu = document.getElementById('pm-file-filter-menu');
+        if (menu) menu.classList.add('dn');
+    },
 
     // ===== PROJECT INFO MODAL =====
     showProjectInfoFromList(slug) {

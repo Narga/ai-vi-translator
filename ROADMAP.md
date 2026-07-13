@@ -49,6 +49,12 @@
 
 ---
 
+### v8.5.0 (2026-07-13)
+- [x] 🔍 Bộ lọc File List: sort theo tên/định dạng, tăng/giảm, lọc keyword real-time
+- [x] ⚙️ Cấu hình đường dẫn quét tài liệu (config panel trong sidebar Tab Tài liệu)
+- [x] 🔎 Tìm kiếm nhanh danh sách tài liệu
+- [x] 🔒 Phân quyền truy cập tài liệu theo cấu hình đường dẫn
+
 ### v8.4.0 (2026-07-12)
 - [x] 📄 Tích hợp Tab Tài liệu dự án (trình duyệt đọc đệ quy, cache dữ liệu)
 - [x] 🔒 Bảo mật chống Path Traversal cho file reader API
@@ -57,14 +63,12 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.5.0 (planned)
-- [ ] Batch translate (dịch nhiều file cùng lúc với progress riêng)
-- [ ] Translation Memory improvements (fuzzy match threshold tuning)
-- [ ] Advanced search & filter trong danh sách file
-
 ### v8.6.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
+- [ ] Gom `_get_client()` trùng lặp → shared helper
+- [ ] Inline `file_utils.py` vào call site
+- [ ] Dùng `model_catalog_service` thay hardcoded model list
 
 ### Tối ưu hóa
 - [ ] Backend caching layer

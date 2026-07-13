@@ -46,6 +46,7 @@ htmlcov/
 workspace/**
 config/API.txt
 config/providers.json
+delete_*
 
 # System junk
 .DS_Store
