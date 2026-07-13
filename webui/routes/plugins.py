@@ -60,17 +60,26 @@ def cleanup_plugin_progress():
         plugin_progress.pop(pid, None)
 
 
+def _safe_project_file(project_dir: Path, section: str, filename: str) -> Path:
+    base_dir = (project_dir / section).resolve()
+    target = (base_dir / filename).resolve()
+    if not str(target).startswith(str(base_dir)):
+        raise ValueError("Đường dẫn tập tin không hợp lệ")
+    return target
+
+
 @plugins_bp.route("/api/projects/<slug>/plugins/epub-converter", methods=["POST"])
 @require_plugin_enabled("epub_converter")
 def run_epub_converter(slug):
-    """Chạy EPUB Converter plugin."""
-    project_dir = Path("workspace/projects") / slug
+    """Chạy Công cụ chuyển đổi."""
+    project_dir = (Path("workspace/projects") / slug).resolve()
     if not project_dir.exists() or not project_dir.is_dir():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
     cleanup_plugin_progress()
-    data = request.json
+    data = request.json or {}
     direction = data.get("direction", "epub_to_text")
+    task = data.get("task")
     plugin_id = str(uuid.uuid4())[:8]
 
     plugin_progress[plugin_id] = {"status": "running", "messages": [], "result": None, "updated_at": time.time()}
@@ -85,6 +94,50 @@ def run_epub_converter(slug):
             import io
             import contextlib
             buf = io.StringIO()
+            from plugins.epub_converter.plugin import Plugin
+
+            plugin = Plugin()
+            plugin.initialize({"out_dir": f"workspace/projects/{slug}/output"})
+
+            if task in {"html_to_markdown", "markdown_to_html"}:
+                section = data.get("section", "sources")
+                filenames = data.get("filenames") or []
+                if section not in {"sources", "translated", "spelling"}:
+                    _log(f"❌ Section không hợp lệ: {section}")
+                    plugin_progress[plugin_id]["status"] = "error"
+                    return
+                if not filenames:
+                    _log("❌ Không có tập tin nào được chọn")
+                    plugin_progress[plugin_id]["status"] = "error"
+                    return
+
+                label = "HTML → Markdown" if task == "html_to_markdown" else "Markdown → HTML"
+                _log(f"🔄 Bắt đầu tác vụ {label} trên {len(filenames)} tập tin trong {section}")
+
+                outputs = []
+                for filename in filenames:
+                    try:
+                        input_path = _safe_project_file(project_dir, section, filename)
+                        if not input_path.exists() or not input_path.is_file():
+                            _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
+                            continue
+                        output_path = plugin.convert(input_path, task=task)
+                        rel_output = output_path.resolve().relative_to(project_dir.resolve())
+                        outputs.append(str(rel_output))
+                        _log(f"✅ {filename} → {rel_output}")
+                    except Exception as e:
+                        _log(f"❌ {filename}: {str(e)}")
+
+                if outputs:
+                    plugin_progress[plugin_id]["status"] = "done"
+                    plugin_progress[plugin_id]["result"] = {
+                        "output_path": outputs[0],
+                        "output_paths": outputs,
+                        "converted_count": len(outputs),
+                    }
+                else:
+                    plugin_progress[plugin_id]["status"] = "error"
+                return
 
             if direction == "epub_to_text":
                 from plugins.epub_converter.epub_to_text.epub2text import convert_epub
@@ -298,10 +351,10 @@ def list_plugins():
         {
             "id": "epub_converter",
             "workspace_tab": "ebook-kit",
-            "name": "eBook Kit",
-            "legacy_name": "EPUB Converter",
-            "description": "Chuyển đổi EPUB sang Text/Markdown và đóng gói Text/Markdown thành EPUB.",
-            "version": "3.0.0",
+            "name": "Công cụ chuyển đổi",
+            "legacy_name": "eBook Kit",
+            "description": "Các tác vụ chuyển đổi nội dung dùng trực tiếp trên tập tin đã chọn của dự án.",
+            "version": "4.0.0",
             "author": "Novel Translator",
             "enabled": state.get("epub_converter", {}).get("enabled", True),
             "is_core": False,

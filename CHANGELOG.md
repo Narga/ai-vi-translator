@@ -4,6 +4,32 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.6.0] - 2026-07-13
+### Công cụ chuyển đổi (Converter Tool) — thay thế eBook Kit
+
+**Rebuild plugin EPUB Converter → Công cụ chuyển đổi:**
+- Workspace `eBook Kit` cũ (form path thủ công) được thay bằng workspace "Công cụ chuyển đổi" tái dùng file list sidebar của dự án với 2 nút tác vụ: HTML→Markdown và Markdown→HTML.
+- Plugin `plugins/epub_converter/plugin.py` v4.0.0: thêm 2 task `html_to_markdown`, `markdown_to_html`; contract trả về `Union[bool, Path]`.
+- Plugin self-contained: `plugins/epub_converter/services/text_converter.py` với bộ chuyển Markdown→XHTML tự viết (không phụ thuộc thư viện `markdown`), xử lý heading, bold/italic, link, image, code, blockquote, list, fenced code, hr, paragraph.
+- Xoá route cũ `POST /api/projects/<slug>/convert-markdown` và các hàm convert JS dead (`convertSelectedToMarkdown`, `convertSingleFileToMarkdown`).
+- Xoá nút "Chuyển Markdown" khỏi row actions của file list sources.
+- Xoá `convert_project_files_to_markdown()` khỏi `webui/routes/projects.py`.
+
+**Sửa lỗi nghiêm trọng:**
+- **Lỗi 1 — Import sai**: `from services.text_converter` → `from .services.text_converter` (relative import) tránh xung đột với gói `services/` gốc.
+- **Lỗi 2 — Trùng giao diện editor khi tải project**: Bọc các panel biên tập (`pm-translation-workspace`, `pm-spellcheck-workspace`) và bottom bar vào wrapper chung với `x-show="$store.workspace.wsTab === 'editor'"`.
+- **Lỗi 3 — Đường dẫn `relative_to`**: `output_path.resolve().relative_to(project_dir.resolve())` đảm bảo đồng nhất path tuyệt đối.
+- **Lỗi 4 — Auto-switch tab sau convert**: `openProject(slug)` không còn ép `wsTab = 'editor'` nếu đang mở cùng project (`isSameProject` guard). Thêm `refreshProjectFiles()` để refresh sidebar nhẹ mà không đổi tab.
+
+**Cải tiến `project-manager.js`:**
+- `openProject`: `isSameProject` guard giữ nguyên wsTab, không clear editor, không show toast.
+- Đồng bộ UI dùng `switchPmFileTab` thay vì gọi `renderPmFileList`/`renderPmTranslatedList` riêng lẻ.
+- `converter-tool-plugin.js`: dùng `refreshProjectFiles()` thay `openProject(slug)` + 100ms `setWorkspaceTab` (fix race condition).
+
+### `_safe_project_file()` trong `plugins.py`:
+- Helper mới chống path traversal: resolve path + kiểm tra `startswith(base_dir)`.
+- Task routing: `html_to_markdown` / `markdown_to_html` xử lý section (sources/translated/spelling), filenames, output dạng relative path.
+
 ## [8.5.0] - 2026-07-13
 ### Bộ lọc File List & Nâng cấp Tab Tài liệu
 

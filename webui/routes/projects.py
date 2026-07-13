@@ -823,45 +823,6 @@ def chunk_project_file(slug, filename):
     except Exception as e:
         logger.error(f"Chunk error: {e}")
         return jsonify({"error": str(e)}), 500
-@projects_bp.route("/api/projects/<slug>/convert-markdown", methods=["POST"])
-def convert_project_files_to_markdown(slug):
-    """Chuyển đổi các file HTML được chọn thành Markdown."""
-    pdir = _get_project_dir(slug)
-    data = request.json or {}
-    filenames = data.get("filenames", [])
-
-    if not filenames:
-        return jsonify({"error": "Không có file nào được chọn"}), 400
-
-    from core.source_normalizer import normalize_html_file
-
-    converted = []
-    errors = []
-
-    for filename in filenames:
-        src_file = pdir / "sources" / filename
-        if not src_file.exists():
-            errors.append(f"File {filename} không tồn tại")
-            continue
-
-        if src_file.suffix.lower() not in ['.html', '.htm', '.xhtml']:
-            errors.append(f"File {filename} không phải là file HTML/XHTML")
-            continue
-
-        try:
-            md_path = normalize_html_file(str(src_file))
-            converted.append({
-                "source": filename,
-                "markdown": Path(md_path).name
-            })
-        except Exception as e:
-            errors.append(f"Lỗi khi chuyển đổi {filename}: {str(e)}")
-
-    return jsonify({
-        "success": len(converted) > 0,
-        "converted": converted,
-        "errors": errors
-    })
 
 
 @projects_bp.route("/api/projects/<slug>/rename", methods=["POST"])

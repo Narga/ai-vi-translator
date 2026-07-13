@@ -49,6 +49,17 @@
 
 ---
 
+### v8.6.0 (2026-07-13)
+- [x] 🔄 Rebuild plugin: EPUB Converter → "Công cụ chuyển đổi" (Converter Tool)
+- [x] 📝 2 tác vụ: HTML→Markdown, Markdown→HTML (self-contained, không phụ thuộc thư viện markdown)
+- [x] 🗑️ Xoá route cũ `/api/projects/<slug>/convert-markdown` + JS dead code
+- [x] 🐛 Sửa lỗi 1: import sai `services.text_converter` → relative import
+- [x] 🐛 Sửa lỗi 2: trùng giao diện editor (wrapper x-show cho editor panels)
+- [x] 🐛 Sửa lỗi 3: `relative_to` path không đồng nhất (resolve cả 2 vế)
+- [x] 🐛 Sửa lỗi 4: auto-switch tab sau convert (isSameProject guard + refreshProjectFiles)
+- [x] 🛡️ `_safe_project_file()` chống path traversal trong task converter
+- [x] 🎯 Đồng bộ UI dùng `switchPmFileTab` thay render riêng lẻ
+
 ### v8.5.0 (2026-07-13)
 - [x] 🔍 Bộ lọc File List: sort theo tên/định dạng, tăng/giảm, lọc keyword real-time
 - [x] ⚙️ Cấu hình đường dẫn quét tài liệu (config panel trong sidebar Tab Tài liệu)
@@ -63,8 +74,9 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.6.0 (planned)
+### v9.0.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
+- [ ] Dọn JS chết trong `ui-helpers.js` (`runEpubToText()`, `runTextToEpub()` cũ)
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
 - [ ] Gom `_get_client()` trùng lặp → shared helper
 - [ ] Inline `file_utils.py` vào call site

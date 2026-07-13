@@ -1,83 +1,35 @@
-<!-- eBook Kit Workspace -->
+<!-- Converter Tool Workspace -->
 <div x-show="$store.workspace.wsTab === 'ebook-kit'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;" x-cloak>
-    <div class="ba b--black-10 br2 bg-white pa4 mb3 shadow-1 w-100 mw8 center overflow-y-auto" x-data="{ ebookSubtab: 'epub2text' }">
-        <div class="flex justify-between items-center mb3 pb3 bb b--black-10">
-            <div>
-                <h2 class="f4 mt0 mb1 fw6 dark-gray">eBook Kit</h2>
-                <p class="f7 mt0 mb0 silver">Chuyển đổi qua lại giữa EPUB và Text/Markdown trong phạm vi dự án</p>
+    <div class="flex-auto ba b--black-10 br3 bg-white shadow-sm overflow-hidden flex flex-column">
+        <div class="pa3 bb b--black-10 bg-near-white">
+            <h2 class="f4 mt0 mb1 fw6 dark-gray">Công cụ chuyển đổi</h2>
+            <p class="f7 mt0 mb0 gray">
+                Dùng trực tiếp tập tin đã chọn trong panel bên trái. Plugin không tạo danh sách chọn riêng, chỉ xử lý selection hiện có ở các tab Bản gốc, Bản dịch, Soát lỗi.
+            </p>
+        </div>
+
+        <div class="pa3 bb b--black-10 bg-washed-blue">
+            <div class="f7 dark-gray lh-copy">
+                <strong>Thao tác đầu tiên:</strong> Chuyển Markdown thành HTML và Chuyển HTML thành Markdown.
+                Kết quả luôn được ghi về đúng thư mục của tập tin gốc.
             </div>
         </div>
 
-        <div class="flex mb4 bb b--black-10">
-            <button class="nt-tab-radio pb2 ph3 f6 fw6 pointer ba b--transparent bg-transparent"
-                    :class="{ 'blue bb bw2 b--blue': ebookSubtab === 'epub2text', 'gray': ebookSubtab !== 'epub2text' }"
-                    @click="ebookSubtab = 'epub2text'">
-                EPUB → Text (Trích xuất)
+        <div class="pa3 flex flex-wrap gap-2 bb b--black-10">
+            <button id="btn-convert-md-to-html" class="pointer ph3 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6" onclick="ConverterToolPlugin.runMarkdownToHtml()">
+                Chuyển Markdown thành HTML
             </button>
-            <button class="nt-tab-radio pb2 ph3 f6 fw6 pointer ba b--transparent bg-transparent"
-                    :class="{ 'blue bb bw2 b--blue': ebookSubtab === 'text2epub', 'gray': ebookSubtab !== 'text2epub' }"
-                    @click="ebookSubtab = 'text2epub'">
-                Text → EPUB (Đóng gói)
+            <button id="btn-convert-html-to-md" class="pointer ph3 pv2 bn white bg-dark-green br2 fw6 shadow-1 hover-bg-green f6" onclick="ConverterToolPlugin.runHtmlToMarkdown()">
+                Chuyển HTML thành Markdown
             </button>
         </div>
 
-        <!-- EPUB -> Text Form -->
-        <div x-show="ebookSubtab === 'epub2text'" class="flex flex-wrap mhn2">
-            <div class="w-100 ph2 mb3">
-                <label class="db fw6 f7 mb2 gray uppercase tracked">Đường dẫn file EPUB *</label>
-                <input type="text" id="epub-path" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="/path/to/novel.epub">
+        <div class="pa3 bb b--black-10">
+            <div id="converter-tool-selection-summary" class="f7 gray">
+                Chọn một hoặc nhiều tập tin ở panel bên trái, sau đó bấm nút tác vụ tương ứng.
             </div>
-            <div class="w-50-ns ph2 mb3">
-                <label class="db fw6 f7 mb2 gray uppercase tracked">Thư mục đầu ra</label>
-                <input type="text" id="epub-out-dir" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="Mặc định: Thư mục output của dự án">
-            </div>
-            <div class="w-50-ns ph2 mb3">
-                <label class="db fw6 f7 mb2 gray uppercase tracked">Chế độ tạo file</label>
-                <select id="epub-mode" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
-                    <option value="single">Single – 1 file duy nhất</option>
-                    <option value="multi">Multi – Nhiều file riêng lẻ</option>
-                    <option value="both">Both – Cả 2 kiểu</option>
-                </select>
-            </div>
-            <div class="w-50-ns ph2 mb3">
-                <label class="db fw6 f7 mb2 gray uppercase tracked">Đuôi file xuất</label>
-                <select id="epub-ext" class="ba b--black-10 br2 pa2 w-100 f6 outline-0">
-                    <option value="txt">TXT</option>
-                    <option value="md">Markdown</option>
-                </select>
-            </div>
-            <div class="w-50-ns ph2 mb3 flex items-center pt3">
-                <label class="flex items-center pointer">
-                    <input type="checkbox" id="epub-underline" class="mr2 pointer"><span class="dark-gray f7 fw6">Giữ underline</span>
-                </label>
-                <label class="flex items-center pointer ml3">
-                    <input type="checkbox" id="epub-nonspine" class="mr2 pointer"><span class="dark-gray f7 fw6">Bao gồm non-spine</span>
-                </label>
-            </div>
-            
-            <button id="btn-run-epub2text" class="pointer w-100 pv3 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6 mt3" onclick="UiHelpers.runEpubToText()">Chạy EPUB → Text</button>
         </div>
 
-        <!-- Text -> EPUB Form -->
-        <div x-show="ebookSubtab === 'text2epub'" class="flex flex-wrap mhn2" style="display: none;">
-            <div class="w-100 ph2 mb3">
-                <label class="db fw6 f7 mb2 gray uppercase tracked">Thư mục chứa sách *</label>
-                <input type="text" id="epub-book-dir" class="ba b--black-10 br2 pa2 w-100 f6 outline-0" placeholder="Mặc định: Thư mục translated của dự án">
-            </div>
-            <div class="w-50-ns ph2 mb3 flex items-center pt3">
-                <label class="flex items-center pointer">
-                    <input type="checkbox" id="epub-use-md" class="mr2 pointer"><span class="dark-gray f7 fw6">Nguồn là Markdown</span>
-                </label>
-            </div>
-            <div class="w-50-ns ph2 mb3 flex items-center pt3">
-                <label class="flex items-center pointer">
-                    <input type="checkbox" id="epub-split-chapters" class="mr2 pointer" checked><span class="dark-gray f7 fw6">Tách chương</span>
-                </label>
-            </div>
-            
-            <button id="btn-run-text2epub" class="pointer w-100 pv3 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6 mt3" onclick="UiHelpers.runTextToEpub()">Chạy Text → EPUB</button>
-        </div>
-
-        <div id="epub-log" class="mt4 f7 ba b--black-10 br2 pa3 bg-near-black near-white code overflow-y-auto dn" style="height: 200px"></div>
+        <div id="converter-tool-log" class="flex-auto pa3 bg-near-black near-white code f7 overflow-y-auto"></div>
     </div>
 </div>

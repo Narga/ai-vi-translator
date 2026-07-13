@@ -96,7 +96,7 @@
                 </div>
             
             <!-- TAB BIÊN TẬP -->
-            <div x-show="$store.workspace.wsTab === 'editor'" class="flex-auto flex flex-column overflow-hidden">
+            <div x-show="$store.workspace.wsTab === 'editor' || $store.workspace.wsTab === 'ebook-kit'" class="flex-auto flex flex-column overflow-hidden">
                 <div class="workspace-layout-3col flex-auto flex overflow-hidden">
                     <!-- CỘT 1: DANH SÁCH TẬP TIN -->
                     <div class="file-list-sidebar" id="pm-file-sidebar">
@@ -126,7 +126,6 @@
                                         </div>
                                     </div>
                                 </div>
-                                <button id="pm-btn-convert-markdown" onclick="ProjectManager.convertSelectedToMarkdown()" data-tooltip="Chuyển Markdown" aria-label="Chuyển Markdown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13l-4 4-4-4"/></svg></button>
                                 <button id="pm-btn-translate-selected" onclick="TranslationWorker.translateSelectedInProject()" data-tooltip="Dịch đã chọn" aria-label="Dịch đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg></button>
                                 <button id="pm-btn-spellcheck-selected" onclick="TranslationWorker.spellcheckSelectedInProject()" data-tooltip="Soát lỗi đã chọn" aria-label="Soát lỗi đã chọn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/><path d="m16 20 2 2 4-4"/></svg></button>
                                 <button id="pm-btn-rename-batch" onclick="ProjectManager.showBatchRenameModal()" data-tooltip="Đổi tên hàng loạt" aria-label="Đổi tên hàng loạt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
@@ -148,103 +147,110 @@
                         </div>
                     </div>
                     
-                    <!-- WORKSPACE 1: DỊCH THUẬT (TRANSLATION WORKSPACE) -->
-                    <div id="pm-translation-workspace" class="flex-auto flex flex-column overflow-hidden">
-                        <div class="editors-container-2col flex-auto flex">
-                            <div class="editor-pane-3col editor-icon-toolbar" id="pm-source-editor">
-                                <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
-                                    <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
-                                    <div class="ml-auto flex gap-1 editor-icon-toolbar">
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-source-text')" title="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveSourceFile()">Lưu</button>
+                    <!-- WRAPPER FOR EDITORS -->
+                    <div x-show="$store.workspace.wsTab === 'editor'" class="flex-auto flex flex-column overflow-hidden">
+                        <!-- WORKSPACE 1: DỊCH THUẬT (TRANSLATION WORKSPACE) -->
+                        <div id="pm-translation-workspace" class="flex-auto flex flex-column overflow-hidden">
+                            <div class="editors-container-2col flex-auto flex">
+                                <div class="editor-pane-3col editor-icon-toolbar" id="pm-source-editor">
+                                    <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
+                                        <span class="f7 fw6 gray uppercase tracked">Nguồn</span>
+                                        <div class="ml-auto flex gap-1 editor-icon-toolbar">
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-source-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-source-text')" title="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                            <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveSourceFile()">Lưu</button>
+                                        </div>
                                     </div>
+                                    <textarea id="pm-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file từ danh sách bên trái..." oninput="EditorComponent.updateTokenEstimate();DirtyState.mark('pm-source-text')"></textarea>
                                 </div>
-                                <textarea id="pm-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file từ danh sách bên trái..." oninput="EditorComponent.updateTokenEstimate();DirtyState.mark('pm-source-text')"></textarea>
+                                <div class="editor-pane-3col editor-icon-toolbar" id="pm-result-editor">
+                                    <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
+                                        <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
+                                        <div class="ml-auto flex gap-1 editor-icon-toolbar">
+                                            <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-source-text','pm-result-text')" title="So sánh">So sánh</button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-result-text')" title="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                            <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveChunkTranslation()">Lưu</button>
+                                        </div>
+                                    </div>
+                                    <textarea id="pm-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Bản dịch sẽ hiển thị tại đây..." oninput="DirtyState.mark('pm-result-text')"></textarea>
+                                </div>
                             </div>
-                            <div class="editor-pane-3col editor-icon-toolbar" id="pm-result-editor">
-                                <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
-                                    <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
-                                    <div class="ml-auto flex gap-1 editor-icon-toolbar">
-                                        <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-source-text','pm-result-text')" title="So sánh">So sánh</button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-result-text')" title="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-result-text')" title="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveChunkTranslation()">Lưu</button>
+                        </div>
+
+                        <!-- Spellcheck workspace (hidden by default) -->
+                        <div id="pm-spellcheck-workspace" class="flex-auto flex flex-column overflow-hidden" style="display: none;">
+                            <div class="editors-container-2col flex-auto flex">
+                                <div class="editor-pane-3col editor-icon-toolbar" id="pm-spell-source-editor">
+                                    <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
+                                        <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
+                                        <div class="ml-auto flex gap-1 editor-icon-toolbar">
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-source-text')" data-tooltip="Wrap" aria-label="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-spell-source-text')" data-tooltip="Tìm kiếm" aria-label="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                        </div>
                                     </div>
+                                    <textarea id="pm-spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file để soát lỗi..." oninput="DirtyState.mark('pm-spell-source-text')"></textarea>
                                 </div>
-                                <textarea id="pm-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Bản dịch sẽ hiển thị tại đây..." oninput="DirtyState.mark('pm-result-text')"></textarea>
+                                <div class="editor-pane-3col editor-icon-toolbar" id="pm-spell-result-editor">
+                                    <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
+                                        <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
+                                        <div class="ml-auto flex gap-1 editor-icon-toolbar">
+                                            <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-spell-source-text','pm-spell-result-text')" data-tooltip="So sánh" aria-label="So sánh">So sánh</button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-result-text')" data-tooltip="Wrap" aria-label="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
+                                            <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-spell-result-text')" data-tooltip="Tìm kiếm" aria-label="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+                                            <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveSpellcheckResult()">Lưu</button>
+                                        </div>
+                                    </div>
+                                    <textarea id="pm-spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Kết quả soát lỗi..." oninput="DirtyState.mark('pm-spell-result-text')"></textarea>
+                                </div>
+                            </div>
+                            <!-- Spell Log Panel -->
+                            <div class="spell-log-panel flex-shrink-0">
+                                <details class="ba b--black-10 br2 bg-near-white">
+                                    <summary class="pa2 pointer f7 fw6 gray uppercase tracked">Nhật ký soát lỗi (Spell Log)</summary>
+                                    <div id="pm-spell-log-content" class="spell-log-content code">
+                                        Chưa chọn file.
+                                    </div>
+                                </details>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Spellcheck workspace (hidden by default) -->
-                    <div id="pm-spellcheck-workspace" class="flex-auto flex flex-column overflow-hidden" style="display: none;">
-                        <div class="editors-container-2col flex-auto flex">
-                            <div class="editor-pane-3col editor-icon-toolbar" id="pm-spell-source-editor">
-                                <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
-                                    <span class="f7 fw6 gray uppercase tracked">Bản dịch</span>
-                                    <div class="ml-auto flex gap-1 editor-icon-toolbar">
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-source-text')" data-tooltip="Wrap" aria-label="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-spell-source-text')" data-tooltip="Tìm kiếm" aria-label="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                    </div>
-                                </div>
-                                <textarea id="pm-spell-source-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Chọn file để soát lỗi..." oninput="DirtyState.mark('pm-spell-source-text')"></textarea>
-                            </div>
-                            <div class="editor-pane-3col editor-icon-toolbar" id="pm-spell-result-editor">
-                                <div class="pa2 bb b--black-10 flex items-center bg-near-white gap-2">
-                                    <span class="f7 fw6 gray uppercase tracked">Bản đã soát</span>
-                                    <div class="ml-auto flex gap-1 editor-icon-toolbar">
-                                        <button class="pointer ph2 pv1 f7 ba b--silver bg-white br1 gray hover-bg-near-white fw6" onclick="EditorComponent.showDiffView('pm-spell-source-text','pm-spell-result-text')" data-tooltip="So sánh" aria-label="So sánh">So sánh</button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.toggleWordWrap('pm-spell-result-text')" data-tooltip="Wrap" aria-label="Wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="M3 6h18"/><path d="M3 12h15a3 3 0 1 1 0 6h-4"/><path d="M3 18l4-4"/><path d="M3 14l4 4"/></svg></button>
-                                        <button class="ph2 pv1 f8 ba b--silver bg-white br1 pointer hover-bg-near-white" onclick="EditorComponent.openSearchReplaceModal('pm-spell-result-text')" data-tooltip="Tìm kiếm" aria-label="Tìm kiếm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-                                        <button class="pointer ph2 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6" onclick="EditorComponent.saveSpellcheckResult()">Lưu</button>
-                                    </div>
-                                </div>
-                                <textarea id="pm-spell-result-text" class="flex-auto bn pa3 f6 lh-copy outline-0 no-resize" placeholder="Kết quả soát lỗi..." oninput="DirtyState.mark('pm-spell-result-text')"></textarea>
-                            </div>
-                        </div>
-                        <!-- Spell Log Panel -->
-                        <div class="spell-log-panel flex-shrink-0">
-                            <details class="ba b--black-10 br2 bg-near-white">
-                                <summary class="pa2 pointer f7 fw6 gray uppercase tracked">Nhật ký soát lỗi (Spell Log)</summary>
-                                <div id="pm-spell-log-content" class="spell-log-content code">
-                                    Chưa chọn file.
-                                </div>
-                            </details>
-                        </div>
-                    </div>
+                    {% include 'partials/workspace_ebook_kit.html' %}
                 </div>
                 
-                <!-- Bottom bar dịch thuật -->
-                <div id="pm-translation-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0">
-                    <div class="flex items-center gap-2 f7 gray">
-                        <span><span id="pm-opened-file-status"></span>gồm có: <strong id="pm-token-char-count">0</strong> ký tự | <strong id="pm-token-word-count">0</strong> từ | ước lượng <strong id="pm-token-estimate" class="blue">~0</strong> tokens</span>
-                        <span id="pm-selected-files-info" class="dn blue fw6"></span>
+                <!-- WRAPPER FOR BOTTOM BARS -->
+                <div x-show="$store.workspace.wsTab === 'editor'" class="flex-shrink-0 flex flex-column">
+                    <!-- Bottom bar dịch thuật -->
+                    <div id="pm-translation-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0">
+                        <div class="flex items-center gap-2 f7 gray">
+                            <span><span id="pm-opened-file-status"></span>gồm có: <strong id="pm-token-char-count">0</strong> ký tự | <strong id="pm-token-word-count">0</strong> từ | ước lượng <strong id="pm-token-estimate" class="blue">~0</strong> tokens</span>
+                            <span id="pm-selected-files-info" class="dn blue fw6"></span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <label class="flex items-center gap-1 f7 gray pointer" title="Bỏ qua checkpoint, cache và TM cho lần dịch này">
+                                <input type="checkbox" id="force-retranslate" class="pointer">
+                                <span>Dịch lại từ đầu</span>
+                            </label>
+                            <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copyResult()">Sao chép</button>
+                            <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadResult()">Tải về</button>
+                            <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.startTranslation()">Dịch lại</button>
+                        </div>
                     </div>
-                    <div class="flex gap-2 items-center">
-                        <label class="flex items-center gap-1 f7 gray pointer" title="Bỏ qua checkpoint, cache và TM cho lần dịch này">
-                            <input type="checkbox" id="force-retranslate" class="pointer">
-                            <span>Dịch lại từ đầu</span>
-                        </label>
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copyResult()">Sao chép</button>
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadResult()">Tải về</button>
-                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.startTranslation()">Dịch lại</button>
-                    </div>
-                </div>
 
-                <!-- Bottom bar soát chính tả -->
-                <div id="pm-spellcheck-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0" style="display: none;">
-                    <div class="flex items-center gap-2 f7 gray">
-                        <span><span id="pm-spell-opened-file-status"></span>gồm có: <strong id="pm-spell-char-count">0</strong> ký tự | <strong id="pm-spell-word-count">0</strong> từ</span>
-                        <span id="pm-selected-spellcheck-info" class="dn blue fw6"></span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copySpellcheckResult()">Sao chép</button>
-                        <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadSpellCheckResult()">Tải về</button>
-                        <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.runSpellcheck()">Soát lại</button>
+                    <!-- Bottom bar soát chính tả -->
+                    <div id="pm-spellcheck-bottom-bar" class="flex justify-between items-center pa2 bt b--black-10 bg-near-white flex-wrap gap-2 flex-shrink-0" style="display: none;">
+                        <div class="flex items-center gap-2 f7 gray">
+                            <span><span id="pm-spell-opened-file-status"></span>gồm có: <strong id="pm-spell-char-count">0</strong> ký tự | <strong id="pm-spell-word-count">0</strong> từ</span>
+                            <span id="pm-selected-spellcheck-info" class="dn blue fw6"></span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.copySpellcheckResult()">Sao chép</button>
+                            <button class="pointer ph3 pv2 ba b--silver bg-white br2 gray hover-bg-near-white f7 fw6" onclick="EditorComponent.downloadSpellCheckResult()">Tải về</button>
+                            <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f7" onclick="TranslationWorker.runSpellcheck()">Soát lại</button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
             <!-- TAB THÔNG TIN -->
             <div x-show="$store.workspace.wsTab === 'info'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;">
@@ -331,7 +337,6 @@
             </div>
 
             <!-- PLUGIN WORKSPACES -->
-            {% include 'partials/workspace_ebook_kit.html' %}
             {% include 'partials/workspace_ocr_toolbox.html' %}
         </div>
     </div>

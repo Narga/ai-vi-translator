@@ -291,17 +291,20 @@ const ProjectManager = {
         .then(data => {
             if (data.error) throw new Error(data.error);
             
+            const isSameProject = window.currentProject && window.currentProject.slug === slug;
             window.currentProject = data;
             localStorage.setItem('nt_active_project_slug', slug);
 
-            // Reset file filters when opening a new project
-            ProjectManager._resetFileFilters();
-            
-            try {
-                if (window.Alpine && Alpine.store('workspace')) {
-                    Alpine.store('workspace').wsTab = 'editor';
-                }
-            } catch (e) {}
+            if (!isSameProject) {
+                // Reset file filters when opening a new project
+                ProjectManager._resetFileFilters();
+                
+                try {
+                    if (window.Alpine && Alpine.store('workspace')) {
+                        Alpine.store('workspace').wsTab = 'editor';
+                    }
+                } catch (e) {}
+            }
 
             if (window.PluginManager) {
                 PluginManager.ensureLoaded()
@@ -315,24 +318,17 @@ const ProjectManager = {
             if (titleEl) titleEl.textContent = data.name;
             if (descEl) descEl.textContent = data.description || 'Dự án không có mô tả';
             
-            // Render file lists depending on active tabs
+            // Restore active workspace tab and sync UI display states
             const sourcesBtn = document.getElementById('pm-tab-sources');
             const translatedBtn = document.getElementById('pm-tab-translated');
             const spellingBtn = document.getElementById('pm-tab-spelling');
 
-            const isSourcesActive = sourcesBtn && sourcesBtn.classList.contains('active');
-            const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
-            const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
-
-            if (isTranslatedActive) {
-                ProjectManager.renderPmTranslatedList(data.translated || []);
-                ProjectManager.updateSelectAllTranslatedButton();
-            } else if (isSpellingActive) {
-                ProjectManager.renderPmSpellcheckedList();
-                ProjectManager.updateSelectAllButton();
+            if (translatedBtn && translatedBtn.classList.contains('active')) {
+                ProjectManager.switchPmFileTab('translated');
+            } else if (spellingBtn && spellingBtn.classList.contains('active')) {
+                ProjectManager.switchPmFileTab('spelling');
             } else {
-                ProjectManager.renderPmFileList(data.sources || []);
-                ProjectManager.updateSelectAllButton();
+                ProjectManager.switchPmFileTab('sources');
             }
             
             // Populate dropdown source file cho tab Thông tin
@@ -356,14 +352,16 @@ const ProjectManager = {
             // Khởi tạo file filter events (click-outside, escape)
             ProjectManager.initFileFilterEvents();
             
-            // Clear editors
-            ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
-            window.currentProjectFile = null;
-            
-            UiHelpers.showToast('Đã mở: ' + data.name, 'success');
+            if (!isSameProject) {
+                // Clear editors
+                ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                window.currentProjectFile = null;
+                
+                UiHelpers.showToast('Đã mở: ' + data.name, 'success');
+            }
         })
         .catch(err => {
             console.error('openProject error:', err);
@@ -371,6 +369,36 @@ const ProjectManager = {
         });
     },
     
+    refreshProjectFiles() {
+        // Làm mới danh sách tập tin của dự án hiện tại MÀ KHÔNG đổi wsTab,
+        // không xóa editor và không hiện toast "Đã mở".
+        // Dùng sau khi chuyển đổi xong để tập tin mới xuất hiện ở sidebar.
+        if (!window.currentProject || !window.currentProject.slug) return;
+        const slug = window.currentProject.slug;
+
+        fetch('/api/projects/' + slug)
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) return;
+                const prev = window.currentProject;
+                window.currentProject = Object.assign({}, prev, data);
+                window.currentProject.slug = slug;
+
+                // Giữ nguyên wsTab; chỉ vẽ lại danh sách của mini-tab đang active.
+                const sourcesBtn = document.getElementById('pm-tab-sources');
+                const translatedBtn = document.getElementById('pm-tab-translated');
+                const spellingBtn = document.getElementById('pm-tab-spelling');
+                if (translatedBtn && translatedBtn.classList.contains('active')) {
+                    ProjectManager.switchPmFileTab('translated');
+                } else if (spellingBtn && spellingBtn.classList.contains('active')) {
+                    ProjectManager.switchPmFileTab('spelling');
+                } else {
+                    ProjectManager.switchPmFileTab('sources');
+                }
+            })
+            .catch(() => {});
+    },
+
     backToList() {
         const listView = document.getElementById('projects-list-view');
         const workspaceView = document.getElementById('projects-workspace-view');
@@ -1294,17 +1322,11 @@ const ProjectManager = {
             getOnclick: () => `EditorComponent.loadPmProjectFile(this.dataset.filename,'sources')`,
             getDirty: (f, isActive) => isActive && DirtyState.isDirty('pm-result-text') ? '<span class="red fw6 ml1">*</span>' : '',
             getDot: f => f.has_translation ? '<span class="file-done-dot" title="Đã dịch xong"></span>' : '',
-            getActions: (f) => {
-                const nameLower = f.name.toLowerCase();
-                const isHtml = nameLower.endsWith('.html') || nameLower.endsWith('.htm') || nameLower.endsWith('.xhtml');
-                const convertBtn = isHtml ? `<button onclick="event.stopPropagation();ProjectManager.convertSingleFileToMarkdown(this.closest('.file-item-compact').dataset.filename)" title="Chuyển Markdown">${Icons.convert}</button>` : '';
-                return `
+            getActions: () => `
                 <button onclick="event.stopPropagation();TranslationWorker.translateFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Dịch">${Icons.translate}</button>
-                ${convertBtn}
                 <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Soát lỗi AI">${Icons.spellcheck}</button>
                 <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Đổi tên">${Icons.rename}</button>
-                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`;
-            }
+                <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`
         });
     },
 
@@ -1733,85 +1755,6 @@ const ProjectManager = {
         ProjectManager.renderPmTranslatedList(allTranslated);
     },
 
-    async convertSelectedToMarkdown() {
-        if (!window.currentProject) {
-            UiHelpers.showToast('Chưa chọn dự án', 'error');
-            return;
-        }
-
-        const sourcesBtn = document.getElementById('pm-tab-sources');
-        const translatedBtn = document.getElementById('pm-tab-translated');
-        const spellingBtn = document.getElementById('pm-tab-spelling');
-
-        const isTranslatedActive = translatedBtn && translatedBtn.classList.contains('active');
-        const isSpellingActive = spellingBtn && spellingBtn.classList.contains('active');
-
-        let selected = window.selectedFiles;
-        if (isTranslatedActive) {
-            selected = window.selectedTranslatedFiles;
-        }
-
-        if (!selected || selected.size === 0) {
-            UiHelpers.showToast('Chưa chọn tập tin HTML/XHTML nào để chuyển đổi', 'error');
-            return;
-        }
-
-        const htmlFiles = [...selected].filter(f => f.toLowerCase().endsWith('.html') || f.toLowerCase().endsWith('.htm') || f.toLowerCase().endsWith('.xhtml'));
-        if (htmlFiles.length === 0) {
-            UiHelpers.showToast('Các tập tin đã chọn không phải định dạng HTML/XHTML (.html, .htm, .xhtml)', 'error');
-            return;
-        }
-
-        const slug = window.currentProject.slug;
-        UiHelpers.showToast(`Đang chuyển đổi ${htmlFiles.length} tập tin sang Markdown...`, 'info');
-
-        try {
-            const response = await fetch(`/api/projects/${slug}/convert-markdown`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filenames: htmlFiles })
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                UiHelpers.showToast(`Đã chuyển đổi thành công sang Markdown`, 'success');
-                selected.clear();
-                ProjectManager.openProject(slug);
-            } else {
-                UiHelpers.showToast(result.errors ? result.errors.join(', ') : 'Lỗi khi chuyển đổi', 'error');
-            }
-        } catch (err) {
-            console.error('Convert markdown error:', err);
-            UiHelpers.showToast('Lỗi kết nối khi gửi yêu cầu chuyển đổi', 'error');
-        }
-    },
-
-    async convertSingleFileToMarkdown(filename) {
-        if (!window.currentProject) {
-            UiHelpers.showToast('Chưa chọn dự án', 'error');
-            return;
-        }
-        const slug = window.currentProject.slug;
-        UiHelpers.showToast(`Đang chuyển đổi ${filename} sang Markdown...`, 'info');
-        try {
-            const response = await fetch(`/api/projects/${slug}/convert-markdown`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filenames: [filename] })
-            });
-
-            const result = await response.json();
-            if (result.success) {
-                UiHelpers.showToast(`Đã chuyển đổi thành công sang Markdown`, 'success');
-                ProjectManager.openProject(slug);
-            } else {
-                UiHelpers.showToast(result.errors ? result.errors.join(', ') : 'Lỗi khi chuyển đổi', 'error');
-            }
-        } catch (err) {
-            console.error('Convert markdown error:', err);
-            UiHelpers.showToast('Lỗi kết nối khi gửi yêu cầu chuyển đổi', 'error');
-        }
-    }
 };
 
 window.ProjectManager = ProjectManager;
