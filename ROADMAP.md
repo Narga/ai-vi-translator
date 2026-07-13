@@ -59,6 +59,9 @@
 - [x] 🐛 Sửa lỗi 4: auto-switch tab sau convert (isSameProject guard + refreshProjectFiles)
 - [x] 🛡️ `_safe_project_file()` chống path traversal trong task converter
 - [x] 🎯 Đồng bộ UI dùng `switchPmFileTab` thay render riêng lẻ
+- [x] 🔗 Tác vụ `create_epub` + endpoint `GET .../download/<path>` tải EPUB
+- [x] 🔄 Link tải EPUB ngay trên thông báo hoàn tất canh phải
+- [x] 🔤 Đổi tên nút tác vụ: `.MD → HTML` / `HTML → .MD`
 
 ### v8.5.0 (2026-07-13)
 - [x] 🔍 Bộ lọc File List: sort theo tên/định dạng, tăng/giảm, lọc keyword real-time
@@ -74,12 +77,14 @@
 
 ## Đang phát triển / Sắp tới
 
-### v9.0.0 (planned)
-- [ ] Export dự án sang EPUB/PDF
+### v8.7.0 (next)
 - [ ] Dọn JS chết trong `ui-helpers.js` (`runEpubToText()`, `runTextToEpub()` cũ)
-- [ ] Frontend bundle optimization (tree-shaking, code splitting)
 - [ ] Gom `_get_client()` trùng lặp → shared helper
 - [ ] Inline `file_utils.py` vào call site
+
+### v9.0.0 (planned)
+- [ ] Export dự án sang EPUB/PDF
+- [ ] Frontend bundle optimization (tree-shaking, code splitting)
 - [ ] Dùng `model_catalog_service` thay hardcoded model list
 
 ### Tối ưu hóa

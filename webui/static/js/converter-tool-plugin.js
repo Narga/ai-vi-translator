@@ -34,8 +34,15 @@ window.ConverterToolPlugin = {
     setSelectionSummary(message, type = 'info') {
         const el = document.getElementById('converter-tool-selection-summary');
         if (!el) return;
-        el.className = `f7 ${type === 'error' ? 'dark-red' : (type === 'success' ? 'dark-green' : 'gray')}`;
+        el.className = `f7 flex items-center ${type === 'error' ? 'dark-red' : (type === 'success' ? 'dark-green' : 'gray')}`;
         el.textContent = message;
+    },
+
+    setSelectionSummaryHtml(html, type = 'info') {
+        const el = document.getElementById('converter-tool-selection-summary');
+        if (!el) return;
+        el.className = `f7 flex items-center ${type === 'error' ? 'dark-red' : (type === 'success' ? 'dark-green' : 'gray')}`;
+        el.innerHTML = html;
     },
 
     clearLog() {
@@ -54,11 +61,15 @@ window.ConverterToolPlugin = {
     },
 
     runHtmlToMarkdown() {
-        this.runTask('html_to_markdown', 'btn-convert-html-to-md', 'Chuyển HTML thành Markdown');
+        this.runTask('html_to_markdown', 'btn-convert-html-to-md', 'HTML → .MD');
     },
 
     runMarkdownToHtml() {
-        this.runTask('markdown_to_html', 'btn-convert-md-to-html', 'Chuyển Markdown thành HTML');
+        this.runTask('markdown_to_html', 'btn-convert-md-to-html', '.MD → HTML');
+    },
+
+    runCreateEpub() {
+        this.runTask('create_epub', 'btn-create-epub', 'Tạo EPUB 3');
     },
 
     runTask(task, buttonId, buttonLabel) {
@@ -129,7 +140,18 @@ window.ConverterToolPlugin = {
                         btn.textContent = buttonLabel;
 
                         if (data.status === 'done') {
-                            this.setSelectionSummary('Hoàn tất chuyển đổi. Sidebar đang được tải lại.', 'success');
+                            const outputPath = data.result?.output_path
+                                || (data.result?.output_paths && data.result.output_paths[0]);
+                            if (outputPath) {
+                                const name = outputPath.split('/').pop();
+                                const url = `/api/projects/${encodeURIComponent(slug)}/download/${encodeURIComponent(outputPath)}`;
+                                this.setSelectionSummaryHtml(
+                                    `<span>Đã hoàn tất chuyển đổi thành epub →</span>` +
+                                    `<a href="${url}" download class="ml-auto underline">${name}</a>`,
+                                    'success');
+                            } else {
+                                this.setSelectionSummary('Đã hoàn tất chuyển đổi thành epub', 'success');
+                            }
                             // Làm mới sidebar tại chỗ: giữ nguyên tab 'ebook-kit',
                             // không gọi openProject (vì openProject ép wsTab='editor').
                             if (ProjectManager.refreshProjectFiles) {

@@ -612,6 +612,18 @@ def import_project():
 # ============================================================
 
 
+@projects_bp.route("/api/projects/<slug>/download/<path:filepath>")
+def download_project_file(slug, filepath):
+    """Tải file nhị phân (epub, zip, ...) trong dự án về máy."""
+    pdir = _get_project_dir(slug)
+    file_path = (pdir / filepath).resolve()
+    if not str(file_path).startswith(str(pdir.resolve())):
+        return jsonify({"error": "Invalid path"}), 403
+    if not file_path.exists() or not file_path.is_file():
+        return jsonify({"error": "File không tồn tại"}), 404
+    return send_file(file_path, as_attachment=True, download_name=file_path.name)
+
+
 @projects_bp.route("/api/projects/<slug>/file/<path:filepath>")
 def get_project_file(slug, filepath):
     """Đọc nội dung file trong dự án."""

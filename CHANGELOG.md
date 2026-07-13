@@ -30,6 +30,12 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - Helper mới chống path traversal: resolve path + kiểm tra `startswith(base_dir)`.
 - Task routing: `html_to_markdown` / `markdown_to_html` xử lý section (sources/translated/spelling), filenames, output dạng relative path.
 
+**Cải tiến thêm:**
+- Nút tác vụ đổi tên: `.MD → HTML` và `HTML → .MD` cho gọn, dễ đọc.
+- Thêm tác vụ `create_epub` (đóng gói EPUB 3 từ file đã chọn) với progress log real-time và lọc định dạng không hỗ trợ.
+- Thêm endpoint `GET /api/projects/<slug>/download/<path>` để tải file nhị phân (epub, zip) trực tiếp từ thư mục dự án, chống path traversal.
+- Frontend: thông báo hoàn tất kèm link tải EPUB canh phải — click tên file là tải về.
+
 ## [8.5.0] - 2026-07-13
 ### Bộ lọc File List & Nâng cấp Tab Tài liệu
 
