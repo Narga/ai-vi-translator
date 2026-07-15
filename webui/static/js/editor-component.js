@@ -288,33 +288,29 @@ const EditorComponent = {
         sideHtml += '<div style="padding:4px 8px;background:#d1fae5;font-weight:600;color:#065f46;border-bottom:1px solid #e0e0e0;">Bản dịch</div>';
         for (var i = 0; i < maxLines; i++) {
             var sl = i < sourceLines.length ? sourceLines[i] : '';
-            var tl = i < targetLines.length ? targetLines[i] : '';
+            var tl = targetLines[i];
             var bg = sl === tl ? 'transparent' : '#d1fae5';
             sideHtml += '<div style="padding:1px 8px;background:' + bg + ';">' + escapeHtml(tl) + '</div>';
         }
         sideHtml += '</div></div>';
 
-        var overlay = document.createElement('div');
-        overlay.className = 'fixed absolute--fill bg-black-70 items-center justify-center z-max';
-        overlay.style.cssText = 'display:flex; z-index:99999;';
-        overlay.innerHTML = 
-            '<div class="bg-white br3 shadow-5 w-100 mw8 overflow-hidden animate-pop" style="max-height:85vh;">' +
-                '<div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">' +
-                    '<h3 class="f5 ma0 fw6 dark-gray">📊 So sánh thay đổi (' + changes + ' dòng khác)</h3>' +
-                    '<div class="flex gap-2">' +
-                        '<button id="btn-diff-unified" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white active" onclick="EditorComponent.switchDiffView(\'unified\')">Dọc</button>' +
-                        '<button id="btn-diff-side" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="EditorComponent.switchDiffView(\'side\')">Ngang</button>' +
-                        '<button class="modal-close-btn" onclick="this.closest(\'.fixed\').remove()">&times;</button>' +
-                    '</div>' +
-                '</div>' +
-                '<div id="diff-view-unified" class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;">' + unifiedHtml + '</div>' +
-                '<div id="diff-view-side" class="pa3 overflow-y-auto" style="max-height:75vh;background:#fafafa;display:none;">' + sideHtml + '</div>' +
-            '</div>';
-
-        document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) {
-            if (e.target === overlay) overlay.remove();
+        var overlay = this._createOverlay({
+            title: '📊 So sánh thay đổi (' + changes + ' dòng khác)',
+            subtitle: 'So sánh dòng thay đổi giữa hai editor',
+            bodyHtml:
+                '<div id="diff-view-unified" class="pa3" style="background:#fafafa;">' + unifiedHtml + '</div>' +
+                '<div id="diff-view-side" class="pa3" style="background:#fafafa;display:none;">' + sideHtml + '</div>',
+            wide: false
         });
+
+        // Add tab switching buttons to header
+        var headerDiv = overlay.querySelector('.flex.justify-between');
+        var btnGroup = document.createElement('div');
+        btnGroup.className = 'flex gap-2';
+        btnGroup.innerHTML =
+            '<button id="btn-diff-unified" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="EditorComponent.switchDiffView(\'unified\')">Dọc</button>' +
+            '<button id="btn-diff-side" class="ph2 pv1 f7 ba b--silver bg-white br2 pointer hover-bg-near-white" onclick="EditorComponent.switchDiffView(\'side\')">Ngang</button>';
+        headerDiv.querySelector('button.modal-close-btn').before(btnGroup);
     },
 
     switchDiffView(mode) {
@@ -441,6 +437,82 @@ const EditorComponent = {
             btn.disabled = false;
             UiHelpers.showToast('Lỗi: ' + e.message, 'error');
         });
+    },
+
+    // Private helper for creating overlay (used by showDiffView and openPreview)
+    _createOverlay({ title, subtitle, bodyHtml, wide }) {
+        var overlay = document.createElement('div');
+        overlay.className = 'fixed absolute--fill bg-black-70 items-center justify-center z-max';
+        overlay.style.cssText = 'display:flex; z-index:99999;';
+        var widthClass = wide ? 'mw9' : 'mw8';
+        var subtitleHtml = subtitle
+            ? '<div class="f7 silver mt1">' + subtitle + '</div>'
+            : '';
+        overlay.innerHTML =
+            '<div class="bg-white br3 shadow-5 w-100 ' + widthClass + ' overflow-hidden animate-pop" style="max-height:85vh;">' +
+                '<div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center">' +
+                    '<div>' +
+                        '<h3 class="f5 ma0 fw6 dark-gray">' + title + '</h3>' +
+                        subtitleHtml +
+                    '</div>' +
+                    '<button class="modal-close-btn" onclick="this.closest(\'.fixed\').remove()">&times;</button>' +
+                '</div>' +
+                '<div class="overflow-y-auto" style="max-height:75vh;">' + bodyHtml + '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        document.addEventListener('keydown', function onEsc(e) {
+            if (e.key === 'Escape') {
+                overlay.remove();
+                document.removeEventListener('keydown', onEsc);
+            }
+        });
+        return overlay;
+    },
+
+    openPreview(textareaId, options) {
+        var content = document.getElementById(textareaId).value;
+        if (!content.trim()) {
+            UiHelpers.showToast('Editor không có nội dung để preview', 'warning');
+            return;
+        }
+        var label = options.label || 'Preview';
+        var filename = window.currentProjectFile ? window.currentProjectFile.name : '';
+        // Detect format
+        var format = 'markdown';
+        if (filename) {
+            var ext = filename.split('.').pop().toLowerCase();
+            if (ext === 'md' || ext === 'markdown') format = 'markdown';
+            else if (ext === 'html' || ext === 'htm' || ext === 'xhtml') format = 'html';
+        } else {
+            // Fallback: heuristic theo nội dung
+            if (/<!DOCTYPE html>|<html[\s>]|<body[\s>]/.test(content) ||
+                ((content.match(/<(div|p|h[1-6]|section|article|table|ul|ol)[>\s]/gi) || []).length >= 3)) {
+                format = 'html';
+            }
+        }
+        // Build subtitle
+        var subtitle = (filename ? filename + ' • ' : '') + (format === 'html' ? 'HTML' : 'Markdown');
+        // Build bodyHtml
+        var bodyHtml;
+        if (format === 'markdown') {
+            bodyHtml = '<div class="doc-markdown pa3">' + marked.parse(content) + '</div>';
+        } else {
+            bodyHtml = '<iframe sandbox="" srcdoc="" style="width:100%;height:70vh;border:none;display:block;"></iframe>';
+        }
+        var overlay = this._createOverlay({
+            title: 'Preview — ' + label,
+            subtitle: subtitle,
+            bodyHtml: bodyHtml,
+            wide: false
+        });
+        // Gán srcdoc sau khi overlay đã vào DOM (tránh timing issue)
+        if (format === 'html') {
+            var iframe = document.querySelector('.fixed iframe[sandbox]');
+            if (iframe) iframe.srcdoc = content;
+        }
     },
 
     setupSyncScroll(sourceEl, resultEl) {
