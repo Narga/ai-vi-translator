@@ -498,7 +498,7 @@ const EditorComponent = {
         // Build bodyHtml
         var bodyHtml;
         if (format === 'markdown') {
-            bodyHtml = '<div class="doc-markdown pa3">' + marked.parse(content) + '</div>';
+            bodyHtml = '<div class="doc-markdown pa3" style="max-width: none;">' + marked.parse(content) + '</div>';
         } else {
             bodyHtml = '<iframe sandbox="" srcdoc="" style="width:100%;height:70vh;border:none;display:block;"></iframe>';
         }
