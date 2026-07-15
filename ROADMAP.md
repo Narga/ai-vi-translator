@@ -78,7 +78,9 @@
 ## Đang phát triển / Sắp tới
 
 ### v8.7.0 (next)
-- [ ] Dọn JS chết trong `ui-helpers.js` (`runEpubToText()`, `runTextToEpub()` cũ)
+- [x] Dọn JS chết trong `ui-helpers.js` (`runEpubToText()`, `runTextToEpub()` cũ)
+- [x] Smart Batching: helpers + parser
+- [x] Smart Batching: unit tests + tích hợp vào `execute()` + fallback
 - [ ] Gom `_get_client()` trùng lặp → shared helper
 - [ ] Inline `file_utils.py` vào call site
 

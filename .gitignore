@@ -86,3 +86,6 @@ uv.lock
 .ruff_cache/
 .stylelint_cache/
 .worktrees/
+
+# Temporary debug files
+test_debug.py

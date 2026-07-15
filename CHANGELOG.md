@@ -4,6 +4,26 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.7.0] - 2026-07-15
+### Smart Batching — Tối ưu dịch nhiều file đồng thời
+
+**Smart Batching (TranslateProjectFilesUseCase):**
+- Gom nhóm file nhỏ thành Virtual Chunks — giảm số request (RPD/RPM) tới API AI
+- Session token ngẫu nhiên + delimiter `<<<token:N>>>` — tránh AI dịch nhầm tên file
+- Regex parse + index sequence validation — phát hiện lỗi cấu trúc response
+- Fallback tự động: rã nhóm → dịch tuần tự nếu parse thất bại
+- Batch Instruction inject vào `prompts["main"]` — không sửa `executor.py`
+- 5 helpers mới: `_delimiter_overhead`, `_build_batches`, `_wrap_batch`, `_make_batch_config`, `_parse_batch_response`
+- Unit tests: `tests/unit/test_smart_batching.py` (276 dòng)
+
+**Dọn dẹp:**
+- Xóa JS dead code: `runEpubToText()`, `runTextToEpub()` trong `ui-helpers.js`
+
+**Sửa lỗi:**
+- Sửa thiếu thẻ đóng `</div>` trong `tab_projects.html`
+
+---
+
 ## [8.6.0] - 2026-07-13
 ### Công cụ chuyển đổi (Converter Tool) — thay thế eBook Kit
 
