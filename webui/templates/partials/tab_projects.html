@@ -2,48 +2,32 @@
 <section id="tab-projects" class="nt-tab-content dn">
     
     <!-- VIEW 1: DANH SÁCH DỰ ÁN (List View) -->
-    <div id="projects-list-view" class="flex flex-row gap-4 w-100 projects-list-view pa4">
-        <!-- Cột trái: Tạo dự án mới -->
-        <div class="w-40 bg-white br3 border b--black-10 shadow-sm pa4 overflow-y-auto flex-shrink-0">
-            <h2 class="f3 fw6 dark-gray tc">Tạo dự án dịch mới</h2>
-            <p class="f7 gray tc mb4">Bắt đầu bằng cách nhập thông tin cho dự án sách của bạn.</p>
-            
-            <div class="flex flex-column gap3">
-                <div>
-                    <label class="f7 fw6 gray db mb1">Tên tác phẩm *</label>
-                    <input type="text" id="new-project-book-title" class="w-100 pa2 ba b--black-20 br2 f6 outline-0" placeholder="Nhập tên tác phẩm...">
-                </div>
-                <div>
-                    <label class="f7 fw6 gray db mb1">Tác giả</label>
-                    <input type="text" id="new-project-author" class="w-100 pa2 ba b--black-20 br2 f6 outline-0" placeholder="Nhập tên tác giả...">
-                </div>
-                <div>
-                    <label class="f7 fw6 gray db mb1">Mô tả</label>
-                    <textarea id="new-project-desc-new" class="w-100 pa2 ba b--black-20 br2 f6 outline-0 no-resize" rows="3" placeholder="Mô tả ngắn về dự án..."></textarea>
-                </div>
-                <button class="pointer ph4 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6 mt2" onclick="ProjectManager.createNewProject()">
-                    Khởi tạo dự án
+    <div id="projects-list-view" class="flex flex-column w-100 projects-list-view pa4">
+        <!-- Header Trang Dự Án -->
+        <div class="flex justify-between items-center mb4 flex-shrink-0">
+            <div>
+                <h1 class="f2 fw7 dark-gray ma0">Dự án</h1>
+                <p class="f6 gray ma0 mt1">Quản lý các tài liệu đang và đã dịch của bạn.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button class="pointer ph3 pv2 bn white br2 fw6 shadow-1 f6 flex items-center gap-2" style="background-color: var(--primary-indigo, #3730A3);" onclick="ProjectManager.showCreateProjectModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Tạo dự án mới
+                </button>
+                <button class="pointer ph3 pv2 ba b--black-20 bg-white dark-gray br2 shadow-sm hover-bg-near-white f6 flex items-center gap-2" onclick="document.querySelector('[data-tab=archive]').click()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                    Nhập dự án
+                </button>
+                <button id="btn-refresh-projects" class="pointer bg-transparent bn pa2 gray hover-dark-gray flex items-center justify-center" onclick="ProjectManager.refreshProjectCards()" title="Làm mới danh sách">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
                 </button>
             </div>
         </div>
         
-        <!-- Cột phải: Danh sách dự án -->
-        <div class="w-60 bg-white br3 border b--black-10 shadow-sm pa4 overflow-hidden flex flex-column">
-            <div class="flex justify-between items-center mb3 flex-shrink-0">
-                <h2 class="f3 fw6 dark-gray">Quản lý dự án</h2>
-                <div class="flex gap-2">
-                    <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="document.querySelector('[data-tab=archive]').click()">
-                        📥 Nhập dự án
-                    </button>
-                    <button id="btn-refresh-projects" class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.refreshProjectCards()">
-                        ↻ Làm mới
-                    </button>
-                </div>
-            </div>
-            <div id="project-cards-container" class="flex flex-column gap3 overflow-y-auto overflow-x-hidden flex-auto">
-                <!-- Cards được render động bởi JS -->
-                <div class="pa4 tc silver i">Đang tải...</div>
-            </div>
+        <!-- Grid Danh Sách Cards Dự Án -->
+        <div id="project-cards-container" class="projects-cards-grid w-100 flex-auto">
+            <!-- Cards được render động bởi JS -->
+            <div class="pa4 tc silver i">Đang tải...</div>
         </div>
     </div>
     
@@ -346,22 +330,50 @@
     
     <!-- TEMPLATES -->
     <template id="tpl-project-card">
-        <div class="project-card">
-            <div class="project-card-header">
-                <h3 class="project-card-title pointer hover-blue js-title" style="cursor: pointer;"></h3>
-                <p class="project-card-author js-author"></p>
-                <p class="project-card-desc js-desc"></p>
+        <div class="project-card bg-white br3 ba b--black-10 pa3 flex flex-column justify-between">
+            <div>
+                <!-- Header Card: Dot màu + Tên dự án -->
+                <div class="flex items-center gap-2 mb2">
+                    <span class="js-status-dot db br-100 flex-shrink-0" style="width: 10px; height: 10px; background-color: var(--neutral-gray, #78767F);"></span>
+                    <h3 class="f5 fw6 dark-gray ma0 pointer hover-blue js-title flex-1" style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></h3>
+                </div>
+                <!-- Tác giả & Mô tả -->
+                <p class="f7 gray mb1 js-author i" style="min-height: 1.25em;"></p>
+                <p class="f7 gray ma0 lh-copy js-desc clamp-2" style="min-height: 2.4em;"></p>
             </div>
-            <div class="project-card-meta">
-                <span class="project-card-meta-item js-meta-files"></span>
-                <span class="project-card-meta-item js-meta-translated"></span>
-                <span class="project-card-meta-item js-meta-date"></span>
-                <span class="project-card-status js-status"></span>
-                <div class="project-card-actions">
-                    <button class="bg-white hover-bg-washed-blue js-btn-info" title="Thông tin dự án">ℹ️</button>
-                    <button class="bg-white hover-bg-washed-green js-btn-export" title="Tải về">💾</button>
-                    <button class="bg-white hover-bg-near-white js-btn-archive" title="Lưu trữ">📦</button>
-                    <button class="bg-white hover-bg-washed-red js-btn-delete" title="Xóa">🗑️</button>
+            
+            <div class="mt3">
+                <!-- Dòng thông tin tập tin & 4 Icon SVG hành động -->
+                <div class="flex justify-between items-center mb2 f7">
+                    <div class="gray flex items-center gap-1">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                        <span class="js-files-info">0/0 tập tin</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button class="project-icon-btn js-btn-info" title="Thông tin dự án" style="color: var(--primary-indigo, #3730A3);">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        </button>
+                        <button class="project-icon-btn js-btn-export" title="Tải về" style="color: var(--teal-secondary, #0D9488);">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        </button>
+                        <button class="project-icon-btn js-btn-archive" title="Lưu trữ" style="color: var(--tertiary-amber, #752C00);">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                        </button>
+                        <button class="project-icon-btn js-btn-delete" title="Xóa" style="color: var(--danger-red, #DC2626);">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mt2">
+                    <div class="flex justify-between items-center f7 mb1">
+                        <span class="gray">Tiến độ</span>
+                        <span class="js-progress-percent f6 fw6" style="color: var(--primary-indigo, #3730A3);">0%</span>
+                    </div>
+                    <div class="ba b--black-10 br2 overflow-hidden" style="height: 6px; background: #F3F4F6;">
+                        <div class="js-progress-bar-fill" style="height: 100%; width: 0%; background-color: var(--primary-indigo, #3730A3); transition: width 0.3s ease, background-color 0.3s ease;"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -424,7 +436,36 @@
                 </div>
             </div>
             
-            <div class="mt2 f7 gray min-h-1" x-text="statusText"></div>
+<div class="mt2 f7 gray min-h-1" x-text="statusText"></div>
+        </div>
+    </div>
+</div>
+
+    <!-- MODALBOX: TẠO DỰ ÁN MỚI -->
+    <div id="modal-create-project" class="fixed absolute--fill flex items-center justify-center" style="display: none !important; background: rgba(0,0,0,0.5); z-index: var(--z-modal-top, 10000);" onclick="ProjectManager.closeCreateProjectModal()">
+        <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative" onclick="event.stopPropagation()">
+            <button class="absolute top-1 right-1 pointer bg-transparent bn gray hover-dark-gray f4 pa2" onclick="ProjectManager.closeCreateProjectModal()">✕</button>
+            
+            <h2 class="f3 fw6 dark-gray tc ma0 mb1">Tạo dự án mới</h2>
+            <p class="f7 gray tc mb4">Bắt đầu bằng cách nhập thông tin cho dự án sách của bạn.</p>
+            
+            <div class="flex flex-column gap3">
+                <div>
+                    <label class="f7 fw6 gray db mb1">Tên tác phẩm *</label>
+                    <input type="text" id="new-project-book-title" class="w-100 pa2 ba b--black-20 br2 f6 outline-0" placeholder="Nhập tên tác phẩm...">
+                </div>
+                <div>
+                    <label class="f7 fw6 gray db mb1">Tác giả</label>
+                    <input type="text" id="new-project-author" class="w-100 pa2 ba b--black-20 br2 f6 outline-0" placeholder="Nhập tên tác giả...">
+                </div>
+                <div>
+                    <label class="f7 fw6 gray db mb1">Mô tả</label>
+                    <textarea id="new-project-desc-new" class="w-100 pa2 ba b--black-20 br2 f6 outline-0 no-resize" rows="3" placeholder="Mô tả ngắn về dự án..."></textarea>
+                </div>
+                <button class="pointer ph4 pv2 bn white br2 fw6 shadow-1 f6 mt2" style="background-color: var(--primary-indigo, #3730A3);" onclick="ProjectManager.createNewProject()">
+                    Khởi tạo dự án
+                </button>
+            </div>
         </div>
     </div>
 </section>

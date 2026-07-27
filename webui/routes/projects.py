@@ -330,7 +330,7 @@ def update_project(slug):
             return jsonify({"error": "Tên dự án không được trống"}), 400
         meta["name"] = new_name
 
-    for key in ["description", "status"]:
+    for key in ["description", "author", "status"]:
         if key in data:
             meta[key] = data[key]
             

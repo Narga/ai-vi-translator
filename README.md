@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.7.0)
+# 📚 Content Translator (v8.10.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.7.0):** Smart Batching — gom nhóm file nhỏ khi dịch, giảm RPD/RPM và token ngữ cảnh. Công cụ chuyển đổi (Converter Tool) thay thế eBook Kit, hỗ trợ HTML↔Markdown + đóng gói EPUB 3.
+**Tính năng mới (v8.10.0):** Tái thiết kế toàn diện Trang Dự án thành giao diện Grid Card hiện đại và trực quan, hỗ trợ modalbox tạo dự án mới, thanh tiến độ động và biểu tượng SVG hành động tối giản. Smart Batching tối ưu hóa tiến trình dịch file nhỏ.
 
 ---
 

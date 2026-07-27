@@ -2,6 +2,14 @@
 
 ## Hoàn thành
 
+### v8.10.0 (2026-07-28)
+- [x] 🎨 Tái cấu trúc giao diện Trang Dự án thành Grid Card co giãn linh động (3 cột desktop)
+- [x] 📦 Chuyển form Tạo dự án mới thành Modalbox giữa màn hình, tự động đóng sau khi khởi tạo thành công
+- [x] ➕ Card nét đứt "+ Tạo dự án mới" ở cuối Grid làm shortcut mở nhanh modalbox
+- [x] 📊 Cải tiến Project Card: Thống kê tỉ lệ `[đã dịch]/[nguồn]`, SVG icon màu riêng biệt cho từng hành động, Progress Bar động và chấm trạng thái đổi màu linh hoạt
+- [x] 🐛 Sửa lỗi sập/vỡ layout grid co về hàng dọc (thêm `w-100` và `display: grid !important` trên container)
+- [x] 🔄 Sửa lỗi nút Refresh bị đổi thành chữ "Làm mới" sau khi click bằng cách giữ nguyên SVG icon trong JS loading callback
+
 ### v8.9.0 (2026-07-27)
 - [x] 🧠 Sửa thuật toán Smart Batching (loại bỏ prompt instruction overhead khỏi content size limit check)
 - [x] 🐛 Sửa lỗi Bug A & C: Delimiter overhead cho file đầu tiên (index 0) của mỗi batch được tính chính xác
@@ -20,6 +28,39 @@
 - [x] 🧹 Dọn dẹp JS chết trong `ui-helpers.js`
 - [x] 🧠 Triển khai Smart Batching tối ưu số lượng request lên AI model
 - [x] 🧪 Bổ sung bộ kiểm thử Unit Tests cho cơ chế Smart Batching
+
+### v8.6.0 (2026-07-13)
+- [x] 🔄 Rebuild plugin: EPUB Converter → "Công cụ chuyển đổi" (Converter Tool)
+- [x] 📝 2 tác vụ: HTML→Markdown, Markdown→HTML (self-contained, không phụ thuộc thư viện markdown)
+- [x] 🗑️ Xoá route cũ `/api/projects/<slug>/convert-markdown` + JS dead code
+- [x] 🐛 Sửa lỗi 1: import sai `services.text_converter` → relative import
+- [x] 🐛 Sửa lỗi 2: trùng giao diện editor (wrapper x-show cho editor panels)
+- [x] 🐛 Sửa lỗi 3: `relative_to` path không đồng nhất (resolve cả 2 vế)
+- [x] 🐛 Sửa lỗi 4: auto-switch tab sau convert (isSameProject guard + refreshProjectFiles)
+- [x] 🛡️ `_safe_project_file()` chống path traversal trong task converter
+- [x] 🎯 Đồng bộ UI dùng `switchPmFileTab` thay render riêng lẻ
+- [x] 🔗 Tác vụ `create_epub` + endpoint `GET .../download/<path>` tải EPUB
+- [x] 🔄 Link tải EPUB ngay trên thông báo hoàn tất canh phải
+- [x] 🔤 Đổi tên nút tác vụ: `.MD → HTML` / `HTML → .MD`
+
+### v8.5.0 (2026-07-13)
+- [x] 🔍 Bộ lọc File List: sort theo tên/định dạng, tăng/giảm, lọc keyword real-time
+- [x] ⚙️ Cấu hình đường dẫn quét tài liệu (config panel trong sidebar Tab Tài liệu)
+- [x] 🔎 Tìm kiếm nhanh danh sách tài liệu
+- [x] 🔒 Phân quyền truy cập tài liệu theo cấu hình đường dẫn
+
+### v8.4.0 (2026-07-12)
+- [x] 📄 Tích hợp Tab Tài liệu dự án (trình duyệt đọc đệ quy, cache dữ liệu)
+- [x] 🔒 Bảo mật chống Path Traversal cho file reader API
+- [x] 🔌 Tự động lưu trữ offline toàn bộ các thư viện CSS/JS (Tachyons, Marked.js)
+- [x] 💡 Phục hồi & Tinh chỉnh trợ giúp Chỉ dẫn AI (Placeholders cleanup)
+
+### v8.3.0 (2026-07-12) — Dọn dẹp over-engineering
+- [x] Xóa 7 file services chết (async_genai_client, health_monitor, circuit_breaker, statistics_service, monitoring_service, file_service, io_service)
+- [x] Xóa dead code trong file sống (AsyncOpenAIClient, SmartRateLimiter, TokenBudgetLimiter, wait_for_emergency_clear, emergency_check, ChunkTranslationMemory)
+- [x] Xóa 4 thư mục backend rỗng + `requirements.txt` + deps `psutil`/`aiohttp`
+- [x] Migrate `main.py` → `AppConfigService`, xóa `config_service.py` (duplicate)
+- [x] Dọn `services/__init__.py` barrel export
 
 ### v8.2.0 (2026-07-11)
 - [x] 🔍 Tìm kiếm & Thay thế nâng cao (3 chế độ: normal, case-sensitive, regex)
@@ -48,16 +89,6 @@
 - [x] Issue 2: Toolbar refactor (nút Đổi tên hàng loạt)
 - [x] Issue 7: Đổi tên hàng loạt (pattern `{N}`, zero-pad, batch endpoint)
 
-### v8.3.0 (2026-07-12) — Dọn dẹp over-engineering
-- [x] Xóa 7 file services chết (async_genai_client, health_monitor, circuit_breaker, statistics_service, monitoring_service, file_service, io_service)
-- [x] Xóa dead code trong file sống (AsyncOpenAIClient, SmartRateLimiter, TokenBudgetLimiter, wait_for_emergency_clear, emergency_check, ChunkTranslationMemory)
-- [x] Xóa 4 thư mục backend rỗng + `requirements.txt` + deps `psutil`/`aiohttp`
-- [x] Migrate `main.py` → `AppConfigService`, xóa `config_service.py` (duplicate)
-- [x] Dọn `services/__init__.py` barrel export
-- [ ] (tùy chọn) Gom `_get_client()` trùng lặp → shared helper
-- [ ] (tùy chọn) Inline `file_utils.py` vào call site
-- [ ] (tùy chọn) Dùng `model_catalog_service` thay hardcoded model list
-
 ### v7.9.0 (2026-07-10)
 - [x] Tiền xử lý HTML/XHTML → Markdown offline
 - [x] Cải tiến UI workspace (batch convert, deselect, status bar)
@@ -68,46 +99,24 @@
 
 ---
 
-### v8.6.0 (2026-07-13)
-- [x] 🔄 Rebuild plugin: EPUB Converter → "Công cụ chuyển đổi" (Converter Tool)
-- [x] 📝 2 tác vụ: HTML→Markdown, Markdown→HTML (self-contained, không phụ thuộc thư viện markdown)
-- [x] 🗑️ Xoá route cũ `/api/projects/<slug>/convert-markdown` + JS dead code
-- [x] 🐛 Sửa lỗi 1: import sai `services.text_converter` → relative import
-- [x] 🐛 Sửa lỗi 2: trùng giao diện editor (wrapper x-show cho editor panels)
-- [x] 🐛 Sửa lỗi 3: `relative_to` path không đồng nhất (resolve cả 2 vế)
-- [x] 🐛 Sửa lỗi 4: auto-switch tab sau convert (isSameProject guard + refreshProjectFiles)
-- [x] 🛡️ `_safe_project_file()` chống path traversal trong task converter
-- [x] 🎯 Đồng bộ UI dùng `switchPmFileTab` thay render riêng lẻ
-- [x] 🔗 Tác vụ `create_epub` + endpoint `GET .../download/<path>` tải EPUB
-- [x] 🔄 Link tải EPUB ngay trên thông báo hoàn tất canh phải
-- [x] 🔤 Đổi tên nút tác vụ: `.MD → HTML` / `HTML → .MD`
 
-### v8.5.0 (2026-07-13)
-- [x] 🔍 Bộ lọc File List: sort theo tên/định dạng, tăng/giảm, lọc keyword real-time
-- [x] ⚙️ Cấu hình đường dẫn quét tài liệu (config panel trong sidebar Tab Tài liệu)
-- [x] 🔎 Tìm kiếm nhanh danh sách tài liệu
-- [x] 🔒 Phân quyền truy cập tài liệu theo cấu hình đường dẫn
+## Đang phát triển / Sắp tới (Kế hoạch dọn dẹp & Tối ưu hóa)
 
-### v8.4.0 (2026-07-12)
-- [x] 📄 Tích hợp Tab Tài liệu dự án (trình duyệt đọc đệ quy, cache dữ liệu)
-- [x] 🔒 Bảo mật chống Path Traversal cho file reader API
-- [x] 🔌 Tự động lưu trữ offline toàn bộ các thư viện CSS/JS (Tachyons, Marked.js)
-- [x] 💡 Phục hồi & Tinh chỉnh trợ giúp Chỉ dẫn AI (Placeholders cleanup)
+### Việc cần làm ngay (Mức độ ưu tiên cao)
+- [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
+- [ ] ⚙️ Dọn sạch các key cấu hình chết (`THINKING_LEVEL`, `REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 
-## Đang phát triển / Sắp tới
+### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
+- [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)
+- [ ] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py`
+- [ ] 🧹 Thu gọn mã nguồn (Shrink) bằng cách xóa bỏ các hàm/phương thức chết trong `checkpoint_service.py`, `emergency_stop.py`, `translation_memory.py` và `webui_progress_bridge.py`
+- [ ] 🧠 Gom logic `_get_client()` trùng lặp trong hệ thống thành một OpenAI-compatible shared helper chung
 
-### v8.9.0 (planned)
-- [ ] Gom `_get_client()` trùng lặp → shared helper
-- [ ] Inline `file_utils.py` vào call site
-- [ ] Dùng `model_catalog_service` thay hardcoded model list
-
-### v9.0.0 (planned)
-- [ ] Export dự án sang EPUB/PDF
-- [ ] Frontend bundle optimization (tree-shaking, code splitting)
-
-### Tối ưu hóa
-- [ ] Backend caching layer
-- [ ] WebSocket thay thế SSE cho real-time progress
+### Kế hoạch dài hạn
+- [ ] 📦 Tối ưu hóa frontend bundle (tree-shaking, code splitting)
+- [ ] 🔄 Tải xuất dự án trực tiếp sang EPUB/PDF
+- [ ] ⚡ Cấu trúc cache layer cho backend
+- [ ] 🔌 Chuyển SSE sang WebSocket cho đồng bộ real-time progress
 
 ---
 
@@ -115,3 +124,4 @@
 - Per-project model override (quyết định sau khi có nhu cầu thực tế)
 - Migration script từ genre sang library (không cần - dự án chưa có dữ liệu cũ)
 - Collaboration features (multi-user) — quá sớm
+

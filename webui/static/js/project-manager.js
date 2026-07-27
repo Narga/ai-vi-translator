@@ -148,9 +148,11 @@ const ProjectManager = {
 
     async refreshProjectCards(options = {}) {
         const btn = document.getElementById('btn-refresh-projects');
+        const svgIcon = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>';
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '↻ Đang tải...';
+            btn.style.opacity = '0.5';
+            btn.innerHTML = svgIcon;
         }
         
         try {
@@ -166,7 +168,8 @@ const ProjectManager = {
         } finally {
             if (btn) {
                 btn.disabled = false;
-                btn.innerHTML = '↻ Làm mới';
+                btn.style.opacity = '';
+                btn.innerHTML = svgIcon;
             }
         }
     },
@@ -178,11 +181,6 @@ const ProjectManager = {
             const container = document.getElementById('project-cards-container');
             if (!container) return;
             
-            if (!projects.length) {
-                container.innerHTML = '<div class="pa4 tc silver i">Chưa có dự án nào. Hãy tạo dự án mới!</div>';
-                return;
-            }
-            
             container.innerHTML = ''; // Clear current cards
 
             const template = document.getElementById('tpl-project-card');
@@ -192,11 +190,6 @@ const ProjectManager = {
             }
 
             projects.forEach(p => {
-                const statusClass = p.status === 'Hoàn thành' ? 'done' : 'pending';
-                const statusText = p.status || 'Đang thực hiện';
-                const statusIcon = statusClass === 'done' ? '✅' : '⏳';
-                const createdDate = p.created_at ? new Date(p.created_at).toLocaleDateString('vi-VN') : '—';
-                
                 const clone = template.content.cloneNode(true);
                 
                 // Title
@@ -206,10 +199,13 @@ const ProjectManager = {
                 
                 // Author
                 const authorEl = clone.querySelector('.js-author');
-                if (p.author) {
-                    authorEl.textContent = p.author;
-                } else {
-                    authorEl.style.display = 'none';
+                if (authorEl) {
+                    authorEl.style.display = 'block';
+                    if (p.author) {
+                        authorEl.textContent = p.author;
+                    } else {
+                        authorEl.innerHTML = '&nbsp;';
+                    }
                 }
                 
                 // Description
@@ -217,7 +213,7 @@ const ProjectManager = {
                 if (p.description) {
                     descEl.textContent = p.description;
                 } else {
-                    descEl.style.display = 'none';
+                    descEl.textContent = 'Chưa có mô tả dự án.';
                 }
                 
                 // Buttons
@@ -227,17 +223,49 @@ const ProjectManager = {
                 clone.querySelector('.js-btn-delete').onclick = () => ProjectManager.deleteProjectCard(p.slug);
                 
                 // Meta
-                clone.querySelector('.js-meta-files').textContent = `📁 ${p.source_count || 0} files`;
-                clone.querySelector('.js-meta-translated').textContent = `✅ ${p.translated_count || 0} đã xong`;
-                clone.querySelector('.js-meta-date').textContent = `📅 ${createdDate}`;
-                
-                // Status
-                const statusEl = clone.querySelector('.js-status');
-                statusEl.textContent = `${statusIcon} ${statusText}`;
-                statusEl.className = `project-card-status ${statusClass}`;
-                
+                // Meta & Progress calculation
+                const sourceCount = p.source_count || 0;
+                const translatedCount = p.translated_count || 0;
+                const percent = sourceCount > 0 ? Math.round((translatedCount / sourceCount) * 100) : 0;
+
+                const filesInfoEl = clone.querySelector('.js-files-info');
+                if (filesInfoEl) filesInfoEl.textContent = `${translatedCount}/${sourceCount} tập tin`;
+
+                const percentEl = clone.querySelector('.js-progress-percent');
+                if (percentEl) {
+                    percentEl.textContent = `${percent}%`;
+                    percentEl.style.color = percent === 100 ? 'var(--teal-secondary, #0D9488)' : 'var(--primary-indigo, #3730A3)';
+                }
+
+                const barFillEl = clone.querySelector('.js-progress-bar-fill');
+                if (barFillEl) {
+                    barFillEl.style.width = `${percent}%`;
+                    barFillEl.style.backgroundColor = percent === 100 ? 'var(--teal-secondary, #0D9488)' : 'var(--primary-indigo, #3730A3)';
+                }
+
+                const dotEl = clone.querySelector('.js-status-dot');
+                if (dotEl) {
+                    dotEl.style.backgroundColor = percent === 100
+                        ? 'var(--teal-secondary, #0D9488)'
+                        : (percent > 0 ? 'var(--tertiary-amber, #752C00)' : 'var(--neutral-gray, #78767F)');
+                }
+
                 container.appendChild(clone);
             });
+
+            // Append dashed "Tạo dự án mới" Card at the end of the grid
+            const createCard = document.createElement('div');
+            createCard.className = 'create-project-card-dashed pa4 flex flex-column items-center justify-center tc pointer';
+            createCard.style.minHeight = '180px';
+            createCard.onclick = () => ProjectManager.showCreateProjectModal();
+            createCard.innerHTML = `
+                <div class="br-100 flex items-center justify-center mb3 white" style="width: 48px; height: 48px; background-color: var(--primary-indigo, #3730A3);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </div>
+                <h3 class="f5 fw6 dark-gray ma0 mb1">Tạo dự án mới</h3>
+                <p class="f7 gray ma0">Bắt đầu dịch một tài liệu mới</p>
+            `;
+            container.appendChild(createCard);
         })
         .catch(err => {
             console.error('Error loading project cards:', err);
@@ -245,6 +273,16 @@ const ProjectManager = {
             if (container) container.innerHTML = '<div class="pa4 tc red">Lỗi tải danh sách dự án</div>';
             throw err;
         });
+    },
+
+    showCreateProjectModal() {
+        const modal = document.getElementById('modal-create-project');
+        if (modal) modal.style.display = 'flex';
+    },
+
+    closeCreateProjectModal() {
+        const modal = document.getElementById('modal-create-project');
+        if (modal) modal.style.display = 'none';
     },
 
     createNewProject() {
@@ -271,8 +309,9 @@ const ProjectManager = {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
             });
-            // Reload cards and open new project
+            // Reload cards, close modal, and open new project
             ProjectManager.loadProjectCards();
+            ProjectManager.closeCreateProjectModal();
             if (data.slug) ProjectManager.openProject(data.slug);
         })
         .catch(e => UiHelpers.showToast('Lỗi tạo dự án: ' + e.message, 'error'));
@@ -1516,15 +1555,34 @@ const ProjectManager = {
         if (!window.currentProject) return;
         const p = window.currentProject;
         const nameEl = document.getElementById('proj-info-name');
+        const authorEl = document.getElementById('proj-info-author');
         const descEl = document.getElementById('proj-info-desc');
         const srcCountEl = document.getElementById('proj-info-src-count');
         const trCountEl = document.getElementById('proj-info-tr-count');
         const createdEl = document.getElementById('proj-info-created');
-        if (nameEl) nameEl.value = p.name || '';
+        if (nameEl) nameEl.value = p.name || p.book_title || '';
+        if (authorEl) authorEl.value = p.author || '';
         if (descEl) descEl.value = p.description || '';
         if (srcCountEl) srcCountEl.textContent = (p.sources || []).length;
         if (trCountEl) trCountEl.textContent = (p.translated || []).length;
-        if (createdEl) createdEl.textContent = p.created_at || '—';
+        if (createdEl) {
+            if (p.created_at) {
+                const d = new Date(p.created_at);
+                if (!isNaN(d.getTime())) {
+                    const pad = n => String(n).padStart(2, '0');
+                    const hours = pad(d.getHours());
+                    const mins = pad(d.getMinutes());
+                    const day = pad(d.getDate());
+                    const month = pad(d.getMonth() + 1);
+                    const year = d.getFullYear();
+                    createdEl.textContent = `${hours}:${mins} ${day}/${month}/${year}`;
+                } else {
+                    createdEl.textContent = p.created_at;
+                }
+            } else {
+                createdEl.textContent = '—';
+            }
+        }
         ModalManager.show('project-info-modal');
     },
 
@@ -1535,12 +1593,13 @@ const ProjectManager = {
     saveProjectInfo() {
         if (!window.currentProject) return;
         const name = document.getElementById('proj-info-name')?.value?.trim();
+        const author = document.getElementById('proj-info-author')?.value?.trim() || '';
         const description = document.getElementById('proj-info-desc')?.value?.trim() || '';
         if (!name) { UiHelpers.showToast('Tên dự án không được trống', 'error'); return; }
         fetch(`/api/projects/${window.currentProject.slug}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, description })
+            body: JSON.stringify({ name, author, description })
         }).then(r => r.json()).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã cập nhật thông tin dự án', 'success');

@@ -4,6 +4,26 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.10.0] - 2026-07-28
+### Tái cấu trúc Trang Quản lý Dự án dạng Grid Card & Sửa lỗi hiển thị
+
+**Tái thiết kế giao diện Trang Dự án (Project Page Redesign):**
+- Thay đổi bố cục dạng 2 cột (Tạo dự án 40% / Danh sách 60%) sang dạng Grid Card hiển thị 3 cột co giãn linh hoạt full-width.
+- Đưa form "Tạo dự án mới" vào trong Modalbox giữa màn hình, tự động đóng sau khi khởi tạo thành công và chuyển hướng về Workspace.
+- Thêm Card nét đứt `+ Tạo dự án mới` ở cuối danh sách dự án như một shortcut mở nhanh modalbox.
+- Sắp xếp lại thứ tự nút hành động trên Header: `+ Tạo dự án mới` (trái), `Nhập dự án` (phải).
+- Cập nhật thông tin trên Project Card:
+  - Hiển thị tỷ lệ tập tin dịch hoàn thành dưới dạng `[số file đã dịch]/[số file nguồn] tập tin`.
+  - Thay thế các nút hành động dạng text/emoji thô sơ bằng 4 nút Icon SVG gọn gàng với màu sắc riêng biệt (Thông tin: Indigo, Tải về: Teal, Lưu trữ: Brown, Xóa: Red).
+  - Tích hợp thanh tiến độ (Progress Bar) trực quan thay đổi màu sắc và phần trăm theo tỉ lệ hoàn thành thực tế.
+  - Sử dụng dấu chấm trạng thái (Status Dot) linh động theo tiến độ (Xám: 0%, Nâu/Amber: Đang dịch, Teal: Hoàn thành 100%).
+
+**Sửa lỗi UI/UX:**
+- Sửa lỗi sập/vỡ layout grid co card về một hàng dọc bằng cách ép thuộc tính `w-100` và `display: grid !important` trên container.
+- Sửa lỗi nút Refresh (Làm mới) tự ý đổi thành text "↻ Làm mới" thô thiển sau khi click bằng cách giữ nguyên SVG icon trong JS loading callback.
+
+---
+
 ## [8.9.0] - 2026-07-27
 ### Cân chỉnh thuật toán Smart Batching & Chuẩn hóa Kế hoạch AI
 
