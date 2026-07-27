@@ -69,6 +69,7 @@ Desktop.ini
 *.swo
 AGENTS.md
 CLAUDE.md
+del_*
 
 # Env & secrets
 .env

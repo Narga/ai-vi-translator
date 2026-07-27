@@ -2,6 +2,12 @@
 
 ## Hoàn thành
 
+### v8.9.0 (2026-07-27)
+- [x] 🧠 Sửa thuật toán Smart Batching (loại bỏ prompt instruction overhead khỏi content size limit check)
+- [x] 🐛 Sửa lỗi Bug A & C: Delimiter overhead cho file đầu tiên (index 0) của mỗi batch được tính chính xác
+- [x] 📋 Bổ sung log tổng quan batch plan trước khi bắt đầu dịch (`📦 Batch plan [N/M]`)
+- [x] 📚 Chuẩn hóa quy định viết Kế hoạch thực thi AI Model (AI-Executable Plan) dạng diff chuẩn vào `DEVELOPMENT.md`
+
 ### v8.8.0 (2026-07-27)
 - [x] 🔄 Nâng cấp hệ thống tiến trình dịch song song/ngầm dùng Task Registry & Job ID
 - [x] 🐛 Sửa lỗi dịch 1 file nhỏ bị bỏ qua trong Smart Batching

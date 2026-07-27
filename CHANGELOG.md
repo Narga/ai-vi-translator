@@ -4,6 +4,20 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.9.0] - 2026-07-27
+### Cân chỉnh thuật toán Smart Batching & Chuẩn hóa Kế hoạch AI
+
+**Cải tiến thuật toán Smart Batching:**
+- Loại bỏ hằng số `batch_instruction_overhead` cố định ra khỏi việc tính toán kích thước content chunk (do prompt instruction nằm ở system prompt, không thuộc nội dung).
+- Sửa lỗi Bug A & C: Luôn tính toán chính xác delimiter overhead cho mọi file (kể cả file đầu tiên ở index 0 của batch) trong cả hai trường hợp khởi tạo batch hoặc tạo batch mới ở nhánh fallback/else.
+- Bổ sung log tổng quan batch plan (`📦 Batch plan [N/M]`) giúp kiểm soát số lượng file và ước lượng ký tự trước khi bắt đầu dịch.
+
+**Chuẩn hóa Quy trình Phát triển (AI-Executable Plan):**
+- Bổ sung hướng dẫn chi tiết về cấu trúc 5 phần bắt buộc cho Kế hoạch thực thi AI model vào [DEVELOPMENT.md](file:///Users/narga/Briefcase/Projects/Novel-Translator/docs/DEVELOPMENT.md).
+- Quy định bắt buộc sử dụng định dạng diff chuẩn cho mọi thay đổi mã nguồn trong kế hoạch để đảm bảo model thực thi chính xác.
+
+---
+
 ## [8.8.0] - 2026-07-27
 ### Task Registry & Quản lý tiến trình dịch thông minh
 

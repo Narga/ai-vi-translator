@@ -151,4 +151,110 @@ Dự án sử dụng `uv` để quản lý package.
 - Cập nhật lock file: `uv lock`
 
 ---
-*Phiên bản: 2.3 - Ngày cập nhật: 11/07/2026*
+---
+
+## 8. Viết Kế Hoạch Thực Thi cho AI Model (AI-Executable Plan)
+
+Khi lập kế hoạch để giao cho AI model thực thi, chất lượng của plan quyết định trực tiếp chất lượng của code output. Phần này quy định cách viết plan đạt tỷ lệ thực thi đúng cao nhất.
+
+### 8.1 Dùng định dạng diff chuẩn cho thay đổi code
+
+**Quy tắc bắt buộc**: Mọi thay đổi code trong plan phải được viết theo định dạng diff (`-` dòng xóa, `+` dòng thêm), không dùng hai block "code cũ" và "code mới" đặt cạnh nhau.
+
+**Sai – dễ bị model bỏ sót:**
+```
+Code cũ:
+    file_overhead = 0
+    if current_batch:
+        batch_index = len(current_batch)
+        file_overhead = self._delimiter_overhead(...)
+
+Code mới:
+    batch_index = len(current_batch)
+    file_overhead = self._delimiter_overhead(...)
+```
+
+**Đúng – model nhận biết chính xác:**
+```diff
+-            file_overhead = 0
+-            if current_batch:
+-                batch_index = len(current_batch)
+-                file_overhead = self._delimiter_overhead(session_token, batch_index)
++            batch_index = len(current_batch)
++            file_overhead = self._delimiter_overhead(session_token, batch_index)
+```
+
+> **Lý do**: Model được huấn luyện nhận diện diff format chuẩn. Khi đọc "code cũ / code mới" song song, model có xu hướng chỉ áp dụng thay đổi hiển nhiên nhất (dòng đang được nhắc đến) và bỏ qua các dòng liên quan cần xóa/thêm đồng thời.
+
+### 8.2 Cấu trúc bắt buộc của một plan
+
+Mỗi plan phải có đủ 5 thành phần sau theo đúng thứ tự:
+
+```
+1. PHẠM VI (Scope)
+   - File(s) cần sửa, liệt kê đường dẫn đầy đủ
+   - Hàm(s) cần sửa, liệt kê tên chính xác
+
+2. KHÔNG ĐƯỢC SỬA (Out of scope)
+   - Danh sách tường minh các hàm/file KHÔNG được đụng
+   - Lý do ngắn gọn
+
+3. THAY ĐỔI (Changes) – dùng diff format
+   - Mỗi thay đổi: tên hàm + số dòng tham chiếu + diff
+
+4. KIỂM TRA (Verification)
+   - Lệnh shell cụ thể để xác minh (grep, git diff --stat, v.v.)
+   - Kết quả kỳ vọng rõ ràng
+
+5. QUY TẮC (Rules)
+   - Không thêm import
+   - Không đổi tên biến ngoài phạm vi
+   - Không tự ý sửa thêm (kể cả warnings)
+   - Báo cáo nếu phát hiện bất thường, không tự xử lý
+```
+
+### 8.3 Ghi số dòng tham chiếu
+
+Luôn ghi số dòng hiện tại khi viết plan. Nếu plan được thực thi sau nhiều lần sửa khác, số dòng có thể lệch – model phải tìm bằng context, không được đoán mò.
+
+Ví dụ:
+```
+Hàm `_build_batches`, khoảng line 82–110 (tìm bằng signature nếu số dòng lệch):
+```diff
+...
+```
+```
+
+### 8.4 Kiểm tra sau thực thi
+
+Sau mỗi plan được thực thi, model thực thi **phải** chạy tối thiểu:
+
+```bash
+# 1. Xác nhận chỉ đúng file trong phạm vi thay đổi
+git diff --stat
+
+# 2. Xác nhận biến/pattern đã xóa không còn tồn tại
+grep -rn "<pattern_cần_xóa>" <file>
+
+# 3. Kiểm tra diagnostics không có error mới
+# (dùng tool diagnostics của editor)
+```
+
+Nếu có kết quả bất ngờ (file ngoài phạm vi thay đổi, pattern còn sót, error mới), **báo cáo ngay, không tự sửa thêm**.
+
+### 8.5 Đánh giá chất lượng thực thi
+
+Sau khi model hoàn thành, người review đánh giá theo thang:
+
+| Tiêu chí | Điểm |
+|---|---|
+| Đúng tất cả thay đổi trong plan | 40% |
+| Không sửa ngoài phạm vi | 30% |
+| Verification pass đầy đủ | 20% |
+| Không giới thiệu lỗi mới | 10% |
+
+**Ngưỡng chấp nhận: ≥ 80%.** Dưới ngưỡng → review thủ công toàn bộ diff trước khi merge.
+
+---
+
+*Phiên bản: 2.4 - Ngày cập nhật: 27/07/2026*

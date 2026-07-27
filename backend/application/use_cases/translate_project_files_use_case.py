@@ -81,14 +81,11 @@ class TranslateProjectFilesUseCase:
         
         for filename in filenames:
             content = file_contents[filename]
-            file_overhead = 0
-            
-            if current_batch:
-                batch_index = len(current_batch)
-                file_overhead = self._delimiter_overhead(session_token, batch_index)
-            
             file_size = len(content)
-            batch_instruction_overhead = len(BATCH_INSTRUCTION)
+
+            # FIX A: luôn tính overhead theo vị trí thực, kể cả index 0
+            batch_index = len(current_batch)
+            file_overhead = self._delimiter_overhead(session_token, batch_index)
             
             if file_size > chunk_size:
                 if current_batch:
@@ -97,14 +94,15 @@ class TranslateProjectFilesUseCase:
                     current_batch_size = 0
                 
                 batches.append([filename])
-            elif current_batch_size + file_size + file_overhead + batch_instruction_overhead <= chunk_size:
+            elif current_batch_size + file_size + file_overhead <= chunk_size:
                 current_batch.append(filename)
                 current_batch_size += file_size + file_overhead
             else:
                 if current_batch:
                     batches.append(current_batch.copy())
                 current_batch = [filename]
-                current_batch_size = file_size
+                # FIX C: file đầu batch mới cũng có delimiter overhead tại index 0
+                current_batch_size = file_size + self._delimiter_overhead(session_token, 0)
         
         if current_batch:
             batches.append(current_batch)
@@ -229,7 +227,12 @@ class TranslateProjectFilesUseCase:
         # Gom nhóm file thành Batches
         chunk_size = self._config.get("chunk_size", 22000)
         batches = self._build_batches(valid_filenames, file_contents, chunk_size, session_token)
-        
+
+        # Log tổng quan batch plan để dễ debug
+        for _bi, _bf in enumerate(batches, 1):
+            _sz = sum(len(file_contents[f]) for f in _bf)
+            emit({"type": "info", "message": f"📦 Batch plan [{_bi}/{len(batches)}]: {len(_bf)} file, ~{_sz:,} ký tự"})
+
         # Xử lý từng batch
         for batch_idx, batch_files in enumerate(batches, 1):
             emit({
