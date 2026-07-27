@@ -192,6 +192,12 @@ class TranslateProjectFilesUseCase:
         emit = mapper.emit
 
         total_files = len(filenames)
+        
+        # Sắp xếp filenames bằng natural sort
+        def natural_sort_key(s):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+        filenames = sorted(filenames, key=natural_sort_key)
+        
         ok = fail = 0
         
         # Đọc nội dung tất cả files trước
@@ -199,14 +205,14 @@ class TranslateProjectFilesUseCase:
         for filename in filenames:
             file_path = project_dir / "sources" / filename
             if not file_path.exists():
-                emit({"type": "info", "message": f"⚠️ File không tồn tại: {filename}"})
+                emit({"type": "file_error", "filename": filename, "message": f"⚠️ File không tồn tại: {filename}"})
                 fail += 1
                 continue
             
             try:
                 file_contents[filename] = file_path.read_text(encoding="utf-8")
             except Exception as e:
-                emit({"type": "info", "message": f"❌ Lỗi đọc file {filename}: {str(e)}"})
+                emit({"type": "file_error", "filename": filename, "message": f"❌ Lỗi đọc file {filename}: {str(e)}"})
                 fail += 1
                 continue
         
@@ -231,8 +237,8 @@ class TranslateProjectFilesUseCase:
                 "message": f"📦 [{batch_idx}/{len(batches)}] Đang dịch batch có {len(batch_files)} file: {batch_files}"
             })
             
-            # Trường hợp batch đơn (1 file lớn) - sử dụng luồng dịch đơn lẻ cũ
-            if len(batch_files) == 1 and len(file_contents[batch_files[0]]) > chunk_size:
+            # Trường hợp batch đơn - sử dụng luồng dịch đơn lẻ
+            if len(batch_files) == 1:
                 filename = batch_files[0]
                 text = file_contents[filename]
                 emit({"type": "info", "message": f"📂 [1/{1}] Đang dịch (batch đơn): {filename}"})
@@ -246,6 +252,8 @@ class TranslateProjectFilesUseCase:
 
                     def cb(data, _fname=filename):
                         if data["type"] == "complete":
+                            data["type"] = "file_complete"
+                            data["filename"] = _fname
                             data["message"] = f"✅ Đã dịch xong file: {_fname}"
                         emit(data)
 
@@ -261,9 +269,14 @@ class TranslateProjectFilesUseCase:
                         ok += 1
                     else:
                         fail += 1
+                        emit({
+                            "type": "file_error",
+                            "filename": filename,
+                            "message": f"❌ Lỗi dịch file {filename}: Không có kết quả"
+                        })
                         
                 except Exception as e:
-                    emit({"type": "info", "message": f"❌ Lỗi dịch {filename}: {str(e)}"})
+                    emit({"type": "file_error", "filename": filename, "message": f"❌ Lỗi dịch {filename}: {str(e)}"})
                     fail += 1
             
             # Trường hợp batch nhiều file - sử dụng Smart Batching
@@ -292,6 +305,7 @@ class TranslateProjectFilesUseCase:
                         output_filename=f"batch_{batch_idx}",
                         progress_callback=cb,
                         translation_memory=translation_memory,
+                        write_output=False,
                     )
                     
                     if translated_text:
@@ -336,7 +350,9 @@ class TranslateProjectFilesUseCase:
 
                                     def fallback_cb(data, _fname=fallback_filename):
                                         if data["type"] == "complete":
-                                            data["message"] = f"✅ Đã dịch xong file ({fallback}): {_fname}"
+                                            data["type"] = "file_complete"
+                                            data["filename"] = _fname
+                                            data["message"] = f"✅ Đã dịch xong file (fallback): {_fname}"
                                         emit(data)
 
                                     result = fallback_executor.translate_text(
@@ -351,21 +367,26 @@ class TranslateProjectFilesUseCase:
                                         ok += 1
                                     else:
                                         fail += 1
+                                        emit({
+                                            "type": "file_error",
+                                            "filename": fallback_filename,
+                                            "message": f"❌ Lỗi dịch fallback {fallback_filename}: Không có kết quả"
+                                        })
                                         
                                 except Exception as e:
-                                    emit({"type": "info", "message": f"❌ Lỗi dịch fallback {fallback_filename}: {str(e)}"})
+                                    emit({"type": "file_error", "filename": fallback_filename, "message": f"❌ Lỗi dịch fallback {fallback_filename}: {str(e)}"})
                                     fail += 1
                     
                     else:
                         fail += len(batch_files)
                         emit({
-                            "type": "error",
+                            "type": "batch_error",
                             "message": f"❌ Dịch batch {batch_idx} thất bại"
                         })
                 
                 except Exception as e:
                     emit({
-                        "type": "error",
+                        "type": "batch_error",
                         "message": f"❌ Lỗi nghiêm trọng batch {batch_idx}: {str(e)}"
                     })
                     fail += len(batch_files)
@@ -375,6 +396,11 @@ class TranslateProjectFilesUseCase:
             save_meta_callback()
 
         total_processed = len(valid_filenames)
-        emit({"type": "complete", "message": f"🚀 Đã hoàn tất {ok}/{total_processed} file ({len(valid_filenames) - total_processed} file bị bỏ qua)!"})
+        skipped = total_files - total_processed
+        
+        emit({
+            "type": "complete",
+            "message": f"🚀 Đã hoàn tất: {ok} thành công, {fail} thất bại, {skipped} bỏ qua, trên tổng {total_files} file!"
+        })
 
-        return {"success": ok > 0, "ok": ok, "fail": fail + (total_files - total_processed), "total": total_files}
+        return {"success": ok > 0, "ok": ok, "fail": fail, "skipped": skipped, "total": total_files}

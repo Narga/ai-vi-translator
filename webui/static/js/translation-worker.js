@@ -40,7 +40,7 @@ const TranslationWorker = {
             }).then(r => r.json()).then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
-                else TranslationWorker.connectToProgress(btn);
+                else TranslationWorker.connectToProgress(btn, false, data.job_id);
             }).catch(e => { clearTimeout(guardTimer); UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
         } else {
             fetch('/api/translate', {
@@ -68,7 +68,7 @@ const TranslationWorker = {
             body: JSON.stringify({ files: [filename], force_retranslate: forceRetranslate })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') {
-                TranslationWorker.connectToProgress();
+                TranslationWorker.connectToProgress(null, false, data.job_id);
             } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
@@ -82,7 +82,7 @@ const TranslationWorker = {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files, force_retranslate: forceRetranslate })
         }).then(r => r.json()).then(data => {
-            if (data.status === 'started') TranslationWorker.connectToProgress(document.getElementById('btn-translate-selected'), true);
+            if (data.status === 'started') TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, data.job_id);
             else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
@@ -98,7 +98,7 @@ const TranslationWorker = {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files })
         }).then(r => r.json()).then(data => {
-            if (data.status === 'started') TranslationWorker.connectToProgress(document.getElementById('btn-spellcheck-selected'), true);
+            if (data.status === 'started') TranslationWorker.connectToProgress(document.getElementById('pm-btn-spellcheck-selected'), true, data.job_id);
             else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
@@ -110,7 +110,7 @@ const TranslationWorker = {
             body: JSON.stringify({ files: [filename] })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') {
-                TranslationWorker.connectToProgress();
+                TranslationWorker.connectToProgress(null, false, data.job_id);
             } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
@@ -124,8 +124,9 @@ const TranslationWorker = {
         TranslationWorker.spellcheckSelectedInProject();
     },
 
-    connectToProgress(btn = null, isBatch = false) {
-        const evtSource = new EventSource('/api/progress');
+    connectToProgress(btn = null, isBatch = false, job_id = null) {
+        const url = job_id ? `/api/tasks/${job_id}/events` : '/api/progress';
+        const evtSource = new EventSource(url);
         TranslationWorker._evtSource = evtSource;
         
         const logEl = document.getElementById('log-container');
@@ -145,6 +146,11 @@ const TranslationWorker = {
 
         evtSource.onmessage = function (event) {
             const data = JSON.parse(event.data);
+            if (data.type === 'stream_end') {
+                evtSource.close();
+                TranslationWorker._evtSource = null;
+                return;
+            }
             if (data.type === 'progress') {
                 TranslationWorker.updateProgress(data.percent, data.message);
             }

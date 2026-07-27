@@ -75,6 +75,7 @@ class TranslationExecutor:
         output_file_path: Optional[Path] = None,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         translation_memory: Optional[Any] = None,
+        write_output: bool = True,
     ) -> Optional[str]:
         """
         Thực hiện dịch thuật một đoạn văn bản lớn.
@@ -85,6 +86,7 @@ class TranslationExecutor:
             output_file_path: Đường dẫn lưu file kết quả. Nếu None, lưu vào workspace/output.
             progress_callback: Hàm callback nhận thông tin tiến độ.
             translation_memory: Object TranslationMemory (tuỳ chọn).
+            write_output: Có ghi file kết quả ra đĩa hay không (mặc định True).
 
         Returns:
             Nội dung đã dịch hoàn chỉnh, hoặc None nếu thất bại.
@@ -206,9 +208,13 @@ class TranslationExecutor:
                 translated_chunks[i] for i in range(len(chunks)) if i in translated_chunks
             )
 
-            final_path = self._resolve_output_path(output_file_path, output_filename)
-            final_path.parent.mkdir(parents=True, exist_ok=True)
-            final_path.write_text(full_translation, encoding="utf-8")
+            if write_output:
+                final_path = self._resolve_output_path(output_file_path, output_filename)
+                final_path.parent.mkdir(parents=True, exist_ok=True)
+                final_path.write_text(full_translation, encoding="utf-8")
+                output_file_name = final_path.name
+            else:
+                output_file_name = output_file_path.name if output_file_path else f"{output_filename}.txt"
 
             # Dọn checkpoint sau khi thành công
             self.checkpoint_service.cleanup(output_filename)
@@ -225,7 +231,7 @@ class TranslationExecutor:
                 tm_hits=stats["tm_hits"],
                 source_length=len(text),
                 translated_length=len(full_translation),
-                output_file=final_path.name,
+                output_file=output_file_name,
                 tokens_used=stats["tokens"],
             )
 

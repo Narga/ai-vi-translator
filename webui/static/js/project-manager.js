@@ -514,7 +514,7 @@ const ProjectManager = {
             return `
             <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmProjectFile(this.dataset.filename,'translated')">
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleTranslatedFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
+                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleTranslatedFile(this.closest('.file-item-compact').dataset.filename,this.checked,event)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
                         <span class="file-item-name">${esc}</span>
                     </div>
@@ -563,7 +563,7 @@ const ProjectManager = {
                     return `
                     <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmSpellcheckFile(this.dataset.filename)">
                         <div class="flex items-center gap-2">
-                            <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
+                            <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked,event)" class="flex-shrink-0">
                             <div class="flex-auto min-width-0">
                                 <span class="file-item-name">${esc}</span>
                             </div>
@@ -715,15 +715,68 @@ const ProjectManager = {
     
     // ===== FILE SELECTION FUNCTIONS =====
     
-    toggleProjectFile(name, checked) {
-        if (checked) window.selectedFiles.add(name);
-        else window.selectedFiles.delete(name);
+    lastCheckedFileIndex: -1,
+    lastCheckedTranslatedIndex: -1,
+
+    toggleProjectFile(name, checked, event = null) {
+        let files = [];
+        if (window.currentProject && window.currentProject.sources) {
+            files = ProjectManager.applyFileFilters(window.currentProject.sources);
+        }
+        const fileNames = files.map(f => typeof f === 'string' ? f : f.name);
+        const currentIndex = fileNames.indexOf(name);
+
+        if (event && event.shiftKey && ProjectManager.lastCheckedFileIndex !== -1 && currentIndex !== -1) {
+            const start = Math.min(ProjectManager.lastCheckedFileIndex, currentIndex);
+            const end = Math.max(ProjectManager.lastCheckedFileIndex, currentIndex);
+            
+            for (let i = start; i <= end; i++) {
+                const fn = fileNames[i];
+                if (checked) window.selectedFiles.add(fn);
+                else window.selectedFiles.delete(fn);
+            }
+            
+            document.querySelectorAll('#pm-file-list input[type="checkbox"]').forEach(cb => {
+                const cbName = cb.closest('.file-item-compact').dataset.filename;
+                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) cb.checked = checked;
+            });
+        } else {
+            if (checked) window.selectedFiles.add(name);
+            else window.selectedFiles.delete(name);
+        }
+        
+        ProjectManager.lastCheckedFileIndex = currentIndex;
         ProjectManager.updateSelectAllButton();
     },
 
-    toggleTranslatedFile(filename, checked) {
-        if (checked) window.selectedTranslatedFiles.add(filename);
-        else window.selectedTranslatedFiles.delete(filename);
+    toggleTranslatedFile(filename, checked, event = null) {
+        let files = [];
+        if (window.currentProject && window.currentProject.translated) {
+            files = ProjectManager.applyFileFilters(window.currentProject.translated);
+        }
+        const fileNames = files.map(f => typeof f === 'string' ? f : f.name);
+        const currentIndex = fileNames.indexOf(filename);
+
+        if (event && event.shiftKey && ProjectManager.lastCheckedTranslatedIndex !== -1 && currentIndex !== -1) {
+            const start = Math.min(ProjectManager.lastCheckedTranslatedIndex, currentIndex);
+            const end = Math.max(ProjectManager.lastCheckedTranslatedIndex, currentIndex);
+            
+            for (let i = start; i <= end; i++) {
+                const fn = fileNames[i];
+                if (checked) window.selectedTranslatedFiles.add(fn);
+                else window.selectedTranslatedFiles.delete(fn);
+            }
+            
+            document.querySelectorAll('#pm-translated-file-list input[type="checkbox"]').forEach(cb => {
+                const cbName = cb.closest('.file-item-compact').dataset.filename;
+                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) cb.checked = checked;
+            });
+        } else {
+            if (checked) window.selectedTranslatedFiles.add(filename);
+            else window.selectedTranslatedFiles.delete(filename);
+        }
+        
+        ProjectManager.lastCheckedTranslatedIndex = currentIndex;
         ProjectManager.updateSelectAllTranslatedButton();
     },
 
@@ -1300,7 +1353,7 @@ const ProjectManager = {
             return `
             <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="${options.getOnclick()}">
                 <div class="flex items-center gap-2">
-                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked)" class="flex-shrink-0">
+                    <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked,event)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
                         <span class="file-item-name">${esc}${dirty}</span>
                     </div>

@@ -23,19 +23,19 @@ class TestDelimiterOverhead:
     def test_index_zero(self, use_case):
         """Test tính overhead cho index 0."""
         overhead = use_case._delimiter_overhead("test-token", 0)
-        expected = len("<<<test-token:0>>>\n") + len("\n<<<test-token:0>>>\n")
+        expected = len("<<<test-token:0>>>\n") + len("\n<<</test-token:0>>>\n")
         assert overhead == expected
 
     def test_index_large(self, use_case):
         """Test tính overhead cho index lớn (99)."""
         overhead = use_case._delimiter_overhead("test-token", 99)
-        expected = len("<<<test-token:99>>>\n") + len("\n<<<test-token:99>>>\n")
+        expected = len("<<<test-token:99>>>\n") + len("\n<<</test-token:99>>>\n")
         assert overhead == expected
 
     def test_index_five(self, use_case):
         """Test tính overhead cho index 5."""
         overhead = use_case._delimiter_overhead("token123", 5)
-        expected = len("<<<token123:5>>>\n") + len("\n<<<token123:5>>>\n")
+        expected = len("<<<token123:5>>>\n") + len("\n<<</token123:5>>>\n")
         assert overhead == expected
 
 
@@ -228,11 +228,11 @@ class TestParseBatchResponse:
         session_token = "mno345"
         response = (
             '<<<mno345:0>>>\nContent with <quote> and "double" quotes\n'
-            '<<<mno345:0>>>\n'
+            '<<</mno345:0>>>\n'
             '<<<mno345:1>>>\n\nEmpty line before\n\nAnd after\n'
-            '<<<mno345:1>>>\n'
+            '<<</mno345:1>>>\n'
             '<<<mno345:2>>>\nSpecial chars: <>&"\'\n'
-            '<<<mno345:2>>>\n'
+            '<<</mno345:2>>>\n'
         )
         batch_index_map = {
             0: "file_a.md",
@@ -246,7 +246,7 @@ class TestParseBatchResponse:
         
         expected = {
             "file_a.md": 'Content with <quote> and "double" quotes',
-            "file_b.md": '\nEmpty line before\n\nAnd after',
+            "file_b.md": 'Empty line before\n\nAnd after',
             "file_c.md": 'Special chars: <>&"\'',
         }
         assert result == expected
@@ -256,9 +256,9 @@ class TestParseBatchResponse:
         session_token = "pqr678"
         response = (
             "<<<pqr678:0>>>\n\n"
-            "<<<pqr678:0>>>\n"
+            "<<</pqr678:0>>>\n"
             "<<<pqr678:1>>>\n\n"
-            "<<<pqr678:1>>>\n"
+            "<<</pqr678:1>>>\n"
         )
         batch_index_map = {
             0: "file_1.md",

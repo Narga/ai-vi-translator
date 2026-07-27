@@ -1223,12 +1223,11 @@ def summarize_project(slug):
 @projects_bp.route("/api/projects/<slug>/translate", methods=["POST"])
 def translate_project_file(slug):
     """Dịch file(s) trong dự án - dùng backend use case."""
-    from webui import progress_queue
     import webui as _state
     from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
-    from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
     from backend.infrastructure.config.api_key_service import ApiKeyService
     from backend.infrastructure.config.prompt_service import PromptService
+    from backend.infrastructure.progress.task_registry import TaskRegistry
 
     data = request.json
     filenames = data.get("files", [])
@@ -1276,11 +1275,11 @@ def translate_project_file(slug):
         "max_length_ratio": 5.0,
         "context_char_count": config_service.get_context_char_count(),
     }
-    
-    while not progress_queue.empty():
-        progress_queue.get()
 
-    def _project_translate_worker():
+    registry = TaskRegistry()
+    job_id = registry.create_task("translation", f"Translate {slug}", len(filenames))
+
+    def _project_translate_worker(job_id):
         """Worker dùng backend use case."""
         try:
             from services.translation_memory import TranslationMemory
@@ -1293,9 +1292,9 @@ def translate_project_file(slug):
             base_url = active_provider.get("base_url")
 
             # Fallback model tùy theo provider type
-            provider_default_model = active_provider.get("default_model")
-            if provider_default_model:
-                default_model = provider_default_model
+            provider_default_models = active_provider.get("default_model")
+            if provider_default_models:
+                default_model = provider_default_models
             elif provider_type == "openai":
                 default_model = "gpt-4o-mini"
             else:
@@ -1315,7 +1314,8 @@ def translate_project_file(slug):
                 api_keys = [api_key] if api_key else []
 
             if not api_keys or not api_keys[0]:
-                progress_queue.put({"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
+                registry.append_event(job_id, {"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
+                registry.update_status(job_id, "failed")
                 return
 
             config["provider_type"] = provider_type
@@ -1329,13 +1329,19 @@ def translate_project_file(slug):
                 enabled=True,
             )
 
-            bridge = WebUIProgressBridge(progress_queue)
-
             use_case = TranslateProjectFilesUseCase(
                 api_keys=api_keys,
                 config=config,
                 glossary_paths=glossary_paths,
             )
+
+            def emit_event(event):
+                event_type = event.get("type", "info")
+                if event_type == "complete":
+                    registry.update_status(job_id, "completed")
+                elif event_type == "error":
+                    registry.update_status(job_id, "failed")
+                registry.append_event(job_id, event)
 
             def save_meta():
                 meta["updated_at"] = datetime.now().isoformat()
@@ -1345,17 +1351,19 @@ def translate_project_file(slug):
             use_case.execute(
                 project_dir=pdir,
                 filenames=filenames,
-                progress_callback=bridge.create_callback(),
+                progress_callback=emit_event,
                 translation_memory=project_tm,
                 save_meta_callback=save_meta,
             )
 
         except Exception as e:
-            progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+            logger.error(f"Lỗi Translate Worker: {str(e)}")
+            registry.append_event(job_id, {"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+            registry.update_status(job_id, "failed")
 
-    thread = Thread(target=_project_translate_worker, daemon=True)
+    thread = Thread(target=_project_translate_worker, args=(job_id,), daemon=True)
     thread.start()
-    return jsonify({"status": "started", "files_count": len(filenames)})
+    return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
 
 
 # ============================================================
@@ -1365,10 +1373,9 @@ def translate_project_file(slug):
 @projects_bp.route("/api/projects/<slug>/spellcheck", methods=["POST"])
 def spellcheck_project_file(slug):
     """Kiểm tra chính tả file(s) trong dự án - dùng backend use case."""
-    from webui import progress_queue
     from backend.application.use_cases.spellcheck_project_files_use_case import SpellcheckProjectFilesUseCase
-    from backend.infrastructure.progress.webui_progress_bridge import WebUIProgressBridge
     from backend.infrastructure.config.prompt_service import PromptService
+    from backend.infrastructure.progress.task_registry import TaskRegistry
 
     data = request.json
     filenames = data.get("files", [])
@@ -1412,10 +1419,10 @@ def spellcheck_project_file(slug):
         "context_char_count": config_service.get_context_char_count(),
     }
 
-    while not progress_queue.empty():
-        progress_queue.get()
+    registry = TaskRegistry()
+    job_id = registry.create_task("spellcheck", f"Spellcheck {slug}", len(filenames))
 
-    def _project_spellcheck_worker():
+    def _project_spellcheck_worker(job_id):
         """Worker dùng backend use case."""
         try:
             from backend.infrastructure.providers.provider_service import ProviderService
@@ -1448,7 +1455,8 @@ def spellcheck_project_file(slug):
                 api_keys = [api_key] if api_key else []
 
             if not api_keys or not api_keys[0]:
-                progress_queue.put({"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
+                registry.append_event(job_id, {"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
+                registry.update_status(job_id, "failed")
                 return
 
             config["provider_type"] = provider_type
@@ -1457,26 +1465,28 @@ def spellcheck_project_file(slug):
                 config["model_name"] = default_model
                 config["qa_model"] = default_model
 
-            bridge = WebUIProgressBridge(progress_queue)
-
-            use_case = SpellcheckProjectFilesUseCase(
-                api_keys=api_keys,
-                config=config,
-            )
+            def emit_event(event):
+                event_type = event.get("type", "info")
+                if event_type == "complete":
+                    registry.update_status(job_id, "completed")
+                elif event_type == "error":
+                    registry.update_status(job_id, "failed")
+                registry.append_event(job_id, event)
 
             use_case.execute(
                 project_dir=pdir,
                 filenames=filenames,
-                progress_callback=bridge.create_callback(),
+                progress_callback=emit_event,
             )
 
         except Exception as e:
             logger.error(f"Lỗi Spellcheck Worker: {str(e)}")
-            progress_queue.put({"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+            registry.append_event(job_id, {"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+            registry.update_status(job_id, "failed")
 
-    thread = Thread(target=_project_spellcheck_worker, daemon=True)
+    thread = Thread(target=_project_spellcheck_worker, args=(job_id,), daemon=True)
     thread.start()
-    return jsonify({"status": "started", "files_count": len(filenames)})
+    return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
 
 
 # ============================================================

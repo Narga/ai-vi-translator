@@ -80,6 +80,7 @@ def create_app():
     from webui.routes.projects import projects_bp
     from webui.routes.plugins import plugins_bp
     from webui.routes.docs import docs_bp
+    from webui.routes.tasks import tasks_bp
 
     app.register_blueprint(translation_bp)
     app.register_blueprint(settings_bp)
@@ -87,6 +88,7 @@ def create_app():
     app.register_blueprint(projects_bp)
     app.register_blueprint(plugins_bp)
     app.register_blueprint(docs_bp)
+    app.register_blueprint(tasks_bp)
 
     # Đảm bảo dự án mặc định tồn tại
     from webui.helpers import ensure_default_project

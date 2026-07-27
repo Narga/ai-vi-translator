@@ -490,15 +490,11 @@ class ApiManager:
 
     def all_keys_exhausted(self) -> bool:
         """
-        Kiểm tra xem tất cả các keys có đều đang trong cooldown không.
+        Kiểm tra xem tất cả các keys có đều đang trong cooldown hoặc hết quota không.
 
         Returns:
             bool: True nếu không còn key nào khả dụng
         """
         with self._lock:
-            current_time = time.time()
-            for key in self._key_list:
-                # Nếu có ít nhất 1 key không trong cooldown → chưa exhausted
-                if current_time >= self._rate_limiter.cool_down_until.get(key, 0):
-                    return False
-            return True
+            available = self._rate_limiter.get_available_keys(self._key_list)
+            return len(available) == 0

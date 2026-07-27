@@ -47,6 +47,7 @@ workspace/**
 config/API.txt
 config/providers.json
 delete_*
+del_*
 
 # System junk
 .DS_Store
@@ -66,6 +67,8 @@ Desktop.ini
 .idea/
 *.swp
 *.swo
+AGENTS.md
+CLAUDE.md
 
 # Env & secrets
 .env

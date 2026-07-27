@@ -402,7 +402,26 @@ const ApiClient = {
             .catch(e => {
                 UiHelpers.showToast('Lỗi gửi yêu cầu restart: ' + e.message, 'error');
             });
+    },
+
+    loadTasks() {
+        fetch('/api/tasks')
+            .then(r => r.json())
+            .then(tasks => {
+                const taskCountEl = document.getElementById('task-count');
+                if (taskCountEl) {
+                    taskCountEl.textContent = tasks.length;
+                    if (tasks.length > 0) {
+                        taskCountEl.parentElement.classList.remove('dn');
+                    } else {
+                        taskCountEl.parentElement.classList.add('dn');
+                    }
+                }
+            })
+            .catch(e => console.error('Failed to load tasks', e));
     }
 };
 
 window.ApiClient = ApiClient;
+setInterval(ApiClient.loadTasks, 5000);
+setTimeout(ApiClient.loadTasks, 1000);

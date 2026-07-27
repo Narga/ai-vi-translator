@@ -51,19 +51,19 @@
     <div id="projects-workspace-view" style="display: none;" class="flex flex-column w-100 h-100 overflow-hidden">
         <!-- Header với nút quay lại -->
         <div class="flex items-center justify-between pa3 bb b--black-10 bg-white flex-shrink-0">
-            <div class="flex items-center gap-3">
-                <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.backToList()">
+            <div class="flex items-center gap-3 flex-auto min-w-0 mr3">
+                <button class="pointer ph3 pv2 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white flex-shrink-0 ws-nowrap" onclick="ProjectManager.backToList()">
                     ← Quay lại
                 </button>
-                <div class="pl3 bl b--black-10">
+                <div class="pl3 bl b--black-10 min-w-0 flex-auto">
                     <h2 id="pm-project-title" class="f5 ma0 dark-gray fw6">Tên dự án</h2>
-                    <p id="pm-project-desc" class="f7 gray ma0 mt1">Mô tả dự án...</p>
+                    <p id="pm-project-desc" class="f7 gray ma0 mt1 lh-copy">Mô tả dự án...</p>
                 </div>
             </div>
-                    <div class="flex gap-2">
-                        <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white" onclick="ProjectManager.refreshWorkspace()" title="Làm mới toàn bộ workspace">🔄 Làm mới trang</button>
-                        <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red" onclick="ProjectManager.clearProjectTM()" title="Đặt lại bộ nhớ dịch riêng của dự án này">Đặt lại bộ nhớ dịch</button>
-                    </div>
+            <div class="flex flex-column gap-1 flex-shrink-0">
+                <button class="pointer ph3 pv1 f7 ba b--black-20 bg-white br2 shadow-sm hover-bg-near-white ws-nowrap tc w-100" onclick="ProjectManager.refreshWorkspace()" title="Làm mới toàn bộ workspace">🔄 Làm mới trang</button>
+                <button class="pointer ph3 pv1 f7 ba b--red red bg-white br2 shadow-sm hover-bg-washed-red ws-nowrap tc w-100" onclick="ProjectManager.clearProjectTM()" title="Đặt lại bộ nhớ dịch riêng của dự án này">Đặt lại bộ nhớ dịch</button>
+            </div>
         </div>
         
             <!-- Sub-tabs -->

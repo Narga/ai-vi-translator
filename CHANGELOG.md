@@ -4,6 +4,27 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.8.0] - 2026-07-27
+### Task Registry & Quản lý tiến trình dịch thông minh
+
+**Nâng cấp Hệ thống Tiến trình (Task Registry):**
+- Thay thế progress queue toàn cục bằng `TaskRegistry` quản lý các tác vụ dịch theo `job_id`.
+- Tách luồng SSE theo `job_id` thông qua API `/api/tasks/progress/<job_id>`.
+- Cho phép người dùng đóng modal tiến trình mà không làm mất hoặc gián đoạn tác vụ đang chạy ngầm.
+- Thêm thanh trạng thái tác vụ ngầm ở góc dưới màn hình ("Tác vụ: N") để mở lại modal chi tiết hoặc hủy tác vụ bất kỳ lúc nào.
+
+**Sửa lỗi dịch thuật & Smart Batching:**
+- Sửa lỗi nghiêm trọng bỏ qua các tập tin đơn lẻ nhỏ hơn `chunk_size` khiến dịch 1 file không sinh kết quả.
+- Sửa lỗi logic callback và biến tham chiếu `{fallback}` chưa định nghĩa gây lỗi khi dịch fallback.
+- Tự động xóa các file văn bản tạm `batch_*.txt` sau khi dịch xong để giữ sạch thư mục đầu ra.
+- Đảm bảo danh sách file luôn được sắp xếp theo thứ tự bảng chữ cái tự nhiên trước khi xử lý.
+
+**Cải tiến UI/UX Biên tập:**
+- Thiết kế lại các nút thao tác nhanh ở Workspace Header thành 2 nút trên dưới, co giãn rộng bằng nhau (`w-100`), giữ nguyên chữ trên một dòng (`ws-nowrap`), giúp phần mô tả dự án rộng rãi và cân đối hơn.
+- Thêm tính năng chọn nhiều file bằng **Shift + Click** checkbox trong sidebar.
+
+---
+
 ## [8.7.0] - 2026-07-15
 ### Smart Batching — Tối ưu dịch nhiều file đồng thời
 

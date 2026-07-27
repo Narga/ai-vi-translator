@@ -2,6 +2,19 @@
 
 ## Hoàn thành
 
+### v8.8.0 (2026-07-27)
+- [x] 🔄 Nâng cấp hệ thống tiến trình dịch song song/ngầm dùng Task Registry & Job ID
+- [x] 🐛 Sửa lỗi dịch 1 file nhỏ bị bỏ qua trong Smart Batching
+- [x] 🗑️ Tự động dọn dẹp các tập tin batch tạm thời sau khi hoàn tất
+- [x] 🔀 Đảm bảo sắp xếp danh sách tập tin theo thứ tự tự nhiên
+- [x] 👆 Thêm tính năng chọn nhiều file bằng Shift + Click checkbox
+- [x] 🎨 Thiết kế lại giao diện nút Làm mới & Đặt lại bộ nhớ dịch ở Workspace Header (2 nút trên dưới, nowrap, w-100)
+
+### v8.7.0 (2026-07-15)
+- [x] 🧹 Dọn dẹp JS chết trong `ui-helpers.js`
+- [x] 🧠 Triển khai Smart Batching tối ưu số lượng request lên AI model
+- [x] 🧪 Bổ sung bộ kiểm thử Unit Tests cho cơ chế Smart Batching
+
 ### v8.2.0 (2026-07-11)
 - [x] 🔍 Tìm kiếm & Thay thế nâng cao (3 chế độ: normal, case-sensitive, regex)
 - [x] 💾 Nút Lưu file nguồn (PUT `/api/projects/.../file/sources/...`)
@@ -77,17 +90,14 @@
 
 ## Đang phát triển / Sắp tới
 
-### v8.7.0 (next)
-- [x] Dọn JS chết trong `ui-helpers.js` (`runEpubToText()`, `runTextToEpub()` cũ)
-- [x] Smart Batching: helpers + parser
-- [x] Smart Batching: unit tests + tích hợp vào `execute()` + fallback
+### v8.9.0 (planned)
 - [ ] Gom `_get_client()` trùng lặp → shared helper
 - [ ] Inline `file_utils.py` vào call site
+- [ ] Dùng `model_catalog_service` thay hardcoded model list
 
 ### v9.0.0 (planned)
 - [ ] Export dự án sang EPUB/PDF
 - [ ] Frontend bundle optimization (tree-shaking, code splitting)
-- [ ] Dùng `model_catalog_service` thay hardcoded model list
 
 ### Tối ưu hóa
 - [ ] Backend caching layer
