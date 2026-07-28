@@ -4,6 +4,18 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.11.0] - 2026-07-28
+### Đồng bộ Modal tiến trình và Tasks counter cho dự án
+
+**Nâng cấp Quản lý Tác vụ (Task Tracking & Resiliency):**
+- Tích hợp lưu trạng thái tác vụ local (`_activeJobId`, `_lastViewedJobId`, `_taskStateByJob`) ở frontend (`translation-worker.js`) giúp bảo toàn và hiển thị lại toàn bộ nhật ký log, tiến độ phần trăm khi mở lại modal.
+- Thay đổi chính sách ẩn/hiện modal tiến trình: click ra ngoài modal hoặc nhấn `Escape` chỉ ẩn modal đi ngầm, không làm gián đoạn hay xóa mất dữ liệu của tác vụ đang chạy.
+- Tối ưu hóa UI: Cập nhật chỉ số Tasks tức thì ngay sau khi người dùng kích hoạt dịch mà không cần chờ poll API (5 giây).
+- Biến cụm `Tasks` trên Header thành button pill luôn hiển thị. Khi click vào cụm Tasks này sẽ kích hoạt mở lại modal tiến trình của tác vụ đang chạy hoặc hiển thị lại log của tác vụ vừa kết thúc gần nhất.
+- Nâng cấp Backend: Cập nhật các trường thông tin tiến trình phong phú (`percent`, `last_message`, `current`, `total`, `completed_files`, `error_count`, `finished_at`) cho `Task` và `TaskRegistry` để frontend có dữ liệu rehydrate trạng thái tác vụ.
+
+---
+
 ## [8.10.0] - 2026-07-28
 ### Tái cấu trúc Trang Quản lý Dự án dạng Grid Card & Sửa lỗi hiển thị
 

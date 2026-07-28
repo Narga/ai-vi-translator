@@ -300,6 +300,11 @@ class TranslateProjectFilesUseCase:
                     )
 
                     def cb(data):
+                        if data["type"] == "complete":
+                            data = {
+                                "type": "info",
+                                "message": f"✅ Batch {batch_idx} đã dịch xong, đang xử lý kết quả..."
+                            }
                         emit(data)
 
                     # Dịch batch text

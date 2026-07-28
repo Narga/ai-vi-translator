@@ -2,6 +2,14 @@
 
 ## Hoàn thành
 
+### v8.11.0 (2026-07-28)
+- [x] 🔄 Đồng bộ Modal tiến trình dịch và bộ đếm Tasks counter
+- [x] 💾 Lưu trữ trạng thái tác vụ local (`_activeJobId`, `_lastViewedJobId`, `_taskStateByJob`) không mất log và phần trăm khi ẩn modal
+- [x] 🚪 Cho phép ẩn modal tiến trình ngầm (click overlay/Escape) thay vì tắt hẳn tác vụ đang chạy
+- [x] ⚡ Optimistic update: tăng/giảm counter Tasks ngay lập tức trên header khi bấm dịch
+- [x] 👆 Pill Tasks trên Header luôn clickable để khôi phục modal tiến trình hoặc xem lại log tác vụ gần nhất
+- [x] 📊 Nâng cấp Backend TaskRegistry bổ sung các trường thông tin phong phú phục vụ rehydrate trạng thái
+
 ### v8.10.0 (2026-07-28)
 - [x] 🎨 Tái cấu trúc giao diện Trang Dự án thành Grid Card co giãn linh động (3 cột desktop)
 - [x] 📦 Chuyển form Tạo dự án mới thành Modalbox giữa màn hình, tự động đóng sau khi khởi tạo thành công

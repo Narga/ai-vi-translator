@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.10.0)
+# 📚 Content Translator (v8.11.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.10.0):** Tái thiết kế toàn diện Trang Dự án thành giao diện Grid Card hiện đại và trực quan, hỗ trợ modalbox tạo dự án mới, thanh tiến độ động và biểu tượng SVG hành động tối giản. Smart Batching tối ưu hóa tiến trình dịch file nhỏ.
+**Tính năng mới (v8.11.0):** Đồng bộ hóa Modal tiến trình và bộ đếm Tasks counter. Cho phép ẩn modal tiến trình để chạy ngầm và nhấp vào cụm "Tasks" trên Header để mở lại bất kỳ lúc nào mà không làm mất log hay tiến độ.
 
 ---
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.7.0  
-**Ngày:** 15/07/2026
+**Phiên bản:** 8.11.0  
+**Ngày:** 28/07/2026

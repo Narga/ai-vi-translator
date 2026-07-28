@@ -119,14 +119,27 @@ window.showPrompt = showPrompt;
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('bg-black-70') || e.target.classList.contains('bg-black-50')) {
         var modal = e.target.closest('[id$="-modal"]');
-        if (modal) ModalManager.hide(modal.id);
+        if (modal) {
+            // For progress modal, just hide it - don't clear task state
+            if (modal.id === 'translation-progress-modal') {
+                ModalManager.hide(modal.id);
+            } else {
+                ModalManager.hide(modal.id);
+            }
+        }
     }
 });
 
 // Auto-wire: close modal khi nhấn Escape
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        ModalManager.hideAll();
+        // Check if progress modal is open - if so, just hide it
+        var progressModal = document.getElementById('translation-progress-modal');
+        if (progressModal && (progressModal.classList.contains('flex') || progressModal.style.display === 'flex')) {
+            ModalManager.hide('translation-progress-modal');
+        } else {
+            ModalManager.hideAll();
+        }
     }
 });
 
@@ -160,6 +173,9 @@ const UiHelpers = {
 
     showProgressModal() {
         ModalManager.show('translation-progress-modal');
+    },
+
+    resetProgressModal() {
         // Reset progress bar
         const progressBar = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
@@ -173,6 +189,36 @@ const UiHelpers = {
         // Hide done button
         const btnDone = document.getElementById('btn-progress-done');
         if (btnDone) btnDone.classList.add('dn');
+    },
+
+    renderProgressModal(state) {
+        if (!state) return;
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const progressText = document.getElementById('progress-text');
+        if (progressBar) progressBar.style.width = (state.percent || 0) + '%';
+        if (progressPercent) progressPercent.textContent = (state.percent || 0) + '%';
+        if (progressText) progressText.textContent = state.message || '';
+        // Render logs from state
+        const logEl = document.getElementById('log-container');
+        if (logEl) {
+            if (state.logs && state.logs.length > 0) {
+                logEl.innerHTML = state.logs.map(l => `<div class="nt-log-entry mb1 ${l.type === 'error' ? 'red fw6' : (l.type === 'success' ? 'green' : 'blue')}">[${l.time}] ${l.message}</div>`).join('');
+                logEl.scrollTop = logEl.scrollHeight;
+            } else {
+                logEl.innerHTML = '';
+            }
+        }
+        // Show/hide done button based on status
+        const btnDone = document.getElementById('btn-progress-done');
+        const btnStop = document.getElementById('btn-progress-stop');
+        if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
+            if (btnDone) btnDone.classList.remove('dn');
+            if (btnStop) btnStop.classList.add('dn');
+        } else {
+            if (btnDone) btnDone.classList.add('dn');
+            if (btnStop) btnStop.classList.remove('dn');
+        }
     },
 
     // Provider Management

@@ -411,10 +411,22 @@ const ApiClient = {
                 const taskCountEl = document.getElementById('task-count');
                 if (taskCountEl) {
                     taskCountEl.textContent = tasks.length;
-                    if (tasks.length > 0) {
-                        taskCountEl.parentElement.classList.remove('dn');
-                    } else {
-                        taskCountEl.parentElement.classList.add('dn');
+                }
+
+                const taskSummaryEl = document.getElementById('task-summary');
+                if (!taskSummaryEl) return;
+
+                taskSummaryEl.textContent = '';
+                if (tasks.length > 0) {
+                    const active = tasks.find(t => t.status === 'started');
+                    if (active) {
+                        const completed = active.completed_files || 0;
+                        const total = active.total_files || 0;
+                        if (total > 0) {
+                            taskSummaryEl.textContent = ` — Đang dịch ${completed}/${total}`;
+                        } else {
+                            taskSummaryEl.textContent = ' — Đang dịch';
+                        }
                     }
                 }
             })

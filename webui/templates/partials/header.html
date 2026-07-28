@@ -38,7 +38,7 @@
         <div class="header-right flex items-center gap-2">
             <div class="flex items-center gap-3 bg-near-white br-pill ph3 pv1 shadow-sm f7">
                 <span title="Dự án (Hoạt động và Lưu trữ)" class="flex items-center gap-1"><span class="orange mr1">●</span>Dự án: <strong id="project-count">--</strong> <small class="silver">(<span id="archive-count">--</span>)</small></span>
-                <span title="Tiến trình đang chạy" class="flex items-center gap-1 ml3"><span class="green mr1">▶</span>Tasks: <strong id="task-count">0</strong></span>
+                <span id="task-pill" title="Tiến trình đang chạy" class="flex items-center gap-1 ml3 pointer" style="cursor: pointer;" onclick="TranslationWorker.openLatestTaskProgress()"><span class="green mr1">▶</span>Tasks: <strong id="task-count">0</strong><span id="task-summary" class="ml2 f7 silver"></span></span>
                 <button class="ml2 pointer bn bg-transparent hover-gray" onclick="ApiClient.restartServer()" title="Khởi động lại Server">↻</button>
             </div>
         </div>
