@@ -18,22 +18,19 @@ const TranslationWorker = {
     },
 
     startTranslation() {
-        const btn = document.getElementById('translate-btn');
-        const text = document.getElementById('source-text').value;
-        if (!text.trim()) { UiHelpers.showToast('Vui lòng nhập văn bản hoặc chọn file!', 'error'); return; }
-
-        btn.disabled = true;
-        btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang dịch...';
-
-        const guardTimer = setTimeout(() => {
-            if (btn.disabled && btn.innerHTML.includes('Đang dịch')) {
-                TranslationWorker.resetButton(btn);
-            }
-        }, 3000);
-
-        UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
-
         if (window.currentProject && window.currentProjectFile) {
+            // --- Project context ---
+            const btn = document.querySelector('#pm-translation-bottom-bar button.bg-blue');
+
+            if (btn) {
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang dịch...';
+            }
+
+            const guardTimer = setTimeout(() => { TranslationWorker.resetButton(btn); }, 3000);
+
+            UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
             const forceRetranslateEl = document.getElementById('force-retranslate');
             const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
             fetch(`/api/projects/${window.currentProject.slug}/translate`, {
@@ -48,6 +45,24 @@ const TranslationWorker = {
                 }
             }).catch(e => { clearTimeout(guardTimer); UiHelpers.addLog(e.message, 'error'); TranslationWorker.resetButton(btn); });
         } else {
+            // --- Standalone context ---
+            const btn = document.getElementById('translate-btn');
+            const sourceEl = document.getElementById('source-text');
+            const text = sourceEl ? sourceEl.value : '';
+            if (!text.trim()) { UiHelpers.showToast('Vui lòng nhập văn bản hoặc chọn file!', 'error'); return; }
+
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang dịch...';
+            }
+
+            const guardTimer = setTimeout(() => {
+                if (btn && btn.disabled && btn.innerHTML.includes('Đang dịch')) {
+                    TranslationWorker.resetButton(btn);
+                }
+            }, 3000);
+
+            UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
             fetch('/api/translate', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -56,7 +71,7 @@ const TranslationWorker = {
                     chunk_size: parseInt(document.getElementById('chunk-size').value),
                     prompts: window.prompts
                 })
-}).then(r => r.json()).then(data => {
+            }).then(r => r.json()).then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else {
@@ -312,7 +327,10 @@ const TranslationWorker = {
         if (btn) {
             btn.disabled = false;
             // Restore original button HTML with icon (don't replace with text-only)
-            if (isBatch) {
+            if (btn.dataset && btn.dataset.originalHtml) {
+                btn.innerHTML = btn.dataset.originalHtml;
+                delete btn.dataset.originalHtml;
+            } else if (isBatch) {
                 if (btn.id === 'pm-btn-translate-selected') {
                     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="M22 22l-5-10-5 10"/><path d="M14 18h6"/></svg>';
                 } else if (btn.id === 'pm-btn-spellcheck-selected') {
