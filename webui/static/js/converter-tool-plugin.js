@@ -68,8 +68,12 @@ window.ConverterToolPlugin = {
         this.runTask('markdown_to_html', 'btn-convert-md-to-html', '.MD → HTML');
     },
 
+    runMarkdownToEpub() {
+        this.runTask('markdown_to_epub', 'btn-create-epub-from-md', 'MD → EPUB 3');
+    },
+
     runCreateEpub() {
-        this.runTask('create_epub', 'btn-create-epub', 'Tạo EPUB 3');
+        this.runTask('create_epub', 'btn-create-epub', 'HTML → EPUB 3');
     },
 
     runTask(task, buttonId, buttonLabel) {

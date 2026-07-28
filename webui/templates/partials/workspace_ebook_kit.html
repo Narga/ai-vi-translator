@@ -10,14 +10,17 @@
 
         <div class="pa3 bb b--black-10 bg-washed-blue">
             <div class="f7 dark-gray lh-copy">
-                <strong>Thao tác hiện có:</strong> .MD → HTML, HTML → .MD và đóng gói EPUB 3.
+                <strong>Thao tác hiện có:</strong> MD → EPUB 3, HTML → EPUB 3, .MD → HTML và HTML → .MD.
                 EPUB luôn được ghi đè vào thư mục <code>output/</code> của dự án với tên theo slug dự án.
             </div>
         </div>
 
         <div class="pa3 flex flex-wrap gap-2 bb b--black-10">
+            <button id="btn-create-epub-from-md" class="pointer ph3 pv2 bn white bg-orange br2 fw6 shadow-1 hover-bg-gold f6" onclick="ConverterToolPlugin.runMarkdownToEpub()">
+                MD → EPUB 3
+            </button>
             <button id="btn-create-epub" class="pointer ph3 pv2 bn white bg-dark-red br2 fw6 shadow-1 hover-bg-red f6" onclick="ConverterToolPlugin.runCreateEpub()">
-                Tạo EPUB 3
+                HTML → EPUB 3
             </button>
             <button id="btn-convert-md-to-html" class="pointer ph3 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6" onclick="ConverterToolPlugin.runMarkdownToHtml()">
                 .MD → HTML

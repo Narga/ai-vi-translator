@@ -4,6 +4,17 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.12.0] - 2026-07-28
+### Tích hợp chuyển đổi trực tiếp MD -> EPUB 3 cho plugin Converter
+
+**Cải tiến Công cụ chuyển đổi (Converter Tool):**
+- Thêm nút mới `MD → EPUB 3` vào bên trái nút `HTML → EPUB 3` trên giao diện tab Công cụ chuyển đổi (`workspace_ebook_kit.html`).
+- Triển khai task `markdown_to_epub` trong `routes/plugins.py`, phối hợp chạy luồng sinh HTML trung gian từ MD bằng `convert_markdown_file()` và đóng gói trực tiếp thành EPUB 3 bằng `create_project_epub()`.
+- Hỗ trợ cơ chế lọc và bỏ qua các file không phải Markdown kèm log cảnh báo chi tiết, giúp tránh lỗi/vỡ luồng khi chọn lẫn lộn nhiều định dạng.
+- Giữ nguyên cấu trúc Service Layer (`project_epub.py`, `text_converter.py`, `plugin.py`), tăng tính bảo mật và giảm thiểu tối đa rủi ro gây lỗi hồi quy.
+
+---
+
 ## [8.11.0] - 2026-07-28
 ### Đồng bộ Modal tiến trình và Tasks counter cho dự án
 

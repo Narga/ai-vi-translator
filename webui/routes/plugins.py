@@ -99,7 +99,7 @@ def run_epub_converter(slug):
             plugin = Plugin()
             plugin.initialize({"out_dir": f"workspace/projects/{slug}/output"})
 
-            if task in {"html_to_markdown", "markdown_to_html", "create_epub"}:
+            if task in {"html_to_markdown", "markdown_to_html", "create_epub", "markdown_to_epub"}:
                 section = data.get("section", "sources")
                 filenames = data.get("filenames") or []
                 if section not in {"sources", "translated", "spelling"}:
@@ -114,9 +114,58 @@ def run_epub_converter(slug):
                 label = {
                     "html_to_markdown": "HTML → Markdown",
                     "markdown_to_html": "Markdown → HTML",
-                    "create_epub": "Tạo EPUB 3",
+                    "create_epub": "HTML → EPUB 3",
+                    "markdown_to_epub": "MD → EPUB 3",
                 }.get(task, task)
                 _log(f"🔄 Bắt đầu tác vụ {label} trên {len(filenames)} tập tin trong {section}")
+
+                if task == "markdown_to_epub":
+                    from plugins.epub_converter.services.text_converter import convert_markdown_file
+                    from plugins.epub_converter.services.project_epub import create_project_epub
+
+                    source_paths = []
+                    for filename in filenames:
+                        try:
+                            input_path = _safe_project_file(project_dir, section, filename)
+                            if not input_path.exists() or not input_path.is_file():
+                                _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
+                                continue
+                            if input_path.suffix.lower() != ".md":
+                                _log(f"⚠️ Bỏ qua file không phải Markdown: {section}/{filename}")
+                                continue
+                            output_path = convert_markdown_file(input_path)
+                            rel_output = output_path.resolve().relative_to(project_dir.resolve())
+                            source_paths.append(output_path)
+                            _log(f"✅ {filename} → {rel_output}")
+                        except Exception as e:
+                            _log(f"❌ {filename}: {str(e)}")
+
+                    if not source_paths:
+                        plugin_progress[plugin_id]["status"] = "error"
+                        return
+
+                    project_meta_path = project_dir / "project.json"
+                    project_meta = {}
+                    if project_meta_path.is_file():
+                        try:
+                            project_meta = json.loads(project_meta_path.read_text(encoding="utf-8"))
+                        except Exception as e:
+                            _log(f"⚠️ Không đọc được metadata dự án, dùng fallback tối thiểu: {str(e)}")
+
+                    result = create_project_epub(project_dir, slug, section, source_paths, project_meta)
+                    rel_output = result.output_path.resolve().relative_to(project_dir.resolve())
+                    for included_file in result.included_files:
+                        _log(f"✅ Đã đóng gói: {included_file}")
+                    for skipped_file in result.skipped_files:
+                        _log(f"⚠️ Bỏ qua định dạng không hỗ trợ: {skipped_file}")
+                    _log(f"📦 EPUB đã tạo tại: {rel_output}")
+                    plugin_progress[plugin_id]["status"] = "done"
+                    plugin_progress[plugin_id]["result"] = {
+                        "output_path": str(rel_output),
+                        "converted_count": result.chapter_count,
+                        "skipped_count": len(result.skipped_files),
+                    }
+                    return
 
                 if task == "create_epub":
                     from plugins.epub_converter.services.project_epub import create_project_epub

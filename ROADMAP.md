@@ -2,6 +2,12 @@
 
 ## Hoàn thành
 
+### v8.12.0 (2026-07-28)
+- [x] 🔌 Tích hợp tính năng chuyển đổi trực tiếp `MD -> EPUB 3` vào plugin Converter Tool
+- [x] ➕ Nút bấm `MD → EPUB 3` mới trên UI tab Converter, tự động chạy liên hoàn MD -> HTML -> EPUB 3
+- [x] 🛡️ Lọc file không phải `.md` một cách thông minh, chỉ ghi log cảnh báo và không làm lỗi cả tiến trình
+- [x] 📦 Bảo vệ tính nguyên vẹn của Service Layer, thực hiện lắp ghép luồng (orchestration) tại routing layer
+
 ### v8.11.0 (2026-07-28)
 - [x] 🔄 Đồng bộ Modal tiến trình dịch và bộ đếm Tasks counter
 - [x] 💾 Lưu trữ trạng thái tác vụ local (`_activeJobId`, `_lastViewedJobId`, `_taskStateByJob`) không mất log và phần trăm khi ẩn modal
