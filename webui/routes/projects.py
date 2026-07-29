@@ -1379,6 +1379,7 @@ def spellcheck_project_file(slug):
 
     data = request.json
     filenames = data.get("files", [])
+    folder_type = data.get("folder_type", "sources")
 
     pdir = _get_project_dir(slug)
     meta = _load_project_meta(slug)
@@ -1473,9 +1474,11 @@ def spellcheck_project_file(slug):
                     registry.update_status(job_id, "failed")
                 registry.append_event(job_id, event)
 
+            use_case = SpellcheckProjectFilesUseCase(api_keys=api_keys, config=config)
             use_case.execute(
                 project_dir=pdir,
                 filenames=filenames,
+                folder_type=folder_type,
                 progress_callback=emit_event,
             )
 
@@ -1487,6 +1490,125 @@ def spellcheck_project_file(slug):
     thread = Thread(target=_project_spellcheck_worker, args=(job_id,), daemon=True)
     thread.start()
     return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
+
+
+@projects_bp.route("/api/projects/<slug>/replace-all", methods=["POST"])
+def batch_replace_in_project(slug):
+    """Tìm kiếm & Thay thế tất cả các tệp trong thư mục sources hoặc translated."""
+    import re as _re
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json or {}
+    folder_type = data.get("folder_type", "sources")
+    search_term = data.get("search_term", "")
+    replace_term = data.get("replace_term", "")
+    search_mode = data.get("search_mode", "normal")  # "normal" | "case-sensitive" | "regex"
+
+    if not search_term:
+        return jsonify({"error": "Chưa nhập từ khóa tìm kiếm"}), 400
+
+    target_dir = pdir / ("translated" if folder_type == "translated" else "sources")
+    if not target_dir.exists():
+        return jsonify({"success": True, "replaced_files": 0, "total_occurrences": 0})
+
+    try:
+        normalized_search = search_term.replace("\r\n", "\n")
+        if search_mode == "regex":
+            pattern = _re.compile(normalized_search)
+        else:
+            flags = 0 if search_mode == "case-sensitive" else _re.IGNORECASE
+            pattern = _re.compile(_re.escape(normalized_search), flags)
+    except _re.error as e:
+        return jsonify({"error": f"Regex không hợp lệ: {str(e)}"}), 400
+
+    total_occurrences = 0
+    replaced_files = 0
+    ALLOWED_EXTS = {
+        "", ".txt", ".md", ".markdown", ".html", ".htm", ".xhtml",
+        ".xml", ".json", ".csv", ".tsv", ".srt", ".vtt", ".log"
+    }
+    target_files = [
+        f for f in target_dir.rglob("*")
+        if f.is_file() and not f.name.startswith(".") and (f.suffix.lower() in ALLOWED_EXTS or not f.suffix)
+    ]
+    for fpath in sorted(target_files):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            normalized_content = content.replace("\r\n", "\n")
+            new_content, count = pattern.subn(replace_term, normalized_content)
+            if count > 0:
+                fpath.write_text(new_content, encoding="utf-8")
+                total_occurrences += count
+                replaced_files += 1
+        except Exception as e:
+            logger.error(f"Lỗi replace file {fpath.name}: {str(e)}")
+
+    return jsonify({
+        "success": True,
+        "replaced_files": replaced_files,
+        "total_occurrences": total_occurrences
+    })
+
+
+@projects_bp.route("/api/projects/<slug>/search-all", methods=["POST"])
+def batch_search_in_project(slug):
+    """Tìm kiếm đếm số lượt xuất hiện trong tất cả tệp nguồn hoặc dịch."""
+    import re as _re
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json or {}
+    folder_type = data.get("folder_type", "sources")
+    search_term = data.get("search_term", "")
+    search_mode = data.get("search_mode", "normal")  # "normal" | "case-sensitive" | "regex"
+
+    if not search_term:
+        return jsonify({"error": "Chưa nhập từ khóa tìm kiếm"}), 400
+
+    target_dir = pdir / ("translated" if folder_type == "translated" else "sources")
+    if not target_dir.exists():
+        return jsonify({"success": True, "matched_files": 0, "total_occurrences": 0})
+
+    try:
+        normalized_search = search_term.replace("\r\n", "\n")
+        if search_mode == "regex":
+            pattern = _re.compile(normalized_search)
+        else:
+            flags = 0 if search_mode == "case-sensitive" else _re.IGNORECASE
+            pattern = _re.compile(_re.escape(normalized_search), flags)
+    except _re.error as e:
+        return jsonify({"error": f"Regex không hợp lệ: {str(e)}"}), 400
+
+    total_occurrences = 0
+    matched_files = 0
+    ALLOWED_EXTS = {
+        "", ".txt", ".md", ".markdown", ".html", ".htm", ".xhtml",
+        ".xml", ".json", ".csv", ".tsv", ".srt", ".vtt", ".log"
+    }
+    target_files = [
+        f for f in target_dir.rglob("*")
+        if f.is_file() and not f.name.startswith(".") and (f.suffix.lower() in ALLOWED_EXTS or not f.suffix)
+    ]
+    for fpath in sorted(target_files):
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            normalized_content = content.replace("\r\n", "\n")
+            matches = pattern.findall(normalized_content)
+            count = len(matches)
+            if count > 0:
+                total_occurrences += count
+                matched_files += 1
+        except Exception as e:
+            logger.error(f"Lỗi search file {fpath.name}: {str(e)}")
+
+    return jsonify({
+        "success": True,
+        "matched_files": matched_files,
+        "total_occurrences": total_occurrences
+    })
 
 
 # ============================================================

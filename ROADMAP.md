@@ -2,6 +2,15 @@
 
 ## Hoàn thành
 
+### v8.13.0 (2026-07-29)
+- [x] 🐛 Sửa lỗi Spellcheck Worker (`NameError` và thiếu `folder_type` khi soát lỗi file dịch)
+- [x] ⬆️ Di chuyển thông tin tập tin (ký tự, từ, token) lên phía bên phải Header Workspace
+- [x] 🗑️ Loại bỏ hoàn toàn khối chân trang (Bottom Bar) và checkbox "Dịch lại từ đầu", tăng chiều cao khu vực làm việc
+- [x] 🔄 Thêm nút Icon "Dịch lại từ đầu" (`#btn-retranslate-file`) force retranslate cho 1 file đang mở
+- [x] 🎨 Chuẩn hóa Row Highlight: gán ngay class `.active` khi click file, giữ nguyên màu khi rê chuột hover
+- [x] 🔍 Nâng cấp Tìm kiếm & Thay thế: quét đệ quy mọi định dạng văn bản (`.md`, `.html`, `.xhtml`, `.txt`), xử lý xuống dòng Windows CRLF
+- [x] 📊 Bổ sung API `search-all` thống kê số kết quả và số file khớp trước khi thay thế toàn bộ
+
 ### v8.12.0 (2026-07-28)
 - [x] 🔌 Tích hợp tính năng chuyển đổi trực tiếp `MD -> EPUB 3` vào plugin Converter Tool
 - [x] ➕ Nút bấm `MD → EPUB 3` mới trên UI tab Converter, tự động chạy liên hoàn MD -> HTML -> EPUB 3

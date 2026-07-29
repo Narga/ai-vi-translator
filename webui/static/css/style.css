@@ -652,9 +652,14 @@ button.bg-green:hover {
 .file-item-compact:hover {
     background: #f8f9fa;
 }
-.file-item-compact.active {
-    background: #e3f2fd;
-    border-left: 3px solid #2196F3;
+.file-item-compact.active,
+.file-item-compact.selected {
+    background-color: var(--primary-light) !important;
+    border-left: 3px solid var(--primary) !important;
+}
+.file-item-compact.active:hover,
+.file-item-compact.selected:hover {
+    background-color: #dbeafe !important;
 }
 .min-width-0 {
     min-width: 0;

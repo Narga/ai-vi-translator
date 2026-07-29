@@ -34,12 +34,15 @@ const EditorComponent = {
         }
 
         if (section === 'sources') {
-            fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
+            return fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
                 document.getElementById(prefix + 'source-text').value = data.content || '';
                 window.currentProjectFile = { name: filename, section };
+                if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
+                    ProjectManager.highlightActiveFile(filename);
+                }
                 if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
                 EditorComponent.updateTokenEstimate();
-                fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
+                return fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
                     document.getElementById(prefix + 'result-text').value = tData.content || '';
                     DirtyState.clean(prefix + 'result-text');
                 }).catch(() => {
@@ -48,12 +51,15 @@ const EditorComponent = {
                 });
             });
         } else if (section === 'translated') {
-            fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(data => {
+            return fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(data => {
                 document.getElementById(prefix + 'result-text').value = data.content || '';
                 window.currentProjectFile = { name: filename, section };
+                if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
+                    ProjectManager.highlightActiveFile(filename);
+                }
                 DirtyState.clean(prefix + 'result-text');
                 if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
-                fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
+                return fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
                     document.getElementById(prefix + 'source-text').value = sData.content || '';
                     EditorComponent.updateTokenEstimate();
                 }).catch(() => {
@@ -61,6 +67,7 @@ const EditorComponent = {
                 });
             });
         }
+        return Promise.resolve();
     },
 
     // Generic spellcheck file loader — prefix = '' hoặc 'pm-'
@@ -77,6 +84,9 @@ const EditorComponent = {
         fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
             document.getElementById(prefix + 'spell-result-text').value = data.content || '';
             window.currentProjectFile = { name: filename, section: 'spelling' };
+            if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
+                ProjectManager.highlightActiveFile(filename);
+            }
             DirtyState.clean(prefix + 'spell-result-text');
             fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
                 const logEl = document.getElementById(prefix + 'spell-log-content');
@@ -355,6 +365,24 @@ const EditorComponent = {
             .catch(() => UiHelpers.showToast('Copy thất bại', 'error'));
     },
 
+    copyText(textareaId) {
+        const el = document.getElementById(textareaId);
+        if (!el || !el.value.trim()) { UiHelpers.showToast('Không có nội dung để sao chép', 'warning'); return; }
+        navigator.clipboard.writeText(el.value)
+            .then(() => UiHelpers.showToast('Đã sao chép!', 'success'))
+            .catch(() => UiHelpers.showToast('Lỗi sao chép', 'error'));
+    },
+
+    downloadSourceFile() {
+        if (!window.currentProject || !window.currentProjectFile) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
+        window.location.href = `/api/projects/${window.currentProject.slug}/file/sources/${window.currentProjectFile.name}`;
+    },
+
+    downloadSpellInputFile() {
+        // Spell source editor chứa nội dung từ thư mục translated
+        if (!window.currentProject || !window.currentProjectFile) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
+        window.location.href = `/api/projects/${window.currentProject.slug}/file/translated/${window.currentProjectFile.name}`;
+    },
     downloadSpellCheckResult() {
         if (!window.currentProject || !window.currentProjectFile) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
         window.location.href = `/api/projects/${window.currentProject.slug}/file/spelling/${window.currentProjectFile.name}`;
@@ -370,15 +398,9 @@ const EditorComponent = {
         const filename = window.currentProjectFile.name;
         const content = document.getElementById('pm-result-text').value;
 
-        if (!content.trim()) {
-            UiHelpers.showToast('Nội dung dịch trống, không thể lưu.', 'warning');
-            return;
-        }
-
         const btn = document.getElementById('btn-save-translation');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '⏳ Đang lưu...';
-        btn.disabled = true;
+        const originalText = btn ? btn.innerHTML : null;
+        if (btn) { btn.innerHTML = '⏳...'; btn.disabled = true; }
 
         fetch(`/api/projects/${slug}/file/translated/${filename}`, {
             method: 'PUT',
@@ -387,8 +409,7 @@ const EditorComponent = {
         })
             .then(r => r.json())
             .then(res => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
                 if (res.success) {
                     UiHelpers.showToast(`Đã lưu bản dịch cho file: ${filename}`, 'success');
                     DirtyState.clean('pm-result-text');
@@ -397,8 +418,7 @@ const EditorComponent = {
                 }
             })
             .catch(e => {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
                 UiHelpers.showToast('Lỗi mạng: ' + e.message, 'error');
             });
     },
@@ -410,22 +430,16 @@ const EditorComponent = {
         }
         const slug = window.currentProject.slug;
         const filename = window.currentProjectFile.name;
-        const content = document.getElementById('spell-result-text').value;
-        if (!content.trim()) {
-            UiHelpers.showToast('Nội dung trống.', 'warning');
-            return;
-        }
+        const content = document.getElementById('pm-spell-result-text').value;
         const btn = document.getElementById('btn-save-spellcheck');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '⏳...';
-        btn.disabled = true;
+        const originalText = btn ? btn.innerHTML : null;
+        if (btn) { btn.innerHTML = '⏳...'; btn.disabled = true; }
         fetch(`/api/projects/${slug}/file/spelling/${filename}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
         }).then(r => r.json()).then(res => {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
+            if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
             if (res.success) {
                 UiHelpers.showToast('Đã lưu.', 'success');
                 DirtyState.clean('spell-result-text');

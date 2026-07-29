@@ -142,12 +142,17 @@ document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         
+        const sourceText = document.getElementById('pm-source-text');
         const resultText = document.getElementById('pm-result-text');
         const spellResultText = document.getElementById('pm-spell-result-text');
         
+        if (document.activeElement === sourceText || DirtyState.isDirty('pm-source-text')) {
+            EditorComponent.saveSourceFile();
+        }
         if (document.activeElement === resultText || DirtyState.isDirty('pm-result-text')) {
             EditorComponent.saveChunkTranslation();
-        } else if (document.activeElement === spellResultText || DirtyState.isDirty('pm-spell-result-text')) {
+        }
+        if (document.activeElement === spellResultText || DirtyState.isDirty('pm-spell-result-text')) {
             EditorComponent.saveSpellcheckResult();
         }
     }

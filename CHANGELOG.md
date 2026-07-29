@@ -4,6 +4,30 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.13.0] - 2026-07-29
+### Sửa lỗi Spellcheck Worker, Tái cấu trúc Header/Bottom Bar & Nâng cấp Search/Replace
+
+**Nâng cấp Giao diện Workspace & Sửa lỗi Soát chính tả:**
+- **Sửa lỗi Spellcheck Worker**: Khắc phục lỗi `NameError` và truyền thiếu `folder_type` trong `SpellcheckProjectFilesUseCase.execute()`, route `webui/routes/projects.py` và frontend `translation-worker.js`.
+- **Tái cấu trúc Header Workspace & Loại bỏ Bottom Bar**:
+  - Di chuyển thông tin tập tin (ký tự, số từ, ước lượng token) từ chân trang lên phía bên phải Header (`#pm-header-file-info`).
+  - Loại bỏ hoàn toàn khối Bottom Bar (`#pm-translation-bottom-bar`, `#pm-spellcheck-bottom-bar`) và checkbox `"Dịch lại từ đầu"`, mở rộng tối đa chiều cao vùng làm việc.
+  - Tự động ẩn/hiện thông tin phù hợp khi chuyển giữa tab Biên tập dịch và Soát chính tả.
+- **Icon Button Dịch lại từ đầu (`#btn-retranslate-file`)**:
+  - Bổ sung nút biểu tượng Dịch lại vào thanh công cụ `pm-result-editor`, mặc định luôn ép AI dịch lại từ đầu (`force_retranslate: true`, xóa checkpoint/cache/TM cũ của 1 file hiện tại).
+  - Cập nhật icon SVG uốn vòng lặp kèm ngôi sao AI lấp lánh khớp chuẩn với yêu cầu thiết kế.
+- **Chuẩn hóa Row Highlight**:
+  - Khắc phục lỗi so sánh object `window.currentProjectFile` khiến class `.active` không được gán khi render.
+  - Thêm phương thức `ProjectManager.highlightActiveFile()` gán ngay class `.active` khi click chọn file trong danh sách.
+  - Chuẩn hóa CSS highlight cho `.active` và `.selected`, giữ nguyên màu nổi bật khi rê chuột (hover).
+- **Nâng cấp Tìm kiếm & Thay thế (Search & Replace)**:
+  - Chuyển đổi backend `batch_replace_in_project` từ `glob("*.txt")` sang `rglob("*")` hỗ trợ tất cả định dạng văn bản (`.txt`, `.md`, `.html`, `.xhtml`, `.xml`, `.json`, ...).
+  - Tương thích ký tự xuống dòng Windows CRLF (`\r\n`) và bỏ qua lỗi mã hóa file non-UTF8.
+  - Bổ sung API `POST /api/projects/<slug>/search-all` giúp thống kê chính xác số kết quả tìm thấy và số file khớp trước khi thay thế.
+  - Tự động lưu file đang làm việc nếu có chỉnh sửa chưa lưu trước khi thay thế hàng loạt.
+
+---
+
 ## [8.12.0] - 2026-07-28
 ### Tích hợp chuyển đổi trực tiếp MD -> EPUB 3 cho plugin Converter
 

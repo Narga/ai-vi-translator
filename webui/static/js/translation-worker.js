@@ -116,9 +116,12 @@ const TranslationWorker = {
     spellcheckSelectedInProject() {
         if (!window.currentProject || window.selectedFiles.size === 0) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
         const files = Array.from(window.selectedFiles);
+        // Xác định folder_type dựa vào mini-tab đang active
+        const activeTab = document.querySelector('.sidebar-mini-tab.active');
+        const folder_type = activeTab && activeTab.id === 'pm-tab-translated' ? 'translated' : 'sources';
         fetch(`/api/projects/${window.currentProject.slug}/spellcheck`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files })
+            body: JSON.stringify({ files, folder_type })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
@@ -127,11 +130,11 @@ const TranslationWorker = {
         });
     },
 
-    spellcheckFileInProject(filename) {
+    spellcheckFileInProject(filename, folder_type = 'sources') {
         if (!window.currentProject) return;
         fetch(`/api/projects/${window.currentProject.slug}/spellcheck`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: [filename] })
+            body: JSON.stringify({ files: [filename], folder_type })
         }).then(r => r.json()).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
@@ -145,6 +148,33 @@ const TranslationWorker = {
         window.selectedFiles.clear();
         window.selectedFiles.add(window.currentProjectFile.name);
         TranslationWorker.spellcheckSelectedInProject();
+    },
+
+    retranslateActiveFile() {
+        if (!window.currentProject || !window.currentProjectFile) {
+            UiHelpers.showToast('Chưa chọn file để dịch!', 'error');
+            return;
+        }
+        const filename = window.currentProjectFile.name;
+        const btn = document.getElementById('btn-retranslate-file');
+        if (btn) { btn.disabled = true; btn.classList.add('spinning'); }
+        UiHelpers.addLog(`Bắt đầu dịch lại từ đầu chương: ${filename}...`, 'info');
+        fetch(`/api/projects/${window.currentProject.slug}/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: [filename], force_retranslate: true })
+        }).then(r => r.json()).then(data => {
+            if (btn) { btn.disabled = false; btn.classList.remove('spinning'); }
+            if (data.error) {
+                UiHelpers.addLog(data.error, 'error');
+            } else {
+                ApiClient.loadTasks();
+                TranslationWorker.connectToProgress(btn, false, data.job_id, 1);
+            }
+        }).catch(e => {
+            if (btn) { btn.disabled = false; btn.classList.remove('spinning'); }
+            UiHelpers.addLog(e.message, 'error');
+        });
     },
 
     connectToProgress(btn = null, isBatch = false, job_id = null, totalFiles = 0) {

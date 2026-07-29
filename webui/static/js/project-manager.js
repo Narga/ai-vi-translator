@@ -472,8 +472,8 @@ const ProjectManager = {
         const spellcheckWs = document.getElementById('pm-spellcheck-workspace');
         const translationToggles = document.querySelectorAll('.pm-toggle-translation');
         const spellcheckToggles = document.querySelectorAll('.pm-toggle-spellcheck');
-        const translationBar = document.getElementById('pm-translation-bottom-bar');
-        const spellcheckBar = document.getElementById('pm-spellcheck-bottom-bar');
+        const headerTransInfo = document.getElementById('pm-header-translation-info');
+        const headerSpellInfo = document.getElementById('pm-header-spellcheck-info');
 
         // Clear all selections when switching tabs
         window.selectedFiles.clear();
@@ -485,8 +485,8 @@ const ProjectManager = {
             if (spellingBtn) spellingBtn.classList.remove('active');
             if (translationWs) translationWs.style.display = '';
             if (spellcheckWs) spellcheckWs.style.display = 'none';
-            if (translationBar) translationBar.style.display = '';
-            if (spellcheckBar) spellcheckBar.style.display = 'none';
+            if (headerTransInfo) headerTransInfo.style.display = '';
+            if (headerSpellInfo) headerSpellInfo.style.display = 'none';
             translationToggles.forEach(el => el.classList.remove('dn'));
             spellcheckToggles.forEach(el => el.classList.add('dn'));
             ProjectManager.renderPmFileList(window.currentProject?.sources || []);
@@ -497,8 +497,8 @@ const ProjectManager = {
             if (spellingBtn) spellingBtn.classList.remove('active');
             if (translationWs) translationWs.style.display = '';
             if (spellcheckWs) spellcheckWs.style.display = 'none';
-            if (translationBar) translationBar.style.display = '';
-            if (spellcheckBar) spellcheckBar.style.display = 'none';
+            if (headerTransInfo) headerTransInfo.style.display = '';
+            if (headerSpellInfo) headerSpellInfo.style.display = 'none';
             translationToggles.forEach(el => el.classList.remove('dn'));
             spellcheckToggles.forEach(el => el.classList.add('dn'));
             ProjectManager.renderPmTranslatedList(window.currentProject?.translated || []);
@@ -509,8 +509,8 @@ const ProjectManager = {
             if (spellingBtn) spellingBtn.classList.add('active');
             if (translationWs) translationWs.style.display = 'none';
             if (spellcheckWs) spellcheckWs.style.display = '';
-            if (translationBar) translationBar.style.display = 'none';
-            if (spellcheckBar) spellcheckBar.style.display = '';
+            if (headerTransInfo) headerTransInfo.style.display = 'none';
+            if (headerSpellInfo) headerSpellInfo.style.display = '';
             translationToggles.forEach(el => el.classList.add('dn'));
             spellcheckToggles.forEach(el => el.classList.remove('dn'));
             ProjectManager.renderPmSpellcheckedList();
@@ -522,8 +522,8 @@ const ProjectManager = {
             if (spellingBtn) spellingBtn.classList.remove('active');
             if (translationWs) translationWs.style.display = '';
             if (spellcheckWs) spellcheckWs.style.display = 'none';
-            if (translationBar) translationBar.style.display = '';
-            if (spellcheckBar) spellcheckBar.style.display = 'none';
+            if (headerTransInfo) headerTransInfo.style.display = '';
+            if (headerSpellInfo) headerSpellInfo.style.display = 'none';
             translationToggles.forEach(el => el.classList.remove('dn'));
             spellcheckToggles.forEach(el => el.classList.add('dn'));
             ProjectManager.renderPmFileList(window.currentProject?.sources || []);
@@ -547,11 +547,12 @@ const ProjectManager = {
 
         el.innerHTML = filtered.map(f => {
             const esc = escapeHtml(f.name);
-            const isActive = window.currentProjectFile === f.name;
+            const isActive = window.currentProjectFile?.name === f.name;
             const checked = window.selectedTranslatedFiles.has(f.name) ? 'checked' : '';
+            const isSelected = window.selectedTranslatedFiles.has(f.name);
             
             return `
-            <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmProjectFile(this.dataset.filename,'translated')">
+            <div class="file-item-compact ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-filename="${esc}" onclick="EditorComponent.loadPmProjectFile(this.dataset.filename,'translated')">
                 <div class="flex items-center gap-2">
                     <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleTranslatedFile(this.closest('.file-item-compact').dataset.filename,this.checked,event)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
@@ -563,6 +564,7 @@ const ProjectManager = {
                         <span>${f.size_display || ''}</span>
                     </div>
                     <div class="file-item-actions">
+                        <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename,'translated')" title="Soát lỗi AI">${Icons.spellcheck}</button>
                         <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Đổi tên">${Icons.rename}</button>
                         <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'translated')" title="Xóa" class="red">${Icons.delete}</button>
                     </div>
@@ -596,7 +598,7 @@ const ProjectManager = {
                 }
                 el.innerHTML = filtered.map(f => {
                     const esc = escapeHtml(f.name);
-                    const isActive = window.currentProjectFile === f.name;
+                    const isActive = window.currentProjectFile?.name === f.name;
                     const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
                     
                     return `
@@ -777,12 +779,18 @@ const ProjectManager = {
             
             document.querySelectorAll('#pm-file-list input[type="checkbox"]').forEach(cb => {
                 const cbName = cb.closest('.file-item-compact').dataset.filename;
-                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) cb.checked = checked;
+                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) {
+                    cb.checked = checked;
+                    cb.closest('.file-item-compact').classList.toggle('selected', checked);
+                }
             });
         } else {
             if (checked) window.selectedFiles.add(name);
             else window.selectedFiles.delete(name);
         }
+        
+        const row = document.querySelector(`#pm-file-list .file-item-compact[data-filename="${CSS.escape(name)}"]`);
+        if (row) row.classList.toggle('selected', checked);
         
         ProjectManager.lastCheckedFileIndex = currentIndex;
         ProjectManager.updateSelectAllButton();
@@ -806,17 +814,30 @@ const ProjectManager = {
                 else window.selectedTranslatedFiles.delete(fn);
             }
             
-            document.querySelectorAll('#pm-translated-file-list input[type="checkbox"]').forEach(cb => {
+            document.querySelectorAll('#pm-file-list input[type="checkbox"]').forEach(cb => {
                 const cbName = cb.closest('.file-item-compact').dataset.filename;
-                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) cb.checked = checked;
+                if (fileNames.indexOf(cbName) >= start && fileNames.indexOf(cbName) <= end) {
+                    cb.checked = checked;
+                    cb.closest('.file-item-compact').classList.toggle('selected', checked);
+                }
             });
         } else {
             if (checked) window.selectedTranslatedFiles.add(filename);
             else window.selectedTranslatedFiles.delete(filename);
         }
+
+        const row = document.querySelector(`#pm-file-list .file-item-compact[data-filename="${CSS.escape(filename)}"]`);
+        if (row) row.classList.toggle('selected', checked);
         
         ProjectManager.lastCheckedTranslatedIndex = currentIndex;
         ProjectManager.updateSelectAllTranslatedButton();
+    },
+
+    highlightActiveFile(filename) {
+        document.querySelectorAll('#pm-file-list .file-item-compact').forEach(el => {
+            const isThisActive = el.dataset.filename === filename;
+            el.classList.toggle('active', isThisActive);
+        });
     },
 
     updateSelectAllButton() {
@@ -1384,13 +1405,14 @@ const ProjectManager = {
         }
         el.innerHTML = sources.map(f => {
             const esc = escapeHtml(f.name);
-            const isActive = window.currentProjectFile === f.name;
+            const isActive = window.currentProjectFile?.name === f.name;
             const checked = window.selectedFiles.has(f.name) ? 'checked' : '';
+            const isSelected = window.selectedFiles.has(f.name);
             const dot = options.getDot ? options.getDot(f, isActive) : '';
             const dirty = options.getDirty ? options.getDirty(f, isActive) : '';
             const actions = options.getActions(f);
             return `
-            <div class="file-item-compact ${isActive ? 'active' : ''}" data-filename="${esc}" onclick="${options.getOnclick()}">
+            <div class="file-item-compact ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''}" data-filename="${esc}" onclick="${options.getOnclick()}">
                 <div class="flex items-center gap-2">
                     <input type="checkbox" ${checked} onclick="event.stopPropagation();ProjectManager.toggleProjectFile(this.closest('.file-item-compact').dataset.filename,this.checked,event)" class="flex-shrink-0">
                     <div class="flex-auto min-width-0">
@@ -1416,7 +1438,7 @@ const ProjectManager = {
             getDot: f => f.has_translation ? '<span class="file-done-dot" title="Đã dịch xong"></span>' : '',
             getActions: () => `
                 <button onclick="event.stopPropagation();TranslationWorker.translateFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Dịch">${Icons.translate}</button>
-                <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename)" title="Soát lỗi AI">${Icons.spellcheck}</button>
+                <button onclick="event.stopPropagation();TranslationWorker.spellcheckFileInProject(this.closest('.file-item-compact').dataset.filename,'sources')" title="Soát lỗi AI">${Icons.spellcheck}</button>
                 <button onclick="event.stopPropagation();ProjectManager.renameProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Đổi tên">${Icons.rename}</button>
                 <button onclick="event.stopPropagation();ProjectManager.deleteProjectFile(this.closest('.file-item-compact').dataset.filename,'sources')" title="Xóa" class="red">${Icons.delete}</button>`
         });

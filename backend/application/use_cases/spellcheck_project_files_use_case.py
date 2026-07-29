@@ -41,6 +41,7 @@ class SpellcheckProjectFilesUseCase:
         self,
         project_dir: Path,
         filenames: List[str],
+        folder_type: str = "sources",
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
@@ -64,13 +65,11 @@ class SpellcheckProjectFilesUseCase:
         ok = fail = 0
 
         for idx, filename in enumerate(filenames, 1):
-            # Ưu tiên tìm trong sources, sau đó là translated
-            file_path = project_dir / "sources" / filename
-            if not file_path.exists():
-                file_path = project_dir / "translated" / filename
+            target_subfolder = "translated" if folder_type == "translated" else "sources"
+            file_path = project_dir / target_subfolder / filename
 
             if not file_path.exists():
-                emit({"type": "info", "message": f"⚠️ Tệp không tồn tại: {filename}"})
+                emit({"type": "info", "message": f"⚠️ Tệp không tồn tại: {filename} (trong {target_subfolder}/)"})
                 fail += 1
                 continue
 

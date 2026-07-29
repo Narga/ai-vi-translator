@@ -28,6 +28,7 @@
                 textareaId: null,
                 currentIndex: -1,
                 matches: [],
+                applyScope: 'current',
                 
                 open(textareaId) {
                     this.textareaId = textareaId;
@@ -96,7 +97,36 @@
                     }
                 },
                 
-                findNext() {
+                async findNext() {
+                    if (this.applyScope === 'all') {
+                        if (!window.currentProject || !this.searchTerm) {
+                            this.statusText = 'Chưa nhập từ khóa';
+                            return;
+                        }
+                        const folderType = this.textareaId === 'pm-source-text' ? 'sources' : 'translated';
+                        this.statusText = 'Đang tìm kiếm trong toàn bộ tập tin...';
+                        try {
+                            const res = await fetch(`/api/projects/${window.currentProject.slug}/search-all`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    folder_type: folderType,
+                                    search_term: this.searchTerm,
+                                    search_mode: this.searchMode
+                                })
+                            }).then(r => r.json());
+
+                            if (res.success) {
+                                this.statusText = `Tìm thấy ${res.total_occurrences} kết quả trong ${res.matched_files} tập tin`;
+                            } else {
+                                this.statusText = 'Lỗi: ' + (res.error || 'Unknown');
+                            }
+                        } catch(e) {
+                            this.statusText = 'Lỗi mạng: ' + e.message;
+                        }
+                        return;
+                    }
+
                     this.buildMatches();
                     if (this.matches.length === 0) {
                         this.statusText = 'Không tìm thấy kết quả';
@@ -167,7 +197,50 @@
                     }
                 },
                 
-                replaceAll() {
+                async replaceAll() {
+                    if (this.applyScope === 'all') {
+                        if (!window.currentProject) {
+                            this.statusText = 'Chưa mở dự án';
+                            return;
+                        }
+                        const folderType = this.textareaId === 'pm-source-text' ? 'sources' : 'translated';
+                        const confirmed = confirm(`Thay thế "${this.searchTerm}" trong TẤT CẢ tập tin ${folderType === 'sources' ? 'nguồn' : 'dịch'}? Không thể hoàn tác.`);
+                        if (!confirmed) return;
+
+                        if (typeof DirtyState !== 'undefined' && DirtyState.isDirty(this.textareaId)) {
+                            if (this.textareaId === 'pm-source-text') EditorComponent.saveSourceFile();
+                            else if (this.textareaId === 'pm-result-text') EditorComponent.saveChunkTranslation();
+                            else if (this.textareaId === 'pm-spell-result-text') EditorComponent.saveSpellcheckResult();
+                        }
+
+                        try {
+                            const res = await fetch(`/api/projects/${window.currentProject.slug}/replace-all`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    folder_type: folderType,
+                                    search_term: this.searchTerm,
+                                    replace_term: this.replaceTerm,
+                                    search_mode: this.searchMode
+                                })
+                            }).then(r => r.json());
+
+                            if (res.success) {
+                                this.statusText = `Đã thay thế ${res.total_occurrences} kết quả trong ${res.replaced_files} tập tin`;
+                                UiHelpers.showToast(this.statusText, 'success');
+                                if (window.currentProjectFile && (folderType === 'sources' || folderType === 'translated')) {
+                                    await EditorComponent.loadPmProjectFile(window.currentProjectFile.name, folderType);
+                                    this.buildMatches();
+                                }
+                            } else {
+                                this.statusText = 'Lỗi: ' + (res.error || 'Unknown');
+                            }
+                        } catch(e) {
+                            this.statusText = 'Lỗi mạng: ' + e.message;
+                        }
+                        return;
+                    }
+
                     const ta = this.getTextarea();
                     if (!ta || !this.searchTerm) return;
                     const original = ta.value;
