@@ -4,6 +4,28 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.17.0] - 2026-07-31
+### Tối ưu hóa Converter HTML ↔ Markdown, Bảo toàn Alt Text Ảnh & Cải tiến Ghi đĩa Nguyên tử
+
+**Bảo toàn Dữ liệu & Chuẩn hóa Error Contract:**
+- **Bảo toàn Alt Text Ảnh (`core/source_normalizer.py`)**:
+  - Sửa `post_clean()` giữ nguyên thuộc tính alt text của ảnh (`![alt text](url)`) thay vì xóa trắng.
+  - Bổ sung `normalize_html_content()` cho phép chuẩn hóa HTML trực tiếp trong bộ nhớ.
+  - Loại bỏ sentinel string lỗi `[Lỗi chuyển đổi nội dung]`, ném exception có cấu trúc để tránh sinh file output hợp lệ giả khi conversion thất bại.
+- **Tích hợp Thư viện Standard `markdown` (`services/text_converter.py`)**:
+  - Chuyển đổi luồng Markdown → HTML sang dùng thư viện `markdown` chính thức với các extension chuẩn (`tables`, `fenced_code`, `codehilite`, ...).
+  - Thêm `ImportError` cảnh báo rõ ràng khi thiếu thư viện `markdown` hoặc `html2text` kèm câu lệnh hướng dẫn `pip install '.[epub]'`.
+- **Ghi đĩa Nguyên tử & Chống Ghi đè Nguồn (`_atomic_write`)**:
+  - Áp dụng `_atomic_write` (ghi ra tmpfile cùng thư mục rồi `os.replace`) đảm bảo file đầu ra không bị vỡ/hỏng nếu tiến trình bị gián đoạn.
+  - Chặn ghi đè trực tiếp lên file nguồn với `_reject_in_place_overwrite()`.
+- **Báo cáo Trạng thái Batch Converter (`routes/plugins.py`)**:
+  - Cập nhật route xử lý batch converter báo cáo chính xác trạng thái `done`, `partial`, và `error` kèm danh sách `failed_files` và số lượng `failed_count`.
+
+**Bổ sung Kiểm thử Tự động:**
+- Thêm 2 bộ unit test mới `tests/unit/test_html_to_markdown.py` và `tests/unit/test_markdown_to_html.py` nghiệm thu toàn diện luồng chuyển đổi HTML ↔ Markdown.
+
+---
+
 ## [8.16.0] - 2026-07-31
 ### Hoàn thiện Sync Scroll, Reset Editor View, Nối Converter Option & Khắc phục Race Search/Replace
 

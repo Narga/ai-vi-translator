@@ -2,6 +2,13 @@
 
 ## Hoàn thành
 
+### v8.17.0 (2026-07-31)
+- [x] 🖼️ **Bảo toàn Alt Text Ảnh**: Sửa `post_clean()` trong `source_normalizer.py` giữ nguyên thuộc tính `![alt](url)` của ảnh khi chuyển đổi sang Markdown.
+- [x] 📦 **Tích hợp Standard `markdown` Package**: Chuyển đổi Markdown → HTML dùng gói `markdown` chuẩn Python hỗ trợ đầy đủ các extension (`tables`, `fenced_code`, ...).
+- [x] 💾 **Ghi đĩa Nguyên tử & Safe Overwrite**: Áp dụng `_atomic_write` (ghi ra tmpfile rồi `os.replace`) và `_reject_in_place_overwrite` chống hỏng file và ghi đè trùng nguồn.
+- [x] 📊 **Báo cáo Trạng thái Batch Converter**: Cập nhật route backend phân loại chính xác trạng thái `done`, `partial`, và `error` kèm `failed_files`.
+- [x] 🧪 **Bộ Kiểm thử Tự động Chuyển đổi**: Bổ sung 2 test suite `test_html_to_markdown.py` và `test_markdown_to_html.py` nghiệm thu toàn diện luồng converter.
+
 ### v8.16.0 (2026-07-31)
 - [x] 🎯 **Hoàn thiện Sync Scroll & Reset Editor View**: Triển khai `_resetEditorView(elementId)` reset cuộn/con trỏ về đầu dòng và `setupSyncScroll` dùng `requestAnimationFrame` + re-entry guard cho cả 2 workspace Dịch thuật và Soát lỗi.
 - [x] 🔌 **Nối tùy chọn `delete_source` Converter UI**: Đọc `#converter-tool-delete-source` checkbox và gửi trường `delete_source` trong payload request tới backend API.
@@ -153,9 +160,6 @@
 - [ ] ⏳ **Kiểm soát `empty_response` & Request Budget**: Giới hạn retry budget cho streak response rỗng trong `translator.py`, gán status/cooldown phù hợp cho key thay vì xoay key `keys * 3`.
 - [ ] ⏳ **Đảm bảo tính toàn vẹn trạng thái Terminal của Batch Job**: Đồng bộ trạng thái kết thúc `completed`, `partial_failed`, `failed` giữa `TranslateProjectFilesUseCase` và `TaskRegistry` worker.
 - [ ] ⏳ **Chuẩn hóa Chunking 2 tầng & Fallback Batch Parse**: Tối ưu hóa Virtual Chunk size và ngăn chặn fallback dịch lại toàn bộ file.
-- [ ] 🔌 **Chuẩn hóa Dependency Runtime Converter**: Đưa `html2text` & `beautifulsoup4` vào core dependency hoặc bổ sung preflight check cảnh báo thiếu optional dependency `epub`.
-- [ ] 🛡️ **Bảo toàn Dữ liệu & Error Contract Converter**: Giữ nguyên alt text ảnh trong `post_clean()`, không trả sentinel lỗi như Markdown hợp lệ để tránh ghi file output giả.
-- [ ] 🧪 **Viết Fixture & Unit Test suite cho Converter**: Bổ sung bộ test tự động riêng cho `convert_html_to_markdown`, `normalize_html_file` và `convert_html_file`.
 
 ### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`

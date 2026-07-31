@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.16.0)
+# 📚 Content Translator (v8.17.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.16.0):** Hoàn thiện cuộn đồng bộ 2 bên (Sync Scroll) và reset vị trí cuộn/con trỏ (`_resetEditorView`); Nối tùy chọn xóa file nguồn (`delete_source`) từ UI Converter; Khắc phục race condition save → replace-all trong Search & Replace; Cập nhật lifecycle file khi refresh project; Sửa bộ test migration cho Spellcheck Engine mới; Dọn dẹp kế hoạch cũ sang `del_` và tổng hợp danh sách tác vụ trong `docs/wip/`.
+**Tính năng mới (v8.17.0):** Nâng cấp Công cụ chuyển đổi HTML ↔ Markdown; Bảo toàn thuộc tính alt text của ảnh trong `post_clean()`; Tích hợp thư viện chuẩn `markdown` với full extension support (`tables`, `fenced_code`); Áp dụng ghi đĩa nguyên tử (`_atomic_write`) chống hỏng file; Chuẩn hóa báo cáo lỗi có cấu trúc và trạng thái batch (`done`, `partial`, `error`); Thêm bộ unit test tự động nghiệm thu toàn diện.
 
 ---
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.16.0  
+**Phiên bản:** 8.17.0  
 **Ngày:** 31/07/2026

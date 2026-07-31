@@ -222,28 +222,43 @@ def run_epub_converter(slug):
 
                 delete_flag = delete_source if task in {"html_to_markdown", "markdown_to_html"} else False
                 outputs = []
+                failed: list[str] = []
                 for filename in filenames:
                     try:
                         input_path = _safe_project_file(project_dir, section, filename)
                         if not input_path.exists() or not input_path.is_file():
                             _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
+                            failed.append(filename)
                             continue
                         output_path = plugin.convert(input_path, task=task, delete_source=delete_flag)
-                        rel_output = output_path.resolve().relative_to(project_dir.resolve())
+                        if output_path is False:
+                            raise RuntimeError("Converter trả về lỗi không xác định")
+                        rel_output = Path(output_path).resolve().relative_to(project_dir.resolve())
                         outputs.append(str(rel_output))
                         _log(f"✅ {filename} → {rel_output}")
                     except Exception as e:
+                        failed.append(filename)
                         _log(f"❌ {filename}: {str(e)}")
 
-                if outputs:
+                if not outputs:
+                    plugin_progress[plugin_id]["status"] = "error"
+                    plugin_progress[plugin_id]["result"] = {"failed_files": failed}
+                elif failed:
+                    plugin_progress[plugin_id]["status"] = "partial"
+                    plugin_progress[plugin_id]["result"] = {
+                        "output_path": outputs[0],
+                        "output_paths": outputs,
+                        "converted_count": len(outputs),
+                        "failed_count": len(failed),
+                        "failed_files": failed,
+                    }
+                else:
                     plugin_progress[plugin_id]["status"] = "done"
                     plugin_progress[plugin_id]["result"] = {
                         "output_path": outputs[0],
                         "output_paths": outputs,
                         "converted_count": len(outputs),
                     }
-                else:
-                    plugin_progress[plugin_id]["status"] = "error"
                 return
 
             if direction == "epub_to_text":

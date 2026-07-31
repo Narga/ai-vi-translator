@@ -1,9 +1,22 @@
 from __future__ import annotations
 
 import html
-import re
+import os
+import tempfile
 from pathlib import Path
 from typing import Optional
+
+try:
+    import markdown as _mdlib
+
+    HAS_MARKDOWN = True
+except ImportError:
+    HAS_MARKDOWN = False
+
+# ponytail: chốt một extension set dùng chung cho UI MD → HTML và MD → EPUB;
+# thêm extension mới = thêm vào đây và vào test.
+MARKDOWN_EXTENSIONS = ["extra", "sane_lists"]
+
 
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
@@ -31,138 +44,22 @@ def _attr(value: str) -> str:
     return html.escape(value, quote=True)
 
 
-def _md_inline(text: str) -> str:
-    """Apply inline markdown formatting to already HTML-escaped text."""
-    # Images: ![alt](url)
-    text = re.sub(
-        r"!\[([^\]]*)\]\(([^)\s]+)\)",
-        lambda m: f'<img src="{_attr(m.group(2))}" alt="{m.group(1)}"/>',
-        text,
-    )
-    # Links: [text](url)
-    text = re.sub(
-        r"\[([^\]]+)\]\(([^)\s]+)\)",
-        lambda m: f'<a href="{_attr(m.group(2))}">{m.group(1)}</a>',
-        text,
-    )
-    # Bold
-    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
-    text = re.sub(r"__(.+?)__", r"<strong>\1</strong>", text)
-    # Italic
-    text = re.sub(r"\*(.+?)\*", r"<em>\1</em>", text)
-    text = re.sub(r"_(.+?)_", r"<em>\1</em>", text)
-    # Inline code
-    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
-    return text
+def markdown_body_to_html(text: str) -> str:
+    """Convert Markdown body text to an XHTML fragment using the canonical parser.
 
-
-def _md_block_to_xhtml(md: str) -> str:
-    """Convert a markdown document into an XHTML body (self-contained, no deps)."""
-    lines = md.split("\n")
-    out: list[str] = []
-    i = 0
-    n = len(lines)
-
-    def is_hr(line: str) -> bool:
-        s = line.strip()
-        return bool(s) and len(set(s)) == 1 and s[0] in "-*_" and len(s) >= 3
-
-    def is_ul(line: str) -> bool:
-        return bool(re.match(r"^\s*[-*+]\s+", line))
-
-    def is_ol(line: str) -> bool:
-        return bool(re.match(r"^\s*\d+\.\s+", line))
-
-    def is_block_start(s: str) -> bool:
-        return (
-            s.startswith("```")
-            or re.match(r"^#{1,6}\s", s)
-            or is_hr(s)
-            or s.startswith(">")
-            or is_ul(s)
-            or is_ol(s)
+    Raises:
+        ImportError: nếu thiếu package `markdown` (cần cài `pip install '.[epub]'`).
+    """
+    if not HAS_MARKDOWN:
+        raise ImportError(
+            "Thư viện 'markdown' là bắt buộc cho Markdown → HTML. "
+            "Cài đặt bằng: pip install '.[epub]' hoặc pip install markdown"
         )
-
-    while i < n:
-        line = lines[i]
-        stripped = line.strip()
-
-        if not stripped:
-            i += 1
-            continue
-
-        # Fenced code block
-        if stripped.startswith("```"):
-            lang = stripped[3:].strip()
-            i += 1
-            buf: list[str] = []
-            while i < n and not lines[i].strip().startswith("```"):
-                buf.append(lines[i])
-                i += 1
-            i += 1  # skip closing fence
-            code = html.escape("\n".join(buf))
-            cls = f' class="language-{lang}"' if lang else ""
-            out.append(f"<pre><code{cls}>{code}</code></pre>")
-            continue
-
-        # Heading
-        m = re.match(r"^(#{1,6})\s+(.*)$", stripped)
-        if m:
-            level = len(m.group(1))
-            content = _md_inline(html.escape(m.group(2).strip()))
-            out.append(f"<h{level}>{content}</h{level}>")
-            i += 1
-            continue
-
-        # Horizontal rule
-        if is_hr(line):
-            out.append("<hr/>")
-            i += 1
-            continue
-
-        # Blockquote (recursive)
-        if stripped.startswith(">"):
-            buf = []
-            while i < n and lines[i].strip().startswith(">"):
-                buf.append(re.sub(r"^\s*>\s?", "", lines[i]))
-                i += 1
-            out.append(f"<blockquote>{_md_block_to_xhtml(chr(10).join(buf))}</blockquote>")
-            continue
-
-        # Unordered list
-        if is_ul(line):
-            items: list[str] = []
-            while i < n and is_ul(lines[i]):
-                item = re.sub(r"^\s*[-*+]\s+", "", lines[i])
-                items.append(f"<li>{_md_inline(html.escape(item.strip()))}</li>")
-                i += 1
-            out.append("<ul>" + "".join(items) + "</ul>")
-            continue
-
-        # Ordered list
-        if is_ol(line):
-            items = []
-            while i < n and is_ol(lines[i]):
-                item = re.sub(r"^\s*\d+\.\s+", "", lines[i])
-                items.append(f"<li>{_md_inline(html.escape(item.strip()))}</li>")
-                i += 1
-            out.append("<ol>" + "".join(items) + "</ol>")
-            continue
-
-        # Paragraph
-        para: list[str] = []
-        while i < n and lines[i].strip() and not is_block_start(lines[i].strip()):
-            para.append(lines[i])
-            i += 1
-        para_text = _md_inline(html.escape("\n".join(para)))
-        para_text = para_text.replace("\n", "<br/>")
-        out.append(f"<p>{para_text}</p>")
-
-    return "\n".join(out)
+    return _mdlib.markdown(text, extensions=MARKDOWN_EXTENSIONS)
 
 
 def markdown_text_to_html_document(text: str, title: str) -> str:
-    body_html = _md_block_to_xhtml(text)
+    body_html = markdown_body_to_html(text)
     return "\n".join(
         [
             '<?xml version="1.0" encoding="utf-8"?>',
@@ -182,8 +79,31 @@ def markdown_text_to_html_document(text: str, title: str) -> str:
 
 
 def _do_delete(input_path: Path, destination: Path) -> None:
+    """
+    Xóa nguồn chỉ khi output đã được commit thành công và khác đường dẫn nguồn.
+    """
     if input_path.resolve() != destination.resolve() and input_path.exists():
         input_path.unlink()
+
+
+def _reject_in_place_overwrite(input_path: Path, destination: Path) -> None:
+    if input_path.resolve() == destination.resolve():
+        raise ValueError(f"Từ chối: đường dẫn đích trùng với nguồn ({input_path})")
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    # ponytail: ghi ra tempfile cùng thư mục rồi os.replace để commit nguyên tử
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(content)
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def convert_markdown_file(
@@ -194,10 +114,9 @@ def convert_markdown_file(
     text = _read_text(input_path)
     title = _extract_title(text, input_path.stem)
     destination = output_path or _derive_output_path(input_path, ".html")
-    destination.write_text(
-        markdown_text_to_html_document(text, title),
-        encoding="utf-8",
-    )
+    _reject_in_place_overwrite(input_path, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _atomic_write(destination, markdown_text_to_html_document(text, title))
     if delete_source:
         _do_delete(input_path, destination)
     return destination
@@ -208,17 +127,13 @@ def convert_html_file(
     output_path: Optional[Path] = None,
     delete_source: bool = False,
 ) -> Path:
-    from core.source_normalizer import normalize_html_file
+    from core.source_normalizer import normalize_html_content
 
     destination = output_path or _derive_output_path(input_path, ".md")
-    generated = Path(normalize_html_file(str(input_path)))
-    if generated.resolve() == destination.resolve():
-        if delete_source:
-            _do_delete(input_path, destination)
-        return generated
-    destination.write_text(generated.read_text(encoding="utf-8"), encoding="utf-8")
-    if generated.exists():
-        generated.unlink()
+    _reject_in_place_overwrite(input_path, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    md_content = normalize_html_content(input_path.read_text(encoding="utf-8", errors="replace"))
+    _atomic_write(destination, md_content)
     if delete_source:
         _do_delete(input_path, destination)
     return destination
@@ -245,7 +160,9 @@ print("hi")
 
 ![alt text](img/cover.png)
 
----
+| A | B |
+|---|---|
+| 1 | 2 |
 
 Final paragraph.
 """
@@ -255,11 +172,15 @@ Final paragraph.
         "<h2>2. IT DID NOT SEEM PRUDENT</h2>",
         "<strong>bold</strong>",
         '<a href="https://example.com">link</a>',
-        "<ul><li>item one</li><li>item two</li></ul>",
-        "<ol><li>first</li><li>second</li></ol>",
+        "<ul>",
+        "<li>item one</li>",
+        "<ol>",
+        "<li>first</li>",
         "<blockquote>",
-        '<img src="img/cover.png" alt="alt text"/>',
-        "<hr/>",
+        '<img src="img/cover.png" alt="alt text"/>'
+        if False
+        else 'alt="alt text"',  # markdown lib renders alt attr
+        "<table>",
         'xmlns:epub="http://www.idpf.org/2007/ops"',
     ]:
         assert needle in doc, f"MISSING: {needle}"

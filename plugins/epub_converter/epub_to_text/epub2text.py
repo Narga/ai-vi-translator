@@ -18,7 +18,12 @@ import sys
 import zipfile
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-import html2text
+
+try:
+    import html2text as _html2text
+    HAS_HTML2TEXT = True
+except ImportError:
+    HAS_HTML2TEXT = False
 
 # --- Phần 1: Các hàm tiện ích ---
 
@@ -56,7 +61,17 @@ def read_zip_text(zf: zipfile.ZipFile, path: str) -> str:
 def convert_html_to_markdown(html_content: str, preserve_underline: bool = False) -> str:
     """
     Chuyển đổi một chuỗi HTML thành Markdown, với tùy chọn bảo toàn thẻ <u>.
+
+    Raises:
+        ImportError: nếu thiếu html2text (cần cài `pip install '.[epub]'`).
+        ValueError: nếu nội dung HTML không thể chuyển đổi.
     """
+    if not HAS_HTML2TEXT:
+        raise ImportError(
+            "Thư viện 'html2text' là bắt buộc cho chuyển đổi HTML → Markdown. "
+            "Cài đặt bằng: pip install '.[epub]' hoặc pip install html2text"
+        )
+
     if not html_content:
         return ""
 
@@ -66,21 +81,20 @@ def convert_html_to_markdown(html_content: str, preserve_underline: bool = False
         html_content = html_content.replace("<u>", "__U_START__")
         html_content = html_content.replace("</u>", "__U_END__")
 
-    h = html2text.HTML2Text()
+    h = _html2text.HTML2Text()
     h.body_width = 0  # Vô hiệu hóa việc tự động xuống dòng
     h.mark_code = True
-    
+
     try:
         markdown = h.handle(html_content)
     except Exception as e:
-        print(f"Lỗi trong quá trình chuyển đổi HTML sang Markdown: {e}", file=sys.stderr)
-        return "[Lỗi chuyển đổi nội dung]"
+        raise ValueError(f"Lỗi chuyển đổi HTML → Markdown: {e}") from e
 
     # Khôi phục lại thẻ <u> nếu cần
     if preserve_underline:
         markdown = markdown.replace("__U_START__", "<u>")
         markdown = markdown.replace("__U_END__", "</u>")
-        
+
     return markdown
 
 # --- Phần 2: Logic phân tích và trích xuất EPUB ---
@@ -199,6 +213,14 @@ def get_content_files(zf: zipfile.ZipFile, opf_path: str, include_nonspine: bool
 
 def convert_epub(args):
     """Hàm chính điều khiển toàn bộ quá trình chuyển đổi."""
+    if not HAS_HTML2TEXT:
+        print(
+            "Lỗi: Thiếu thư viện 'html2text'. "
+            "Cài đặt bằng: pip install '.[epub]' hoặc pip install html2text",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     print(f"Bắt đầu xử lý tệp: {args.epub_path}")
     ensure_dir(args.out_dir)
 
@@ -225,8 +247,13 @@ def convert_epub(args):
                 print(f"Chuyển đổi {i+1}/{total_files} ({progress:.0f}%) -> {internal_path}")
                 
                 html = read_zip_text(zf, internal_path)
-                markdown = convert_html_to_markdown(html, args.underline)
-                
+                try:
+                    markdown = convert_html_to_markdown(html, args.underline)
+                except (ValueError, ImportError) as e:
+                    # ponytail: fail-fast, không ghi sentinel lỗi vào output
+                    print(f"  ❌ LỖI chuyển đổi {internal_path}: {e}", file=sys.stderr)
+                    raise SystemExit(1) from e
+
                 file_info['content'] = markdown
                 all_content_data.append(file_info)
 
