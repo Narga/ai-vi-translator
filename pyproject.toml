@@ -21,6 +21,7 @@ classifiers = [
 
 dependencies = [
     "google-genai>=1.0.0",
+    "openai>=1.0.0",
     "chardet",
     "tqdm",
     "python-dotenv",

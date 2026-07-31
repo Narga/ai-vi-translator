@@ -101,7 +101,7 @@ def get_project_prompts(slug):
     if not pdir or not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    project_prompts = _prompt_service.load_project_prompts(pdir)
+    project_prompts = _prompt_service.load_merged_prompts(pdir)
     status = _prompt_service.get_project_prompt_status(pdir)
     is_custom = any(status.values())
     return jsonify({**project_prompts, "is_custom": is_custom, "status": status})

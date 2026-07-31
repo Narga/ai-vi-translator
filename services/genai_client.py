@@ -88,16 +88,17 @@ class GenAIClient:
             Tuple[Optional[str], str]: (content, status)
         """
         model_name = model or self.default_model
-        curr_thinking = thinking_level or self.thinking_level
+        curr_thinking = (thinking_level or self.thinking_level or "MEDIUM").strip()
 
         try:
-            # Config tối ưu cho Gemini 3
             generation_config: Dict[str, Any] = {
                 "temperature": temperature,
             }
 
-            # Chỉ thêm thinking config cho model hỗ trợ (Gemini 3)
-            if "gemini-3" in model_name.lower():
+            # Kiểm tra tùy chọn OFF / NONE / DISABLED để tắt hẳn thinking_config
+            is_thinking_off = curr_thinking.upper() in ("OFF", "NONE", "DISABLED", "FALSE", "0")
+
+            if not is_thinking_off:
                 generation_config["thinking_config"] = {"thinking_level": curr_thinking}
 
             response = self._client.models.generate_content(
@@ -108,6 +109,31 @@ class GenAIClient:
 
             if response and response.text:
                 return response.text.strip(), "success"
+
+            # Fallback: đọc parts thủ công (tránh bỏ sót khi response.text = None)
+            if response and response.candidates:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    # Ưu tiên lấy text part không phải thought
+                    text_parts = [
+                        p.text for p in candidate.content.parts
+                        if p.text and not getattr(p, "thought", False)
+                    ]
+                    # Nếu không có text_parts riêng, lấy tất cả parts có chứa text
+                    if not text_parts:
+                        text_parts = [p.text for p in candidate.content.parts if p.text]
+
+                    combined = "".join(text_parts).strip()
+                    if combined:
+                        self.logger.debug(
+                            "response.text was None but parts fallback succeeded"
+                        )
+                        return combined, "success"
+
+                    self.logger.warning(
+                        f"response has {len(candidate.content.parts)} parts "
+                        f"but all are empty. model={model_name}, thinking_off={is_thinking_off}"
+                    )
             return None, "empty_response"
 
         except Exception as e:

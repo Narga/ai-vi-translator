@@ -59,7 +59,7 @@
                     <div class="flex">
                         <button class="workspace-sub-tab" :class="{ 'active': $store.workspace.wsTab === 'editor' }" x-on:click="$store.workspace.wsTab = 'editor'">Biên tập</button>
                         <button class="workspace-sub-tab" :class="{ 'active': $store.workspace.wsTab === 'info' }" x-on:click="$store.workspace.wsTab = 'info'; ProjectManager.showPmInfoTab('style-guide')">Thông tin</button>
-                        <button class="workspace-sub-tab" :class="{ 'active': $store.workspace.wsTab === 'prompt' }" x-on:click="$store.workspace.wsTab = 'prompt'; PromptManager.loadProjectPrompts()">Chỉ dẫn</button>
+                        <button class="workspace-sub-tab" :class="{ 'active': $store.workspace.wsTab === 'prompt' }" x-on:click="$store.workspace.wsTab = 'prompt'; PromptManager.loadProjectPrompts(); ProjectManager.showPmPromptTab('main')">Chỉ dẫn</button>
                         <!-- Plugin Dynamic Tabs -->
                         <div id="pm-plugin-workspace-tabs" class="flex"></div>
                     </div>
@@ -236,6 +236,7 @@
 
                     {% include 'partials/workspace_ebook_kit.html' %}
                 </div>
+            </div>
 
 
             <!-- TAB THÔNG TIN -->
@@ -445,7 +446,6 @@
 <div class="mt2 f7 gray min-h-1" x-text="statusText"></div>
         </div>
     </div>
-</div>
 
     <!-- MODALBOX: TẠO DỰ ÁN MỚI -->
     <div id="modal-create-project" class="fixed absolute--fill flex items-center justify-center" style="display: none !important; background: rgba(0,0,0,0.5); z-index: var(--z-modal-top, 10000);" onclick="ProjectManager.closeCreateProjectModal()">

@@ -130,10 +130,12 @@ def process_book_directory(directory: Path, use_markdown: bool, split_chapters: 
 
     # 4. Đóng gói EPUB
     print(f"\n[4/4] Đang đóng gói thành tệp EPUB...")
-    create_epub(directory, metadata, all_xhtml_files, all_chapter_titles)
-    
-    shutil.rmtree(output_dir_temp)
-    print(f"\n -> Đã dọn dẹp thư mục tạm: '{output_dir_temp}'")
+    try:
+        create_epub(directory, metadata, all_xhtml_files, all_chapter_titles)
+    finally:
+        if output_dir_temp.exists():
+            shutil.rmtree(output_dir_temp)
+            print(f"\n -> Đã dọn dẹp thư mục tạm: '{output_dir_temp}'")
     
     print(f"\n=============================================")
     print(f" TẤT CẢ HOÀN TẤT!")

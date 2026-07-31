@@ -80,6 +80,7 @@ def run_epub_converter(slug):
     data = request.json or {}
     direction = data.get("direction", "epub_to_text")
     task = data.get("task")
+    delete_source = bool(data.get("delete_source", False))
     plugin_id = str(uuid.uuid4())[:8]
 
     plugin_progress[plugin_id] = {"status": "running", "messages": [], "result": None, "updated_at": time.time()}
@@ -124,47 +125,58 @@ def run_epub_converter(slug):
                     from plugins.epub_converter.services.project_epub import create_project_epub
 
                     source_paths = []
-                    for filename in filenames:
-                        try:
-                            input_path = _safe_project_file(project_dir, section, filename)
-                            if not input_path.exists() or not input_path.is_file():
-                                _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
-                                continue
-                            if input_path.suffix.lower() != ".md":
-                                _log(f"⚠️ Bỏ qua file không phải Markdown: {section}/{filename}")
-                                continue
-                            output_path = convert_markdown_file(input_path)
-                            rel_output = output_path.resolve().relative_to(project_dir.resolve())
-                            source_paths.append(output_path)
-                            _log(f"✅ {filename} → {rel_output}")
-                        except Exception as e:
-                            _log(f"❌ {filename}: {str(e)}")
+                    generated_html_files = []
+                    try:
+                        for filename in filenames:
+                            try:
+                                input_path = _safe_project_file(project_dir, section, filename)
+                                if not input_path.exists() or not input_path.is_file():
+                                    _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
+                                    continue
+                                if input_path.suffix.lower() != ".md":
+                                    _log(f"⚠️ Bỏ qua file không phải Markdown: {section}/{filename}")
+                                    continue
+                                output_path = convert_markdown_file(input_path)
+                                rel_output = output_path.resolve().relative_to(project_dir.resolve())
+                                source_paths.append(output_path)
+                                generated_html_files.append(output_path)
+                                _log(f"✅ {filename} → {rel_output}")
+                            except Exception as e:
+                                _log(f"❌ {filename}: {str(e)}")
 
-                    if not source_paths:
-                        plugin_progress[plugin_id]["status"] = "error"
-                        return
+                        if not source_paths:
+                            plugin_progress[plugin_id]["status"] = "error"
+                            return
 
-                    project_meta_path = project_dir / "project.json"
-                    project_meta = {}
-                    if project_meta_path.is_file():
-                        try:
-                            project_meta = json.loads(project_meta_path.read_text(encoding="utf-8"))
-                        except Exception as e:
-                            _log(f"⚠️ Không đọc được metadata dự án, dùng fallback tối thiểu: {str(e)}")
+                        project_meta_path = project_dir / "project.json"
+                        project_meta = {}
+                        if project_meta_path.is_file():
+                            try:
+                                project_meta = json.loads(project_meta_path.read_text(encoding="utf-8"))
+                            except Exception as e:
+                                _log(f"⚠️ Không đọc được metadata dự án, dùng fallback tối thiểu: {str(e)}")
 
-                    result = create_project_epub(project_dir, slug, section, source_paths, project_meta)
-                    rel_output = result.output_path.resolve().relative_to(project_dir.resolve())
-                    for included_file in result.included_files:
-                        _log(f"✅ Đã đóng gói: {included_file}")
-                    for skipped_file in result.skipped_files:
-                        _log(f"⚠️ Bỏ qua định dạng không hỗ trợ: {skipped_file}")
-                    _log(f"📦 EPUB đã tạo tại: {rel_output}")
-                    plugin_progress[plugin_id]["status"] = "done"
-                    plugin_progress[plugin_id]["result"] = {
-                        "output_path": str(rel_output),
-                        "converted_count": result.chapter_count,
-                        "skipped_count": len(result.skipped_files),
-                    }
+                        result = create_project_epub(project_dir, slug, section, source_paths, project_meta)
+                        rel_output = result.output_path.resolve().relative_to(project_dir.resolve())
+                        for included_file in result.included_files:
+                            _log(f"✅ Đã đóng gói: {included_file}")
+                        for skipped_file in result.skipped_files:
+                            _log(f"⚠️ Bỏ qua định dạng không hỗ trợ: {skipped_file}")
+                        _log(f"📦 EPUB đã tạo tại: {rel_output}")
+                        plugin_progress[plugin_id]["status"] = "done"
+                        plugin_progress[plugin_id]["result"] = {
+                            "output_path": str(rel_output),
+                            "converted_count": result.chapter_count,
+                            "skipped_count": len(result.skipped_files),
+                        }
+                    finally:
+                        for html_path in generated_html_files:
+                            try:
+                                if html_path.is_file():
+                                    html_path.unlink()
+                                    _log(f"🗑️ Đã xóa file HTML trung gian: {html_path.name}")
+                            except Exception as e:
+                                _log(f"⚠️ Không thể xóa file HTML trung gian {html_path.name}: {e}")
                     return
 
                 if task == "create_epub":
@@ -208,6 +220,7 @@ def run_epub_converter(slug):
                     }
                     return
 
+                delete_flag = delete_source if task in {"html_to_markdown", "markdown_to_html"} else False
                 outputs = []
                 for filename in filenames:
                     try:
@@ -215,7 +228,7 @@ def run_epub_converter(slug):
                         if not input_path.exists() or not input_path.is_file():
                             _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
                             continue
-                        output_path = plugin.convert(input_path, task=task)
+                        output_path = plugin.convert(input_path, task=task, delete_source=delete_flag)
                         rel_output = output_path.resolve().relative_to(project_dir.resolve())
                         outputs.append(str(rel_output))
                         _log(f"✅ {filename} → {rel_output}")

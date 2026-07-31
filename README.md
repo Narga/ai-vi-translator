@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.12.0)
+# 📚 Content Translator (v8.15.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.12.0):** Tích hợp tính năng chuyển đổi trực tiếp `MD -> EPUB 3` vào plugin Converter. Thêm nút bấm mới trên UI, tự động chuyển đổi file MD sang HTML trung gian rồi đóng gói thành EPUB 3 mà không cần qua nhiều bước thủ công.
+**Tính năng mới (v8.15.0):** Hợp nhất Engine Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`), xóa bỏ 2 module thừa `spellcheck_executor.py` và `spellchecker.py`; Thêm tùy chọn xóa file nguồn sau chuyển đổi MD ↔ HTML & dọn file HTML trung gian khi xuất EPUB 3; Nâng cấp API Search & Replace toàn bộ dự án (`search-all`, `replace-all` quét `rglob(*)`); Tối ưu Editor (reset vị trí cuộn/con trỏ về đầu dòng, sync scroll mượt mà, icon button Retranslate force retranslate); Tổng hợp dọn dẹp tài liệu `docs/wip/` và bổ sung `.gitignore`.
 
 ---
 

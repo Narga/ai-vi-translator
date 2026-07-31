@@ -152,6 +152,10 @@ class AppConfigService:
             "PROCESSING", "CONTEXT_CHAR_COUNT", fallback=500, value_type=int
         )
 
+    def get_thinking_level(self) -> str:
+        """Lấy thinking level cho Gemini API (OFF/MINIMAL/LOW/MEDIUM/HIGH)."""
+        return self.get("MODEL", "THINKING_LEVEL", fallback="MEDIUM")
+
     def get_active_provider(self) -> str:
         """Lấy active AI provider (gemini hoặc openai). Delegate sang ProviderService."""
         from backend.infrastructure.providers.provider_service import ProviderService

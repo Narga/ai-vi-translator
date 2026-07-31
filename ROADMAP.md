@@ -2,6 +2,22 @@
 
 ## Hoàn thành
 
+### v8.15.0 (2026-07-31)
+- [x] ⚡ Hợp nhất luồng Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`), tái sử dụng 100% cơ sở hạ tầng dịch thuật và dọn dẹp 2 module thừa (`spellcheck_executor.py`, `spellchecker.py`)
+- [x] 🔌 Bổ sung tùy chọn xóa file nguồn sau khi chuyển đổi `MD ↔ HTML` và tự động dọn dẹp các tệp HTML trung gian khi xuất `MD → EPUB 3`
+- [x] 🔍 Nâng cấp API Search & Replace đệ quy toàn bộ dự án (`search-all`, `replace-all` qua `rglob("*")`), tương thích xuống dòng Windows CRLF (`\r\n`)
+- [x] 🎯 Tối ưu hóa UI Editor: Tự động cuộn/đặt con trỏ về đầu dòng khi mở file, sync scroll 2 bên không kẹt focus, nút Retranslate force retranslate
+- [x] 🧹 Dọn dẹp tài liệu `docs/wip/`: Hợp nhất kế hoạch vào `del_plan_2026-07-31_merged_technical_report.md`, tổng hợp `del_DONE_TASKS.md` & `del_PENDING_TASKS.md`
+- [x] 🛡️ Cập nhật `.gitignore` bổ sung các thư mục tạm `.kiro/` phát sinh từ IDE
+
+### v8.14.0 (2026-07-29)
+- [x] 🎯 Reset con trỏ và vị trí cuộn về dòng đầu tiên (`scrollTop = 0`, `setSelectionRange(0, 0)`) mỗi khi nạp file mới vào Editor
+- [x] 🔄 Đồng bộ cuộn 2 bên (Sync Scroll) dùng cờ reentry guard kết hợp `requestAnimationFrame` cho tab Dịch thuật và Soát lỗi
+- [x] ⚡ Hợp nhất luồng Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`), tái sử dụng 100% cơ sở hạ tầng dịch thuật
+- [x] 🗑️ Xóa bỏ triệt để 2 module thừa `core/spellcheck_executor.py` và `plugins/spellcheck/spellchecker.py`
+- [x] 🧹 Tự động xóa các file `.html` trung gian và thư mục tạm `temp_html` sau khi đóng gói `MD → EPUB 3`
+- [x] 🔄 Đồng bộ làm mới dự án và dọn dẹp nội dung editor khi xóa file đang mở trong `ProjectManager`
+
 ### v8.13.0 (2026-07-29)
 - [x] 🐛 Sửa lỗi Spellcheck Worker (`NameError` và thiếu `folder_type` khi soát lỗi file dịch)
 - [x] ⬆️ Di chuyển thông tin tập tin (ký tự, từ, token) lên phía bên phải Header Workspace
@@ -126,10 +142,13 @@
 ## Đang phát triển / Sắp tới (Kế hoạch dọn dẹp & Tối ưu hóa)
 
 ### Việc cần làm ngay (Mức độ ưu tiên cao)
-- [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
-- [ ] ⚙️ Dọn sạch các key cấu hình chết (`THINKING_LEVEL`, `REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
+- [ ] ⏳ **Kiểm soát `empty_response` & Request Budget**: Giới hạn retry budget cho streak response rỗng trong `translator.py`, gán status/cooldown phù hợp cho key thay vì xoay key `keys * 3`.
+- [ ] ⏳ **Đảm bảo tính toàn vẹn trạng thái Terminal của Batch Job**: Đồng bộ trạng thái kết thúc `completed`, `partial_failed`, `failed` giữa `TranslateProjectFilesUseCase` và `TaskRegistry` worker.
+- [ ] ⏳ **Chuẩn hóa Chunking 2 tầng & Fallback Batch Parse**: Tối ưu hóa Virtual Chunk size và ngăn chặn fallback dịch lại toàn bộ file.
 
 ### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
+- [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
+- [ ] ⚙️ Dọn sạch các key cấu hình chết (`THINKING_LEVEL`, `REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)
 - [ ] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py`
 - [ ] 🧹 Thu gọn mã nguồn (Shrink) bằng cách xóa bỏ các hàm/phương thức chết trong `checkpoint_service.py`, `emergency_stop.py`, `translation_memory.py` và `webui_progress_bridge.py`

@@ -181,9 +181,15 @@ def markdown_text_to_html_document(text: str, title: str) -> str:
     )
 
 
+def _do_delete(input_path: Path, destination: Path) -> None:
+    if input_path.resolve() != destination.resolve() and input_path.exists():
+        input_path.unlink()
+
+
 def convert_markdown_file(
     input_path: Path,
     output_path: Optional[Path] = None,
+    delete_source: bool = False,
 ) -> Path:
     text = _read_text(input_path)
     title = _extract_title(text, input_path.stem)
@@ -192,22 +198,29 @@ def convert_markdown_file(
         markdown_text_to_html_document(text, title),
         encoding="utf-8",
     )
+    if delete_source:
+        _do_delete(input_path, destination)
     return destination
 
 
 def convert_html_file(
     input_path: Path,
     output_path: Optional[Path] = None,
+    delete_source: bool = False,
 ) -> Path:
     from core.source_normalizer import normalize_html_file
 
     destination = output_path or _derive_output_path(input_path, ".md")
     generated = Path(normalize_html_file(str(input_path)))
     if generated.resolve() == destination.resolve():
+        if delete_source:
+            _do_delete(input_path, destination)
         return generated
     destination.write_text(generated.read_text(encoding="utf-8"), encoding="utf-8")
     if generated.exists():
         generated.unlink()
+    if delete_source:
+        _do_delete(input_path, destination)
     return destination
 
 

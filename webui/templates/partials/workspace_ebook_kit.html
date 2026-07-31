@@ -1,5 +1,5 @@
 <!-- Converter Tool Workspace -->
-<div x-show="$store.workspace.wsTab === 'ebook-kit'" class="flex-auto flex flex-column overflow-hidden pa3" style="display: none;" x-cloak>
+<div x-show="$store.workspace.wsTab === 'ebook-kit'" class="flex-auto flex flex-column overflow-hidden pa3">
     <div class="flex-auto ba b--black-10 br3 bg-white shadow-sm overflow-hidden flex flex-column">
         <div class="pa3 bb b--black-10 bg-near-white">
             <h2 class="f4 mt0 mb1 fw6 dark-gray">Công cụ chuyển đổi</h2>
@@ -28,6 +28,13 @@
             <button id="btn-convert-html-to-md" class="pointer ph3 pv2 bn white bg-dark-green br2 fw6 shadow-1 hover-bg-green f6" onclick="ConverterToolPlugin.runHtmlToMarkdown()">
                 HTML → .MD
             </button>
+        </div>
+
+        <div class="pa3 bb b--black-10 bg-near-white">
+            <label class="f7 dark-gray pointer flex items-center">
+                <input type="checkbox" id="converter-tool-delete-source" class="mr2 pointer">
+                Xóa file nguồn sau khi chuyển đổi <span class="gray ml1">(Chỉ áp dụng cho MD &lt;-&gt; HTML)</span>
+            </label>
         </div>
 
         <div class="pa3 bb b--black-10">

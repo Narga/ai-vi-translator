@@ -4,6 +4,7 @@
 
 import copy
 import logging
+import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Callable, List, Optional
@@ -260,6 +261,159 @@ class TranslationExecutor:
             if progress_callback:
                 progress_callback({"type": "error", "message": f"Không thể đọc file {filepath.name}: {e}"})
             return None
+
+    def spellcheck_text(
+        self,
+        text: str,
+        output_filename: str = "spellchecked",
+        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    ) -> Optional[tuple]:
+        """
+        Soát lỗi chính tả cho toàn bộ văn bản, tái dùng hoàn toàn:
+        - process_text_for_chunking (cùng chunker)
+        - CheckpointService (key phân biệt bằng prefix 'spell:')
+        - ApiManager & robust_translate (cùng client pool, xoay vòng key)
+
+        Khác biệt duy nhất so với translate_text:
+        - Prompt lấy từ self.prompts['chinh_ta'] (fallback 'main')
+        - Kết quả mỗi chunk được tách qua _parse_spellcheck_chunk
+
+        Returns:
+            Tuple[clean_text, error_log] hoặc None nếu thất bại.
+        """
+        def emit(event_type: str, **kwargs) -> None:
+            if progress_callback:
+                progress_callback({"type": event_type, **kwargs})
+
+        ui_log_handler = ProgressLogHandler(emit)
+        logging.root.addHandler(ui_log_handler)
+
+        try:
+            from backend.infrastructure.progress.runtime_state import RuntimeState
+            RuntimeState().reset_cancel()
+
+            emit("progress", percent=5, message="Đang chia nhỏ văn bản để soát lỗi...")
+            chunk_size = self.config.get("chunk_size", 22000)
+            chunks = process_text_for_chunking(
+                text, min_chars=chunk_size - 2000, max_chars=chunk_size
+            )
+            emit("info", message=f"Đã chia thành {len(chunks)} chunks")
+            emit("progress", percent=10, message=f"Đã chia thành {len(chunks)} chunks")
+
+            # Checkpoint key phân biệt với translate bằng prefix “spell:”
+            ck_key = f"spell:{output_filename}"
+
+            if not self.force_retranslate:
+                resume_info = self.checkpoint_service.get_resume_info(ck_key)
+                if resume_info and resume_info.get("total_chunks") == len(chunks):
+                    start_index = resume_info.get("next_chunk_index", 0)
+                    done_chunks = self.checkpoint_service.get_translated_chunks(ck_key)
+                    emit("info", message=f"Resume soát lỗi từ chunk {start_index + 1}/{len(chunks)}")
+                else:
+                    start_index = 0
+                    done_chunks = {}
+                    self.checkpoint_service.init_session(ck_key, len(chunks), chunks)
+            else:
+                self.checkpoint_service.cleanup(ck_key)
+                self.checkpoint_service.init_session(ck_key, len(chunks), chunks)
+                start_index = 0
+                done_chunks = {}
+
+            clean_parts: Dict[int, str] = {}
+            log_parts: Dict[int, str] = {}
+
+            # Khôi phục kết quả từ checkpoint (nếu resume)
+            for idx, raw in done_chunks.items():
+                clean, log = self._parse_spellcheck_chunk(raw)
+                clean_parts[idx] = clean
+                log_parts[idx] = f"--- Đoạn {idx + 1} ---\n{log}" if log else ""
+
+            spellcheck_prompt = self.prompts.get("chinh_ta", self.prompts.get("main", ""))
+
+            for i in range(start_index, len(chunks)):
+                from backend.infrastructure.progress.runtime_state import RuntimeState
+                if RuntimeState().is_cancelled():
+                    emit("info", message="Đã dừng theo yêu cầu")
+                    break
+
+                base_percent = 10 + int((i / len(chunks)) * 90)
+                emit("progress", current=i + 1, total=len(chunks),
+                     percent=base_percent + 2,
+                     message=f"Đang gửi đoạn {i + 1}/{len(chunks)} đến AI...")
+
+                # robust_translate đã được import ở đầu file, tái dùng trực tiếp
+                result, status, api_key_used = robust_translate(
+                    original_chunk=chunks[i],
+                    api_manager=self.api_manager,
+                    prompts={"main": spellcheck_prompt},
+                    config_params=self.config,
+                    previous_chunk_context="",
+                )
+
+                if status != "success" or not result:
+                    emit("error", message=f"Soát lỗi thất bại tại đoạn {i + 1}: {status}")
+                    clean_parts[i] = chunks[i]  # Giữ nguyên nếu lỗi
+                    log_parts[i] = f"--- Đoạn {i + 1} ---\nLỗi API: {status}"
+                    continue
+
+                clean, log = self._parse_spellcheck_chunk(result)
+                clean_parts[i] = clean
+                log_parts[i] = f"--- Đoạn {i + 1} ---\n{log}" if log else ""
+
+                # Lưu kết quả thô vào checkpoint (để resume có thể parse lại)
+                self.checkpoint_service.save_chunk(
+                    filename=ck_key,
+                    chunk_index=i,
+                    original_text=chunks[i],
+                    translated_text=result,
+                    api_key_used=api_key_used,
+                )
+
+                emit("progress", current=i + 1, total=len(chunks),
+                     percent=int(((i + 1) / len(chunks)) * 90 + 10),
+                     message=f"✅ Soát lỗi đoạn {i + 1}/{len(chunks)} thành công!")
+
+            full_clean = "\n".join(clean_parts.get(i, "") for i in range(len(chunks)))
+            full_log = "\n\n".join(log_parts.get(i, "") for i in range(len(chunks)) if log_parts.get(i))
+
+            self.checkpoint_service.cleanup(ck_key)
+
+            emit("complete", message="Soát lỗi hoàn tất!",
+                 clean_length=len(full_clean), errors=full_log.count("---"))
+
+            return full_clean, full_log
+
+        except Exception as e:
+            logger.error(f"Spellcheck execution error: {e}", exc_info=True)
+            emit("error", message=f"Lỗi: {e}")
+            return None
+        finally:
+            logging.root.removeHandler(ui_log_handler)
+
+    @staticmethod
+    def _parse_spellcheck_chunk(result: str) -> tuple:
+        """
+        Tách kết quả AI thành (văn_bản_sạch, bảng_log_lỗi).
+        Dấu phân cách: dòng '---' đứng một mình, hoặc heading Bảng/Log.
+        Trả về (result, '') nếu không tìm thấy phân cách.
+        """
+        for pattern in [r"\n---\n", r"\n===\n", r"\n#+ Bảng", r"\n#+ Log"]:
+            parts = re.split(pattern, result, maxsplit=1, flags=re.IGNORECASE)
+            if len(parts) == 2:
+                return parts[0].strip(), parts[1].strip()
+
+        # Fallback: tìm bảng Markdown
+        lines = result.split("\n")
+        clean, log = [], []
+        in_log = False
+        for line in lines:
+            if not in_log and "|" in line and ("---" in line or "Từ gốc" in line):
+                in_log = True
+            (log if in_log else clean).append(line)
+
+        if log:
+            return "\n".join(clean).strip(), "\n".join(log).strip()
+        return result.strip(), ""
 
     # ------------------------------------------------------------------
     # Private helpers

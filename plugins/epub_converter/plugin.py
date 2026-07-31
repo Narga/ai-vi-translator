@@ -78,11 +78,12 @@ class Plugin(ConverterPlugin):
         """
         try:
             task = options.get('task')
+            delete_source = options.get('delete_source', False)
             if task == 'html_to_markdown':
-                return self._html_to_markdown(input_path, output_path)
+                return self._html_to_markdown(input_path, output_path, delete_source=delete_source)
 
             if task == 'markdown_to_html':
-                return self._markdown_to_html(input_path, output_path)
+                return self._markdown_to_html(input_path, output_path, delete_source=delete_source)
 
             if output_path is None:
                 default_out = self.config.get('out_dir', 'workspace/output')
@@ -113,18 +114,18 @@ class Plugin(ConverterPlugin):
             self.logger.error(f"Conversion failed: {e}", exc_info=True)
             return False
 
-    def _html_to_markdown(self, input_path: Path, output_path: Path = None) -> Path:
+    def _html_to_markdown(self, input_path: Path, output_path: Path = None, delete_source: bool = False) -> Path:
         try:
-            result = convert_html_file(input_path, output_path)
+            result = convert_html_file(input_path, output_path, delete_source=delete_source)
             self.logger.info(f"Converted {input_path} → {result}")
             return result
         except Exception as e:
             self.logger.error(f"HTML to Markdown failed: {e}")
             raise
 
-    def _markdown_to_html(self, input_path: Path, output_path: Path = None) -> Path:
+    def _markdown_to_html(self, input_path: Path, output_path: Path = None, delete_source: bool = False) -> Path:
         try:
-            result = convert_markdown_file(input_path, output_path)
+            result = convert_markdown_file(input_path, output_path, delete_source=delete_source)
             self.logger.info(f"Converted {input_path} → {result}")
             return result
         except Exception as e:

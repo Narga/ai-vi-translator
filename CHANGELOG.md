@@ -4,6 +4,56 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.15.0] - 2026-07-31
+### Release Review, Hợp nhất Engine Soát lỗi AI, Nâng cấp Converter & Tối ưu Giao diện Editor
+
+**Cải tiến Mã nguồn Backend & Engine AI:**
+- **Hợp nhất luồng Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`)**:
+  - Thêm phương thức `spellcheck_text` và `@staticmethod _parse_spellcheck_chunk` trực tiếp vào `TranslationExecutor`.
+  - Tái sử dụng 100% cơ chế chunking, SQLite checkpointing (`spell:{filename}`), xoay vòng API key pool và event log của engine dịch.
+  - Xóa bỏ triệt để 2 module cũ `core/spellcheck_executor.py` và `plugins/spellcheck/spellchecker.py`.
+  - Sửa `SpellcheckProjectFilesUseCase` truyền chính xác `folder_type` (`sources` hoặc `translated`), loại bỏ lỗi duplicate event log (`double-emit`).
+- **Nâng cấp Công cụ chuyển đổi (Converter Tool)**:
+  - Thêm tùy chọn `delete_source` (Xóa file nguồn sau khi chuyển đổi MD ↔ HTML) trên giao diện `workspace_ebook_kit.html` và truyền xuống `webui/routes/plugins.py`.
+  - Tự động xóa sạch các file `.html` trung gian và thư mục tạm `temp_html` sau khi xuất `MD → EPUB 3`.
+- **Nâng cấp Tìm kiếm & Thay thế toàn bộ dự án (Search & Replace)**:
+  - Thêm 2 API mới `POST /api/projects/<slug>/search-all` và `POST /api/projects/<slug>/replace-all` hỗ trợ quét đệ quy `rglob("*")` mọi loại tập tin văn bản.
+  - Xử lý tương thích dòng xuống Windows CRLF (`\r\n`) và bỏ qua lỗi mã hóa file non-UTF8.
+- **Cải tiến WebUI & Editor Component**:
+  - **Reset Editor View**: Tự động đưa vị trí cuộn `scrollTop = 0`, `scrollLeft = 0` và con trỏ về đầu dòng `setSelectionRange(0, 0)` khi nạp file mới.
+  - **Sync Scroll**: Cải tiến cuộn đồng bộ 2 bên bằng cờ reentry guard kết hợp `requestAnimationFrame`, gỡ bỏ kiểm tra `activeElement`.
+  - **Retranslate Icon Button**: Thêm nút Dịch lại từ đầu `#btn-retranslate-file` trên toolbar kết quả dịch, tự động ép `force_retranslate: true`.
+  - **Row Highlight**: Gán ngay class `.active` khi click chọn file, bảo toàn màu highlight khi rê chuột (hover).
+- **Vệ sinh Hệ thống & Dọn dẹp Tài liệu**:
+  - Bổ sung `.kiro/` vào `.gitignore`.
+  - Chuyển tệp kế hoạch `plan_2026-07-31_merged_technical_report.md` sang `del_plan_2026-07-31_merged_technical_report.md`.
+  - Tổng hợp đầy đủ nhật ký tác vụ hoàn thành (`del_DONE_TASKS.md`) và tác vụ chờ làm (`del_PENDING_TASKS.md`).
+
+---
+
+## [8.14.0] - 2026-07-29
+### Tối ưu Editor, Hợp nhất Luồng Soát lỗi AI & Quản lý File Dự án
+
+**Nâng cấp Editor UI & Hợp nhất Core AI Engine:**
+- **Tối ưu Editor & Reset View (`_resetEditorView`)**:
+  - Tự động đặt vị trí cuộn (`scrollTop = 0`, `scrollLeft = 0`) và đưa con trỏ về dòng đầu tiên (`setSelectionRange(0, 0)`) mỗi khi nạp file mới vào editor.
+  - Sửa lỗi DirtyState key `spell-result-text` thiếu prefix `pm-`.
+- **Đồng bộ cuộn Editor (Sync Scroll)**:
+  - Cải tiến hàm `setupSyncScroll` sử dụng cờ reentry guard kết hợp `requestAnimationFrame`, bỏ kiểm tra `activeElement` giúp cuộn mượt và chính xác khi dùng chuột lăn mà chưa click focus.
+  - Khởi tạo đồng bộ cuộn 2 bên cho cả Workspace Dịch thuật và Workspace Soát lỗi trong `main.js`.
+- **Hợp nhất luồng Soát lỗi AI vào `TranslationExecutor`**:
+  - Thêm phương thức `spellcheck_text` và `@staticmethod _parse_spellcheck_chunk` vào `TranslationExecutor` (`core/executor.py`), tái sử dụng 100% cơ chế chunking, SQLite checkpoint, API key rotation và event logging từ luồng dịch.
+  - Xóa bỏ hoàn toàn 2 tệp thừa `core/spellcheck_executor.py` và `plugins/spellcheck/spellchecker.py`.
+  - Viết lại `SpellcheckProjectFilesUseCase` thành wrapper mỏng, loại bỏ lỗi duplicate log (`double-emit`).
+- **Dọn dẹp File HTML Trung gian khi Tạo EPUB 3**:
+  - Bổ sung `try...finally` trong `webui/routes/plugins.py` và `plugins/epub_converter/text_to_epub/main.py` để tự động xóa sạch các tệp `.html` trung gian và thư mục tạm sau khi đóng gói `MD → EPUB 3`.
+- **Đồng bộ Làm mới Dự án & Dọn dẹp Editor khi Xóa File**:
+  - Tự động xóa sạch nội dung trong các khung editor (`pm-source-text`, `pm-result-text`, ...) và reset `window.currentProjectFile` khi xóa file đang mở.
+  - Cập nhật `ProjectManager.openProject()` kiểm tra sự tồn tại của file đang mở khi bấm Làm mới (🔄) để reload nội dung mới nhất từ đĩa hoặc dọn editor nếu file không còn tồn tại.
+  - Xóa kèm tệp `_info.txt` tương ứng khi xóa file trong thư mục `spelling/`.
+
+---
+
 ## [8.13.0] - 2026-07-29
 ### Sửa lỗi Spellcheck Worker, Tái cấu trúc Header/Bottom Bar & Nâng cấp Search/Replace
 

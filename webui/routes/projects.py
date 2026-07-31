@@ -1269,6 +1269,8 @@ def translate_project_file(slug):
         "temperature": float(data.get("temperature", config_service.get_temperature())),
         "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
         "force_retranslate": force_retranslate,
+        "thinking_level": data.get("thinking_level", config_service.get_thinking_level()),
+        "request_delay": config_service.get("PROCESSING", "REQUEST_DELAY", fallback=0, value_type=float),
         "prompts": prompts,
         "max_refinement_attempts": 2,
         "min_length_ratio": 0.5,

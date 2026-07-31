@@ -87,6 +87,7 @@ def _call_api(
     """
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
     last_error_msg = "api_error"
+    empty_streak = 0  # Số lần liên tiếp nhận empty response (không phải lỗi API thật sự)
 
     for attempt in range(max_attempts_total):
         # Kiểm tra emergency stop
@@ -141,12 +142,18 @@ def _call_api(
                 api_manager.mark_success(api_key)
                 return result_text.strip(), "success", api_key
             else:
-                logging.warning(f"Empty response từ API (attempt {attempt + 1})")
+                empty_streak += 1
+                logging.warning(f"Empty response từ API (attempt {attempt + 1}, streak {empty_streak})")
+                # Dừng sớm nếu liên tiếp 2 lần empty (không phải lỗi key — key rotation không giúp)
+                if empty_streak >= 2:
+                    logging.error(f"Nhận empty response {empty_streak} lần liên tiếp, dừng retry sớm.")
+                    return None, "empty_response", api_key
                 continue
 
         except EmergencyStopError:
             return None, "stopped", api_key
         except Exception as e:
+            empty_streak = 0  # Lỗi API thật sự → reset streak, tiếp tục retry với key khác
             error_msg = str(e)
             last_error_msg = f"Lỗi: {error_msg}"
             logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
