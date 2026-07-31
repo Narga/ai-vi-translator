@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.15.0)
+# 📚 Content Translator (v8.16.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,7 +7,7 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.15.0):** Hợp nhất Engine Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`), xóa bỏ 2 module thừa `spellcheck_executor.py` và `spellchecker.py`; Thêm tùy chọn xóa file nguồn sau chuyển đổi MD ↔ HTML & dọn file HTML trung gian khi xuất EPUB 3; Nâng cấp API Search & Replace toàn bộ dự án (`search-all`, `replace-all` quét `rglob(*)`); Tối ưu Editor (reset vị trí cuộn/con trỏ về đầu dòng, sync scroll mượt mà, icon button Retranslate force retranslate); Tổng hợp dọn dẹp tài liệu `docs/wip/` và bổ sung `.gitignore`.
+**Tính năng mới (v8.16.0):** Hoàn thiện cuộn đồng bộ 2 bên (Sync Scroll) và reset vị trí cuộn/con trỏ (`_resetEditorView`); Nối tùy chọn xóa file nguồn (`delete_source`) từ UI Converter; Khắc phục race condition save → replace-all trong Search & Replace; Cập nhật lifecycle file khi refresh project; Sửa bộ test migration cho Spellcheck Engine mới; Dọn dẹp kế hoạch cũ sang `del_` và tổng hợp danh sách tác vụ trong `docs/wip/`.
 
 ---
 
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.12.0  
-**Ngày:** 28/07/2026
+**Phiên bản:** 8.16.0  
+**Ngày:** 31/07/2026

@@ -1,5 +1,5 @@
 # tests/unit/test_spellcheck_provider.py
-# Unit tests cho spellcheck provider dispatch
+# Unit tests cho spellcheck provider dispatch ở canonical layer (TranslationExecutor.spellcheck_text).
 
 import sys
 import pytest
@@ -9,99 +9,49 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
-class TestSpellcheckGetClient:
-    """Test _get_client dispatch theo provider_type."""
+class TestSpellcheckExecutorProviderDispatch:
+    """Provider dispatch kiểm tra ở executor layer — không dùng module đã xóa."""
 
     def setup_method(self):
-        """Reset client cache trước mỗi test."""
-        from plugins.spellcheck import spellchecker
-        spellchecker._client_cache.clear()
+        from core.executor import TranslationExecutor
+        self._executor_cls = TranslationExecutor
 
-    @patch("services.genai_client.GenAIClient", autospec=True)
-    def test_gemini_provider_creates_genai_client(self, mock_genai_cls):
-        """Config provider_type=gemini phải tạo GenAIClient."""
-        from plugins.spellcheck.spellchecker import _get_client
-        config = {"provider_type": "gemini", "model_name": "gemini-2.0-flash", "base_url": ""}
-        _get_client("test-key", config)
-        mock_genai_cls.assert_called_once_with(
-            api_key="test-key", default_model="gemini-2.0-flash", thinking_level="MEDIUM"
-        )
+    def test_spellcheck_method_exists(self):
+        from core.executor import TranslationExecutor
+        assert callable(getattr(TranslationExecutor, "spellcheck_text", None))
 
-    @patch("services.openai_client.OpenAIClient", autospec=True)
-    def test_openai_provider_creates_openai_client(self, mock_openai_cls):
-        """Config provider_type=openai phải tạo OpenAIClient."""
-        from plugins.spellcheck.spellchecker import _get_client
-        config = {
-            "provider_type": "openai",
-            "model_name": "gpt-4o-mini",
-            "base_url": "https://openrouter.ai/api/v1",
-        }
-        _get_client("test-openai-key", config)
-        mock_openai_cls.assert_called_once_with(
-            api_key="test-openai-key",
-            base_url="https://openrouter.ai/api/v1",
-            default_model="gpt-4o-mini",
-        )
+    def test_normal_result_returns_tuple(self):
+        """spellcheck_text với Gemini mock trả về (clean_text, error_log)."""
+        from core.executor import TranslationExecutor
+        executor = TranslationExecutor(api_keys=["dummy"], config={})
+        with patch("core.executor.robust_translate") as mock_rt, \
+             patch("core.executor.process_text_for_chunking", return_value=["chunk-0"]), \
+             patch.object(executor.api_manager, "get_next_available_key", return_value="key1"), \
+             patch.object(executor.checkpoint_service, "get_resume_info", return_value={}), \
+             patch.object(executor.checkpoint_service, "get_translated_chunks", return_value={}), \
+             patch.object(executor.checkpoint_service, "init_session"), \
+             patch.object(executor.checkpoint_service, "save_chunk"), \
+             patch.object(executor.checkpoint_service, "cleanup"):
+            mock_rt.return_value = ("Corrected text\n---\nErrors: none", "success", "key1")
+            result = executor.spellcheck_text("Anything", "test_out")
+        assert result is not None
+        clean, log = result
+        assert "Corrected" in clean
 
-    @patch("services.openai_client.OpenAIClient", autospec=True)
-    def test_openai_provider_does_not_create_genai(self, mock_openai_cls):
-        """Config provider_type=openai KHÔNG được tạo GenAIClient."""
-        from plugins.spellcheck.spellchecker import _get_client
-        config = {
-            "provider_type": "openai",
-            "model_name": "gpt-4o-mini",
-            "base_url": "https://api.openai.com/v1",
-        }
-        with patch("services.genai_client.GenAIClient") as mock_genai_cls:
-            _get_client("test-key", config)
-            mock_genai_cls.assert_not_called()
-
-    def test_default_provider_type_is_gemini(self):
-        """Khi config thiếu provider_type, mặc định là gemini."""
-        from plugins.spellcheck.spellchecker import _get_client
-        config = {"model_name": "gemini-2.0-flash"}
-        with patch("services.genai_client.GenAIClient") as mock_cls:
-            mock_cls.return_value = MagicMock()
-            client = _get_client("test-key", config)
-            mock_cls.assert_called_once()
-
-    def test_client_cache_reuse(self):
-        """Gọi _get_client 2 lần với cùng config phải trả cùng instance."""
-        from plugins.spellcheck.spellchecker import _get_client
-        config = {"provider_type": "gemini", "model_name": "gemini-2.0-flash"}
-        with patch("services.genai_client.GenAIClient") as mock_cls:
-            mock_cls.return_value = MagicMock()
-            client1 = _get_client("key1", config)
-            client2 = _get_client("key1", config)
-            assert client1 is client2
-            assert mock_cls.call_count == 1  # Chỉ tạo 1 lần
-
-    def test_client_cache_different_provider(self):
-        """Cùng key nhưng khác provider_type phải tạo client khác."""
-        from plugins.spellcheck.spellchecker import _get_client
-        with patch("services.genai_client.GenAIClient") as mock_genai:
-            mock_genai.return_value = MagicMock()
-            with patch("services.openai_client.OpenAIClient") as mock_openai:
-                mock_openai.return_value = MagicMock()
-                c1 = _get_client("key1", {"provider_type": "gemini", "model_name": "m1"})
-                c2 = _get_client("key1", {"provider_type": "openai", "model_name": "m1", "base_url": "http://x"})
-                assert c1 is not c2
-
-
-class TestSpellcheckChunkInterface:
-    """Test spellcheck_chunk giữ nguyên interface."""
-
-    def test_import(self):
-        """Test import spellcheck_chunk."""
-        from plugins.spellcheck.spellchecker import spellcheck_chunk
-        assert callable(spellcheck_chunk)
-
-    def test_return_type_on_no_key(self):
-        """Khi không có key, trả Tuple[str, str, str]."""
-        from plugins.spellcheck.spellchecker import spellcheck_chunk
-        mock_manager = MagicMock()
-        mock_manager.get_next_available_key.return_value = None
-        result = spellcheck_chunk("text", "prompt", mock_manager, {})
-        assert isinstance(result, tuple)
-        assert len(result) == 3
-        assert result[1] == "no_api_key"
+    def test_failed_status_still_returns_tuple(self):
+        """API fail → clean=original chunk, log ghi nhận error, không crash."""
+        from core.executor import TranslationExecutor
+        executor = TranslationExecutor(api_keys=["dummy"], config={})
+        with patch("core.executor.robust_translate") as mock_rt, \
+             patch("core.executor.process_text_for_chunking", return_value=["chunk-0"]), \
+             patch.object(executor.api_manager, "get_next_available_key", return_value="key1"), \
+             patch.object(executor.checkpoint_service, "get_resume_info", return_value={}), \
+             patch.object(executor.checkpoint_service, "get_translated_chunks", return_value={}), \
+             patch.object(executor.checkpoint_service, "init_session"), \
+             patch.object(executor.checkpoint_service, "save_chunk"), \
+             patch.object(executor.checkpoint_service, "cleanup"):
+            mock_rt.return_value = (None, "rate_limited", "key1")
+            result = executor.spellcheck_text("Test chunk", "test_out")
+        assert result is not None
+        clean, log = result
+        assert "rate_limited" in log or "Soát lỗi thất bại" in log

@@ -153,9 +153,9 @@ class TestCoreImports:
         assert TranslationExecutor is not None
 
     def test_import_spellcheck_executor(self):
-        """Test import SpellcheckExecutor."""
-        from core.spellcheck_executor import SpellcheckExecutor
-        assert SpellcheckExecutor is not None
+        """Test TranslationExecutor.spellcheck_text hiện là canonical engine."""
+        from core.executor import TranslationExecutor
+        assert hasattr(TranslationExecutor, "spellcheck_text")
 
     def test_import_config_service(self):
         """Test import AppConfigService."""

@@ -334,7 +334,10 @@ class TranslationExecutor:
                 from backend.infrastructure.progress.runtime_state import RuntimeState
                 if RuntimeState().is_cancelled():
                     emit("info", message="Đã dừng theo yêu cầu")
-                    break
+                    # Emit cancelled terminal event và return — không cleanup checkpoint
+                    # để có thể resume lại lần sau.
+                    emit("cancelled", message=f"Đã hủy ở đoạn {i + 1}/{len(chunks)}")
+                    return None
 
                 base_percent = 10 + int((i / len(chunks)) * 90)
                 emit("progress", current=i + 1, total=len(chunks),
@@ -389,7 +392,6 @@ class TranslationExecutor:
             return None
         finally:
             logging.root.removeHandler(ui_log_handler)
-
     @staticmethod
     def _parse_spellcheck_chunk(result: str) -> tuple:
         """

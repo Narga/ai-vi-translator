@@ -434,8 +434,49 @@ const ProjectManager = {
                 } else {
                     ProjectManager.switchPmFileTab('sources');
                 }
+
+                // Kiểm tra file đang mở còn tồn tại; reload hoặc dọn editor tương ứng.
+                ProjectManager._syncOpenFileAfterRefresh(data);
             })
             .catch(() => {});
+    },
+
+    // Sau refresh metadata: nếu file đang mở còn trong section tương ứng thì reload nội dung,
+    // nếu đã mất thì dọn editor + spellcheck log, highlight và currentProjectFile.
+    _syncOpenFileAfterRefresh(data) {
+        const cur = window.currentProjectFile;
+        if (!cur || !cur.name) return;
+        const sectionFiles = {
+            sources: data.sources || [],
+            translated: data.translated || [],
+            spelling: data.spelling || [],
+        };
+        const exists = (sectionFiles[cur.section] || []).some(f => f.name === cur.name);
+        const taIds = ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'];
+
+        if (exists) {
+            // ponytail: chỉ reload editor khi file đang hiển thị (có nội dung), tránh ghi đè khi list vẫn ổn
+            const hasContent = taIds.some(id => { const el = document.getElementById(id); return el && el.value; });
+            if (!hasContent) return;
+            if (cur.section === 'spelling') {
+                EditorComponent.loadPmSpellcheckFile(cur.name);
+            } else {
+                EditorComponent.loadPmProjectFile(cur.name, cur.section);
+            }
+            return;
+        }
+
+        // File đã bị xóa/đổi tên — dọn editor để không hiển thị "file ma"
+        taIds.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        const logEl = document.getElementById('pm-spell-log-content');
+        if (logEl) logEl.textContent = '';
+        ['pm-opened-file-status', 'pm-spell-opened-file-status'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+        window.currentProjectFile = null;
+        ProjectManager.highlightActiveFile && ProjectManager.highlightActiveFile(null);
+        UiHelpers.showToast('Tập tin đang mở không còn tồn tại, đã đóng editor.', 'warning');
     },
 
     backToList() {
@@ -1035,8 +1076,29 @@ const ProjectManager = {
         fetch(`/api/projects/${window.currentProject.slug}/file/${section}/${filename}`, {
             method: 'DELETE', headers: { 'Content-Type': 'application/json' }
         }).then(r => r.json()).then(() => {
-            ProjectManager.openProject(window.currentProject.slug);
+            // Dọn editor nếu file đang mở bị xóa
+            if (window.currentProjectFile && window.currentProjectFile.name === filename) {
+                ProjectManager._closeEditorAfterFileDelete();
+            } else {
+                ProjectManager.openProject(window.currentProject.slug);
+            }
         });
+    },
+
+    _closeEditorAfterFileDelete() {
+        const taIds = ['pm-source-text', 'pm-result-text', 'pm-spell-source-text', 'pm-spell-result-text'];
+        taIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        ['pm-opened-file-status', 'pm-spell-opened-file-status'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '';
+        });
+        const logEl = document.getElementById('pm-spell-log-content');
+        if (logEl) logEl.textContent = '';
+        window.currentProjectFile = null;
+        ProjectManager.openProject(window.currentProject.slug);
     },
 
     async deleteSelectedFiles(section = 'sources') {

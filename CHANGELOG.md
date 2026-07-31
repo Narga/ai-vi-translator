@@ -4,6 +4,33 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.16.0] - 2026-07-31
+### Hoàn thiện Sync Scroll, Reset Editor View, Nối Converter Option & Khắc phục Race Search/Replace
+
+**Cải tiến Editor UI & Đồng bộ Workspace:**
+- **Đồng bộ cuộn Editor (Sync Scroll)**:
+  - Khôi phục và nâng cấp `EditorComponent.setupSyncScroll` sử dụng cờ reentry guard kết hợp `requestAnimationFrame`, gỡ bỏ hoàn toàn kiểm tra `activeElement`.
+  - Khởi tạo đồng bộ cuộn 2 bên cho cả Workspace Dịch thuật (`pm-source-text` ↔ `pm-result-text`) và Workspace Soát lỗi (`pm-spell-source-text` ↔ `pm-spell-result-text`) trong `main.js`.
+- **Reset Editor View (`_resetEditorView`)**:
+  - Triển khai `EditorComponent._resetEditorView(elementId)` tự động đưa vị trí cuộn `scrollTop = 0`, `scrollLeft = 0` và con trỏ về đầu dòng `setSelectionRange(0, 0)` mỗi khi nạp file mới.
+- **Đồng bộ Lifecycle File & Refresh Dự án**:
+  - Cập nhật `ProjectManager.openProject()` và `refreshProjectFiles()` kiểm tra tính tồn tại của file đang mở khi bấm Làm mới (🔄): reload nội dung từ đĩa nếu còn, hoặc dọn sạch editor/spellcheck nếu file đã bị xóa.
+
+**Sửa lỗi Backend & Test Migration:**
+- **Khắc phục Race Condition Search & Replace**:
+  - Bổ sung `await window.EditorComponent.saveActiveFile()` trong `replaceAll()` (`footer.html`) trước khi gọi API `replace-all`, đảm bảo nội dung chưa lưu được ghi đĩa trước khi thay thế hàng loạt.
+- **Nối tùy chọn `delete_source` Converter UI**:
+  - Đọc trạng thái checkbox `#converter-tool-delete-source` và gửi trường `delete_source` trong payload request của `ConverterToolPlugin.runTask`.
+- **Cập nhật Unit Test Suite cho Spellcheck Migration**:
+  - Cập nhật `tests/unit/test_helpers.py` và `tests/unit/test_spellcheck_provider.py` tương thích với canonical engine `TranslationExecutor.spellcheck_text`.
+  - Loại bỏ hoàn toàn các import tham chiếu tới 2 module đã bị xóa (`spellcheck_executor`, `spellchecker`).
+
+**Dọn dẹp Tài liệu & WIP Plans**:
+- Đổi tên tệp kế hoạch hoàn thành `plan_2026-07-31_feature-audit.md` và `plan_2026-07-31_html-to-markdown-audit.md` sang prefix `del_`.
+- Tổng hợp đầy đủ nhật ký tác vụ hoàn thành (`del_DONE_TASKS.md`) và tác vụ chờ làm (`del_PENDING_TASKS.md`).
+
+---
+
 ## [8.15.0] - 2026-07-31
 ### Release Review, Hợp nhất Engine Soát lỗi AI, Nâng cấp Converter & Tối ưu Giao diện Editor
 

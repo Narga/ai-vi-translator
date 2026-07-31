@@ -195,6 +195,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Khởi tạo Drag-and-drop
     ProjectManager.initDragDrop();
 
+    // Khởi tạo sync scroll cho translation + spellcheck editor pairs (idempotent, chạy 1 lần)
+    EditorComponent.initSyncScroll();
+
     // Click-outside to close Project Info Modal
     const projInfoModal = document.getElementById('project-info-modal');
     if (projInfoModal) {

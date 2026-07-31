@@ -2,6 +2,14 @@
 
 ## Hoàn thành
 
+### v8.16.0 (2026-07-31)
+- [x] 🎯 **Hoàn thiện Sync Scroll & Reset Editor View**: Triển khai `_resetEditorView(elementId)` reset cuộn/con trỏ về đầu dòng và `setupSyncScroll` dùng `requestAnimationFrame` + re-entry guard cho cả 2 workspace Dịch thuật và Soát lỗi.
+- [x] 🔌 **Nối tùy chọn `delete_source` Converter UI**: Đọc `#converter-tool-delete-source` checkbox và gửi trường `delete_source` trong payload request tới backend API.
+- [x] 🔍 **Khắc phục Race Condition Search & Replace**: `replaceAll()` chờ thao tác `saveActiveFile()` hoàn tất trước khi gọi API `replace-all`.
+- [x] 🔄 **Đồng bộ File Lifecycle khi Refresh Dự án**: Kiểm tra sự tồn tại của file đang mở trong `openProject()` / `refreshProjectFiles()`, tự động dọn sạch editor nếu file bị xóa.
+- [x] 🧪 **Cập nhật Unit Test Suite cho Spellcheck Migration**: Migrate test suite `test_helpers.py` và `test_spellcheck_provider.py` theo canonical engine `TranslationExecutor.spellcheck_text`.
+- [x] 🧹 **Dọn dẹp & Tổng hợp tài liệu `docs/wip/`**: Đổi tên các file kế hoạch audit hoàn thành sang `del_`, cập nhật `del_DONE_TASKS.md` và `del_PENDING_TASKS.md`.
+
 ### v8.15.0 (2026-07-31)
 - [x] ⚡ Hợp nhất luồng Soát lỗi AI vào `TranslationExecutor` (`core/executor.py`), tái sử dụng 100% cơ sở hạ tầng dịch thuật và dọn dẹp 2 module thừa (`spellcheck_executor.py`, `spellchecker.py`)
 - [x] 🔌 Bổ sung tùy chọn xóa file nguồn sau khi chuyển đổi `MD ↔ HTML` và tự động dọn dẹp các tệp HTML trung gian khi xuất `MD → EPUB 3`
@@ -145,6 +153,9 @@
 - [ ] ⏳ **Kiểm soát `empty_response` & Request Budget**: Giới hạn retry budget cho streak response rỗng trong `translator.py`, gán status/cooldown phù hợp cho key thay vì xoay key `keys * 3`.
 - [ ] ⏳ **Đảm bảo tính toàn vẹn trạng thái Terminal của Batch Job**: Đồng bộ trạng thái kết thúc `completed`, `partial_failed`, `failed` giữa `TranslateProjectFilesUseCase` và `TaskRegistry` worker.
 - [ ] ⏳ **Chuẩn hóa Chunking 2 tầng & Fallback Batch Parse**: Tối ưu hóa Virtual Chunk size và ngăn chặn fallback dịch lại toàn bộ file.
+- [ ] 🔌 **Chuẩn hóa Dependency Runtime Converter**: Đưa `html2text` & `beautifulsoup4` vào core dependency hoặc bổ sung preflight check cảnh báo thiếu optional dependency `epub`.
+- [ ] 🛡️ **Bảo toàn Dữ liệu & Error Contract Converter**: Giữ nguyên alt text ảnh trong `post_clean()`, không trả sentinel lỗi như Markdown hợp lệ để tránh ghi file output giả.
+- [ ] 🧪 **Viết Fixture & Unit Test suite cho Converter**: Bổ sung bộ test tự động riêng cho `convert_html_to_markdown`, `normalize_html_file` và `convert_html_file`.
 
 ### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`

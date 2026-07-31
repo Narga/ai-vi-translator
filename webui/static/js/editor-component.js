@@ -44,9 +44,13 @@ const EditorComponent = {
                 EditorComponent.updateTokenEstimate();
                 return fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
                     document.getElementById(prefix + 'result-text').value = tData.content || '';
+                    EditorComponent._resetEditorView(prefix + 'source-text');
+                    EditorComponent._resetEditorView(prefix + 'result-text');
                     DirtyState.clean(prefix + 'result-text');
                 }).catch(() => {
                     document.getElementById(prefix + 'result-text').value = '';
+                    EditorComponent._resetEditorView(prefix + 'source-text');
+                    EditorComponent._resetEditorView(prefix + 'result-text');
                     DirtyState.clean(prefix + 'result-text');
                 });
             });
@@ -61,9 +65,13 @@ const EditorComponent = {
                 if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
                 return fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
                     document.getElementById(prefix + 'source-text').value = sData.content || '';
+                    EditorComponent._resetEditorView(prefix + 'source-text');
+                    EditorComponent._resetEditorView(prefix + 'result-text');
                     EditorComponent.updateTokenEstimate();
                 }).catch(() => {
                     document.getElementById(prefix + 'source-text').value = '(Không tìm thấy bản gốc tương ứng)';
+                    EditorComponent._resetEditorView(prefix + 'source-text');
+                    EditorComponent._resetEditorView(prefix + 'result-text');
                 });
             });
         }
@@ -87,6 +95,7 @@ const EditorComponent = {
             if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
                 ProjectManager.highlightActiveFile(filename);
             }
+            EditorComponent._resetEditorView(prefix + 'spell-result-text');
             DirtyState.clean(prefix + 'spell-result-text');
             fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
                 const logEl = document.getElementById(prefix + 'spell-log-content');
@@ -102,9 +111,11 @@ const EditorComponent = {
         });
         fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sourceData => {
             document.getElementById(prefix + 'spell-source-text').value = sourceData.content || '';
+            EditorComponent._resetEditorView(prefix + 'spell-source-text');
             DirtyState.clean(prefix + 'spell-source-text');
         }).catch(() => {
             document.getElementById(prefix + 'spell-source-text').value = '';
+            EditorComponent._resetEditorView(prefix + 'spell-source-text');
         });
     },
 
@@ -218,8 +229,8 @@ const EditorComponent = {
         const slug = window.currentProject.slug;
         const filename = window.currentProjectFile.name;
         const content = document.getElementById('pm-source-text').value;
-        
-        fetch(`/api/projects/${slug}/file/sources/${filename}`, {
+
+        return fetch(`/api/projects/${slug}/file/sources/${filename}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
@@ -402,7 +413,7 @@ const EditorComponent = {
         const originalText = btn ? btn.innerHTML : null;
         if (btn) { btn.innerHTML = '⏳...'; btn.disabled = true; }
 
-        fetch(`/api/projects/${slug}/file/translated/${filename}`, {
+        return fetch(`/api/projects/${slug}/file/translated/${filename}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
@@ -434,7 +445,7 @@ const EditorComponent = {
         const btn = document.getElementById('btn-save-spellcheck');
         const originalText = btn ? btn.innerHTML : null;
         if (btn) { btn.innerHTML = '⏳...'; btn.disabled = true; }
-        fetch(`/api/projects/${slug}/file/spelling/${filename}`, {
+        return fetch(`/api/projects/${slug}/file/spelling/${filename}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
@@ -529,26 +540,59 @@ const EditorComponent = {
         }
     },
 
+    // Reset scroll/selection về đầu cho một textarea theo ID.
+    // Gọi sau mỗi lần gán .value trong _loadFilePair / _loadSpellcheckFile.
+    _resetEditorView(elementId) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        el.scrollTop = 0;
+        el.scrollLeft = 0;
+        if (typeof el.setSelectionRange === 'function') {
+            try { el.setSelectionRange(0, 0); } catch (e) { /* type không hỗ trợ selection */ }
+        }
+    },
+
+    // Đồng bộ scroll giữa hai textarea theo tỉ lệ scroll.
+    // - Không kiểm tra document.activeElement (wheel hoạt động kể cả khi chưa focus).
+    // - Re-entry guard + requestAnimationFrame: không bỏ nhịp cuộn nhanh, không loop.
+    // - Idempotent: gắn cờ _syncScrollWired lên element để không đăng ký listener lặp.
     setupSyncScroll(sourceEl, resultEl) {
+        if (!sourceEl || !resultEl) return;
+        if (sourceEl._syncScrollWired && resultEl._syncScrollWired) return;
+        sourceEl._syncScrollWired = true;
+        resultEl._syncScrollWired = true;
+
         let isSyncing = false;
-        
-        sourceEl.addEventListener('scroll', () => {
+
+        function syncScroll(from, to) {
             if (isSyncing || !EditorComponent.syncScrollEnabled) return;
-            if (document.activeElement !== sourceEl) return;
+            const maxFrom = from.scrollHeight - from.clientHeight;
+            const ratio = maxFrom <= 0 ? 0 : Math.min(1, Math.max(0, from.scrollTop / maxFrom));
+            const maxTo = to.scrollHeight - to.clientHeight;
+            const target = maxTo <= 0 ? 0 : ratio * maxTo;
             isSyncing = true;
-            const ratio = sourceEl.scrollTop / (sourceEl.scrollHeight - sourceEl.clientHeight || 1);
-            resultEl.scrollTop = ratio * (resultEl.scrollHeight - resultEl.clientHeight);
-            setTimeout(() => isSyncing = false, 50);
-        });
-        
-        resultEl.addEventListener('scroll', () => {
-            if (isSyncing || !EditorComponent.syncScrollEnabled) return;
-            if (document.activeElement !== resultEl) return;
-            isSyncing = true;
-            const ratio = resultEl.scrollTop / (resultEl.scrollHeight - resultEl.clientHeight || 1);
-            sourceEl.scrollTop = ratio * (sourceEl.scrollHeight - sourceEl.clientHeight);
-            setTimeout(() => isSyncing = false, 50);
-        });
+            requestAnimationFrame(() => {
+                to.scrollTop = target;
+                // Giải phóng guard sau frame tiếp theo để chặn echo của chính thay đổi trên
+                requestAnimationFrame(() => { isSyncing = false; });
+            });
+        }
+
+        sourceEl.addEventListener('scroll', () => syncScroll(sourceEl, resultEl));
+        resultEl.addEventListener('scroll', () => syncScroll(resultEl, sourceEl));
+    },
+
+    // Khởi tạo sync scroll cho cả hai workspace (translation + spellcheck). Chỉ chạy một lần.
+    initSyncScroll() {
+        const pairs = [
+            ['pm-source-text', 'pm-result-text'],
+            ['pm-spell-source-text', 'pm-spell-result-text'],
+        ];
+        for (const [srcId, resId] of pairs) {
+            const src = document.getElementById(srcId);
+            const res = document.getElementById(resId);
+            if (src && res) this.setupSyncScroll(src, res);
+        }
     }
 };
 

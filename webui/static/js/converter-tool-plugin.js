@@ -101,6 +101,9 @@ window.ConverterToolPlugin = {
         this.clearLog();
         this.appendLog(`🔄 Gửi tác vụ ${buttonLabel}...`);
 
+        // Đọc checkbox xóa nguồn; missing element coi như false
+        const deleteSource = !!document.getElementById('converter-tool-delete-source')?.checked;
+
         fetch(`/api/projects/${encodeURIComponent(selection.slug)}/plugins/epub-converter`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -108,6 +111,7 @@ window.ConverterToolPlugin = {
                 task,
                 section: selection.section,
                 filenames: selection.filenames,
+                delete_source: deleteSource,
             }),
         })
             .then(r => r.json())

@@ -207,10 +207,15 @@
                         const confirmed = confirm(`Thay thế "${this.searchTerm}" trong TẤT CẢ tập tin ${folderType === 'sources' ? 'nguồn' : 'dịch'}? Không thể hoàn tác.`);
                         if (!confirmed) return;
 
+                        // Luôn await save trước khi replace — nếu save fail thì dừng luôn.
                         if (typeof DirtyState !== 'undefined' && DirtyState.isDirty(this.textareaId)) {
-                            if (this.textareaId === 'pm-source-text') EditorComponent.saveSourceFile();
-                            else if (this.textareaId === 'pm-result-text') EditorComponent.saveChunkTranslation();
-                            else if (this.textareaId === 'pm-spell-result-text') EditorComponent.saveSpellcheckResult();
+                            const saveFn = {
+                                'pm-source-text': () => EditorComponent.saveSourceFile(),
+                                'pm-result-text': () => EditorComponent.saveChunkTranslation(),
+                                'pm-spell-result-text': () => EditorComponent.saveSpellcheckResult(),
+                            };
+                            const fn = saveFn[this.textareaId];
+                            if (fn) await fn();
                         }
 
                         try {
@@ -228,10 +233,17 @@
                             if (res.success) {
                                 this.statusText = `Đã thay thế ${res.total_occurrences} kết quả trong ${res.replaced_files} tập tin`;
                                 UiHelpers.showToast(this.statusText, 'success');
-                                if (window.currentProjectFile && (folderType === 'sources' || folderType === 'translated')) {
-                                    await EditorComponent.loadPmProjectFile(window.currentProjectFile.name, folderType);
-                                    this.buildMatches();
+                                // Reload file đang mở để cập nhật DirtyState + nội dung
+                                if (window.currentProjectFile) {
+                                    const sec = window.currentProjectFile.section;
+                                    const name = window.currentProjectFile.name;
+                                    if (sec === 'spelling') {
+                                        await EditorComponent.loadPmProjectFile(name, 'translated');
+                                    } else {
+                                        await EditorComponent.loadPmProjectFile(name, sec);
+                                    }
                                 }
+                                this.buildMatches();
                             } else {
                                 this.statusText = 'Lỗi: ' + (res.error || 'Unknown');
                             }
