@@ -15,7 +15,9 @@ except ImportError:
 
 # ponytail: chốt một extension set dùng chung cho UI MD → HTML và MD → EPUB;
 # thêm extension mới = thêm vào đây và vào test.
-MARKDOWN_EXTENSIONS = ["extra", "sane_lists"]
+# footnotes: cú pháp chú thích [^id] (id trùng giữa chương chấp nhận được,
+# biên tập EPUB xử lý sau). Strikethrough ~~x~~ không hỗ trợ, dùng <del>.
+MARKDOWN_EXTENSIONS = ["extra", "sane_lists", "footnotes"]
 
 
 def _read_text(path: Path) -> str:

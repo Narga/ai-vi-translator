@@ -2,7 +2,9 @@
 # Unit tests cho Phase 05: Prompt, Provider, Model Services
 
 import sys
+import json
 import pytest
+from unittest.mock import patch
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -141,6 +143,83 @@ class TestProviderServiceMethods:
         assert "base_url" in config
         assert "model" in config
         assert "has_key" in config
+
+    def test_save_creates_backup_and_restores_corrupt_live_file(self, tmp_path):
+        from backend.infrastructure.providers.provider_service import ProviderService
+
+        service = ProviderService(tmp_path)
+        first = {
+            "version": 1,
+            "active_id": "local-router",
+            "providers": [{
+                "id": "local-router",
+                "type": "openai",
+                "name": "9router",
+                "api_key": "",
+                "base_url": "http://localhost:20128/v1",
+                "default_model": "deepseek-v4-flash-free",
+            }],
+        }
+        second = dict(first, active_id="local-router-2", providers=[dict(first["providers"][0], id="local-router-2")])
+
+        service.save_providers(first)
+        service.save_providers(second)
+
+        backup = json.loads((tmp_path / "providers.json.bak").read_text())
+        assert backup["active_id"] == "local-router"
+
+        (tmp_path / "providers.json").write_text("{broken", encoding="utf-8")
+        restored = service.load_providers()
+        assert restored["active_id"] == "local-router"
+
+    def test_invalid_provider_document_is_rejected_without_overwriting(self, tmp_path):
+        from backend.infrastructure.providers.provider_service import ProviderService
+
+        service = ProviderService(tmp_path)
+        valid = {
+            "version": 1,
+            "active_id": "local-router",
+            "providers": [{
+                "id": "local-router",
+                "type": "openai",
+                "name": "9router",
+                "api_key": "",
+                "base_url": "http://localhost:20128/v1",
+                "default_model": "model-a",
+            }],
+        }
+        service.save_providers(valid)
+
+        invalid = dict(valid, providers=[dict(valid["providers"][0], name="9router/invalid")])
+        with pytest.raises(ValueError):
+            service.save_providers(invalid)
+
+        assert service.load_providers()["active_id"] == "local-router"
+
+    def test_model_catalog_lists_local_router_without_api_key(self, tmp_path):
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
+
+        ProviderService(tmp_path).save_providers({
+            "version": 1,
+            "active_id": "local-router",
+            "providers": [{
+                "id": "local-router",
+                "type": "openai",
+                "name": "9router",
+                "api_key": "",
+                "base_url": "http://localhost:20128/v1",
+                "default_model": "model-a",
+            }],
+        })
+
+        with patch("services.openai_client.OpenAIClient") as client_cls:
+            client_cls.return_value.list_models.return_value = ["model-a", "model-b"]
+            models = ModelCatalogService(tmp_path).get_models("openai")
+
+        assert models[:2] == ["model-a", "model-b"]
+        client_cls.assert_called_once()
+        assert client_cls.call_args.kwargs["api_key"] == ""
 
 
 class TestModelCatalogServiceImport:

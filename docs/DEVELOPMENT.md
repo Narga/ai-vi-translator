@@ -2,6 +2,19 @@
 
 Tài liệu này dành cho các lập trình viên muốn đóng góp hoặc mở rộng hệ thống Content Translator.
 
+## 0. Mục Đích Dự Án & Nguyên Tắc Thiết Kế
+
+Dự án phục vụ **một người dùng duy nhất**: biên dịch nội dung text của sách điện tử từ ngoại ngữ sang tiếng Việt, ưu tiên **chất lượng dịch** và thói quen cá nhân. Mọi quyết định kiến trúc nghiêng về tối giản và đúng-ngữ-cảnh-sử-dụng thay vì tổng quát hóa.
+
+**Nguyên tắc cốt lõi:**
+
+- **Chỉ xử lý text**: Công cụ không resolve, copy, hay rewrite ảnh/font/style — người dùng tự đưa vào khi biên tập bằng phần mềm chuyên dụng (Sigil/Calibre).
+- **EPUB tối thiểu, mở được**: Output là EPUB 3 đúng cấu trúc `OEBPS/` (Sigil-style) với metadata tối thiểu. Mọi thứ tự sinh (nav, titlepage, cover) bị loại bỏ có chủ đích.
+- **Ghi file an toàn mặc định**: atomic write (`os.replace` từ temp) + từ chối ghi đè trùng nguồn.
+- **"Đơn giản hơn" > "tổng quát hơn"**: ví dụ — footnote dùng cú pháp chuẩn `[^id]` thay vì hệ placeholder riêng; dùng python-markdown thay vì tự viết parser regex.
+
+Khi thêm tính năng, hỏi: *"Một người dùng cá nhân biên tập sách dịch của mình có thực sự cần cái này, hay đây là over-engineering?"* Nếu không chắc → đưa vào mục "Đã hoãn" của ROADMAP.md thay vì code.
+
 ## 1. Kiến Trúc Phân Tầng (Architectural Layers)
 
 Hệ thống được cấu trúc thành ba lớp chức năng chính:

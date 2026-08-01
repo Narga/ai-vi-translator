@@ -142,23 +142,29 @@ window.ConverterToolPlugin = {
                     }
                     lastCount = messages.length;
 
-                    if (data.status === 'done' || data.status === 'error') {
+                    const isTerminal = ['done', 'partial', 'error'].includes(data.status);
+                    if (isTerminal) {
                         clearInterval(interval);
                         btn.disabled = false;
                         btn.textContent = buttonLabel;
 
-                        if (data.status === 'done') {
+                        if (data.status === 'done' || data.status === 'partial') {
                             const outputPath = data.result?.output_path
                                 || (data.result?.output_paths && data.result.output_paths[0]);
+                            const failedCount = data.result?.failed_count || 0;
+                            const doneCount = data.result?.converted_count || 0;
+                            const summaryLabel = data.status === 'partial'
+                                ? `Hoàn tất một phần: ${doneCount} OK, ${failedCount} lỗi`
+                                : 'Đã hoàn tất chuyển đổi';
                             if (outputPath) {
                                 const name = outputPath.split('/').pop();
                                 const url = `/api/projects/${encodeURIComponent(slug)}/download/${encodeURIComponent(outputPath)}`;
                                 this.setSelectionSummaryHtml(
-                                    `<span>Đã hoàn tất chuyển đổi thành epub →</span>` +
+                                    `<span>${summaryLabel} →</span>` +
                                     `<a href="${url}" download class="ml-auto underline">${name}</a>`,
-                                    'success');
+                                    data.status === 'partial' ? 'error' : 'success');
                             } else {
-                                this.setSelectionSummary('Đã hoàn tất chuyển đổi thành epub', 'success');
+                                this.setSelectionSummary(summaryLabel, data.status === 'partial' ? 'error' : 'success');
                             }
                             // Làm mới sidebar tại chỗ: giữ nguyên tab 'ebook-kit',
                             // không gọi openProject (vì openProject ép wsTab='editor').

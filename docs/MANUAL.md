@@ -104,6 +104,33 @@ Hệ thống tích hợp sẵn bộ chuyển đổi dành cho sách điện tử
 - **EPUB → Text**: Tách nội dung từ file sách để bắt đầu dịch.
 - **Text → EPUB**: Đóng gói lại thành file sách hoàn chỉnh sau khi dịch xong, bảo toàn Metadata và cấu trúc chương hồi.
 
+#### Quy ước khi biên tập EPUB sau đóng gói (v8.19.0+)
+
+EPUB xuất ra là bản **tối thiểu, đúng cấu trúc OEBPS** để mở và biên tập tiếp bằng Sigil/Calibre:
+
+```text
+file.epub
+├── mimetype
+├── META-INF/container.xml
+└── OEBPS/
+    ├── content.opf        # metadata tối thiểu: tên sách, tác giả, mô tả
+    ├── Text/              # các chương (.xhtml), giữ nguyên cấu trúc thư mục con
+    ├── Images/            # rỗng — tự đưa ảnh vào khi biên tập
+    ├── Styles/            # rỗng — tự đưa stylesheet vào (quy ước styles.css)
+    └── Fonts/             # rỗng — tự đưa font vào
+```
+
+**Lưu ý quan trọng:**
+
+- **Ảnh**: công cụ chỉ *bảo toàn đường dẫn và vị trí* ảnh (`![chú thích](images/01.jpg)` trong Markdown ↔ `<img src="images/01.jpg"/>` trong chương). Ảnh **không được đóng gói** sẵn — khi biên tập, copy ảnh vào đúng đường dẫn tương đối mà `src` đang trỏ tới (Sigil/Calibre sẽ tự nhận và đưa vào manifest).
+- **Link giữa các chương**: giữ nguyên đường dẫn tương đối, chỉ đổi đuôi thành `.xhtml`. Kiểm tra lại khi biên tập nếu cần.
+- **Chú thích cuối trang (footnote)**: viết trong Markdown bằng cú pháp chuẩn `[^1]` và `[^1]: nội dung chú thích`. Converter render thành danh sách chú thích cuối chương có link hai chiều. Khi biên tập, kiểm tra lại nếu muốn tách thành footnote chuẩn EPUB (`epub:type`).
+- **Không hỗ trợ** `~~gạch ngang~~` — dùng thẻ HTML `<del>` trực tiếp nếu cần.
+- **Gạch chân** `<u>...</u>` được giữ nguyên dạng HTML inline — hỗ trợ phụ thuộc reader, kiểm tra lúc biên tập.
+- **Stylesheet**: mỗi chương đã có sẵn link `../Styles/styles.css`; chỉ cần đặt file vào `Styles/styles.css` khi biên tập là tất cả chương nhận style.
+- **Nav/titlepage/cover**: không được tạo sẵn — Sigil/Calibre tự sinh khi import.
+- **Nếu batch báo "partial"**: một số file lỗi — xem log để biết file nào, sửa và chạy lại chỉ những file đó.
+
 ### 🖼️ OCR Engine (Plugin)
 Chuyên dùng cho các tài liệu dạng ảnh hoặc PDF quét. OCR Engine có kiến trúc mô-đun lớp (Layered Architecture):
 - **Cấu trúc**: Logic được tách bạch thành các module `config`, `image`, `pdf`, `tables`, `formats`, và `ai_processor` trong `plugins/ocr/modules/`.

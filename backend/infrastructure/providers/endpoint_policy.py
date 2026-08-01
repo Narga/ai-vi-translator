@@ -36,6 +36,10 @@ class EndpointPolicy:
     def supports_feature(self, feature: str) -> bool:
         return False
 
+    def requires_api_key(self) -> bool:
+        """Whether the endpoint requires credentials before creating a client."""
+        return True
+
 class CloudflareGatewayPolicy(EndpointPolicy):
     def build_headers(self, provider_api_key: Optional[str], gateway_api_key: Optional[str], credential_mode: str) -> Dict[str, str]:
         headers = {}
@@ -132,6 +136,12 @@ class OpenAICompatiblePolicy(EndpointPolicy):
             safe_message=safe_message
         )
 
+class LocalOpenAICompatiblePolicy(OpenAICompatiblePolicy):
+    """OpenAI-compatible service bound to loopback (for example 9router)."""
+
+    def requires_api_key(self) -> bool:
+        return False
+
 def classify_endpoint(base_url: Optional[str]) -> EndpointPolicy:
     if not base_url:
         return NativeOpenAIPolicy(provider_kind="native_openai", normalized_base_url="https://api.openai.com/v1")
@@ -144,7 +154,11 @@ def classify_endpoint(base_url: Optional[str]) -> EndpointPolicy:
     hostname = (parsed.hostname or "").lower()
     path = parsed.path.rstrip("/")
 
-    normalized_url = f"{parsed.scheme}://{hostname}{path}"
+    # Preserve a non-default port. Dropping it would turn e.g.
+    # http://localhost:20128/v1 into http://localhost/v1.
+    port = f":{parsed.port}" if parsed.port else ""
+    host_for_url = f"[{hostname}]" if ":" in hostname and not hostname.startswith("[") else hostname
+    normalized_url = f"{parsed.scheme}://{host_for_url}{port}{path}"
     
     if hostname == "gateway.ai.cloudflare.com" and re.fullmatch(r"/v1/[^/]+/[^/]+/compat", path):
         return CloudflareGatewayPolicy(provider_kind="cloudflare_ai_gateway", normalized_base_url=normalized_url)
@@ -157,5 +171,11 @@ def classify_endpoint(base_url: Optional[str]) -> EndpointPolicy:
     
     if hostname == "api.openai.com":
         return NativeOpenAIPolicy(provider_kind="native_openai", normalized_base_url=normalized_url)
+
+    if hostname in ("localhost", "127.0.0.1", "::1"):
+        return LocalOpenAICompatiblePolicy(
+            provider_kind="local_openai_compatible",
+            normalized_base_url=normalized_url,
+        )
     
     return OpenAICompatiblePolicy(provider_kind="openai_compatible", normalized_base_url=normalized_url)

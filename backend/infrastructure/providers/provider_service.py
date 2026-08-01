@@ -47,21 +47,76 @@ class ProviderService:
         try:
             with open(self._providers_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            if not isinstance(data.get("providers"), list):
-                raise ValueError("providers phải là array")
-            if not isinstance(data.get("active_id"), str):
-                raise ValueError("active_id phải là string")
+            self._validate_providers_data(data)
             return data
         except Exception as e:
             logger.error(f"Lỗi đọc providers.json: {e}")
-            # Fail closed: KHÔNG overwrite file corrupt
-            raise RuntimeError(f"providers.json bị corrupt: {e}")
+            backup_path = self._providers_file.with_suffix(".json.bak")
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    backup = json.load(f)
+                self._validate_providers_data(backup)
+                import shutil
+                shutil.copy2(backup_path, self._providers_file)
+                logger.warning("Đã khôi phục providers.json từ providers.json.bak")
+                return backup
+            except Exception as backup_error:
+                # Fail closed: do not overwrite either file with defaults.
+                raise RuntimeError(f"providers.json bị corrupt: {e}; backup không dùng được: {backup_error}")
+
+    def _validate_providers_data(self, data: Dict[str, Any]) -> None:
+        """Validate the complete persisted provider document before any write."""
+        if not isinstance(data, dict):
+            raise ValueError("root phải là object")
+        if not isinstance(data.get("version"), int):
+            raise ValueError("version phải là số nguyên")
+        providers = data.get("providers")
+        if not isinstance(providers, list) or not providers:
+            raise ValueError("providers phải là array không rỗng")
+        active_id = data.get("active_id")
+        if not isinstance(active_id, str) or not active_id.strip():
+            raise ValueError("active_id phải là chuỗi không rỗng")
+
+        ids = set()
+        for provider in providers:
+            if not isinstance(provider, dict):
+                raise ValueError("mỗi provider phải là object")
+            provider_id = provider.get("id")
+            provider_type = provider.get("type")
+            name = provider.get("name")
+            if not isinstance(provider_id, str) or not provider_id.strip() or provider_id in ids:
+                raise ValueError("provider id không hợp lệ hoặc bị trùng")
+            if provider_type not in ("gemini", "openai"):
+                raise ValueError(f"provider type không được hỗ trợ: {provider_type!r}")
+            if not isinstance(name, str) or not name.strip() or not re.match(r"^[a-zA-Z0-9\s]+$", name):
+                raise ValueError(f"tên provider không hợp lệ: {name!r}")
+            ids.add(provider_id)
+
+            if provider_type == "gemini":
+                keys = provider.get("api_keys", [])
+                if not isinstance(keys, list) or any(not isinstance(key, str) for key in keys):
+                    raise ValueError(f"api_keys không hợp lệ cho provider {provider_id}")
+            else:
+                for field in ("api_key", "base_url", "gateway_api_key", "credential_mode", "default_model"):
+                    if field in provider and not isinstance(provider[field], str):
+                        raise ValueError(f"{field} phải là chuỗi cho provider {provider_id}")
+                base_url = provider.get("base_url", "")
+                if base_url:
+                    from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+                    classify_endpoint(base_url)
+
+        if active_id not in ids:
+            raise ValueError(f"active_id không tồn tại: {active_id}")
 
     def save_providers(self, data: Dict[str, Any]) -> None:
         """Ghi providers.json bằng atomic write + validate."""
         import shutil
         self._providers_file.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self._providers_file.with_suffix(".json.tmp")
+        backup_path = self._providers_file.with_suffix(".json.bak")
+        backup_tmp_path = self._providers_file.with_suffix(".json.bak.tmp")
+        # Reject malformed user input before creating or touching any file.
+        self._validate_providers_data(data)
         try:
             with open(tmp_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
@@ -72,6 +127,11 @@ class ProviderService:
                 raise ValueError("providers phải là array")
             if not isinstance(verify.get("active_id"), str):
                 raise ValueError("active_id phải là string")
+            self._validate_providers_data(verify)
+            # Keep the last known-good document before replacing the live file.
+            if self._providers_file.exists():
+                shutil.copy2(self._providers_file, backup_tmp_path)
+                os.replace(str(backup_tmp_path), str(backup_path))
             # Atomic rename — os.replace() hoạt động trên Linux + macOS
             try:
                 os.replace(str(tmp_path), str(self._providers_file))
@@ -81,6 +141,8 @@ class ProviderService:
         except Exception as e:
             if tmp_path.exists():
                 tmp_path.unlink()
+            if backup_tmp_path.exists():
+                backup_tmp_path.unlink()
             raise RuntimeError(f"Lưu providers.json thất bại: {e}")
 
     # ------------------------------------------------------------------

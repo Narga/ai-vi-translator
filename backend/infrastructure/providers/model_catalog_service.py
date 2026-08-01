@@ -143,11 +143,21 @@ class ModelCatalogService:
             provider_service = ProviderService(self._config_dir)
 
             api_key = provider_service.get_active_api_key()
-            if api_key:
-                from services.ai_provider import list_models_for_provider
+            gateway_api_key = provider_service.get_active_gateway_api_key()
+            base_url = provider_service.get_active_base_url()
+            from backend.infrastructure.providers.endpoint_policy import classify_endpoint
 
-                base_url = provider_service.get_active_base_url()
-                fetched = list_models_for_provider("openai", api_key, base_url)
+            policy = classify_endpoint(base_url)
+            if api_key or gateway_api_key or not policy.requires_api_key():
+                from services.openai_client import OpenAIClient
+
+                client = OpenAIClient(
+                    api_key=api_key,
+                    base_url=base_url,
+                    gateway_api_key=gateway_api_key,
+                    credential_mode=provider_service.get_active_credential_mode(),
+                )
+                fetched = client.list_models()
                 if fetched:
                     models = fetched
         except Exception as e:

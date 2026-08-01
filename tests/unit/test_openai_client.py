@@ -1,4 +1,5 @@
 import pytest
+import sys
 from unittest.mock import patch, MagicMock
 from services.openai_client import OpenAIClient
 from backend.infrastructure.providers.endpoint_policy import CloudflareGatewayPolicy, NativeOpenAIPolicy
@@ -76,3 +77,17 @@ def test_list_models_full_cloudflare_filter(mock_openai):
     
     openai_model = next(m for m in models_full if m["id"] == "openai/gpt-4o")
     assert "source" not in openai_model
+
+
+def test_local_openai_compatible_client_can_initialize_without_api_key():
+    fake_openai = MagicMock()
+    fake_openai.OpenAI.return_value = MagicMock()
+
+    with patch.dict(sys.modules, {"openai": fake_openai}):
+        client = OpenAIClient(api_key="", base_url="http://localhost:20128/v1")
+
+    assert client.policy.requires_api_key() is False
+    fake_openai.OpenAI.assert_called_once()
+    kwargs = fake_openai.OpenAI.call_args.kwargs
+    assert kwargs["base_url"] == "http://localhost:20128/v1"
+    assert "default_headers" not in kwargs

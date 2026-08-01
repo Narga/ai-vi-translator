@@ -2,6 +2,7 @@ import pytest
 
 from backend.infrastructure.providers.endpoint_policy import (
     CloudflareGatewayPolicy,
+    LocalOpenAICompatiblePolicy,
     classify_endpoint,
 )
 
@@ -40,3 +41,11 @@ def test_cloudflare_url_must_use_compat_path():
     with pytest.raises(ValueError):
         classify_endpoint("https://gateway.ai.cloudflare.com/v1/account/gateway")
 
+
+def test_local_endpoint_preserves_port_and_allows_anonymous_access():
+    policy = classify_endpoint("http://localhost:20128/v1/")
+
+    assert isinstance(policy, LocalOpenAICompatiblePolicy)
+    assert policy.normalized_base_url == "http://localhost:20128/v1"
+    assert policy.requires_api_key() is False
+    assert policy.build_headers("", "", "default") == {}

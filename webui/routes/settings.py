@@ -70,13 +70,14 @@ def get_models():
         full = request.args.get("full", "false").lower() == "true"
 
         if provider == "openai":
-            api_key = active_provider.get("api_key")
-            if not api_key:
-                return jsonify({"models": [], "error": "Chưa cấu hình OpenAI key", "provider": "openai"}), 200
-            
+            api_key = active_provider.get("api_key", "")
             base_url = active_provider.get("base_url") if (not requested_provider or requested_provider == active_provider.get("type")) else None
             gateway_api_key = active_provider.get("gateway_api_key", "") if (not requested_provider or requested_provider == active_provider.get("type")) else ""
             credential_mode = active_provider.get("credential_mode", "default") if (not requested_provider or requested_provider == active_provider.get("type")) else "default"
+
+            policy = classify_endpoint(base_url)
+            if not api_key and not gateway_api_key and policy.requires_api_key():
+                return jsonify({"models": [], "error": "Chưa cấu hình OpenAI key", "provider": "openai"}), 200
 
             from services.openai_client import OpenAIClient
             client = OpenAIClient(

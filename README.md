@@ -1,13 +1,12 @@
-# 📚 Content Translator (v8.18.0)
+# 📚 Content Translator (v8.19.0)
 
-**Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
+**Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
+> **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.18.0):** Tích hợp `EndpointPolicy` tự động nhận dạng và chuẩn hóa Gateway (Cloudflare/Vercel) & Direct API; Refactor checkpoint với `identity` cứng giúp an toàn khi đổi model/chunk size; Cách ly bộ nhớ dịch (Translation Memory) theo hệ sinh thái API (`provider_kind`); Cải tiến `AdaptiveRateLimiter` hỗ trợ limit theo từng provider (VD: OpenAI 20 RPM, Gemini 15 RPM).
+**Tính năng mới (v8.19.0):** EPUB output tuân thủ cấu trúc `OEBPS` chuẩn Sigil (Text/, Images/, Styles/, Fonts/), ghi file atomic, metadata tối thiểu từ project; converter báo rõ `partial` khi batch có file lỗi.
 
 ---
 
@@ -84,6 +83,6 @@ cli.py  ──→ backend/             # Backend chung cho CLI & WebUI
 Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANGELOG.md](CHANGELOG.md) để nắm bắt các thay đổi mới nhất.
 
 ---
-**Tác giả:** Narga  
-**Phiên bản:** 8.18.0  
-**Ngày:** 01/08/2026
+**Tác giả:** Narga
+**Phiên bản:** 8.19.0
+**Ngày:** 02/08/2026

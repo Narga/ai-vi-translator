@@ -2,6 +2,13 @@
 
 ## Hoàn thành
 
+### v8.19.0 (2026-08-02)
+- [x] 📦 **Tái cấu trúc EPUB sang OEBPS chuẩn Sigil**: `mimetype` → `META-INF/container.xml` → `OEBPS/Text/`, `OEBPS/Images/` rỗng, `OEBPS/Styles/` rỗng, `OEBPS/Fonts/` rỗng, `OEBPS/content.opf` tối thiểu. Bỏ `nav.xhtml` và `titlepage.xhtml` — phần mềm biên tập (Sigil/Calibre) tự tạo.
+- [x] 💾 **Ghi EPUB atomic**: `zipfile` ra temp file rồi `os.replace`, self-check mimetype trước khi commit. Bản EPUB cũ được thay thế chỉ khi bản mới hoàn chỉnh.
+- [x] 🔗 **Link stylesheet tự động đúng độ sâu**: thư mục con của section được giữ nguyên trong `Text/`, href `../Styles/styles.css` tính theo depth.
+- [x] ⚠️ **Frontend nhận biết status `partial`**: `converter-tool-plugin.js` hiển thị đúng số file thành công/lỗi khi batch có partial failure (trước đây chờ vô hạn).
+- [x] 🧪 **Mở rộng test suite EPUB**: bao phủ cấu trúc OEBPS, subdirectory preservation, thư mục ảnh rỗng, metadata escaping.
+
 ### v8.18.0 (2026-08-01)
 - [x] 🌐 **Tích hợp EndpointPolicy**: Hỗ trợ chuẩn hóa Cloudflare/Vercel Gateway và Direct API (Google/OpenAI) qua policy.
 - [x] 🛡️ **Refactor API Consumers**: Mọi entry point nay dùng chung `ProviderService` thay vì gọi key trực tiếp, bảo vệ config.
@@ -189,4 +196,13 @@
 - Per-project model override (quyết định sau khi có nhu cầu thực tế)
 - Migration script từ genre sang library (không cần - dự án chưa có dữ liệu cũ)
 - Collaboration features (multi-user) — quá sớm
+
+### Đã hoãn từ audit HTML→Markdown→EPUB (2026-08-01)
+- [ ] 🖼️ **Asset resolver cho ảnh nội dung trong EPUB** (`Images/`/`Fonts/`): hiện tại chỉ tạo thư mục rỗng. Chỉ làm khi cần đóng gói EPUB hoàn chỉnh không cần biên tập manual.
+- [ ] 🔗 **Link resolver (rewrite `href` nội bộ + `#fragment`)**: hiện tại chỉ đổi suffix `.html`→`.xhtml`, không rewrite base path. Chỉ làm khi chấp nhận auto-rewrite link.
+- [ ] 📝 **Nav doc (`nav.xhtml`) và titlepage**: bỏ hoàn toàn, phần mềm biên tập tự tạo khi import. Chỉ làm khi cần EPUB tự khép kín không cần Sigil.
+- [ ] 🖼️ **Cover image**: hiện không tự copy cover vào ảnh; người dùng đặt trong `assets/cover.*`. Chỉ làm khi cần cover tự động.
+- [ ] 🔤 **Footnote semantic nâng cao** (`epub:type="noteref"`, ID unique cross-chapter): hiện tại `footnotes` extension render thành chapter-end list, ID có thể trùng giữa chương. Chỉ làm khi cần footnote EPUB-native.
+- [ ] 🔍 **epubcheck/xmllint validation**: self-check đã đủ cho dùng-cá-nhân (mimetype, XML parse, manifest refs). Chỉ thêm khi cần xác thực chuẩn strict trước khi phát hành ra ngoài.
+- [ ] 🚫 **Strikethrough `~~text~~`**: hiếm dùng. Khi cần, thêm extension `pymdownx.tilde` hoặc ánh xạ sang `<del>`.
 

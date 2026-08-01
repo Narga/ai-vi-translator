@@ -58,8 +58,13 @@ class OpenAIClient:
             from openai import OpenAI
 
             sdk_api_key = self.api_key or self.gateway_api_key
-            if not sdk_api_key:
+            if not sdk_api_key and self.policy.requires_api_key():
                 raise ValueError("Chưa cấu hình provider API key hoặc gateway API key")
+
+            # The OpenAI SDK requires a non-empty value even when a local
+            # OpenAI-compatible endpoint intentionally has no authentication.
+            # The policy prevents this placeholder from being sent as a header.
+            sdk_api_key = sdk_api_key or "local-no-auth"
 
             kwargs: Dict[str, Any] = {
                 "api_key": sdk_api_key,
