@@ -170,6 +170,8 @@ class ProviderService:
         base_url: Optional[str] = None,
         api_keys: Optional[List[str]] = None,
         default_model: Optional[str] = None,
+        gateway_api_key: Optional[str] = None,
+        credential_mode: str = "default",
     ) -> Dict[str, Any]:
         """Tạo provider mới. Tự sinh id từ name."""
         if type not in ("gemini", "openai"):
@@ -193,6 +195,8 @@ class ProviderService:
         if type == "openai":
             provider["api_key"] = api_key or ""
             provider["base_url"] = base_url or ""
+            provider["gateway_api_key"] = gateway_api_key or ""
+            provider["credential_mode"] = credential_mode
         else:
             provider["api_keys"] = api_keys or []
         provider["default_model"] = default_model or ""
@@ -209,11 +213,13 @@ class ProviderService:
         provider = next((p for p in data["providers"] if p["id"] == provider_id), None)
         if not provider:
             raise ValueError(f"Provider '{provider_id}' không tồn tại")
-        for key in ("name", "base_url", "default_model"):
+        for key in ("name", "base_url", "default_model", "credential_mode"):
             if key in kwargs and kwargs[key]:
                 provider[key] = kwargs[key]
         if "api_key" in kwargs and kwargs["api_key"]:
             provider["api_key"] = kwargs["api_key"]
+        if "gateway_api_key" in kwargs and kwargs["gateway_api_key"]:
+            provider["gateway_api_key"] = kwargs["gateway_api_key"]
         if "api_keys" in kwargs and kwargs["api_keys"]:
             provider["api_keys"] = kwargs["api_keys"]
         self.save_providers(data)
@@ -272,6 +278,20 @@ class ProviderService:
         if not config:
             return ""
         return config.get("api_key", "")
+
+    def get_active_gateway_api_key(self) -> str:
+        """Lấy gateway API key của active provider."""
+        config = self.get_active_provider_config()
+        if not config:
+            return ""
+        return config.get("gateway_api_key", "")
+
+    def get_active_credential_mode(self) -> str:
+        """Lấy credential mode của active provider."""
+        config = self.get_active_provider_config()
+        if not config:
+            return "default"
+        return config.get("credential_mode", "default")
 
     def get_active_base_url(self) -> Optional[str]:
         """Lấy base_url của active OpenAI provider."""

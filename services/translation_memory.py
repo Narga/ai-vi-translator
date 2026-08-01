@@ -138,7 +138,7 @@ class TranslationMemory:
         # Loại bỏ whitespace thừa, lowercase
         return " ".join(text.lower().split())
 
-    def add_translation(self, source: str, target: str, context: str = "") -> None:
+    def add_translation(self, source: str, target: str, context: str = "", provider_kind: str = "default") -> None:
         """
         Thêm một cặp dịch vào TM.
 
@@ -146,6 +146,7 @@ class TranslationMemory:
             source: Văn bản gốc
             target: Văn bản dịch
             context: Ngữ cảnh (tùy chọn)
+            provider_kind: Loại provider để phân tách cache
         """
         if not self.enabled:
             return
@@ -161,6 +162,7 @@ class TranslationMemory:
             "target": target,
             "context": context,
             "source_hash": source_hash,
+            "provider_kind": provider_kind,
         }
 
         with self._lock:
@@ -169,7 +171,7 @@ class TranslationMemory:
 
             # Check if exists
             for existing in self._memory[source_hash]:
-                if existing["source"] == source:
+                if existing["source"] == source and existing.get("provider_kind", "default") == provider_kind:
                     existing["target"] = target
                     existing["context"] = context
                     break
@@ -178,23 +180,25 @@ class TranslationMemory:
 
             self._save_memory()
 
-    def add_translations(self, translations: List[Tuple[str, str]], context: str = "") -> None:
+    def add_translations(self, translations: List[Tuple[str, str]], context: str = "", provider_kind: str = "default") -> None:
         """
         Thêm nhiều cặp dịch cùng lúc.
 
         Args:
             translations: List of (source, target) tuples
             context: Ngữ cảnh chung
+            provider_kind: Loại provider
         """
         for source, target in translations:
-            self.add_translation(source, target, context)
+            self.add_translation(source, target, context, provider_kind)
 
-    def find_match(self, text: str) -> Optional[Dict[str, Any]]:
+    def find_match(self, text: str, provider_kind: str = "default") -> Optional[Dict[str, Any]]:
         """
         Tìm kiếm fuzzy match trong TM.
 
         Args:
             text: Văn bản cần dịch
+            provider_kind: Loại provider để lọc cache
 
         Returns:
             Dict với 'translation', 'similarity', 'source' hoặc None
@@ -204,10 +208,11 @@ class TranslationMemory:
 
         text_norm = self._normalize_text(text)
 
-        # First, exact hash lookup
         text_hash = hashlib.md5(text_norm.encode()).hexdigest()[:16]
         if text_hash in self._memory:
             for entry in self._memory[text_hash]:
+                if entry.get("provider_kind", "default") != provider_kind:
+                    continue
                 if self._normalize_text(entry["source"]) == text_norm:
                     return {
                         "translation": entry["target"],
@@ -223,6 +228,8 @@ class TranslationMemory:
         with self._lock:
             for entries in self._memory.values():
                 for entry in entries:
+                    if entry.get("provider_kind", "default") != provider_kind:
+                        continue
                     similarity = self.compute_similarity(text, entry["source"])
                     if similarity > best_similarity and similarity >= self.similarity_threshold:
                         best_similarity = similarity
@@ -238,13 +245,14 @@ class TranslationMemory:
 
         return None
 
-    def find_matches(self, text: str, limit: int = 5) -> List[Dict[str, Any]]:
+    def find_matches(self, text: str, limit: int = 5, provider_kind: str = "default") -> List[Dict[str, Any]]:
         """
         Tìm nhiều fuzzy matches.
 
         Args:
             text: Văn bản cần dịch
             limit: Số lượng kết quả tối đa
+            provider_kind: Loại provider để lọc cache
 
         Returns:
             List of matches sorted by similarity
@@ -257,6 +265,8 @@ class TranslationMemory:
         with self._lock:
             for entries in self._memory.values():
                 for entry in entries:
+                    if entry.get("provider_kind", "default") != provider_kind:
+                        continue
                     similarity = self.compute_similarity(text, entry["source"])
                     if similarity >= 0.5:  # Lower threshold for listing
                         matches.append(

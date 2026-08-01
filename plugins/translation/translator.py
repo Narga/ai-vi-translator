@@ -28,33 +28,35 @@ _client_cache: Dict[str, Any] = {}
 
 
 def _get_client(api_key: str, config: Dict[str, Any]) -> Any:
-    """
-    Lấy hoặc tạo Client (GenAI hoặc OpenAI) cho API key (có cache).
-
-    Args:
-        api_key (str): API key
-        config (Dict[str, Any]): Cấu hình chứa model, provider_type, base_url, thinking_level
-
-    Returns:
-        Any: Client instance
-    """
     global _client_cache
 
     provider_type = config.get("provider_type", "gemini")
+    provider_kind = config.get("provider_kind", provider_type)
     base_url = config.get("base_url") or ""
     default_model = config.get("model_name", "gemini-3-flash-preview")
     thinking_level = config.get("thinking_level", "MEDIUM")
+    gateway_api_key = config.get("gateway_api_key", "")
+    credential_mode = config.get("credential_mode", "default")
+    provider_api_key = config.get("provider_api_key", api_key)
 
-    # Cache key dựa trên type, key, base_url, model
-    cache_key = f"{provider_type}_{api_key}_{base_url}_{default_model}"
+    import hashlib
+    header_str = f"{api_key}_{gateway_api_key}_{credential_mode}"
+    header_hash = hashlib.md5(header_str.encode()).hexdigest()
+
+    cache_key = f"{provider_kind}_{base_url}_{default_model}_{header_hash}"
 
     if cache_key not in _client_cache:
         if provider_type == "openai":
             from services.openai_client import OpenAIClient
             _client_cache[cache_key] = OpenAIClient(
-                api_key=api_key, base_url=base_url, default_model=default_model
+                api_key=provider_api_key,
+                base_url=base_url,
+                default_model=default_model,
+                gateway_api_key=gateway_api_key,
+                credential_mode=credential_mode,
             )
         else:
+            from services.genai_client import GenAIClient
             _client_cache[cache_key] = GenAIClient(
                 api_key=api_key, default_model=default_model, thinking_level=thinking_level
             )
@@ -131,33 +133,62 @@ def _call_api(
             )  # Gemini 3 khuyến nghị 1.0
             thinking_level = config.get("thinking_level", "MEDIUM")
 
-            result_text, status = client.generate_content(
-                prompt=full_prompt,
-                model=model_name,
-                temperature=temperature,
-                thinking_level=thinking_level,
-            )
+            request_kwargs = {"prompt": full_prompt, "model": model_name, "temperature": temperature}
+            if config.get("provider_type", "gemini") != "openai":
+                request_kwargs["thinking_level"] = thinking_level
+            result_text, status = client.generate_content(**request_kwargs)
 
             if status == "success" and result_text:
                 api_manager.mark_success(api_key)
                 return result_text.strip(), "success", api_key
-            else:
+            elif status == "empty_response":
                 empty_streak += 1
                 logging.warning(f"Empty response từ API (attempt {attempt + 1}, streak {empty_streak})")
-                # Dừng sớm nếu liên tiếp 2 lần empty (không phải lỗi key — key rotation không giúp)
                 if empty_streak >= 2:
                     logging.error(f"Nhận empty response {empty_streak} lần liên tiếp, dừng retry sớm.")
-                    return None, "empty_response", api_key
+                    return None, "upstream_empty", api_key
                 continue
+            else:
+                # A provider error status is not an empty response. Preserve it so
+                # callers can fail the chunk and retain its checkpoint.
+                return None, status or "api_error", api_key
 
         except EmergencyStopError:
             return None, "stopped", api_key
         except Exception as e:
-            empty_streak = 0  # Lỗi API thật sự → reset streak, tiếp tục retry với key khác
-            error_msg = str(e)
-            last_error_msg = f"Lỗi: {error_msg}"
-            logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
-            should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
+            try:
+                from backend.infrastructure.providers.endpoint_policy import ProviderRequestError
+            except ImportError:
+                ProviderRequestError = type('DummyProviderRequestError', (Exception,), {})
+
+            empty_streak = 0  # Lỗi API thật sự -> reset streak
+            
+            if isinstance(e, ProviderRequestError):
+                if not e.retryable:
+                    logging.error(f"Lỗi không thể retry từ provider: {e.safe_message}")
+                    if e.http_status in (401, 403):
+                        return None, "auth_error", api_key
+                    if e.http_status == 404:
+                        return None, "model_not_found", api_key
+                    if e.http_status in (400, 422):
+                        return None, "invalid_request", api_key
+                    return None, f"api_error:{e.http_status}", api_key
+                
+                # Lỗi có thể retry
+                error_msg = e.safe_message
+                last_error_msg = f"Lỗi (retryable): {error_msg}"
+                logging.error(f"Lỗi API với key ...{api_key[-4:]}: {error_msg[:200]}")
+                should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
+            elif isinstance(e, ValueError):
+                logging.error(f"Yêu cầu provider không hợp lệ: {e}")
+                return None, "invalid_request", api_key
+            else:
+                # Lỗi khác (network, timeout, genai)
+                error_msg = str(e)
+                last_error_msg = f"Lỗi ngoại lệ: {error_msg}"
+                logging.error(f"Lỗi ngoại lệ với key ...{api_key[-4:]}: {error_msg[:200]}")
+                should_retry, delay = api_manager.handle_api_error(api_key, error_msg)
+
             if should_retry:
                 logging.info(f"Đợi {delay:.1f}s trước khi thử lại...")
                 if delay > 0:

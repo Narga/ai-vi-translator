@@ -23,6 +23,13 @@ Chào mừng bạn đến với hệ thống dịch thuật tiểu thuyết chuy
    # Hoặc cấu hình qua giao diện WebUI
    ```
 
+
+### ☁️ Hỗ trợ Cloudflare AI Gateway & Workers AI
+Khi bạn sử dụng **Cloudflare AI Gateway** (Base URL: `https://gateway.ai.cloudflare.com/v1/.../compat`), hệ thống sẽ tự động nhận diện và kích hoạt bộ lọc chuyên dụng:
+- Chỉ hiển thị danh sách các model của **Cloudflare Workers AI** (các model có định dạng `@cf/author/model`).
+- Có ô tìm kiếm từ khóa và bộ lọc "Model miễn phí (free)".
+- Tính năng này giúp bạn dễ dàng chọn đúng model và tránh chọn nhầm các model ngoại lai từ OpenRouter hay OpenAI.
+
 ---
 
 ## 2. Các Chế Độ Sử Dụng

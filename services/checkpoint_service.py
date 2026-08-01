@@ -121,7 +121,9 @@ class CheckpointService:
         conn.commit()
 
     def init_session(self, filename: str, total_chunks: int,
-                     chunks_text: Optional[List[str]] = None):
+                     chunks_text: Optional[List[str]] = None,
+                     identity: Optional[Dict[str, str]] = None,
+                     reset: bool = False):
         """
         Khởi tạo session dịch mới: tạo DB và insert tất cả chunks ở trạng thái pending.
 
@@ -129,9 +131,14 @@ class CheckpointService:
             filename: Tên file đang dịch
             total_chunks: Tổng số chunks
             chunks_text: Danh sách text gốc của từng chunk (optional)
+            identity: Checkpoint identity để validate khi resume
         """
         with self._lock:
             conn = self._get_connection(filename)
+
+            if reset:
+                conn.execute("DELETE FROM chunks")
+                conn.execute("DELETE FROM metadata WHERE key LIKE 'ident_%'")
 
             conn.execute(
                 "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
@@ -141,6 +148,13 @@ class CheckpointService:
                 "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
                 ("started_at", datetime.now().isoformat())
             )
+            
+            if identity:
+                for k, v in identity.items():
+                    conn.execute(
+                        "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+                        (f"ident_{k}", str(v))
+                    )
 
             if chunks_text:
                 for i, text in enumerate(chunks_text):
@@ -459,17 +473,28 @@ class CheckpointService:
 
             total = int(meta.get("total_chunks", 0))
 
+            pending_row = conn.execute(
+                "SELECT chunk_index FROM chunks WHERE status != 'done' ORDER BY chunk_index LIMIT 1"
+            ).fetchone()
+            next_chunk_index = int(pending_row["chunk_index"]) if pending_row else total
+
+            identity = {}
+            for k, v in meta.items():
+                if k.startswith("ident_"):
+                    identity[k.replace("ident_", "", 1)] = v
+
             conn.close()
 
             return {
                 "can_resume": done_count < total,
-                "next_chunk_index": done_count,
-                "chunk_index": done_count - 1 if done_count > 0 else 0,
+                "next_chunk_index": next_chunk_index,
+                "chunk_index": next_chunk_index - 1 if next_chunk_index > 0 else 0,
                 "total_chunks": total,
                 "progress_pct": round(done_count / total * 100, 1) if total > 0 else 0,
                 "translated_count": done_count,
                 "timestamp": meta.get("updated_at", ""),
                 "checkpoint_path": str(db_path),
+                "identity": identity,
             }
 
         except Exception as e:

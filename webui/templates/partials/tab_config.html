@@ -86,11 +86,23 @@
                     <div class="ba b--black-10 br2 bg-white pa3 shadow-1 mb3">
                         <!-- Model Selection Sub-section -->
                         <div class="bb b--black-10 pb3 mb3">
-                            <h3 class="f5 fw6 mt0 mb3 dark-gray">Chọn model <span id="current-provider-name" class="blue fw7">AI</span></h3>
-                            <div class="flex items-center gap-2 mb2">
+                            <h3 class="f5 fw6 mt0 mb3 dark-gray">
+                                Chọn models AI 
+                                <span class="nt-tooltip-container ml1">
+                                    <span class="nt-help-icon gray f6" data-tooltip="Chọn/lọc models từ danh sách">ⓘ</span>
+                                </span>
+                                <a id="cf-info-icon" href="https://developers.cloudflare.com/ai/models/" target="_blank" rel="noopener" class="dn ml2 f7 gray hover-blue" style="text-decoration: underline;">Thông tin Cloudflare Models</a>
+                            </h3>
+                            <div class="flex items-center gap-2 mb2 flex-wrap">
                                 <select id="model" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="onModelChange(this.value)"></select>
-                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="ApiClient.markModel()" title="Đánh dấu thiết lập yêu thích để dễ tìm kiếm">Đánh dấu</button>
-                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm" onclick="ApiClient.loadModels()">Lấy danh sách</button>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm flex-none" onclick="ApiClient.markModel()" title="Đánh dấu">🔖</button>
+                                <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm flex-none" onclick="ApiClient.loadModels()" title="Lấy danh sách">🔄</button>
+                                
+                                <input type="text" id="cf-model-search" class="ba b--black-10 br2 pa2 w5 f7 outline-0 flex-none" placeholder="Lọc model: deepseek, llama, @cf/..." oninput="ApiClient.filterModels()">
+                                <select id="cf-model-free-filter" class="ba b--black-10 br2 pa2 f7 outline-0 flex-none" onchange="ApiClient.filterModels()">
+                                    <option value="include">Bao gồm</option>
+                                    <option value="exclude">Loại trừ</option>
+                                </select>
                             </div>
                             <div id="model-info-panel" class="f7 gray mt1">
                                 <span>Input limit: <strong id="model-input-limit" class="dark-gray">—</strong></span>

@@ -60,27 +60,21 @@ const ApiClient = {
                 if (sel) sel.disabled = false;
                 window.activeProvider = data.provider || 'gemini';
 
-                const renderOptions = (models, currentDefault) => {
-                    let saved = localStorage.getItem('nt_marked_models');
-                    let markedModels = saved ? JSON.parse(saved) : [];
+                // Handle cloudflare models UI
+                let hasCloudflare = false;
+                if (data.models && data.models.length > 0) {
+                    hasCloudflare = data.models.some(m => m.source === 'cloudflare_workers_ai');
+                }
+                const cfIcon = document.getElementById('cf-info-icon');
+                if (cfIcon) {
+                    if (hasCloudflare) cfIcon.classList.remove('dn');
+                    else cfIcon.classList.add('dn');
+                }
 
-                    if (!models || models.length === 0) {
-                        return '<option value="">— Không có models —</option>';
-                    }
-
-                    return models.map(m => {
-                        const id = typeof m === 'string' ? m : m.id;
-                        const name = typeof m === 'string' ? m : m.name;
-                        const isFree = m.is_free ? ' 🆓' : '';
-                        const isMarked = markedModels.includes(id) ? ' ⭐' : '';
-                        const isSelected = id === currentDefault ? 'selected' : '';
-                        return `<option value="${id}" ${isSelected}>${name}${isFree}${isMarked}</option>`;
-                    }).join('');
-                };
 
                 if (data.error) {
                     UiHelpers.showToast(data.error, 'error');
-                    const emptyHtml = renderOptions([], '');
+                    const emptyHtml = ApiClient.renderModelOptions([], '');
                     if (sel) sel.innerHTML = emptyHtml;
                     ['cfg-qa-model', 'summarize-model', 'style-guide-model', 'relationship-model',
                      'glossary-model', 'summary-model', 'pm-style-guide-model'].forEach(sid => {
@@ -100,32 +94,8 @@ const ApiClient = {
                     UiHelpers.showToast('Không lấy được danh sách models. Kiểm tra lại API key và Base URL.', 'info');
                 }
 
-                const defaultModelVal = data.default || '';
-
-                const mainSel = document.getElementById('model');
-                if (mainSel) {
-                    mainSel.innerHTML = renderOptions(window.availableModels, defaultModelVal);
-                    if (!mainSel.value && mainSel.options.length > 0) {
-                        mainSel.selectedIndex = 0;
-                    }
-                    ApiClient.onModelChange(mainSel.value);
-                }
-
-                const qaSel = document.getElementById('cfg-qa-model');
-                if (qaSel) {
-                    qaSel.innerHTML = renderOptions(window.availableModels, '');
-                }
-
-                const sumSel = document.getElementById('summarize-model');
-                if (sumSel) {
-                    sumSel.innerHTML = '<option value="">— Mặc định —</option>' + renderOptions(window.availableModels, '');
-                }
-
-                const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model', 'pm-style-guide-model', 'pm-info-model'];
-                contentTabModels.forEach(selId => {
-                    const s = document.getElementById(selId);
-                    if (s) s.innerHTML = '<option value="">— Chọn Model —</option>' + renderOptions(window.availableModels, '');
-                });
+                window.defaultModelVal = data.default || '';
+                ApiClient.applyModelFilters();
 
                 ApiClient.loadAppConfig(data.provider || 'gemini');
             })
@@ -136,6 +106,93 @@ const ApiClient = {
                     sel.innerHTML = '<option value="">— Lỗi kết nối —</option>';
                 }
             });
+    },
+
+    renderModelOptions(models, currentDefault) {
+        let saved = localStorage.getItem('nt_marked_models');
+        let markedModels = saved ? JSON.parse(saved) : [];
+
+        if (!models || models.length === 0) {
+            return '<option value="">— Không có models —</option>';
+        }
+
+        return models.map(m => {
+            const id = typeof m === 'string' ? m : m.id;
+            const name = typeof m === 'string' ? m : m.name;
+            const isFree = m.is_free ? ' 🆓' : '';
+            const isMarked = markedModels.includes(id) ? ' ⭐' : '';
+            const isSelected = id === currentDefault ? 'selected' : '';
+            return `<option value="${id}" ${isSelected}>${name}${isFree}${isMarked}</option>`;
+        }).join('');
+    },
+
+    filterModels() {
+        ApiClient.applyModelFilters();
+    },
+
+    applyModelFilters() {
+        let models = window.availableModels || [];
+        
+        const searchInput = document.getElementById('cf-model-search');
+        const freeSelect = document.getElementById('cf-model-free-filter');
+        
+        if (searchInput && freeSelect) {
+            const keyword = searchInput.value.toLowerCase().trim();
+            const method = freeSelect.value;
+            
+            if (keyword) {
+                models = models.filter(m => {
+                    const id = typeof m === 'string' ? m : m.id;
+                    const name = typeof m === 'string' ? m : m.name;
+                    const idLower = id.toLowerCase();
+                    const nameLower = name.toLowerCase();
+                    
+                    const hasKeyword = idLower.includes(keyword) || nameLower.includes(keyword);
+                    
+                    if (method === 'include') return hasKeyword;
+                    if (method === 'exclude') return !hasKeyword;
+                    return true;
+                });
+            }
+        }
+        
+        const defaultModelVal = window.defaultModelVal || '';
+        
+        const mainSel = document.getElementById('model');
+        if (mainSel) {
+            // Keep current selection if possible, otherwise use default
+            let currentVal = mainSel.value;
+            if (models.length > 0 && !models.some(m => (typeof m === 'string' ? m : m.id) === currentVal)) {
+                currentVal = models.some(m => (typeof m === 'string' ? m : m.id) === defaultModelVal) ? defaultModelVal : (typeof models[0] === 'string' ? models[0] : models[0].id);
+            }
+            
+            mainSel.innerHTML = ApiClient.renderModelOptions(models, currentVal);
+            if (!mainSel.value && mainSel.options.length > 0) {
+                mainSel.selectedIndex = 0;
+            }
+            ApiClient.onModelChange(mainSel.value);
+        }
+
+        const qaSel = document.getElementById('cfg-qa-model');
+        if (qaSel) {
+            let currentVal = qaSel.value;
+            qaSel.innerHTML = ApiClient.renderModelOptions(models, currentVal);
+        }
+
+        const sumSel = document.getElementById('summarize-model');
+        if (sumSel) {
+            let currentVal = sumSel.value;
+            sumSel.innerHTML = '<option value="">— Mặc định —</option>' + ApiClient.renderModelOptions(models, currentVal);
+        }
+
+        const contentTabModels = ['style-guide-model', 'relationship-model', 'glossary-model', 'summary-model', 'pm-style-guide-model', 'pm-info-model'];
+        contentTabModels.forEach(selId => {
+            const s = document.getElementById(selId);
+            if (s) {
+                let currentVal = s.value;
+                s.innerHTML = '<option value="">— Chọn Model —</option>' + ApiClient.renderModelOptions(models, currentVal);
+            }
+        });
     },
 
     markModel() {

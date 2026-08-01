@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.17.0)
+# 📚 Content Translator (v8.18.0)
 
 **Hệ sinh thái dịch thuật tiểu thuyết & tài liệu chuyên nghiệp, ứng dụng sức mạnh của Google Gemini AI và OpenAI-compatible API.**
 
@@ -7,14 +7,14 @@
 
 Content Translator được thiết kế đặc biệt để xử lý khối lượng văn bản khổng lồ (tiểu thuyết, tài liệu kỹ thuật) với độ chính xác cao nhất về văn phong, thuật ngữ và ngữ cảnh.
 
-**Tính năng mới (v8.17.0):** Nâng cấp Công cụ chuyển đổi HTML ↔ Markdown; Bảo toàn thuộc tính alt text của ảnh trong `post_clean()`; Tích hợp thư viện chuẩn `markdown` với full extension support (`tables`, `fenced_code`); Áp dụng ghi đĩa nguyên tử (`_atomic_write`) chống hỏng file; Chuẩn hóa báo cáo lỗi có cấu trúc và trạng thái batch (`done`, `partial`, `error`); Thêm bộ unit test tự động nghiệm thu toàn diện.
+**Tính năng mới (v8.18.0):** Tích hợp `EndpointPolicy` tự động nhận dạng và chuẩn hóa Gateway (Cloudflare/Vercel) & Direct API; Refactor checkpoint với `identity` cứng giúp an toàn khi đổi model/chunk size; Cách ly bộ nhớ dịch (Translation Memory) theo hệ sinh thái API (`provider_kind`); Cải tiến `AdaptiveRateLimiter` hỗ trợ limit theo từng provider (VD: OpenAI 20 RPM, Gemini 15 RPM).
 
 ---
 
 ## 🔥 Tính năng Nổi bật
 
 - 🏗️ **Hexagonal Backend**: CLI và WebUI dùng chung backend (`backend/` package với Application/Domain/Infrastructure/Facade layers).
-- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, Xiaomi, proxy). Quản lý nhiều provider qua `providers.json`.
+- 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, Cloudflare AI Gateway, proxy). Quản lý nhiều provider qua `providers.json`. Tự động nhận dạng, lọc và hiển thị model đặc thù (VD: Workers AI).
 - 🎨 **Quản lý Dự án**: Tab "Quản lý dự án" độc lập với workspace 3 cột, import/export zip, trạng thái tự động.
 - 🖥️ **So sánh bản dịch (Diff View)**: Xem Dọc/Ngang — so sánh bản gốc và bản dịch trực quan.
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.17.0  
-**Ngày:** 31/07/2026
+**Phiên bản:** 8.18.0  
+**Ngày:** 01/08/2026

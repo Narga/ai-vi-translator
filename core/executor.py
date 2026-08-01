@@ -68,6 +68,40 @@ class TranslationExecutor:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    
+    def _build_checkpoint_identity(self, filename: str, source_text: str) -> Dict[str, str]:
+        import hashlib
+        import json
+        source_hash = hashlib.sha256(source_text.encode()).hexdigest()
+        prompts_str = json.dumps(self.prompts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        prompt_hash = hashlib.sha256(prompts_str.encode()).hexdigest()
+        
+        return {
+            "project_file": filename,
+            "source_hash": source_hash,
+            "chunker_version": "v2",
+            "chunk_size": str(self.config.get("chunk_size", 22000)),
+            "provider_kind": self.config.get("provider_kind", "unknown"),
+            "provider_id": self.config.get("provider_id", "unknown"),
+            "base_url": self.config.get("base_url", "unknown"),
+            "model": self.config.get("model_name", "unknown"),
+            "qa_model": self.config.get("qa_model", "unknown"),
+            "credential_mode": self.config.get("credential_mode", "default"),
+            "prompt_hash": prompt_hash,
+            "schema_version": "1.0",
+        }
+
+    def _tm_scope(self) -> str:
+        """Scope TM theo provider, model và prompt để không tái sử dụng sai ngữ cảnh."""
+        import hashlib
+        import json
+        prompt_data = json.dumps(self.prompts, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        prompt_hash = hashlib.sha256(prompt_data.encode()).hexdigest()[:16]
+        return ":".join((
+            self.config.get("provider_kind", "default"),
+            self.config.get("model_name", "default"),
+            prompt_hash,
+        ))
 
     def translate_text(
         self,
@@ -124,10 +158,20 @@ class TranslationExecutor:
             translated_chunks: Dict[int, str] = {}
             prev_context = ""
             start_index = 0
+            identity = self._build_checkpoint_identity(output_filename, text)
 
             if not self.force_retranslate:
                 resume_info = self.checkpoint_service.get_resume_info(output_filename)
+                
+                can_resume = False
                 if resume_info and resume_info.get("total_chunks") == len(chunks):
+                    saved_ident = resume_info.get("identity", {})
+                    if saved_ident == identity:
+                        can_resume = True
+                    else:
+                        emit("info", message="Thông số dịch thay đổi (model, chunk size,...). Bỏ qua checkpoint cũ...")
+                
+                if can_resume:
                     translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
                     start_index = resume_info.get("next_chunk_index", 0)
                     emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
@@ -141,18 +185,24 @@ class TranslationExecutor:
                         filename=output_filename,
                         total_chunks=len(chunks),
                         chunks_text=chunks,
+                        identity=identity,
+                        reset=True,
                     )
             else:
                 self.checkpoint_service.init_session(
                     filename=output_filename,
                     total_chunks=len(chunks),
                     chunks_text=chunks,
+                    identity=identity,
                 )
 
             # 3. Dịch từng chunk
             stats = {"tokens": 0, "tm_hits": 0}
 
             for i in range(start_index, len(chunks)):
+                if i in translated_chunks:
+                    prev_context = self._tail_context(translated_chunks[i])
+                    continue
                 chunk = chunks[i]
 
                 # Check cancel request
@@ -203,6 +253,10 @@ class TranslationExecutor:
 
                 translated_chunks[i] = result
                 prev_context = self._tail_context(result)
+
+            if len(translated_chunks) != len(chunks):
+                emit("error", message="Dịch chưa hoàn tất: vẫn còn chunk chưa xử lý")
+                return None
 
             # 4. Lưu kết quả
             full_translation = "\n\n".join(
@@ -302,20 +356,30 @@ class TranslationExecutor:
 
             # Checkpoint key phân biệt với translate bằng prefix “spell:”
             ck_key = f"spell:{output_filename}"
+            identity = self._build_checkpoint_identity(output_filename, text)
 
             if not self.force_retranslate:
                 resume_info = self.checkpoint_service.get_resume_info(ck_key)
+                can_resume = False
+                
                 if resume_info and resume_info.get("total_chunks") == len(chunks):
+                    saved_ident = resume_info.get("identity", {})
+                    if saved_ident == identity:
+                        can_resume = True
+                    else:
+                        emit("info", message="Thông số soát lỗi thay đổi. Bỏ qua checkpoint cũ...")
+                
+                if can_resume:
                     start_index = resume_info.get("next_chunk_index", 0)
                     done_chunks = self.checkpoint_service.get_translated_chunks(ck_key)
                     emit("info", message=f"Resume soát lỗi từ chunk {start_index + 1}/{len(chunks)}")
                 else:
                     start_index = 0
                     done_chunks = {}
-                    self.checkpoint_service.init_session(ck_key, len(chunks), chunks)
+                    self.checkpoint_service.init_session(ck_key, len(chunks), chunks, identity=identity, reset=True)
             else:
                 self.checkpoint_service.cleanup(ck_key)
-                self.checkpoint_service.init_session(ck_key, len(chunks), chunks)
+                self.checkpoint_service.init_session(ck_key, len(chunks), chunks, identity=identity, reset=True)
                 start_index = 0
                 done_chunks = {}
 
@@ -355,9 +419,8 @@ class TranslationExecutor:
 
                 if status != "success" or not result:
                     emit("error", message=f"Soát lỗi thất bại tại đoạn {i + 1}: {status}")
-                    clean_parts[i] = chunks[i]  # Giữ nguyên nếu lỗi
-                    log_parts[i] = f"--- Đoạn {i + 1} ---\nLỗi API: {status}"
-                    continue
+                    # Không được biến chunk lỗi thành kết quả sạch hoặc complete giả.
+                    return None
 
                 clean, log = self._parse_spellcheck_chunk(result)
                 clean_parts[i] = clean
@@ -473,7 +536,7 @@ class TranslationExecutor:
 
         # Force mode: bỏ qua TM
         if not self.force_retranslate and translation_memory:
-            tm_match = translation_memory.find_match(chunk)
+            tm_match = translation_memory.find_match(chunk, provider_kind=self._tm_scope())
             if tm_match and tm_match.get("similarity", 0) >= 0.9:
                 stats["tm_hits"] += 1
                 emit("info", message=f"Chunk {i + 1}: TM match {tm_match['similarity']:.0%} 📚")
@@ -500,7 +563,7 @@ class TranslationExecutor:
         if status == "success" and result:
             result = self._clean_chunk_result(result)
             if translation_memory:
-                translation_memory.add_translation(chunk, result, output_filename)
+                translation_memory.add_translation(chunk, result, output_filename, provider_kind=self._tm_scope())
             stats["tokens"] += len(chunk) // 2
             self.checkpoint_service.save_chunk(
                 filename=output_filename,

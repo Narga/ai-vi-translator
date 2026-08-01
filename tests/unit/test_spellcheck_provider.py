@@ -38,8 +38,8 @@ class TestSpellcheckExecutorProviderDispatch:
         clean, log = result
         assert "Corrected" in clean
 
-    def test_failed_status_still_returns_tuple(self):
-        """API fail → clean=original chunk, log ghi nhận error, không crash."""
+    def test_failed_status_does_not_return_fake_complete_result(self):
+        """API fail → spellcheck thất bại, không biến chunk lỗi thành kết quả sạch."""
         from core.executor import TranslationExecutor
         executor = TranslationExecutor(api_keys=["dummy"], config={})
         with patch("core.executor.robust_translate") as mock_rt, \
@@ -52,6 +52,4 @@ class TestSpellcheckExecutorProviderDispatch:
              patch.object(executor.checkpoint_service, "cleanup"):
             mock_rt.return_value = (None, "rate_limited", "key1")
             result = executor.spellcheck_text("Test chunk", "test_out")
-        assert result is not None
-        clean, log = result
-        assert "rate_limited" in log or "Soát lỗi thất bại" in log
+        assert result is None

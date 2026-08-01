@@ -364,8 +364,8 @@ class ApiManager:
     def __init__(
         self,
         api_keys: List[str],
-        max_rpm: int = 15,
-        rpd_per_key: int = 500,
+        max_rpm: Optional[int] = None,
+        rpd_per_key: Optional[int] = None,
         tpd_per_key: int = 0,
         key_strategy: str = "least_used",
     ):
@@ -384,18 +384,32 @@ class ApiManager:
         """
         if not api_keys:
             raise ValueError("Danh sách API key không được để trống trong config.ini.")
+            
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        
+        provider_type = active_provider.get("type", "gemini")
+        
+        if provider_type == "gemini":
+            actual_rpm = max_rpm if max_rpm is not None else int(active_provider.get("max_rpm", 15))
+            actual_rpd = rpd_per_key if rpd_per_key is not None else int(active_provider.get("rpd_per_key", 1500))
+        else:
+            actual_rpm = max_rpm if max_rpm is not None else int(active_provider.get("max_rpm", 20))
+            actual_rpd = rpd_per_key if rpd_per_key is not None else int(active_provider.get("rpd_per_key", 1000000))
+            
         self._keys = {key: "available" for key in api_keys}
         self._key_list = list(api_keys)
         self._current_key_index = 0
         self._lock = Lock()
         self._key_strategy = key_strategy
         self._rate_limiter = AdaptiveRateLimiter(
-            daily_limit=rpd_per_key, daily_token_limit=tpd_per_key
+            daily_limit=actual_rpd, daily_token_limit=tpd_per_key
         )
-        self._rpm_limiter = GlobalRPMRateLimiter(max_rpm=max_rpm)
+        self._rpm_limiter = GlobalRPMRateLimiter(max_rpm=actual_rpm)
         logging.info(
             f"🔑 Đã nạp {len(self._keys)} API key. "
-            f"RPM={max_rpm}, RPD/key={rpd_per_key}, strategy={key_strategy}"
+            f"RPM={actual_rpm}, RPD/key={actual_rpd}, strategy={key_strategy}, provider={provider_type}"
         )
 
     def get_next_available_key(self) -> Optional[str]:

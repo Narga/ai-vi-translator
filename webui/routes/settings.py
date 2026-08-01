@@ -57,21 +57,34 @@ def legacy_provider_shim():
 def get_models():
     """Lấy danh sách models khả dụng cho provider hiện tại hoặc provider chỉ định."""
     try:
-        from webui.helpers import get_active_provider
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
         
         # Lấy provider từ query param hoặc active provider
         requested_provider = request.args.get("provider")
-        provider = requested_provider if requested_provider in ("gemini", "openai") else get_active_provider()
+        provider = requested_provider if requested_provider in ("gemini", "openai") else active_provider.get("type", "gemini")
         
         full = request.args.get("full", "false").lower() == "true"
 
         if provider == "openai":
-            from webui.helpers import load_openai_key, get_openai_base_url
-            api_key = load_openai_key()
+            api_key = active_provider.get("api_key")
             if not api_key:
                 return jsonify({"models": [], "error": "Chưa cấu hình OpenAI key", "provider": "openai"}), 200
+            
+            base_url = active_provider.get("base_url") if (not requested_provider or requested_provider == active_provider.get("type")) else None
+            gateway_api_key = active_provider.get("gateway_api_key", "") if (not requested_provider or requested_provider == active_provider.get("type")) else ""
+            credential_mode = active_provider.get("credential_mode", "default") if (not requested_provider or requested_provider == active_provider.get("type")) else "default"
+
             from services.openai_client import OpenAIClient
-            client = OpenAIClient(api_key=api_key, base_url=get_openai_base_url())
+            client = OpenAIClient(
+                api_key=api_key, 
+                base_url=base_url,
+                gateway_api_key=gateway_api_key,
+                credential_mode=credential_mode
+            )
             if full:
                 models = client.list_models_full()
                 # Prioritize free models
@@ -119,15 +132,23 @@ def get_openai_models():
     from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
 
     try:
-        api_key = load_openai_key()
-        if not api_key:
+        from backend.infrastructure.providers.provider_service import ProviderService
+        active = ProviderService().get_active_provider_config() or {}
+        api_key = active.get("api_key") or load_openai_key()
+        gateway_api_key = active.get("gateway_api_key", "")
+        if not api_key and not gateway_api_key:
             return jsonify({"models": [], "error": "Chưa cấu hình OpenAI API key"}), 200
 
         full = request.args.get("full", "false").lower() == "true"
 
         from services.openai_client import OpenAIClient
-        base_url = get_openai_base_url()
-        client = OpenAIClient(api_key=api_key, base_url=base_url)
+        base_url = active.get("base_url") or get_openai_base_url()
+        client = OpenAIClient(
+            api_key=api_key,
+            base_url=base_url,
+            gateway_api_key=gateway_api_key,
+            credential_mode=active.get("credential_mode", "default"),
+        )
         
         if full:
             models = client.list_models_full()
@@ -150,6 +171,8 @@ def save_openai_config():
         from backend.infrastructure.providers.provider_service import ProviderService
         data = request.json
         api_key = data.get("api_key", "").strip()
+        gateway_api_key = data.get("gateway_api_key", "").strip()
+        credential_mode = data.get("credential_mode", "default").strip()
         base_url = data.get("base_url", "").strip()
         model = data.get("model", "").strip()
 
@@ -167,6 +190,10 @@ def save_openai_config():
         update_kwargs = {}
         if api_key:
             update_kwargs["api_key"] = api_key
+        if gateway_api_key:
+            update_kwargs["gateway_api_key"] = gateway_api_key
+        if credential_mode:
+            update_kwargs["credential_mode"] = credential_mode
         if base_url:
             update_kwargs["base_url"] = base_url
         if model:

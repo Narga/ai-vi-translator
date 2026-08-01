@@ -15,7 +15,8 @@ def mock_deps():
     with patch("core.executor.CheckpointService") as mock_cp_cls, \
          patch("core.executor.robust_translate") as mock_translate, \
          patch("core.executor.process_text_for_chunking") as mock_chunker, \
-         patch("core.executor.ApiManager") as mock_api_cls:
+         patch("core.executor.ApiManager") as mock_api_cls, \
+         patch("backend.infrastructure.providers.provider_service.ProviderService") as mock_ps_cls:
 
         mock_cp = MagicMock()
         mock_cp_cls.return_value = mock_cp
@@ -27,6 +28,15 @@ def mock_deps():
         mock_api = MagicMock()
         mock_api_cls.return_value = mock_api
 
+        mock_ps = MagicMock()
+        mock_ps.get_active_provider_config.return_value = {
+            "type": "gemini",
+            "base_url": "https://gateway.ai.cloudflare.com/v1/a/b/google-ai-studio",
+            "max_rpm": 15,
+            "rpd_per_key": 1500
+        }
+        mock_ps_cls.return_value = mock_ps
+
         yield {
             "cp_cls": mock_cp_cls,
             "cp": mock_cp,
@@ -34,6 +44,8 @@ def mock_deps():
             "chunker": mock_chunker,
             "api_cls": mock_api_cls,
             "api": mock_api,
+            "ps_cls": mock_ps_cls,
+            "ps": mock_ps,
         }
 
 

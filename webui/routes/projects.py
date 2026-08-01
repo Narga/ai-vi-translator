@@ -1161,34 +1161,44 @@ def summarize_project(slug):
     full_prompt = f"{prompt_text}\n{content}"
 
     try:
-        from webui.helpers import get_active_provider
-
-        provider = get_active_provider()
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        provider_type = active_provider.get("type", "gemini")
+        base_url = active_provider.get("base_url")
+        gateway_api_key = active_provider.get("gateway_api_key", "")
+        credential_mode = active_provider.get("credential_mode", "default")
+        
+        policy = classify_endpoint(base_url)
+        
         requested_model = data.get("model", "")
+        if not requested_model:
+            requested_model = active_provider.get("default_model") or "gpt-4o-mini"
+            
+        requested_model = policy.normalize_model(requested_model)
+        if not policy.validate_model(requested_model):
+            return jsonify({"error": f"Model {requested_model} không hợp lệ với provider {policy.provider_kind}"}), 400
 
-        if provider == "gemini":
-            from webui.helpers import load_api_keys, get_default_model
-
-            keys = load_api_keys()
-            model = requested_model or get_default_model()
-            if not keys:
+        if provider_type == "gemini":
+            api_keys = active_provider.get("api_keys", [])
+            if not api_keys:
                 return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
             from services.genai_client import GenAIClient
-
-            client = GenAIClient(api_key=keys[0])
-            result, status = client.generate_content(full_prompt, model=model)
+            client = GenAIClient(api_key=api_keys[0])
+            result, status = client.generate_content(full_prompt, model=requested_model)
         else:
-            from webui.helpers import load_openai_key, get_openai_base_url, get_openai_model
-
-            api_key = load_openai_key()
-            if not api_key:
+            api_key = active_provider.get("api_key")
+            if not api_key and not gateway_api_key:
                 return jsonify({"error": "Chưa cấu hình API Key OpenAI"}), 400
             from services.openai_client import OpenAIClient
-
             client = OpenAIClient(
                 api_key=api_key,
-                base_url=get_openai_base_url(),
-                default_model=requested_model or get_openai_model(),
+                base_url=base_url,
+                default_model=requested_model,
+                gateway_api_key=gateway_api_key,
+                credential_mode=credential_mode,
             )
             result, status = client.generate_content(full_prompt)
 
@@ -1287,44 +1297,49 @@ def translate_project_file(slug):
             from services.translation_memory import TranslationMemory
             from backend.infrastructure.providers.provider_service import ProviderService
             from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
+            from backend.infrastructure.providers.endpoint_policy import classify_endpoint
 
             provider_service = ProviderService()
             active_provider = provider_service.get_active_provider_config() or {}
             provider_type = active_provider.get("type", "gemini")
             base_url = active_provider.get("base_url")
-
-            # Fallback model tùy theo provider type
-            provider_default_models = active_provider.get("default_model")
-            if provider_default_models:
-                default_model = provider_default_models
-            elif provider_type == "openai":
-                default_model = "gpt-4o-mini"
-            else:
-                default_model = get_default_model()
-
-            # Validate model thuộc provider type
-            catalog = ModelCatalogService()
-            valid_models = catalog.get_models(provider_type)
-            if valid_models and default_model not in valid_models:
-                logger.warning(f"Model '{default_model}' không thuộc provider '{provider_type}', fallback sang '{valid_models[0]}'")
-                default_model = valid_models[0]
+            gateway_api_key = active_provider.get("gateway_api_key", "")
+            credential_mode = active_provider.get("credential_mode", "default")
+            
+            policy = classify_endpoint(base_url)
+            provider_kind = policy.provider_kind
+            
+            model_from_req = config.get("model_name")
+            if not model_from_req:
+                model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
+                
+            model_from_req = policy.normalize_model(model_from_req)
+            if not policy.validate_model(model_from_req):
+                registry.append_event(job_id, {"type": "error", "message": f"Model '{model_from_req}' không hợp lệ với provider '{provider_kind}'"})
+                registry.update_status(job_id, "failed")
+                return
 
             if provider_type == "gemini":
                 api_keys = active_provider.get("api_keys", [])
             else:
                 api_key = active_provider.get("api_key")
-                api_keys = [api_key] if api_key else []
+                api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
 
             if not api_keys or not api_keys[0]:
                 registry.append_event(job_id, {"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
                 registry.update_status(job_id, "failed")
                 return
 
-            config["provider_type"] = provider_type
-            config["base_url"] = base_url
-            if not config["model_name"]:
-                config["model_name"] = default_model
-                config["qa_model"] = default_model
+            worker_config = config.copy()
+            worker_config["provider_type"] = provider_type
+            worker_config["provider_kind"] = provider_kind
+            worker_config["base_url"] = base_url
+            worker_config["gateway_api_key"] = gateway_api_key
+            worker_config["credential_mode"] = credential_mode
+            worker_config["provider_api_key"] = active_provider.get("api_key", "")
+            worker_config["provider_id"] = active_provider.get("id", "")
+            worker_config["model_name"] = model_from_req
+            worker_config["qa_model"] = model_from_req
 
             project_tm = TranslationMemory(
                 tm_dir=str(pdir / "assets" / "translation_memory"),
@@ -1333,7 +1348,7 @@ def translate_project_file(slug):
 
             use_case = TranslateProjectFilesUseCase(
                 api_keys=api_keys,
-                config=config,
+                config=worker_config,
                 glossary_paths=glossary_paths,
             )
 
@@ -1430,43 +1445,49 @@ def spellcheck_project_file(slug):
         try:
             from backend.infrastructure.providers.provider_service import ProviderService
             from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
+            from backend.infrastructure.providers.endpoint_policy import classify_endpoint
             
             provider_service = ProviderService()
             active_provider = provider_service.get_active_provider_config() or {}
             provider_type = active_provider.get("type", "gemini")
             base_url = active_provider.get("base_url")
-            # Fallback model tùy theo provider type
-            provider_default_model = active_provider.get("default_model")
-            if provider_default_model:
-                default_model = provider_default_model
-            elif provider_type == "openai":
-                default_model = "gpt-4o-mini"
-            else:
-                default_model = get_default_model()
-
-            # Validate model thuộc provider type
-            catalog = ModelCatalogService()
-            valid_models = catalog.get_models(provider_type)
-            if valid_models and default_model not in valid_models:
-                logger.warning(f"Model '{default_model}' không thuộc provider '{provider_type}', fallback sang '{valid_models[0]}'")
-                default_model = valid_models[0]
+            gateway_api_key = active_provider.get("gateway_api_key", "")
+            credential_mode = active_provider.get("credential_mode", "default")
+            
+            policy = classify_endpoint(base_url)
+            provider_kind = policy.provider_kind
+            
+            model_from_req = config.get("model_name")
+            if not model_from_req:
+                model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
+                
+            model_from_req = policy.normalize_model(model_from_req)
+            if not policy.validate_model(model_from_req):
+                registry.append_event(job_id, {"type": "error", "message": f"Model '{model_from_req}' không hợp lệ với provider '{provider_kind}'"})
+                registry.update_status(job_id, "failed")
+                return
 
             if provider_type == "gemini":
                 api_keys = active_provider.get("api_keys", [])
             else:
                 api_key = active_provider.get("api_key")
-                api_keys = [api_key] if api_key else []
+                api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
 
             if not api_keys or not api_keys[0]:
                 registry.append_event(job_id, {"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"})
                 registry.update_status(job_id, "failed")
                 return
 
-            config["provider_type"] = provider_type
-            config["base_url"] = base_url
-            if not config["model_name"]:
-                config["model_name"] = default_model
-                config["qa_model"] = default_model
+            worker_config = config.copy()
+            worker_config["provider_type"] = provider_type
+            worker_config["provider_kind"] = provider_kind
+            worker_config["base_url"] = base_url
+            worker_config["gateway_api_key"] = gateway_api_key
+            worker_config["credential_mode"] = credential_mode
+            worker_config["provider_api_key"] = active_provider.get("api_key", "")
+            worker_config["provider_id"] = active_provider.get("id", "")
+            worker_config["model_name"] = model_from_req
+            worker_config["qa_model"] = model_from_req
 
             def emit_event(event):
                 event_type = event.get("type", "info")
@@ -1476,7 +1497,7 @@ def spellcheck_project_file(slug):
                     registry.update_status(job_id, "failed")
                 registry.append_event(job_id, event)
 
-            use_case = SpellcheckProjectFilesUseCase(api_keys=api_keys, config=config)
+            use_case = SpellcheckProjectFilesUseCase(api_keys=api_keys, config=worker_config)
             use_case.execute(
                 project_dir=pdir,
                 filenames=filenames,
@@ -1664,7 +1685,14 @@ def tm_find():
         if not translation_memory:
             return jsonify({"error": "Translation Memory not enabled"}), 400
 
-        match = translation_memory.find_match(text)
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        policy = classify_endpoint(active_provider.get("base_url"))
+        
+        match = translation_memory.find_match(text, provider_kind=policy.provider_kind)
         if match:
             return jsonify(match)
         return jsonify({"found": False})
@@ -1686,7 +1714,14 @@ def tm_add():
         if not translation_memory:
             return jsonify({"error": "Translation Memory not enabled"}), 400
 
-        translation_memory.add_translation(source, target, context)
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        policy = classify_endpoint(active_provider.get("base_url"))
+
+        translation_memory.add_translation(source, target, context, provider_kind=policy.provider_kind)
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

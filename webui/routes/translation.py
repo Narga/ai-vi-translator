@@ -30,25 +30,68 @@ def translate_worker(text, config, output_filename="translated", input_file_path
     from backend.infrastructure.workspace.workspace_service import WorkspaceService
 
     try:
-        key_service = ApiKeyService()
+        from backend.infrastructure.providers.provider_service import ProviderService
         ws_service = WorkspaceService()
 
-        api_keys = key_service.load_gemini_keys()
-        if not api_keys:
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        
+        provider_type = active_provider.get("type", "gemini")
+        if provider_type == "gemini":
+            api_keys = active_provider.get("api_keys", [])
+        else:
+            api_key = active_provider.get("api_key")
+            gateway_api_key = active_provider.get("gateway_api_key", "")
+            api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
+
+        if not api_keys or not api_keys[0]:
             progress_queue.put({
                 "type": "error",
-                "message": "Không tìm thấy API keys. Vui lòng cấu hình .env hoặc config/API.txt",
+                "message": f"Không tìm thấy API keys cho provider {active_provider.get('name', provider_type)}",
             })
             return
 
         pdir = ws_service.get_project_dir("default-project")
         out_path = pdir / "translated" / output_filename
 
+        base_url = active_provider.get("base_url")
+        gateway_api_key = active_provider.get("gateway_api_key", "")
+        credential_mode = active_provider.get("credential_mode", "default")
+        
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        policy = classify_endpoint(base_url)
+        provider_kind = policy.provider_kind
+        
+        worker_config = config.copy() if hasattr(config, "copy") else dict(config)
+        worker_config["provider_type"] = provider_type
+        worker_config["provider_kind"] = provider_kind
+        worker_config["base_url"] = base_url
+        worker_config["gateway_api_key"] = gateway_api_key
+        worker_config["credential_mode"] = credential_mode
+        worker_config["provider_api_key"] = active_provider.get("api_key", "")
+        worker_config["provider_id"] = active_provider.get("id", "")
+
+        # Model validation
+        model_from_req = worker_config.get("model_name")
+        if not model_from_req:
+            model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
+            
+        model_from_req = policy.normalize_model(model_from_req)
+        if not policy.validate_model(model_from_req):
+            progress_queue.put({
+                "type": "error",
+                "message": f"Model '{model_from_req}' không hợp lệ với provider '{provider_kind}'",
+            })
+            return
+
+        worker_config["model_name"] = model_from_req
+        worker_config["qa_model"] = model_from_req
+
         bridge = WebUIProgressBridge(progress_queue)
 
         use_case = TranslateTextUseCase(
             api_keys=api_keys,
-            config=config,
+            config=worker_config,
         )
 
         request = TranslationRequest(
@@ -145,7 +188,7 @@ def translate_text():
         text = data.get("text", "")
         mode = data.get("mode", "main")
         prompts = data.get("prompts", {})
-        model = data.get("model", "gemini-3-flash-preview")
+        model = data.get("model")
         temperature = float(data.get("temperature", 1.0))
 
         if not text.strip():
@@ -160,20 +203,55 @@ def translate_text():
         if not prompt:
             prompt = load_prompts().get("main", "")
 
-        api_keys = load_api_keys()
-        if not api_keys:
-            return jsonify({"error": "Không tìm thấy API keys"}), 400
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        
+        provider_service = ProviderService()
+        active_provider = provider_service.get_active_provider_config() or {}
+        
+        provider_type = active_provider.get("type", "gemini")
+        base_url = active_provider.get("base_url")
+        gateway_api_key = active_provider.get("gateway_api_key", "")
+        credential_mode = active_provider.get("credential_mode", "default")
+        
+        policy = classify_endpoint(base_url)
+        provider_kind = policy.provider_kind
+
+        if not model:
+            model = active_provider.get("default_model") or (
+                "gemini-3-flash-preview" if provider_type == "gemini" else "gpt-4o-mini"
+            )
+        
+        if provider_type == "gemini":
+            api_keys = active_provider.get("api_keys", [])
+        else:
+            api_key = active_provider.get("api_key")
+            api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
+            
+        if not api_keys or not api_keys[0]:
+            return jsonify({"error": f"Không tìm thấy API keys cho provider {active_provider.get('name', provider_type)}"}), 400
 
         api_manager = ApiManager(api_keys)
         
         from webui.helpers import load_config
         app_config = load_config()
 
+        model = policy.normalize_model(model)
+        if not policy.validate_model(model):
+            return jsonify({"error": f"Model {model} không hợp lệ với provider {provider_kind}"}), 400
+
         config_params = {
             "model_name": model,
             "qa_model": model,
             "temperature": temperature,
             "chunk_size": 22000,
+            "provider_type": provider_type,
+            "provider_kind": provider_kind,
+            "base_url": base_url,
+            "gateway_api_key": gateway_api_key,
+            "credential_mode": credential_mode,
+            "provider_api_key": active_provider.get("api_key", ""),
+            "provider_id": active_provider.get("id", ""),
         }
 
         translated, stats, log = robust_translate(

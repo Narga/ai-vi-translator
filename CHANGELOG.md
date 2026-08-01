@@ -4,6 +4,35 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
+## [8.18.0] - 2026-08-01
+### Tích hợp EndpointPolicy (Cloudflare/Vercel Gateway), Refactor Checkpoint & Bộ lọc Model Cloudflare
+
+**Kiến trúc Provider & Endpoint Policy:**
+- **Triển khai `EndpointPolicy` (`infrastructure/providers/endpoint_policy.py`)**: 
+  - Phân tách logic xử lý URL, API Key, Validation Model và phân loại lỗi HTTP dựa trên loại Gateway (Cloudflare AI Gateway, Vercel AI Gateway) hoặc Direct (OpenAI/Google).
+  - Cung cấp `classify_endpoint(base_url)` tự động nhận diện và gán policy phù hợp cho từng provider.
+- **Tái cấu trúc API Consumers**:
+  - Loại bỏ hoàn toàn việc load trực tiếp cấu hình qua `webui.helpers` (`load_api_keys`, `get_active_provider`).
+  - Mọi luồng dịch thuật (`translate_text`, `translate_project_file`), soát lỗi (`spellcheck_project_file`), tóm tắt (`summarize_project`) và `/api/models` nay đều lấy cấu hình thống nhất qua `ProviderService` và `EndpointPolicy`.
+
+**Giao diện & Bộ lọc Model Cloudflare Workers AI:**
+- **Thanh công cụ Lọc Model 1 Hàng Ngang (`webui/templates/partials/tab_config.html`, `webui/static/js/api-client.js`)**:
+  - Bố trí trên 1 hàng duy nhất: Dropdown chọn model, icon 🔖 (đánh dấu), icon 🔄 (lấy danh sách), Input từ khóa lọc, Dropdown phương thức (Bao gồm / Loại trừ).
+  - Hỗ trợ lọc danh sách model linh hoạt theo từ khóa tìm kiếm và chế độ include/exclude.
+  - Tự động nhận diện và hiển thị link "Thông tin Cloudflare Models" (dẫn tới `https://developers.cloudflare.com/ai/models/`) và tooltip hướng dẫn `ⓘ` khi active gateway là Cloudflare.
+
+**Cải tiến Checkpoint & Translation Memory (TM):**
+- **Checkpoint Identity Cứng (Hard Identity)**:
+  - Cập nhật `services/checkpoint_service.py` và `core/executor.py` để lưu trữ `identity` (bao gồm `provider_kind`, `model`, `chunk_size`, mã băm nội dung và prompt).
+  - Khởi tạo session mới hoàn toàn nếu phát hiện mismatch identity khi resume, tránh lỗi "râu ông nọ cắm cằm bà kia" khi thay đổi cấu hình giữa chừng.
+- **Cách ly Cache TM theo Ecosystem**:
+  - Gắn tag `provider_kind` vào các bản ghi trong Translation Memory.
+  - Phân luồng kết quả match tránh cache chéo sai ngữ nghĩa giữa các hệ sinh thái API khác nhau.
+
+**Cải tiến ApiManager & Rate Limiting:**
+- **Dynamic Rate Limit**:
+  - `AdaptiveRateLimiter` nay tự động nhận diện RPM/RPD từ cấu hình provider thay vì giả định cứng (Ví dụ: 15 RPM / 1500 RPD cho Gemini, 20 RPM / 1M RPD cho OpenAI/Custom).
+
 ## [8.17.0] - 2026-07-31
 ### Tối ưu hóa Converter HTML ↔ Markdown, Bảo toàn Alt Text Ảnh & Cải tiến Ghi đĩa Nguyên tử
 

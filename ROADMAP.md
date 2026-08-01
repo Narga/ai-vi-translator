@@ -2,6 +2,14 @@
 
 ## Hoàn thành
 
+### v8.18.0 (2026-08-01)
+- [x] 🌐 **Tích hợp EndpointPolicy**: Hỗ trợ chuẩn hóa Cloudflare/Vercel Gateway và Direct API (Google/OpenAI) qua policy.
+- [x] 🛡️ **Refactor API Consumers**: Mọi entry point nay dùng chung `ProviderService` thay vì gọi key trực tiếp, bảo vệ config.
+- [x] 💾 **Checkpoint Identity Cứng**: Yêu cầu trùng khớp `provider_kind`, model, chunk_size, hash file để resume, tránh sai lệch.
+- [x] 📚 **Translation Memory theo Hệ Sinh Thái**: Cách ly cache TM dựa trên `provider_kind`, ngăn lẫn lộn Google và OpenAI.
+- [x] ⏱️ **Rate Limiter Động**: `AdaptiveRateLimiter` hỗ trợ limit tùy biến dựa vào config provider (VD: Gemini 15 RPM, OpenAI 20 RPM).
+- [x] ☁️ **Giao diện & Bộ lọc Model Cloudflare Workers AI**: Thêm thanh lọc model 1 hàng ngang với từ khóa, chế độ Bao gồm/Loại trừ, icon 🔖, 🔄 và link tài liệu Cloudflare Models.
+
 ### v8.17.0 (2026-07-31)
 - [x] 🖼️ **Bảo toàn Alt Text Ảnh**: Sửa `post_clean()` trong `source_normalizer.py` giữ nguyên thuộc tính `![alt](url)` của ảnh khi chuyển đổi sang Markdown.
 - [x] 📦 **Tích hợp Standard `markdown` Package**: Chuyển đổi Markdown → HTML dùng gói `markdown` chuẩn Python hỗ trợ đầy đủ các extension (`tables`, `fenced_code`, ...).
