@@ -2,9 +2,32 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.20.0] - 2026-08-02
+### Chuẩn hóa Portable Markdown Regex, API Replace Preview & Nút Chạy thử Bảo vệ Thao tác
+
+**Chuẩn hóa Engine Portable Markdown Regex v1:**
+- **Định nghĩa ECMAScript/Python Portable Regex Profile**:
+  - Chuẩn hóa bộ cú pháp regex thống nhất giữa JavaScript (`RegExp`) ở frontend và Python (`re`) ở backend trong `webui/routes/projects.py`.
+  - Tự động chuẩn hóa ký tự xuống dòng từ Windows CRLF (`\r\n`) về LF (`\n`) trước khi thực hiện khớp pattern.
+  - Tích hợp `_portable_replacement_adapter()` chuyển đổi tự động cú pháp back-reference từ `$1`, `$2` ở UI sang `\g<1>`, `\g<2>` cho Python `re.sub()`.
+  - Đếm chính xác số lượt xuất hiện match với `finditer()` ngay cả khi pattern chứa capture groups.
+
+**API Dry-Run Preview & Bảo vệ Thao tác Thay tất cả:**
+- **Endpoint `/api/projects/<slug>/replace-preview`**:
+  - Bổ sung API preview hỗ trợ quét và đếm kết quả thay thế trên toàn bộ dự án mà không thực hiện ghi file (`scanned_files`, `matched_files`, `total_occurrences`).
+- **Nút "Chạy thử" & UI Guard Modal (`tab_projects.html`, `footer.html`)**:
+  - Thêm nút **Chạy thử** trực tiếp trên modal Tìm kiếm & Thay thế cho phạm vi "Tất cả tập tin".
+  - Ép buộc người dùng thực hiện **Chạy thử** để xác nhận trước khi cho phép bấm **Thay tất cả** toàn dự án.
+  - Tự động vô hiệu hóa trạng thái preview nếu người dùng thay đổi từ khóa, chế độ tìm kiếm, phạm vi áp dụng hoặc khi file đang mở bị chỉnh sửa.
+  - Tự động kích hoạt lưu file (save active file) trước khi thực hiện preview.
+
+**Tài liệu & Unit Tests:**
+- **Hướng dẫn sử dụng Regex (`docs/MANUAL.md`)**: Bổ sung mục hướng dẫn cú pháp Regex chuẩn portable v1 và quy trình 3 bước Chạy thử an toàn cho người dùng.
+- **Bộ Kiểm thử Unit Test (`tests/unit/test_batch_regex.py`)**: Thêm unit test kiểm tra toàn diện các hàm compile, adapter replacement, đếm capture groups, và zero-width match.
+
 ---
 
-## [8.18.0] - 2026-08-01
+## [8.19.0] - 2026-08-02
 ### Tích hợp EndpointPolicy (Cloudflare/Vercel Gateway), Refactor Checkpoint & Bộ lọc Model Cloudflare
 
 **Kiến trúc Provider & Endpoint Policy:**

@@ -425,10 +425,13 @@
                     </button>
                 </div>
                 
-                <!-- Canh giữa: 2 nút thay thế -->
+                <!-- Canh giữa: 3 nút thay thế -->
                 <div class="flex gap-1">
                     <button @click="replaceOne()" class="ph3 pv2 f7 ba b--black-10 bg-near-white dark-gray br2 pointer hover-bg-light-silver fw6 transition-colors">
                         Thay thế
+                    </button>
+                    <button @click="previewAll()" x-show="applyScope === 'all'" class="ph3 pv2 f7 ba b--black-10 bg-near-white dark-gray br2 pointer hover-bg-light-silver fw6 transition-colors text-blue">
+                        Chạy thử
                     </button>
                     <button @click="replaceAll()" class="ph3 pv2 f7 ba b--black-10 bg-near-white dark-gray br2 pointer hover-bg-light-silver fw6 transition-colors">
                         Thay tất cả

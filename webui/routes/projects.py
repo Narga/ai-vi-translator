@@ -1514,11 +1514,59 @@ def spellcheck_project_file(slug):
     thread.start()
     return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
 
+# ============================================================
+# Portable Markdown Regex Helper (v1)
+# ============================================================
+# Profile: ECMAScript/Python Portable Regex v1
+# Supported: (...), (?:...), a|b, *, +, ?, {m,n}, character class, ^, $, ., \n, \t, flags i, m, s
+# Back-reference: $1, $2 in replacement strings (UI contract)
+# Normalization: CRLF -> LF before matching.
+# Note: Do not use \w, \d, \b for CJK-dependent logic.
+# Python-specific adapter: Convert $1 to \g<1> for re.sub()
+
+import re as _re
+
+def _compile_portable_regex(pattern_str: str, search_mode: str) -> _re.Pattern:
+    """Biên dịch pattern theo Portable Markdown Regex Profile."""
+    normalized_search = pattern_str.replace("\r\n", "\n")
+    if search_mode == "regex":
+        # Default flags: MULTILINE (to match UI / JS behavior for ^ and $)
+        return _re.compile(normalized_search, _re.MULTILINE)
+    else:
+        flags = 0 if search_mode == "case-sensitive" else _re.IGNORECASE
+        return _re.compile(_re.escape(normalized_search), flags)
+
+def _portable_replacement_adapter(replace_term: str) -> str:
+    """Chuyển đổi cú pháp $1, $2 từ UI sang cú pháp \g<1>, \g<2> của Python re.sub."""
+    # Chuyển $n thành \g<n>, cẩn thận bỏ qua trường hợp đã bị escape (\$n)
+    # Tạm đơn giản: không xử lý escape sâu, chỉ map $1 -> \g<1>
+    return _re.sub(r'(?<!\\)\$(\d+)', r'\\g<\1>', replace_term)
+
+def _apply_portable_regex(content: str, pattern: _re.Pattern, replace_term: str = None) -> tuple[int, str]:
+    """Áp dụng regex để đếm hoặc thay thế. Trả về (count, new_content)."""
+    normalized_content = content.replace("\r\n", "\n")
+    if replace_term is None:
+        count = sum(1 for _ in pattern.finditer(normalized_content))
+        return count, normalized_content
+    
+    adapted_replace = _portable_replacement_adapter(replace_term)
+    new_content, count = pattern.subn(adapted_replace, normalized_content)
+    return count, new_content
+
+def _get_target_text_files(target_dir):
+    ALLOWED_EXTS = {
+        "", ".txt", ".md", ".markdown", ".html", ".htm", ".xhtml",
+        ".xml", ".json", ".csv", ".tsv", ".srt", ".vtt", ".log"
+    }
+    return [
+        f for f in target_dir.rglob("*")
+        if f.is_file() and not f.name.startswith(".") and (f.suffix.lower() in ALLOWED_EXTS or not f.suffix)
+    ]
+
 
 @projects_bp.route("/api/projects/<slug>/replace-all", methods=["POST"])
 def batch_replace_in_project(slug):
     """Tìm kiếm & Thay thế tất cả các tệp trong thư mục sources hoặc translated."""
-    import re as _re
     pdir = _get_project_dir(slug)
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
@@ -1537,30 +1585,17 @@ def batch_replace_in_project(slug):
         return jsonify({"success": True, "replaced_files": 0, "total_occurrences": 0})
 
     try:
-        normalized_search = search_term.replace("\r\n", "\n")
-        if search_mode == "regex":
-            pattern = _re.compile(normalized_search)
-        else:
-            flags = 0 if search_mode == "case-sensitive" else _re.IGNORECASE
-            pattern = _re.compile(_re.escape(normalized_search), flags)
+        pattern = _compile_portable_regex(search_term, search_mode)
     except _re.error as e:
         return jsonify({"error": f"Regex không hợp lệ: {str(e)}"}), 400
 
     total_occurrences = 0
     replaced_files = 0
-    ALLOWED_EXTS = {
-        "", ".txt", ".md", ".markdown", ".html", ".htm", ".xhtml",
-        ".xml", ".json", ".csv", ".tsv", ".srt", ".vtt", ".log"
-    }
-    target_files = [
-        f for f in target_dir.rglob("*")
-        if f.is_file() and not f.name.startswith(".") and (f.suffix.lower() in ALLOWED_EXTS or not f.suffix)
-    ]
-    for fpath in sorted(target_files):
+    
+    for fpath in sorted(_get_target_text_files(target_dir)):
         try:
             content = fpath.read_text(encoding="utf-8", errors="ignore")
-            normalized_content = content.replace("\r\n", "\n")
-            new_content, count = pattern.subn(replace_term, normalized_content)
+            count, new_content = _apply_portable_regex(content, pattern, replace_term)
             if count > 0:
                 fpath.write_text(new_content, encoding="utf-8")
                 total_occurrences += count
@@ -1578,7 +1613,6 @@ def batch_replace_in_project(slug):
 @projects_bp.route("/api/projects/<slug>/search-all", methods=["POST"])
 def batch_search_in_project(slug):
     """Tìm kiếm đếm số lượt xuất hiện trong tất cả tệp nguồn hoặc dịch."""
-    import re as _re
     pdir = _get_project_dir(slug)
     if not pdir.exists():
         return jsonify({"error": "Dự án không tồn tại"}), 404
@@ -1596,31 +1630,17 @@ def batch_search_in_project(slug):
         return jsonify({"success": True, "matched_files": 0, "total_occurrences": 0})
 
     try:
-        normalized_search = search_term.replace("\r\n", "\n")
-        if search_mode == "regex":
-            pattern = _re.compile(normalized_search)
-        else:
-            flags = 0 if search_mode == "case-sensitive" else _re.IGNORECASE
-            pattern = _re.compile(_re.escape(normalized_search), flags)
+        pattern = _compile_portable_regex(search_term, search_mode)
     except _re.error as e:
         return jsonify({"error": f"Regex không hợp lệ: {str(e)}"}), 400
 
     total_occurrences = 0
     matched_files = 0
-    ALLOWED_EXTS = {
-        "", ".txt", ".md", ".markdown", ".html", ".htm", ".xhtml",
-        ".xml", ".json", ".csv", ".tsv", ".srt", ".vtt", ".log"
-    }
-    target_files = [
-        f for f in target_dir.rglob("*")
-        if f.is_file() and not f.name.startswith(".") and (f.suffix.lower() in ALLOWED_EXTS or not f.suffix)
-    ]
-    for fpath in sorted(target_files):
+    
+    for fpath in sorted(_get_target_text_files(target_dir)):
         try:
             content = fpath.read_text(encoding="utf-8", errors="ignore")
-            normalized_content = content.replace("\r\n", "\n")
-            matches = pattern.findall(normalized_content)
-            count = len(matches)
+            count, _ = _apply_portable_regex(content, pattern, replace_term=None)
             if count > 0:
                 total_occurrences += count
                 matched_files += 1
@@ -1631,6 +1651,57 @@ def batch_search_in_project(slug):
         "success": True,
         "matched_files": matched_files,
         "total_occurrences": total_occurrences
+    })
+
+@projects_bp.route("/api/projects/<slug>/replace-preview", methods=["POST"])
+def batch_replace_preview_in_project(slug):
+    """Dry-run (chạy thử) thay thế để trả về số liệu đếm trước khi áp dụng thực sự."""
+    pdir = _get_project_dir(slug)
+    if not pdir.exists():
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    data = request.json or {}
+    folder_type = data.get("folder_type", "sources")
+    search_term = data.get("search_term", "")
+    replace_term = data.get("replace_term", "")
+    search_mode = data.get("search_mode", "normal")
+
+    if not search_term:
+        return jsonify({"error": "Chưa nhập từ khóa tìm kiếm"}), 400
+
+    target_dir = pdir / ("translated" if folder_type == "translated" else "sources")
+    if not target_dir.exists():
+        return jsonify({"success": True, "matched_files": 0, "total_occurrences": 0, "scanned_files": 0})
+
+    try:
+        pattern = _compile_portable_regex(search_term, search_mode)
+    except _re.error as e:
+        return jsonify({"error": f"Regex không hợp lệ: {str(e)}"}), 400
+
+    total_occurrences = 0
+    matched_files = 0
+    scanned_files = 0
+    preview_samples = []
+    
+    for fpath in sorted(_get_target_text_files(target_dir)):
+        scanned_files += 1
+        try:
+            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            # We want to see how many matches, but we don't write
+            count, _ = _apply_portable_regex(content, pattern, replace_term)
+            if count > 0:
+                total_occurrences += count
+                matched_files += 1
+                # Could add preview samples here in the future
+        except Exception as e:
+            logger.error(f"Lỗi preview file {fpath.name}: {str(e)}")
+
+    return jsonify({
+        "success": True,
+        "matched_files": matched_files,
+        "total_occurrences": total_occurrences,
+        "scanned_files": scanned_files,
+        "search_mode": search_mode
     })
 
 

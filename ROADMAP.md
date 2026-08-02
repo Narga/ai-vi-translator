@@ -2,6 +2,14 @@
 
 ## Hoàn thành
 
+### v8.20.0 (2026-08-02)
+- [x] 🔍 **Chuẩn hóa Portable Markdown Regex v1**: Thống nhất cú pháp Regex (ECMAScript/Python) ở cả Frontend (WebUI Editor) và Backend (Python `re` helper), tự động chuẩn hóa ngắt dòng `CRLF -> LF`.
+- [x] 🔄 **Adapter Cú pháp Replacement `$1`**: Chuyển đổi tự động cú pháp back-reference từ `$1`, `$2` ở UI sang `\g<1>`, `\g<2>` của Python `re.sub()`.
+- [x] 👁️ **API Dry-Run Preview (`replace-preview`)**: Bổ sung endpoint `POST /api/projects/<slug>/replace-preview` xem trước số lượng kết quả và file bị ảnh hưởng toàn bộ dự án mà không thực hiện ghi đĩa.
+- [x] 🛡️ **Nút Chạy thử & Guard UI Modal**: Đưa nút **Chạy thử** vào modal Search & Replace, bắt buộc người dùng Chạy thử thành công trước khi Thay tất cả cho phạm vi "Tất cả tập tin". Tự động invalidate preview khi đổi từ khóa, cờ, phạm vi hoặc khi file bị sửa.
+- [x] 📚 **Hướng dẫn Regex & Quy trình Chạy thử trong Document**: Cập nhật `docs/MANUAL.md` hướng dẫn cú pháp portable regex và quy trình 3 bước Chạy thử an toàn.
+- [x] 🧪 **Bộ Unit Tests Regex**: Bổ sung `tests/unit/test_batch_regex.py` kiểm thử toàn diện compile, adapter `$1` -> `\g<1>`, đếm group, replacement, và zero-width match.
+
 ### v8.19.0 (2026-08-02)
 - [x] 📦 **Tái cấu trúc EPUB sang OEBPS chuẩn Sigil**: `mimetype` → `META-INF/container.xml` → `OEBPS/Text/`, `OEBPS/Images/` rỗng, `OEBPS/Styles/` rỗng, `OEBPS/Fonts/` rỗng, `OEBPS/content.opf` tối thiểu. Bỏ `nav.xhtml` và `titlepage.xhtml` — phần mềm biên tập (Sigil/Calibre) tự tạo.
 - [x] 💾 **Ghi EPUB atomic**: `zipfile` ra temp file rồi `os.replace`, self-check mimetype trước khi commit. Bản EPUB cũ được thay thế chỉ khi bản mới hoàn chỉnh.

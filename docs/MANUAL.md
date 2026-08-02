@@ -166,6 +166,24 @@ Giao diện Biên tập hợp nhất (Editor + Spellcheck) với sidebar 3 mini-
 - **📊 Diff (So sánh)**: Xem khác biệt giữa nguồn và đích trong modal.
 - **🧩 Ghép tập tin (Smart Merge)**: Gộp file đã dịch thành một, dùng Natural Sort.
 
+#### 🔍 Tìm kiếm & Thay thế Regex & Quy trình Chạy thử (v8.20.0+)
+
+Mở modal Tìm kiếm & Thay thế bằng nút icon 🔍 trên thanh công cụ của Editor.
+
+##### 1. Quy chuẩn ECMAScript/Python Portable Regex v1
+Hệ thống sử dụng profile Regex di động đồng bộ giữa JavaScript (Editor) và Python (Backend):
+- **Cú pháp được hỗ trợ**: Nhóm `(...)`, `(?:...)`, lựa chọn `a|b`, lặp `*`, `+`, `?`, `{m,n}`, character class `[abc]`, `[^abc]`, neo `^`, `$`, `.`, `\n`, `\t`.
+- **Cờ (Flags)**: Hỗ trợ `i` (bỏ qua hoa/thường) và `m` (multiline). Ký tự xuống dòng Windows CRLF (`\r\n`) được tự động chuẩn hóa về LF (`\n`).
+- **Thay thế tham chiếu (Back-reference)**: Khi thay thế pattern có nhóm capture, nhập `$1`, `$2` trực tiếp trong ô "Từ thay thế". Backend Python sẽ tự động chuyển đổi sang `\g<1>`, `\g<2>`.
+- **Lưu ý CJK/Tiếng Việt**: Tránh dùng `\w`, `\d`, `\b` cho logic phụ thuộc tiếng Việt hoặc CJK; nên dùng character class cụ thể (ví dụ: `[0-9]`, `[a-zA-ZÀ-ỹ]`).
+
+##### 2. Quy trình Chạy thử (Dry-Run Preview) an toàn cho "Tất cả tập tin"
+Thay thế trên toàn bộ tập tin dự án là thao tác không thể hoàn tác. Để bảo vệ dữ liệu dự án:
+1. **Chọn phạm vi**: Chuyển ô "Áp dụng" sang **Tất cả tập tin**. Nút **Chạy thử** màu xanh sẽ xuất hiện.
+2. **Bấm Chạy thử**: Hệ thống tự động lưu file hiện tại (nếu đang bị chỉnh sửa), sau đó quét đếm số lượt xuất hiện và số tập tin bị ảnh hưởng mà **không thực hiện ghi file**.
+3. **Thay tất cả**: Sau khi preview hiển thị số kết quả dự kiến, bấm **Thay tất cả** để tiến hành thay thế thực sự.
+4. **Cơ chế bảo vệ (Guard)**: Nếu bạn thay đổi từ khóa, chế độ tìm kiếm, phạm vi hoặc chỉnh sửa file trong editor, kết quả preview sẽ bị hủy và hệ thống yêu cầu bạn bấm **Chạy thử** lại trước khi cho phép áp dụng.
+
 ---
 
 ## 6. Quản Lý Chỉ Dẫn (Prompt Management)

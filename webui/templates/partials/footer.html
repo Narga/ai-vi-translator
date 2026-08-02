@@ -29,6 +29,7 @@
                 currentIndex: -1,
                 matches: [],
                 applyScope: 'current',
+                previewData: null,
                 
                 open(textareaId) {
                     this.textareaId = textareaId;
@@ -37,6 +38,7 @@
                     this.currentIndex = -1;
                     this.matches = [];
                     this.statusText = '';
+                    this.previewData = null;
                     this.isOpen = true;
                 },
                 
@@ -196,6 +198,71 @@
                         this.statusText = 'Đã thay thế kết quả cuối cùng';
                     }
                 },
+                async previewAll() {
+                    if (this.applyScope !== 'all') {
+                        this.statusText = 'Chạy thử chỉ áp dụng cho Tất cả tập tin.';
+                        return;
+                    }
+                    if (!window.currentProject || !this.searchTerm) {
+                        this.statusText = 'Chưa mở dự án hoặc chưa nhập từ khóa';
+                        return;
+                    }
+                    
+                    const folderType = this.textareaId === 'pm-source-text' ? 'sources' : 'translated';
+                    
+                    // Luôn await save trước khi preview
+                    if (typeof DirtyState !== 'undefined' && DirtyState.isDirty(this.textareaId)) {
+                        const saveFn = {
+                            'pm-source-text': () => EditorComponent.saveSourceFile(),
+                            'pm-result-text': () => EditorComponent.saveChunkTranslation(),
+                            'pm-spell-result-text': () => EditorComponent.saveSpellcheckResult(),
+                        };
+                        const fn = saveFn[this.textareaId];
+                        if (fn) {
+                            try {
+                                await fn();
+                            } catch(e) {
+                                this.statusText = 'Lưu file hiện tại thất bại, không thể Chạy thử.';
+                                return;
+                            }
+                        }
+                    }
+
+                    this.statusText = 'Đang chạy thử...';
+                    try {
+                        const res = await fetch(`/api/projects/${window.currentProject.slug}/replace-preview`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                folder_type: folderType,
+                                search_term: this.searchTerm,
+                                replace_term: this.replaceTerm,
+                                search_mode: this.searchMode
+                            })
+                        }).then(r => r.json());
+
+                        if (res.success) {
+                            this.statusText = `Chạy thử: Dự kiến thay ${res.total_occurrences} kết quả trong ${res.matched_files} tập tin.`;
+                            this.previewData = {
+                                params: JSON.stringify({
+                                    searchTerm: this.searchTerm,
+                                    replaceTerm: this.replaceTerm,
+                                    searchMode: this.searchMode,
+                                    applyScope: this.applyScope,
+                                    textareaId: this.textareaId
+                                }),
+                                matchCount: res.total_occurrences,
+                                fileCount: res.matched_files
+                            };
+                        } else {
+                            this.statusText = 'Lỗi: ' + (res.error || 'Unknown');
+                            this.previewData = null;
+                        }
+                    } catch(e) {
+                        this.statusText = 'Lỗi mạng: ' + e.message;
+                        this.previewData = null;
+                    }
+                },
                 
                 async replaceAll() {
                     if (this.applyScope === 'all') {
@@ -203,20 +270,25 @@
                             this.statusText = 'Chưa mở dự án';
                             return;
                         }
-                        const folderType = this.textareaId === 'pm-source-text' ? 'sources' : 'translated';
-                        const confirmed = confirm(`Thay thế "${this.searchTerm}" trong TẤT CẢ tập tin ${folderType === 'sources' ? 'nguồn' : 'dịch'}? Không thể hoàn tác.`);
-                        if (!confirmed) return;
-
-                        // Luôn await save trước khi replace — nếu save fail thì dừng luôn.
-                        if (typeof DirtyState !== 'undefined' && DirtyState.isDirty(this.textareaId)) {
-                            const saveFn = {
-                                'pm-source-text': () => EditorComponent.saveSourceFile(),
-                                'pm-result-text': () => EditorComponent.saveChunkTranslation(),
-                                'pm-spell-result-text': () => EditorComponent.saveSpellcheckResult(),
-                            };
-                            const fn = saveFn[this.textareaId];
-                            if (fn) await fn();
+                        const currentParams = JSON.stringify({
+                            searchTerm: this.searchTerm,
+                            replaceTerm: this.replaceTerm,
+                            searchMode: this.searchMode,
+                            applyScope: this.applyScope,
+                            textareaId: this.textareaId
+                        });
+                        if (!this.previewData || this.previewData.params !== currentParams) {
+                            this.statusText = 'Vui lòng bấm Chạy thử để có kết quả preview mới nhất trước khi Thay tất cả.';
+                            return;
                         }
+                        if (typeof DirtyState !== 'undefined' && DirtyState.isDirty(this.textareaId)) {
+                             this.statusText = 'Tập tin đã bị sửa đổi. Vui lòng bấm Chạy thử lại.';
+                             return;
+                        }
+                        
+                        const folderType = this.textareaId === 'pm-source-text' ? 'sources' : 'translated';
+                        const confirmed = confirm(`Xác nhận áp dụng Thay tất cả:\n- Sẽ thay thế ${this.previewData.matchCount} kết quả trong ${this.previewData.fileCount} tập tin.\n- Thao tác này KHÔNG THỂ HOÀN TÁC.\nBạn có chắc chắn muốn tiếp tục?`);
+                        if (!confirmed) return;
 
                         try {
                             const res = await fetch(`/api/projects/${window.currentProject.slug}/replace-all`, {
@@ -232,6 +304,7 @@
 
                             if (res.success) {
                                 this.statusText = `Đã thay thế ${res.total_occurrences} kết quả trong ${res.replaced_files} tập tin`;
+                                this.previewData = null; // reset preview
                                 UiHelpers.showToast(this.statusText, 'success');
                                 // Reload file đang mở để cập nhật DirtyState + nội dung
                                 if (window.currentProjectFile) {
