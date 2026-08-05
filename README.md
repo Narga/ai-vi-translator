@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.20.0)
+# 📚 Content Translator (v8.21.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.20.0):** Chuẩn hóa Portable Markdown Regex v1 đồng bộ giữa JavaScript và Python, thêm nút **Chạy thử** (Dry-run preview) đếm kết quả toàn bộ dự án trước khi Thay tất cả, tự động chuyển đổi back-reference `$1` sang `\g<1>`.
+**Tính năng mới (v8.21.0):** Tác vụ tạo thông tin AI (summary/relationship/glossary/style_guide) chạy nền với SSE progress, retry, cancel và phân tích file lớn tự động qua map-reduce. UI tab Thông tin hiển thị tiến độ realtime thay vì chờ đồng bộ.
 
 ---
 
@@ -84,5 +84,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga
-**Phiên bản:** 8.20.0
-**Ngày:** 02/08/2026
+**Phiên bản:** 8.21.0
+**Ngày:** 05/08/2026

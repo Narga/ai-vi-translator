@@ -446,6 +446,8 @@ const PromptManager = {
 
     aiGenerateContent(fieldKey) {
         if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
+        if (window._contentTabGenerating) { return; }
+        window._contentTabGenerating = true;
 
         const modelSelMap = {
             'style_guide': 'style-guide-model',
@@ -463,8 +465,14 @@ const PromptManager = {
         const modelSel = document.getElementById(modelSelMap[fieldKey]);
         const model = modelSel ? modelSel.value : '';
         const outputEl = document.getElementById(outputElMap[fieldKey]);
+        const btn = document.querySelector(`button[onclick*="aiGenerateContent('${fieldKey}')"]`) || document.querySelector('#pm-btn-generate-content');
 
-        if (outputEl) { outputEl.placeholder = '⏳ AI đang tạo nội dung...'; outputEl.disabled = true; }
+        if (btn) {
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang phân tích...';
+        }
+        if (outputEl) { outputEl.placeholder = '⏳ AI đang phân tích...'; outputEl.disabled = true; }
 
         fetch(`/api/projects/${window.currentProject.slug}/summarize`, {
             method: 'POST',
@@ -478,17 +486,31 @@ const PromptManager = {
                 return data;
             })
             .then(data => {
-                if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
-                if (data.success && data.summary) {
-                    if (outputEl) outputEl.value = data.summary;
-                    UiHelpers.showToast('AI đã tạo nội dung thành công!', 'success');
+                if (data.status === 'started' && data.job_id) {
+                    TranslationWorker.connectToProgress(btn, false, data.job_id, 1, function(evt) {
+                        const assetFile = evt.asset_file || fieldKey + '.txt';
+                        fetch(`/api/projects/${window.currentProject.slug}/file/assets/${assetFile}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (outputEl && data.content) outputEl.value = data.content;
+                                UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');
+                            })
+                            .catch(e => {
+                                UiHelpers.showToast('Lỗi tải kết quả: ' + e.message, 'error');
+                            })
+                            .finally(function() {
+                                window._contentTabGenerating = false;
+                            });
+                    });
                 } else {
-                    UiHelpers.showToast(data.error || 'AI không trả về kết quả', 'error');
+                    throw new Error(data?.error || 'Không nhận được job_id');
                 }
             })
             .catch(e => {
+                TranslationWorker.resetButton(btn);
                 if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
                 UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+                window._contentTabGenerating = false;
             });
     },
 
@@ -505,10 +527,14 @@ const PromptManager = {
 
     aiGenerateFromInfoTab() {
         if (!window.currentProject) { UiHelpers.showToast('Chưa chọn dự án!', 'error'); return; }
+        if (window._infoTabGenerating) { return; }
+        window._infoTabGenerating = true;
+
         const sourceSelect = document.getElementById('pm-info-source-file');
         const sourceFile = sourceSelect ? sourceSelect.value : '';
         if (!sourceFile) {
             UiHelpers.showToast('Vui lòng chọn tập tin nguồn trước khi Generate', 'error');
+            window._infoTabGenerating = false;
             return;
         }
 
@@ -523,7 +549,14 @@ const PromptManager = {
             'summary': 'pm-guide-summary',
         };
         const outputEl = document.getElementById(outputElMap[fieldKey]);
-        if (outputEl) { outputEl.placeholder = '⏳ AI đang tạo nội dung...'; outputEl.disabled = true; }
+        const btn = document.querySelector('#pm-info-generate-btn') || document.querySelector('button[onclick*="aiGenerateFromInfoTab"]');
+
+        if (btn) {
+            btn.dataset.originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '🔄 <span class="nt-btn-spinner dib"></span> Đang phân tích...';
+        }
+        if (outputEl) { outputEl.placeholder = '⏳ AI đang phân tích...'; outputEl.disabled = true; }
 
         fetch(`/api/projects/${window.currentProject.slug}/summarize`, {
             method: 'POST',
@@ -537,19 +570,31 @@ const PromptManager = {
                 return data;
             })
             .then(data => {
-                if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
-                const content = data.content || data.summary;
-                if (data.success && content) {
-                    if (outputEl) outputEl.value = content;
-                    const assetFile = data.asset_file || fieldKey + '.txt';
-                    UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');
+                if (data.status === 'started' && data.job_id) {
+                    TranslationWorker.connectToProgress(btn, false, data.job_id, 1, function(evt) {
+                        const assetFile = evt.asset_file || fieldKey + '.txt';
+                        fetch(`/api/projects/${window.currentProject.slug}/file/assets/${assetFile}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (outputEl && data.content) outputEl.value = data.content;
+                                UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');
+                            })
+                            .catch(e => {
+                                UiHelpers.showToast('Lỗi tải kết quả: ' + e.message, 'error');
+                            })
+                            .finally(function() {
+                                window._infoTabGenerating = false;
+                            });
+                    });
                 } else {
-                    UiHelpers.showToast(data.error || 'AI không trả về kết quả', 'error');
+                    throw new Error(data?.error || 'Không nhận được job_id');
                 }
             })
             .catch(e => {
+                TranslationWorker.resetButton(btn);
                 if (outputEl) { outputEl.disabled = false; outputEl.placeholder = ''; }
                 UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+                window._infoTabGenerating = false;
             });
     }
 };

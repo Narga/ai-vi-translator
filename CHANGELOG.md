@@ -27,7 +27,33 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 
 ---
 
-## [8.19.0] - 2026-08-02
+## [8.21.0] - 2026-08-05
+### Tác vụ Tạo Thông tin AI bằng Task System, SSE Progress & Phân tích File Lớn Map-Reduce
+
+**Backend - Tác vụ AI Thông tin dự án (`webui/routes/projects.py`):**
+- **Task hóa endpoint `/api/projects/<slug>/summarize`**: Chuyển từ xử lý đồng bộ sang tạo `TaskRegistry` task + worker nền, trả `202 Accepted` + `job_id` ngay lập tức.
+- **SSE Progress realtime**: Worker phát lifecycle events `started` → `loading_source` → `loading_prompt` → `planning` → `extracting` → `merging` → `synthesizing` → `validating` → `saving` → `complete`.
+- **Hỗ trợ phân tích file lớn (map-reduce)**: Tự động chọn `single_request` cho file nhỏ, `map_reduce` cho file lớn dựa trên context budget; chia theo boundary `chapter/heading > paragraph > sentence`.
+- **Retry tối thiểu**: Tối đa 2 retry cho timeout, rate-limit, connection error, empty response; không retry lỗi model/key/prompt.
+- **Hủy an toàn**: Tái sử dụng `/api/tasks/<job_id>/cancel`; worker kiểm tra trạng thái trước mỗi phần và trước khi ghi asset.
+- **Ghi file an toàn**: Áp dụng `_atomic_write_text` (`os.replace` từ tmp) cho asset output.
+- **Đọc nguồn an toàn**: Thay `errors="ignore"` bằng xử lý tường minh `UnicodeDecodeError`; file lỗi encoding tạo task `failed` rõ ràng.
+
+**Frontend - UI Tab Thông tin (`webui/static/js/prompt-manager.js`, `translation-worker.js`):**
+- **SSE Progress cho AI Generate**: Cả `aiGenerateFromInfoTab()` và `aiGenerateContent()` nay kết nối SSE qua `TranslationWorker.connectToProgress()`, hiển thị phase/percent/log realtime.
+- **Chống double-submit**: Thêm guard `_infoTabGenerating` / `_contentTabGenerating` chống bấm Generate nhiều lần cùng lúc.
+- **Tải kết quả từ asset**: Sau khi complete, fetch `/api/projects/<slug>/file/assets/<file>` và cập nhật textarea + toast thông báo.
+
+**Prompt mặc định cải tiến (`workspace/prompts/default/`):**
+- Cập nhật 4 prompt: `summary_prompt.txt`, `relationship_prompt.txt`, `glossary_prompt.txt`, `style_guide_prompt.txt`.
+- Thêm yêu cầu `PART_ID`, `evidence`, `coverage` toàn văn; loại bỏ yêu cầu "3-5 câu" cố định; bổ sung extraction/synthesis schema.
+
+**Tài liệu:**
+- Bổ sung mục kiến trúc task-based AI generation vào `docs/DEVELOPMENT.md`.
+
+---
+
+## [8.20.0] - 2026-08-02
 ### Tích hợp EndpointPolicy (Cloudflare/Vercel Gateway), Refactor Checkpoint & Bộ lọc Model Cloudflare
 
 **Kiến trúc Provider & Endpoint Policy:**

@@ -2,10 +2,12 @@
 # Blueprint: Project-Based Workspace API + Translation Memory APIs
 
 import json
+import os
 import re
 import shutil
 import logging
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 from threading import Thread
 
@@ -41,6 +43,266 @@ def _spellcheck_info_name(filename: str) -> str:
     """
     stem, _dot, _ext = filename.rpartition(".")
     return f"{stem or filename}_info.txt"
+
+
+# ============================================================
+# Project Info Helpers
+# ============================================================
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Ghi file an toàn bằng atomic write."""
+    tmp_path = path.with_suffix(".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    os.replace(str(tmp_path), str(path))
+
+
+def _split_text_by_boundaries(text: str, max_chars: int) -> List[str]:
+    """Chia văn bản thành các phần nhỏ hơn max_chars, ưu tiên boundary tự nhiên."""
+    # Bước 1: chia theo heading/chapter
+    raw_parts = re.split(r'\n(?=#{1,6}\s)', text)
+    if len(raw_parts) == 1:
+        raw_parts = re.split(r'\n(?=(chương|chapter)\s+\w+)', text, flags=re.IGNORECASE)
+
+    # Bước 2: merge và chia theo paragraph rồi sentence
+    parts = []
+    current = ""
+
+    for part in raw_parts:
+        part = part.strip()
+        if not part:
+            continue
+
+        if len(part) > max_chars:
+            if current:
+                parts.append(current)
+                current = ""
+            sub_parts = _split_large_part(part, max_chars)
+            for sp in sub_parts[:-1]:
+                parts.append(sp)
+            current = sub_parts[-1] if sub_parts else ""
+        elif len(current) + len(part) + 2 <= max_chars:
+            current = current + "\n\n" + part if current else part
+        else:
+            if current:
+                parts.append(current)
+            current = part
+
+    if current:
+        parts.append(current)
+
+    return parts if parts else [text]
+
+
+def _split_large_part(text: str, max_chars: int) -> List[str]:
+    """Chia một phần lớn theo đoạn rồi câu."""
+    paragraphs = re.split(r'\n\n+', text)
+    parts = []
+    current = ""
+
+    for para in paragraphs:
+        if len(para) > max_chars:
+            if current:
+                parts.append(current)
+                current = ""
+            sentences = re.split(r'(?<=[.!?。])\s+', para)
+            current = ""
+            for sent in sentences:
+                if len(current) + len(sent) + 1 <= max_chars:
+                    current = current + " " + sent if current else sent
+                else:
+                    if current:
+                        parts.append(current)
+                    current = sent
+            if current:
+                parts.append(current)
+                current = ""
+        elif len(current) + len(para) + 2 <= max_chars:
+            current = current + "\n\n" + para if current else para
+        else:
+            if current:
+                parts.append(current)
+            current = para
+
+    if current:
+        parts.append(current)
+
+    return parts if parts else [text]
+
+
+def _execute_single_request(job_id, registry, content, prompt_text, provider_type, api_keys, model, base_url, gateway_api_key, credential_mode, policy):
+    """Thực hiện một request AI duy nhất với retry tối thiểu."""
+    full_prompt = f"{prompt_text}\n{content}"
+    max_retries = 2
+    input_chars = len(content)
+    prompt_chars = len(prompt_text)
+
+    for attempt in range(1, max_retries + 1):
+        if attempt > 1:
+            registry.append_event(job_id, {
+                "type": "info",
+                "message": f"Thử lại lần {attempt}/{max_retries}...",
+                "phase": "extracting",
+                "attempt": attempt,
+                "max_attempts": max_retries
+            })
+
+        try:
+            if provider_type == "gemini":
+                from services.genai_client import GenAIClient
+                client = GenAIClient(api_key=api_keys[0])
+                result, status = client.generate_content(full_prompt, model=model)
+            else:
+                from services.openai_client import OpenAIClient
+                client = OpenAIClient(
+                    api_key=api_keys[0] if api_keys else "",
+                    base_url=base_url,
+                    default_model=model,
+                    gateway_api_key=gateway_api_key,
+                    credential_mode=credential_mode,
+                )
+                result, status = client.generate_content(full_prompt)
+
+            if status == "success" and result:
+                registry.append_event(job_id, {
+                    "type": "info",
+                    "message": f"Nhận kết quả: {len(result)} ký tự",
+                    "phase": "extracting",
+                    "output_chars": len(result),
+                    "input_chars": input_chars,
+                    "prompt_chars": prompt_chars,
+                    "duration_ms": 0
+                })
+                return result
+            elif status == "empty_response":
+                if attempt < max_retries:
+                    continue
+                registry.append_event(job_id, {"type": "error", "message": "AI trả về kết quả rỗng", "retryable": True})
+                return None
+            else:
+                registry.append_event(job_id, {"type": "error", "message": f"AI lỗi: {status}", "retryable": False})
+                return None
+
+        except Exception as e:
+            retryable = _is_retryable_error(e)
+            if retryable and attempt < max_retries:
+                registry.append_event(job_id, {
+                    "type": "info",
+                    "message": f"Lỗi tạm thời, thử lại: {str(e)}",
+                    "phase": "extracting",
+                    "attempt": attempt,
+                    "max_attempts": max_retries
+                })
+                continue
+            registry.append_event(job_id, {"type": "error", "message": f"Lỗi gọi AI: {str(e)}", "retryable": retryable})
+            return None
+
+    return None
+
+
+def _is_retryable_error(error: Exception) -> bool:
+    """Kiểm tra lỗi có nên retry không."""
+    error_str = str(error).lower()
+    retryable_indicators = ["timeout", "timed out", "connection", "rate limit", "429", "quota", "503", "500"]
+    non_retryable_indicators = ["api key", "invalid", "permission", "model", "context", "401", "403", "400"]
+
+    for indicator in non_retryable_indicators:
+        if indicator in error_str:
+            return False
+    for indicator in retryable_indicators:
+        if indicator in error_str:
+            return True
+    return False
+
+
+def _execute_map_reduce(job_id, registry, parts, prompt_text, content_type, provider_type, api_keys, model, base_url, gateway_api_key, credential_mode, policy):
+    """Thực hiện phân tích nhiều phần: extraction -> merge -> synthesis."""
+    total_parts = len(parts)
+    registry.append_event(job_id, {
+        "type": "info",
+        "message": f"Bắt đầu phân tích {total_parts} phần...",
+        "phase": "extracting",
+        "current": 0,
+        "total": total_parts
+    })
+
+    partials = []
+    for idx, part in enumerate(parts, 1):
+        # Kiểm tra cancel trước mỗi phần
+        task = registry.get_task(job_id)
+        if task and task.status == "cancelled":
+            registry.append_event(job_id, {"type": "cancelled", "message": "Đã dừng theo yêu cầu"})
+            return None
+
+        registry.append_event(job_id, {
+            "type": "progress",
+            "message": f"Đang phân tích phần {idx}/{total_parts}",
+            "phase": "extracting",
+            "current": idx,
+            "total": total_parts,
+            "percent": int((idx / total_parts) * 50)
+        })
+
+        # Tạo prompt extraction cho phần này
+        extraction_prompt = _build_extraction_prompt(prompt_text, part, idx, content_type)
+
+        result = _execute_single_request(
+            job_id, registry, part, extraction_prompt,
+            provider_type, api_keys, model,
+            base_url, gateway_api_key, credential_mode, policy
+        )
+
+        if result is None:
+            return None
+
+        partials.append({"part_id": f"part-{idx:03d}", "content": result})
+        registry.append_event(job_id, {
+            "type": "info",
+            "message": f"Hoàn thành phần {idx}/{total_parts}",
+            "phase": "extracting",
+            "current": idx,
+            "total": total_parts
+        })
+
+    # Phase: merging
+    registry.append_event(job_id, {"type": "info", "message": "Đang hợp nhất kết quả...", "phase": "merging", "percent": 60})
+
+    # Phase: synthesizing
+    registry.append_event(job_id, {"type": "info", "message": "Đang tổng hợp toàn văn...", "phase": "synthesizing", "percent": 70})
+
+    synthesis_prompt = _build_synthesis_prompt(prompt_text, partials, content_type)
+    final_result = _execute_single_request(
+        job_id, registry, "", synthesis_prompt,
+        provider_type, api_keys, model,
+        base_url, gateway_api_key, credential_mode, policy
+    )
+
+    return final_result
+
+
+def _build_extraction_prompt(base_prompt: str, part_content: str, part_index: int, content_type: str) -> str:
+    """Tạo prompt extraction cho một phần."""
+    return (
+        f"{base_prompt}\n\n"
+        f"--- PHẦN {part_index} ---\n"
+        f"Chỉ phân tích nội dung trong phần này. Giữ PART_ID nếu có.\n\n"
+        f"{part_content}"
+    )
+
+
+def _build_synthesis_prompt(base_prompt: str, partials: List[dict], content_type: str) -> str:
+    """Tạo prompt synthesis từ các partial đã trích xuất."""
+    partials_text = "\n\n".join(
+        f"--- {p['part_id']} ---\n{p['content']}"
+        for p in partials
+    )
+    return (
+        f"{base_prompt}\n\n"
+        f"--- CÁC PHẦN ĐÃ TRÍCH XUẤT ---\n"
+        f"Tổng hợp từ {len(partials)} phần. Hợp nhất, loại trùng, bao phủ toàn bộ nguồn.\n\n"
+        f"{partials_text}"
+    )
 
 
 # ============================================================
@@ -1069,158 +1331,208 @@ def summarize_project(slug):
     source_file = data.get("source_file", "")
     content_type = data.get("content_type", "summary")
 
-    # Map content_type -> (prompt_filename, asset_filename, fallback_prompt)
     CONTENT_MAP = {
-        "summary": (
-            "summary_prompt.txt",
-            "summary.txt",
-            (
-                "Đọc nội dung sau và viết bản TÓM TẮT NGẮN GỌN bằng tiếng Việt, "
-                "bao gồm: thể loại, bối cảnh, nhân vật chính, cốt truyện chính (3-5 câu), tone văn.\n\n"
-                "--- NỘI DUNG ---\n"
-            ),
-        ),
-        "relationship": (
-            "relationship_prompt.txt",
-            "relationship.txt",
-            (
-                "Đọc nội dung sau và liệt kê các NHÂN VẬT quan trọng theo định dạng:\n"
-                "tên_gốc | tên_tiếng_việt | vai_trò | quan_hệ\n\n"
-                "--- NỘI DUNG ---\n"
-            ),
-        ),
-        "glossary": (
-            "glossary_prompt.txt",
-            "glossary.txt",
-            (
-                "Đọc nội dung sau và trích xuất THUẬT NGỮ quan trọng theo định dạng:\n"
-                "thuật_ngữ_gốc | thuật_ngữ_tiếng_việt | ghi_chú\n\n"
-                "--- NỘI DUNG ---\n"
-            ),
-        ),
-        "style_guide": (
-            "style_guide_prompt.txt",
-            "style_guide.txt",
-            (
-                "Đọc nội dung sau và tạo CHỈ DẪN PHONG CÁCH DỊCH bao gồm: "
-                "tone văn, cách xưng hô, quy tắc dịch tên riêng, các lưu ý văn phong.\n\n"
-                "--- NỘI DUNG ---\n"
-            ),
-        ),
+        "summary": ("summary_prompt.txt", "summary.txt"),
+        "relationship": ("relationship_prompt.txt", "relationship.txt"),
+        "glossary": ("glossary_prompt.txt", "glossary.txt"),
+        "style_guide": ("style_guide_prompt.txt", "style_guide.txt"),
     }
 
     if content_type not in CONTENT_MAP:
         return jsonify({"error": f"Loại nội dung không hợp lệ: {content_type}"}), 400
 
-    prompt_filename, asset_filename, fallback_prompt = CONTENT_MAP[content_type]
+    prompt_filename, asset_filename = CONTENT_MAP[content_type]
 
-    # Tìm file nguồn
-    src_path = pdir / "sources" / source_file
-    if not src_path.is_file():
-        src_dir = pdir / "sources"
-        all_text = []
-        if src_dir.exists():
-            for f in sorted(src_dir.rglob("*.txt")):
-                all_text.append(f.read_text(encoding="utf-8", errors="ignore"))
-            for f in sorted(src_dir.rglob("*.md")):
-                all_text.append(f.read_text(encoding="utf-8", errors="ignore"))
-        content = "\n\n".join(all_text)
-    else:
-        content = src_path.read_text(encoding="utf-8", errors="ignore")
+    # Validate provider/model trước khi tạo task
+    from backend.infrastructure.providers.provider_service import ProviderService
+    from backend.infrastructure.providers.endpoint_policy import classify_endpoint
 
-    if not content.strip():
-        return jsonify({"error": "Không có nội dung nguồn để phân tích"}), 400
+    provider_service = ProviderService()
+    active_provider = provider_service.get_active_provider_config() or {}
+    base_url = active_provider.get("base_url")
+    policy = classify_endpoint(base_url)
+    requested_model = data.get("model", "") or active_provider.get("default_model", "") or "gpt-4o-mini"
+    requested_model = policy.normalize_model(requested_model)
+    if not policy.validate_model(requested_model):
+        return jsonify({"error": f"Model {requested_model} không hợp lệ với provider {policy.provider_kind}"}), 400
 
-    # Giới hạn nội dung
-    max_chars = 50000
-    if len(content) > max_chars:
-        content = content[:max_chars] + "\n\n[... nội dung tiếp theo bị cắt ...]"
+    # Tạo task và chạy worker nền
+    registry = TaskRegistry()
+    job_id = registry.create_task("project_info", f"AI {content_type} cho {slug}", 1)
 
-    # Nạp prompt: project override → default → hardcoded
-    PROMPTS_DIR = Path("workspace/prompts")
-    pdir = _get_project_dir(slug)
+    def _project_info_worker(job_id):
+        try:
+            from backend.infrastructure.providers.provider_service import ProviderService
+            from backend.infrastructure.providers.endpoint_policy import classify_endpoint
 
-    prompt_text = ""
-    # Thử prompt tùy chỉnh của project trước
-    if pdir:
-        project_prompt = pdir / "prompt" / prompt_filename
-        if project_prompt.exists():
-            prompt_text = project_prompt.read_text(encoding="utf-8")
+            provider_service = ProviderService()
+            active_provider = provider_service.get_active_provider_config() or {}
+            provider_type = active_provider.get("type", "gemini")
+            base_url = active_provider.get("base_url")
+            gateway_api_key = active_provider.get("gateway_api_key", "")
+            credential_mode = active_provider.get("credential_mode", "default")
 
-    # Fallback về bộ default
-    if not prompt_text:
-        default_prompt = PROMPTS_DIR / "default" / prompt_filename
-        if default_prompt.exists():
-            prompt_text = default_prompt.read_text(encoding="utf-8")
+            policy = classify_endpoint(base_url)
+            provider_kind = policy.provider_kind
 
-    # Fallback hardcoded nếu không có file prompt nào
-    if not prompt_text:
-        prompt_text = fallback_prompt
+            # Chuẩn bị API keys
+            if provider_type == "gemini":
+                api_keys = active_provider.get("api_keys", [])
+            else:
+                api_key = active_provider.get("api_key", "")
+                api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
 
-    # Ghép prompt + nội dung
-    full_prompt = f"{prompt_text}\n{content}"
+            if not api_keys or not api_keys[0]:
+                registry.append_event(job_id, {"type": "error", "message": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}", "retryable": False})
+                registry.update_status(job_id, "failed")
+                return
 
-    try:
-        from backend.infrastructure.providers.provider_service import ProviderService
-        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
-        
-        provider_service = ProviderService()
-        active_provider = provider_service.get_active_provider_config() or {}
-        provider_type = active_provider.get("type", "gemini")
-        base_url = active_provider.get("base_url")
-        gateway_api_key = active_provider.get("gateway_api_key", "")
-        credential_mode = active_provider.get("credential_mode", "default")
-        
-        policy = classify_endpoint(base_url)
-        
-        requested_model = data.get("model", "")
-        if not requested_model:
-            requested_model = active_provider.get("default_model") or "gpt-4o-mini"
-            
-        requested_model = policy.normalize_model(requested_model)
-        if not policy.validate_model(requested_model):
-            return jsonify({"error": f"Model {requested_model} không hợp lệ với provider {policy.provider_kind}"}), 400
+            # Phase: loading_source
+            registry.append_event(job_id, {"type": "info", "message": "Đang đọc nguồn...", "phase": "loading_source"})
 
-        if provider_type == "gemini":
-            api_keys = active_provider.get("api_keys", [])
-            if not api_keys:
-                return jsonify({"error": "Chưa cấu hình API Key Gemini"}), 400
-            from services.genai_client import GenAIClient
-            client = GenAIClient(api_key=api_keys[0])
-            result, status = client.generate_content(full_prompt, model=requested_model)
-        else:
-            api_key = active_provider.get("api_key")
-            if not api_key and not gateway_api_key:
-                return jsonify({"error": "Chưa cấu hình API Key OpenAI"}), 400
-            from services.openai_client import OpenAIClient
-            client = OpenAIClient(
-                api_key=api_key,
-                base_url=base_url,
-                default_model=requested_model,
-                gateway_api_key=gateway_api_key,
-                credential_mode=credential_mode,
-            )
-            result, status = client.generate_content(full_prompt)
+            src_path = pdir / "sources" / source_file
+            if not src_path.is_file():
+                src_dir = pdir / "sources"
+                all_text = []
+                if src_dir.exists():
+                    for f in sorted(src_dir.rglob("*.txt")):
+                        try:
+                            all_text.append(f.read_text(encoding="utf-8"))
+                        except UnicodeDecodeError as e:
+                            registry.append_event(job_id, {"type": "error", "message": f"File lỗi encoding: {f.name}: {e}", "retryable": False})
+                            registry.update_status(job_id, "failed")
+                            return
+                    for f in sorted(src_dir.rglob("*.md")):
+                        try:
+                            all_text.append(f.read_text(encoding="utf-8"))
+                        except UnicodeDecodeError as e:
+                            registry.append_event(job_id, {"type": "error", "message": f"File lỗi encoding: {f.name}: {e}", "retryable": False})
+                            registry.update_status(job_id, "failed")
+                            return
+                content = "\n\n".join(all_text)
+            else:
+                try:
+                    content = src_path.read_text(encoding="utf-8")
+                except UnicodeDecodeError as e:
+                    registry.append_event(job_id, {"type": "error", "message": f"File lỗi encoding: {source_file}: {e}", "retryable": False})
+                    registry.update_status(job_id, "failed")
+                    return
 
-        if status == "success" and result:
-            # Lưu vào đúng file asset tương ứng với content_type
+            input_chars = len(content)
+            registry.append_event(job_id, {"type": "info", "message": f"Đã đọc nguồn: {input_chars} ký tự", "phase": "loading_source", "input_chars": input_chars})
+
+            if not content.strip():
+                registry.append_event(job_id, {"type": "error", "message": "Không có nội dung nguồn để phân tích", "retryable": False})
+                registry.update_status(job_id, "failed")
+                return
+
+            # Phase: loading_prompt
+            registry.append_event(job_id, {"type": "info", "message": "Đang nạp prompt...", "phase": "loading_prompt"})
+
+            PROMPTS_DIR = Path("workspace/prompts")
+            prompt_text = ""
+            project_prompt = pdir / "prompt" / prompt_filename
+            if project_prompt.exists():
+                prompt_text = project_prompt.read_text(encoding="utf-8")
+
+            if not prompt_text:
+                default_prompt = PROMPTS_DIR / "default" / prompt_filename
+                if default_prompt.exists():
+                    prompt_text = default_prompt.read_text(encoding="utf-8")
+
+            if not prompt_text:
+                registry.append_event(job_id, {"type": "error", "message": "Không tìm thấy prompt", "retryable": False})
+                registry.update_status(job_id, "failed")
+                return
+
+            prompt_chars = len(prompt_text)
+
+            # Phase: planning
+            registry.append_event(job_id, {"type": "info", "message": "Đang lập kế hoạch phân tích...", "phase": "planning"})
+
+            # Quyết định strategy dựa trên kích thước input
+            # Lấy context limit từ policy nếu có, không có thì dùng conservative
+            context_limit = getattr(policy, 'context_window', 200000)
+            safety_margin = 5000  # chừa cho output
+            available_budget = context_limit - prompt_chars - safety_margin
+
+            if input_chars <= available_budget:
+                strategy = "single_request"
+                parts = [content]
+            else:
+                strategy = "map_reduce"
+                # Chia theo boundary: chapter/heading > paragraph > sentence
+                parts = _split_text_by_boundaries(content, available_budget)
+
+            registry.append_event(job_id, {
+                "type": "info",
+                "message": f"Chiến lược: {strategy}, {len(parts)} phần",
+                "phase": "planning",
+                "strategy": strategy,
+                "part_count": len(parts)
+            })
+
+            # Thực thi AI
+            if strategy == "single_request":
+                result = _execute_single_request(
+                    job_id, registry, content, prompt_text,
+                    provider_type, api_keys, requested_model,
+                    base_url, gateway_api_key, credential_mode, policy
+                )
+            else:
+                result = _execute_map_reduce(
+                    job_id, registry, parts, prompt_text, content_type,
+                    provider_type, api_keys, requested_model,
+                    base_url, gateway_api_key, credential_mode, policy
+                )
+
+            if result is None:
+                registry.update_status(job_id, "failed")
+                return
+
+            # Phase: validating
+            registry.append_event(job_id, {"type": "info", "message": "Đang kiểm tra kết quả...", "phase": "validating"})
+
+            if not result or not result.strip():
+                registry.append_event(job_id, {"type": "error", "message": "AI trả về kết quả rỗng", "retryable": True})
+                registry.update_status(job_id, "failed")
+                return
+
+            # Phase: saving
+            registry.append_event(job_id, {"type": "info", "message": f"Đang lưu {asset_filename}...", "phase": "saving"})
+
             assets_dir = pdir / "assets"
             assets_dir.mkdir(parents=True, exist_ok=True)
-            (assets_dir / asset_filename).write_text(result, encoding="utf-8")
-            return jsonify({
-                "success": True,
-                "summary": result,
-                "content": result,
-                "content_type": content_type,
-                "asset_file": asset_filename,
-                "source_file": source_file,
-            })
-        else:
-            return jsonify({"error": f"AI trả về lỗi: {result or status}"}), 500
+            asset_path = assets_dir / asset_filename
 
-    except Exception as e:
-        logging.getLogger(__name__).error(f"AI Generate error [{content_type}]: {e}")
-        return jsonify({"error": str(e)}), 500
+            try:
+                _atomic_write_text(asset_path, result)
+            except Exception as e:
+                registry.append_event(job_id, {"type": "error", "message": f"Lỗi ghi asset: {e}", "retryable": False})
+                registry.update_status(job_id, "failed")
+                return
+
+            output_chars = len(result)
+            registry.append_event(job_id, {
+                "type": "complete",
+                "message": "Hoàn tất",
+                "phase": "complete",
+                "asset_file": asset_filename,
+                "output_chars": output_chars,
+                "strategy": strategy,
+                "input_chars": input_chars,
+                "prompt_chars": prompt_chars
+            })
+            registry.update_status(job_id, "completed")
+
+        except Exception as e:
+            logger.error(f"Lỗi Project Info Worker [{content_type}]: {e}", exc_info=True)
+            registry.append_event(job_id, {"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}", "retryable": False})
+            registry.update_status(job_id, "failed")
+
+    thread = Thread(target=_project_info_worker, args=(job_id,), daemon=True)
+    thread.start()
+    return jsonify({"status": "started", "job_id": job_id, "content_type": content_type, "source_file": source_file, "model": requested_model}), 202
 
 
 
@@ -1537,7 +1849,7 @@ def _compile_portable_regex(pattern_str: str, search_mode: str) -> _re.Pattern:
         return _re.compile(_re.escape(normalized_search), flags)
 
 def _portable_replacement_adapter(replace_term: str) -> str:
-    """Chuyển đổi cú pháp $1, $2 từ UI sang cú pháp \g<1>, \g<2> của Python re.sub."""
+    r"""Chuyển đổi cú pháp $1, $2 từ UI sang cú pháp \g<1>, \g<2> của Python re.sub."""
     # Chuyển $n thành \g<n>, cẩn thận bỏ qua trường hợp đã bị escape (\$n)
     # Tạm đơn giản: không xử lý escape sâu, chỉ map $1 -> \g<1>
     return _re.sub(r'(?<!\\)\$(\d+)', r'\\g<\1>', replace_term)
@@ -1594,7 +1906,8 @@ def batch_replace_in_project(slug):
     
     for fpath in sorted(_get_target_text_files(target_dir)):
         try:
-            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            # Không bỏ qua byte lỗi: đọc thiếu rồi ghi đè sẽ làm mất nội dung.
+            content = fpath.read_text(encoding="utf-8")
             count, new_content = _apply_portable_regex(content, pattern, replace_term)
             if count > 0:
                 fpath.write_text(new_content, encoding="utf-8")
@@ -1639,7 +1952,7 @@ def batch_search_in_project(slug):
     
     for fpath in sorted(_get_target_text_files(target_dir)):
         try:
-            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            content = fpath.read_text(encoding="utf-8")
             count, _ = _apply_portable_regex(content, pattern, replace_term=None)
             if count > 0:
                 total_occurrences += count
@@ -1686,7 +1999,7 @@ def batch_replace_preview_in_project(slug):
     for fpath in sorted(_get_target_text_files(target_dir)):
         scanned_files += 1
         try:
-            content = fpath.read_text(encoding="utf-8", errors="ignore")
+            content = fpath.read_text(encoding="utf-8")
             # We want to see how many matches, but we don't write
             count, _ = _apply_portable_regex(content, pattern, replace_term)
             if count > 0:

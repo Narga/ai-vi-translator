@@ -2,6 +2,16 @@
 
 ## Hoàn thành
 
+### v8.21.0 (2026-08-05)
+- [x] 🤖 **Tác vụ AI Thông tin dự án chạy nền**: Chuyển `/api/projects/<slug>/summarize` từ sync sang task-based, trả `202 Accepted` + `job_id` ngay, worker chạy thread nền.
+- [x] 📊 **SSE Progress realtime**: Worker phát lifecycle events `started` → `loading_source` → `loading_prompt` → `planning` → `extracting` → `merging` → `synthesizing` → `validating` → `saving` → `complete`.
+- [x] 📈 **Phân tích file lớn tự động (map-reduce)**: Tự động chọn `single_request` hoặc `map_reduce` dựa trên context budget; chia theo boundary `chapter/heading > paragraph > sentence`.
+- [x] 🔄 **Retry & Cancel tối thiểu**: Tối đa 2 retry cho lỗi tạm thời; hủy an toàn qua `/api/tasks/<job_id>/cancel` kiểm tra trước mỗi phần.
+- [x] 💾 **Ghi asset an toàn**: Áp dụng `_atomic_write_text` (`os.replace` từ tmp) cho asset output.
+- [x] 🛡️ **Đọc nguồn an toàn**: Thay `errors="ignore"` bằng xử lý tường minh `UnicodeDecodeError`; file lỗi encoding tạo task `failed` rõ ràng.
+- [x] 🎨 **UI Tab Thông tin cập nhật**: `aiGenerateFromInfoTab()` và `aiGenerateContent()` kết nối SSE, hiển thị phase/percent/log realtime, chống double-submit, tải kết quả từ asset sau complete.
+- [x] 📝 **Prompt mặc định cải tiến**: Cập nhật 4 prompt (`summary`, `relationship`, `glossary`, `style_guide`) với `PART_ID`, `evidence`, yêu cầu coverage toàn văn.
+
 ### v8.20.0 (2026-08-02)
 - [x] 🔍 **Chuẩn hóa Portable Markdown Regex v1**: Thống nhất cú pháp Regex (ECMAScript/Python) ở cả Frontend (WebUI Editor) và Backend (Python `re` helper), tự động chuẩn hóa ngắt dòng `CRLF -> LF`.
 - [x] 🔄 **Adapter Cú pháp Replacement `$1`**: Chuyển đổi tự động cú pháp back-reference từ `$1`, `$2` ở UI sang `\g<1>`, `\g<2>` của Python `re.sub()`.

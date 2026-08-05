@@ -238,8 +238,8 @@ Nếu tạo thủ công hoặc muốn chỉnh sửa trực tiếp qua tệp tin,
 
 ### B. Tính năng dùng AI tự động tạo Tài nguyên (AI Summarize)
 Hệ thống tích hợp sẵn tính năng tự động trích xuất và phân tích tài nguyên bằng AI:
-- **Cơ chế hoạt động**: Sử dụng mô hình AI được cấu hình (Gemini hoặc OpenAI) để đọc qua các tệp nguồn (`.txt` hoặc `.md` trong thư mục `sources/` của dự án) với độ dài tối đa là 50,000 ký tự. AI sẽ chạy phân tích theo yêu cầu và ghi đè nội dung kết quả trực tiếp vào các tệp tương ứng (`summary.txt`, `style_guide.txt`, `glossary.txt`, `relationship.txt`).
-- **Cách sử dụng trên UI**: Trong Workspace dự án, chuyển sang tab **Thông tin**, chọn tệp nguồn, chọn Mô hình, sau đó chọn loại tài nguyên và bấm **✨ AI Generate**. Kết quả tạo xong sẽ tự động hiển thị trong khung và lưu lại khi bấm **Lưu**.
+- **Cơ chế hoạt động**: Sử dụng mô hình AI được cấu hình (Gemini hoặc OpenAI) để đọc các tệp nguồn (`.txt` hoặc `.md` trong thư mục `sources/` của dự án). File nhỏ chạy một request; file lớn được chia phân tích nhiều phần rồi tổng hợp. Kết quả được ghi an toàn vào các tệp tương ứng (`summary.txt`, `style_guide.txt`, `glossary.txt`, `relationship.txt`).
+- **Cách sử dụng trên UI**: Trong Workspace dự án, chuyển sang tab **Thông tin**, chọn tệp nguồn, chọn Mô hình, sau đó chọn loại tài nguyên và bấm **✨ AI Generate**. Hệ thống tạo task chạy nền và hiển thị tiến độ realtime (phase, phần hiện tại, log). Kết quả tự động tải vào khung sau khi hoàn tất.
 
 ### C. Bảng cơ chế hoạt động của các biến (Placeholders) trong Prompt dịch
 Khi biên soạn prompt hệ thống hoặc prompt dự án, bạn có thể sử dụng các biến sau để chèn dữ liệu động. 

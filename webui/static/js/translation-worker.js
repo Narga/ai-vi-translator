@@ -177,7 +177,7 @@ const TranslationWorker = {
         });
     },
 
-    connectToProgress(btn = null, isBatch = false, job_id = null, totalFiles = 0) {
+    connectToProgress(btn = null, isBatch = false, job_id = null, totalFiles = 0, onComplete = null) {
         if (job_id && TranslationWorker._evtSource && TranslationWorker._activeJobId === job_id) {
             const existingState = TranslationWorker._taskStateByJob.get(job_id);
             if (existingState) {
@@ -298,6 +298,8 @@ const TranslationWorker = {
                 }
                 ApiClient.loadStats();
                 ApiClient.loadTasks();
+
+                if (onComplete) onComplete(data);
 
                 window._autoCloseTimer = setTimeout(() => {
                     TranslationWorker.closeProgress();
