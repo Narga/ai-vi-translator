@@ -52,7 +52,7 @@ def cleanup_plugin_progress():
     now = time.time()
     to_delete = []
     for pid, info in list(plugin_progress.items()):
-        if info["status"] in ["done", "error"]:
+        if info["status"] in ["done", "partial", "error"]:
             updated_at = info.get("updated_at", 0)
             if now - updated_at > 1800:  # 30 minutes
                 to_delete.append(pid)
@@ -60,11 +60,15 @@ def cleanup_plugin_progress():
         plugin_progress.pop(pid, None)
 
 
-def _safe_project_file(project_dir: Path, section: str, filename: str) -> Path:
+def _safe_project_file(project_dir: Path, section: str, filename: str) -> Path | None:
+    """Kiểm tra path traversal. Trả None nếu không an toàn, Path nếu hợp lệ.
+
+    Không kiểm tra tập tin có tồn tại hay không — caller tự kiểm tra .exists().
+    """
     base_dir = (project_dir / section).resolve()
     target = (base_dir / filename).resolve()
-    if not str(target).startswith(str(base_dir)):
-        raise ValueError("Đường dẫn tập tin không hợp lệ")
+    if not target.is_relative_to(base_dir):
+        return None
     return target
 
 
@@ -81,6 +85,29 @@ def run_epub_converter(slug):
     direction = data.get("direction", "epub_to_text")
     task = data.get("task")
     delete_source = bool(data.get("delete_source", False))
+
+    if task in {"split_file", "merge_files"}:
+        section = data.get("section")
+        filenames = data.get("filenames")
+        if section not in {"sources", "translated", "spelling"}:
+            return jsonify({"error": f"Section không hợp lệ: {section}"}), 400
+        if not isinstance(filenames, list) or not filenames or not all(
+            isinstance(filename, str) and filename for filename in filenames
+        ):
+            return jsonify({"error": "Danh sách filenames không hợp lệ"}), 400
+        for filename in filenames:
+            if _safe_project_file(project_dir, section, filename) is None:
+                return jsonify({"error": f"Đường dẫn tập tin không hợp lệ: {filename}"}), 400
+
+        if task == "split_file":
+            max_chars = data.get("max_chars", 100000)
+            if isinstance(max_chars, bool) or not isinstance(max_chars, int) or max_chars < 1000:
+                return jsonify({"error": "max_chars phải là số nguyên >= 1000"}), 400
+        else:
+            suffixes = {Path(filename).suffix.lower() for filename in filenames}
+            if len(suffixes) > 1:
+                return jsonify({"error": "Không được ghép lẫn nhiều định dạng tập tin"}), 400
+
     plugin_id = str(uuid.uuid4())[:8]
 
     plugin_progress[plugin_id] = {"status": "running", "messages": [], "result": None, "updated_at": time.time()}
@@ -90,6 +117,8 @@ def run_epub_converter(slug):
         plugin_progress[plugin_id]["updated_at"] = time.time()
 
     def _run():
+        section = data.get("section", "sources")
+        filenames = data.get("filenames") or []
         try:
             Path(f"workspace/projects/{slug}/output").mkdir(parents=True, exist_ok=True)
             import io
@@ -101,8 +130,6 @@ def run_epub_converter(slug):
             plugin.initialize({"out_dir": f"workspace/projects/{slug}/output"})
 
             if task in {"html_to_markdown", "markdown_to_html", "create_epub", "markdown_to_epub"}:
-                section = data.get("section", "sources")
-                filenames = data.get("filenames") or []
                 if section not in {"sources", "translated", "spelling"}:
                     _log(f"❌ Section không hợp lệ: {section}")
                     plugin_progress[plugin_id]["status"] = "error"
@@ -130,7 +157,7 @@ def run_epub_converter(slug):
                         for filename in filenames:
                             try:
                                 input_path = _safe_project_file(project_dir, section, filename)
-                                if not input_path.exists() or not input_path.is_file():
+                                if input_path is None or not input_path.exists() or not input_path.is_file():
                                     _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
                                     continue
                                 if input_path.suffix.lower() != ".md":
@@ -186,7 +213,7 @@ def run_epub_converter(slug):
                     for filename in filenames:
                         try:
                             input_path = _safe_project_file(project_dir, section, filename)
-                            if not input_path.exists() or not input_path.is_file():
+                            if input_path is None or not input_path.exists() or not input_path.is_file():
                                 _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
                                 continue
                             source_paths.append(input_path)
@@ -226,7 +253,7 @@ def run_epub_converter(slug):
                 for filename in filenames:
                     try:
                         input_path = _safe_project_file(project_dir, section, filename)
-                        if not input_path.exists() or not input_path.is_file():
+                        if input_path is None or not input_path.exists() or not input_path.is_file():
                             _log(f"⚠️ Bỏ qua file không tồn tại: {section}/{filename}")
                             failed.append(filename)
                             continue
@@ -259,6 +286,57 @@ def run_epub_converter(slug):
                         "output_paths": outputs,
                         "converted_count": len(outputs),
                     }
+                return
+
+            if task in {"split_file", "merge_files"}:
+                if section not in {"sources", "translated", "spelling"}:
+                    _log(f"❌ Section không hợp lệ: {section}")
+                    plugin_progress[plugin_id]["status"] = "error"
+                    return
+                if not filenames:
+                    _log("❌ Không có tập tin nào được chọn")
+                    plugin_progress[plugin_id]["status"] = "error"
+                    return
+                try:
+                    from plugins.epub_converter.services.file_operations import (
+                        split_files,
+                        merge_files,
+                    )
+                except ImportError as e:
+                    _log(f"❌ Không tải được service file_operations: {e}")
+                    plugin_progress[plugin_id]["status"] = "error"
+                    return
+
+                label = "Chia tập tin" if task == "split_file" else "Ghép tập tin"
+                _log(f"🔄 Bắt đầu {label}: {len(filenames)} tập tin trong {section}")
+
+                if task == "split_file":
+                    max_chars = data.get("max_chars", 100000)
+                    result = split_files(
+                        project_dir=project_dir,
+                        section=section,
+                        filenames=filenames,
+                        delete_source=delete_source,
+                        max_chars=max_chars,
+                        log=_log,
+                    )
+                else:
+                    result = merge_files(
+                        project_dir=project_dir,
+                        section=section,
+                        filenames=filenames,
+                        delete_source=delete_source,
+                        log=_log,
+                    )
+
+                plugin_progress[plugin_id]["status"] = result["status"]
+                plugin_progress[plugin_id]["result"] = {
+                    "output_paths": result["output_paths"],
+                    "processed_count": result["processed_count"],
+                    "failed_files": result["failed_files"],
+                    "deleted_files": result["deleted_files"],
+                    "skipped_files": result["skipped_files"],
+                }
                 return
 
             if direction == "epub_to_text":

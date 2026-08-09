@@ -1,3 +1,13 @@
+<style>
+    .converter-tool-no-spinner::-webkit-inner-spin-button,
+    .converter-tool-no-spinner::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .converter-tool-no-spinner {
+        -moz-appearance: textfield;
+    }
+</style>
 <!-- Converter Tool Workspace -->
 <div x-show="$store.workspace.wsTab === 'ebook-kit'" class="flex-auto flex flex-column overflow-hidden pa3">
     <div class="flex-auto ba b--black-10 br3 bg-white shadow-sm overflow-hidden flex flex-column">
@@ -10,32 +20,46 @@
 
         <div class="pa3 bb b--black-10 bg-washed-blue">
             <div class="f7 dark-gray lh-copy">
-                <strong>Thao tác hiện có:</strong> MD → EPUB 3, HTML → EPUB 3, .MD → HTML và HTML → .MD.
+                <strong>Thao tác hiện có:</strong> Chia tập tin, Ghép tập tin, MD → EPUB 3, HTML → EPUB 3, .MD → HTML và HTML → .MD.
                 EPUB luôn được ghi đè vào thư mục <code>output/</code> của dự án với tên theo slug dự án.<br>
                 <strong>Đầu ra EPUB:</strong> tối thiểu theo cấu trúc OEBPS chuẩn Sigil (chỉ nội dung text + thư mục rỗng Images/Styles/Fonts).
-                Ảnh, style, nav, titlepage và footnote chuẩn EPUB xử lý khi biên tập — tham khảo <em>MANUAL.md mục “EPUB Converter”</em>.
+                Ảnh, style, nav, titlepage và footnote chuẩn EPUB xử lý khi biên tập — tham khảo <em>MANUAL.md mục "EPUB Converter"</em>.
             </div>
         </div>
 
-        <div class="pa3 flex flex-wrap gap-2 bb b--black-10">
+        <div class="pa3 flex flex-wrap gap-2 bb b--black-10 items-center">
+            <button id="btn-split-file" class="pointer ph3 pv2 bn white bg-dark-green br2 fw6 shadow-1 hover-bg-green f6" onclick="ConverterToolPlugin.runSplitFile()">
+                Chia tập tin
+            </button>
+            <button id="btn-merge-files" class="pointer ph3 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6" onclick="ConverterToolPlugin.runMergeFiles()">
+                Ghép tập tin
+            </button>
+            <button id="btn-convert-md-to-html" class="pointer ph3 pv2 bn white bg-dark-blue br2 fw6 shadow-1 hover-bg-navy f6" onclick="ConverterToolPlugin.runMarkdownToHtml()">
+                .MD → HTML
+            </button>
+            <button id="btn-convert-html-to-md" class="pointer ph3 pv2 bn white bg-navy br2 fw6 shadow-1 hover-bg-dark-blue f6" onclick="ConverterToolPlugin.runHtmlToMarkdown()">
+                HTML → .MD
+            </button>
+            
+            <span class="gray mlauto ml4-ns b">|</span>
+            
             <button id="btn-create-epub-from-md" class="pointer ph3 pv2 bn white bg-orange br2 fw6 shadow-1 hover-bg-gold f6" onclick="ConverterToolPlugin.runMarkdownToEpub()">
                 MD → EPUB 3
             </button>
             <button id="btn-create-epub" class="pointer ph3 pv2 bn white bg-dark-red br2 fw6 shadow-1 hover-bg-red f6" onclick="ConverterToolPlugin.runCreateEpub()">
                 HTML → EPUB 3
             </button>
-            <button id="btn-convert-md-to-html" class="pointer ph3 pv2 bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue f6" onclick="ConverterToolPlugin.runMarkdownToHtml()">
-                .MD → HTML
-            </button>
-            <button id="btn-convert-html-to-md" class="pointer ph3 pv2 bn white bg-dark-green br2 fw6 shadow-1 hover-bg-green f6" onclick="ConverterToolPlugin.runHtmlToMarkdown()">
-                HTML → .MD
-            </button>
         </div>
 
-        <div class="pa3 bb b--black-10 bg-near-white">
+        <div class="pa3 flex flex-wrap gap-2 items-center bb b--black-10 bg-near-white">
             <label class="f7 dark-gray pointer flex items-center">
                 <input type="checkbox" id="converter-tool-delete-source" class="mr2 pointer">
-                Xóa file nguồn sau khi chuyển đổi <span class="gray ml1">(Chỉ áp dụng cho MD &lt;-&gt; HTML)</span>
+                Xóa file nguồn sau khi chuyển đổi <span class="gray ml1">(Chỉ áp dụng cho MD ↔ HTML, Chia, Ghép)</span>
+            </label>
+            <span class="gray ml4">|</span>
+            <label class="f7 dark-gray pointer flex items-center ml4">
+                <span class="mr2">Giới hạn ký tự khi chia:</span>
+                <input type="number" id="converter-tool-max-chars" value="100000" min="1000" class="ba b--black-10 br2 pa1 f7 w-20 outline-0 converter-tool-no-spinner">
             </label>
         </div>
 
@@ -46,5 +70,13 @@
         </div>
 
         <div id="converter-tool-log" class="flex-auto pa3 bg-near-black near-white code f7 overflow-y-auto"></div>
+    </div>
+
+    <div id="converter-tool-mixed-ext-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+        <div class="bg-white br3 pa4 shadow-5" style="max-width: 480px; width: 90%;">
+            <h3 class="f4 fw6 dark-gray mt0 mb3">⚠️ Định dạng không đồng nhất</h3>
+            <div id="converter-tool-mixed-ext-body" class="f6 dark-gray lh-copy mb4"></div>
+            <button class="pointer ph3 pv2 bn white bg-red br2 fw6 f6" onclick="ModalManager.hide('converter-tool-mixed-ext-modal')">Đã hiểu, chọn lại</button>
+        </div>
     </div>
 </div>

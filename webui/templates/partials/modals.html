@@ -1,27 +1,5 @@
 <!-- ==================== GLOBAL MODALS ==================== -->
 
-<!-- Chunking Modal -->
-<div id="chunk-config-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
-    <div class="bg-white pa4 br3 w-100 mw6 shadow-5 relative animate-pop">
-        <h3 class="mt0 dark-gray fw6 pb2 bb b--black-10">Cấu hình Chia Chunk</h3>
-        
-        <div class="mv4 flex justify-center ba b--black-10 pa2 br2 bg-near-white">
-            <label class="mr4 pointer f7 fw6 gray uppercase tracked"><input type="radio" name="chunk-type" value="word" checked class="mr2"> Theo từ</label>
-            <label class="pointer f7 fw6 gray uppercase tracked"><input type="radio" name="chunk-type" value="char" class="mr2"> Theo ký tự</label>
-        </div>
-        
-        <div class="mb4">
-            <label class="db f7 gray mb2 uppercase tracked fw6">Giới hạn mỗi phần (Token/Char)</label>
-            <input type="number" id="chunk-size-input" class="w-100 pa3 ba b--black-10 br2 f3 fw6 tc blue outline-0" value="1000">
-        </div>
-        
-        <div class="flex gap-3 pt3 bt b--black-10">
-            <button class="flex-auto ph3 pv3 pointer ba b--silver bg-white br2 gray hover-bg-near-white fw6 uppercase tracked f7" onclick="ProjectManager.hideChunkConfig()">Hủy bỏ</button>
-            <button class="flex-auto ph3 pv3 pointer bn white bg-blue br2 fw6 shadow-1 hover-bg-dark-blue uppercase tracked f7" onclick="ProjectManager.confirmChunking()">Chia ngay</button>
-        </div>
-    </div>
-</div>
-
 <!-- Translation Progress Modal -->
 <div id="translation-progress-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal-top);">
     <div class="bg-white br3 shadow-5 w-100 mw7 overflow-hidden relative animate-pop">

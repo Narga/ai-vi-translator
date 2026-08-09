@@ -10,7 +10,10 @@ const GeminiProvider = {
         if (!keysText) { UiHelpers.showToast('Chưa nhập API key', 'error'); return; }
 
         fetch('/api/providers')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const gemini = (data.providers || []).find(p => p.type === 'gemini');
                 if (!gemini) { UiHelpers.showToast('Không tìm thấy Gemini provider', 'error'); return; }
@@ -37,7 +40,10 @@ const OpenAIProvider = {
 
     loadProviders(callback) {
         fetch('/api/providers')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 this._providers = (data.providers || []).filter(p => p.type === 'openai');
                 const select = document.getElementById('openai-provider-select');
@@ -103,7 +109,10 @@ const OpenAIProvider = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: name, type: 'openai' })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
 
@@ -157,7 +166,10 @@ const OpenAIProvider = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             // Reload providers nhưng giữ dropdown selection
@@ -182,7 +194,10 @@ const OpenAIProvider = {
         showConfirm('Xóa provider "' + provider.name + '"?').then(confirmed => {
             if (!confirmed) return;
             fetch('/api/providers/' + encodeURIComponent(id), { method: 'DELETE' })
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => {
                     if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
                     this.loadProviders();
@@ -209,7 +224,10 @@ const OpenAIProvider = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             return fetch('/api/providers/select', {

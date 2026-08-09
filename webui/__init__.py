@@ -104,4 +104,18 @@ def create_app():
             response.headers['Content-Type'] = 'application/javascript'
         return response
 
+    @app.errorhandler(Exception)
+    def handle_all_exceptions(e):
+        """Trả về JSON cho mọi lỗi không được catch ở route level."""
+        logger.error(f"Unhandled exception: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+    @app.errorhandler(404)
+    def handle_not_found(e):
+        return jsonify({"error": "Không tìm thấy tài nguyên"}), 404
+
+    @app.errorhandler(405)
+    def handle_method_not_allowed(e):
+        return jsonify({"error": "Phương thức không hợp lệ"}), 405
+
     return app

@@ -176,7 +176,10 @@ const ProjectManager = {
 
     loadProjectCards() {
         return fetch('/api/projects')
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(projects => {
             const container = document.getElementById('project-cards-container');
             if (!container) return;
@@ -300,7 +303,10 @@ const ProjectManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ book_title: bookTitle, author, description })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã tạo dự án: ' + (data.name || bookTitle), 'success');
@@ -326,7 +332,10 @@ const ProjectManager = {
         
         // Load project data
         fetch('/api/projects/' + slug)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) throw new Error(data.error);
             
@@ -416,7 +425,10 @@ const ProjectManager = {
         const slug = window.currentProject.slug;
 
         fetch('/api/projects/' + slug)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.error) return;
                 const prev = window.currentProject;
@@ -627,7 +639,10 @@ const ProjectManager = {
         
         const slug = window.currentProject.slug;
         fetch(`/api/projects/${slug}/files/spelling`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(files => {
                 // Phòng thủ: lọc bỏ file _info.txt nếu backend chưa kịp lọc
                 const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
@@ -1030,7 +1045,10 @@ const ProjectManager = {
             method: 'POST',
             body: formData
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 UiHelpers.showToast(`Đã nhập dự án "${data.slug}"`, 'success');
@@ -1050,7 +1068,10 @@ const ProjectManager = {
         if (!await showConfirm('Xóa VĨNH VIỄN dự án "' + slug + '"?', { danger: true })) return;
         
         fetch('/api/projects/' + slug, { method: 'DELETE' })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 UiHelpers.showToast('Đã xóa dự án', 'success');
@@ -1075,7 +1096,10 @@ const ProjectManager = {
         if (!await showConfirm('Xóa vĩnh viễn "' + filename + '"?', { danger: true })) return;
         fetch(`/api/projects/${window.currentProject.slug}/file/${section}/${filename}`, {
             method: 'DELETE', headers: { 'Content-Type': 'application/json' }
-        }).then(r => r.json()).then(() => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(() => {
             // Dọn editor nếu file đang mở bị xóa
             if (window.currentProjectFile && window.currentProjectFile.name === filename) {
                 ProjectManager._closeEditorAfterFileDelete();
@@ -1120,7 +1144,10 @@ const ProjectManager = {
             fetch(`/api/projects/${slug}/file/${section}/${filename}`, {
                 method: 'DELETE', headers: { 'Content-Type': 'application/json' }
             })
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => { if (data.success !== false) successCount++; else failCount++; })
                 .catch(() => failCount++)
         );
@@ -1194,7 +1221,10 @@ const ProjectManager = {
             if (!window.currentProject) return;
             const slug = window.currentProject.slug;
             fetch(`/api/projects/${slug}/files/spelling`)
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
                 .then(files => {
                     const visibleFiles = files.filter(f => !f.name.endsWith('_info.txt'));
                     const filtered = ProjectManager.applyFileFilters(visibleFiles);
@@ -1246,7 +1276,10 @@ const ProjectManager = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ old_name: filename, new_name: newName, section: section })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.success) {
                 UiHelpers.showToast('Đã đổi tên file thành công', 'success');
                 ProjectManager.openProject(window.currentProject.slug);
@@ -1316,7 +1349,10 @@ const ProjectManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ section, pattern, start, zeropad, old_names: oldNames })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 const renamed = data.renamed || 0;
@@ -1347,7 +1383,10 @@ const ProjectManager = {
         fetch(`/api/projects/${window.currentProject.slug}/move-back`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filename })
-        }).then(r => r.json()).then(() => ProjectManager.openProject(window.currentProject.slug));
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(() => ProjectManager.openProject(window.currentProject.slug));
     },
 
     // ===== 3-COLUMN FILE LIST RENDERING =====
@@ -1626,7 +1665,10 @@ const ProjectManager = {
     // ===== PROJECT INFO MODAL =====
     showProjectInfoFromList(slug) {
         fetch('/api/projects/' + slug)
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.error) throw new Error(data.error);
             window.currentProject = data;
@@ -1684,7 +1726,10 @@ const ProjectManager = {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, author, description })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast('Đã cập nhật thông tin dự án', 'success');
             ProjectManager.hideProjectInfoModal();
@@ -1707,7 +1752,10 @@ const ProjectManager = {
         fetch(`/api/projects/${slug}/tm/clear`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             UiHelpers.showToast(`Đã xóa ${data.deleted || 0} mục TM`, 'success');
         }).catch(e => UiHelpers.showToast('Lỗi xóa TM: ' + e.message, 'error'));
@@ -1721,7 +1769,10 @@ const ProjectManager = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ strategy: 'check' })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             if (data.exists) {
                 // Archive đã tồn tại → hỏi overwrite hay copy
@@ -1731,7 +1782,10 @@ const ProjectManager = {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ strategy })
-                    }).then(r => r.json()).then(d => {
+                    }).then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                        return r.json();
+                    }).then(d => {
                         if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
                         UiHelpers.showToast('Đã lưu trữ dự án', 'success');
                         ProjectManager.hideProjectInfoModal();
@@ -1745,7 +1799,10 @@ const ProjectManager = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ strategy: 'overwrite' })
-                }).then(r => r.json()).then(d => {
+                }).then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                }).then(d => {
                     if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
                     UiHelpers.showToast('Đã lưu trữ dự án', 'success');
                     ProjectManager.hideProjectInfoModal();
@@ -1761,7 +1818,10 @@ const ProjectManager = {
         showConfirm('XÓA VĨNH VIỄN dự án "' + window.currentProject.name + '"? KHÔNG THỂ KHÔI PHỤC!', { danger: true }).then(ok => {
             if (!ok) return;
             fetch(`/api/projects/${window.currentProject.slug}`, { method: 'DELETE' })
-                .then(r => r.json()).then(data => {
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                }).then(data => {
                     if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
                     UiHelpers.showToast('Đã xóa dự án', 'success');
                     ProjectManager.hideProjectInfoModal();
@@ -1777,7 +1837,10 @@ const ProjectManager = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ strategy: 'check' })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
             if (data.exists) {
                 // Archive đã tồn tại → hỏi overwrite hay copy
@@ -1787,7 +1850,10 @@ const ProjectManager = {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ strategy })
-                    }).then(r => r.json()).then(d => {
+                    }).then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                        return r.json();
+                    }).then(d => {
                         if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
                         UiHelpers.showToast('Đã lưu trữ dự án', 'success');
                         ProjectManager.loadProjectCards();
@@ -1799,7 +1865,10 @@ const ProjectManager = {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ strategy: 'overwrite' })
-                }).then(r => r.json()).then(d => {
+                }).then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                }).then(d => {
                     if (d.error) { UiHelpers.showToast(d.error, 'error'); return; }
                     UiHelpers.showToast('Đã lưu trữ dự án', 'success');
                     ProjectManager.loadProjectCards();
@@ -1816,7 +1885,10 @@ const ProjectManager = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename })
-            }).then(r => r.json()).then(data => {
+            }).then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            }).then(data => {
                 if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
                 UiHelpers.showToast('Đã khôi phục dự án', 'success');
                 ApiClient.loadArchiveList();
@@ -1830,7 +1902,10 @@ const ProjectManager = {
             if (!ok) return;
             fetch('/api/archive/' + encodeURIComponent(filename), {
                 method: 'DELETE'
-            }).then(r => r.json()).then(data => {
+            }).then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            }).then(data => {
                 if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
                 UiHelpers.showToast('Đã xóa bản lưu trữ', 'success');
                 ApiClient.loadArchiveList();
@@ -1840,97 +1915,6 @@ const ProjectManager = {
 
     downloadArchive(filename) {
         window.location.href = '/api/archive/' + encodeURIComponent(filename) + '/download';
-    },
-
-    // ===== CHUNK CONFIG =====
-    getChunkTargetFilename() {
-        const current = window.currentProjectFile;
-        if (current && typeof current === 'object' && current.section === 'sources' && current.name) {
-            return current.name;
-        }
-        if (typeof current === 'string') {
-            return current;
-        }
-        if (window.selectedFiles && window.selectedFiles.size === 1) {
-            return Array.from(window.selectedFiles)[0];
-        }
-        return null;
-    },
-
-    showChunkConfig() {
-        if (!window.currentProject) {
-            UiHelpers.showToast('Chưa chọn dự án', 'error');
-            return;
-        }
-        const filename = ProjectManager.getChunkTargetFilename();
-        if (!filename) {
-            UiHelpers.showToast('Chọn một tập tin nguồn để chia chunk', 'error');
-            return;
-        }
-        const modal = document.getElementById('chunk-config-modal');
-        if (modal) {
-            modal.dataset.filename = filename;
-        }
-        const input = document.getElementById('chunk-size-input');
-        if (input && !input.value) {
-            input.value = '100000';
-        }
-        ModalManager.show('chunk-config-modal');
-    },
-
-    hideChunkConfig() {
-        ModalManager.hide('chunk-config-modal');
-    },
-
-    async confirmChunking() {
-        if (!window.currentProject) {
-            UiHelpers.showToast('Chưa chọn dự án', 'error');
-            return;
-        }
-
-        const modal = document.getElementById('chunk-config-modal');
-        const filename = modal?.dataset.filename || ProjectManager.getChunkTargetFilename();
-        if (!filename) {
-            UiHelpers.showToast('Chọn một tập tin nguồn để chia chunk', 'error');
-            return;
-        }
-
-        const maxChars = parseInt(document.getElementById('chunk-size-input')?.value || '0', 10);
-        if (!Number.isFinite(maxChars) || maxChars < 1000) {
-            UiHelpers.showToast('Giới hạn chunk phải từ 1000 ký tự trở lên', 'error');
-            return;
-        }
-
-        try {
-            UiHelpers.showToast('Đang chia chunk...', 'success');
-            const slug = window.currentProject.slug;
-            const res = await fetch(`/api/projects/${slug}/chunk/${encodeURIComponent(filename)}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ max_chars: maxChars })
-            });
-            const data = await res.json();
-            if (!res.ok || data.error) {
-                throw new Error(data.error || 'Không thể chia chunk');
-            }
-            ProjectManager.hideChunkConfig();
-            UiHelpers.showToast(data.message || `Đã chia thành ${data.chunks || 0} chunk`, 'success');
-            await ProjectManager.openProject(slug);
-        } catch (error) {
-            UiHelpers.showToast('Lỗi chia chunk: ' + error.message, 'error');
-        }
-    },
-
-    // ===== MERGE FILES =====
-    async mergeTranslatedFiles() {
-        if (!window.currentProject) return;
-        if (!await showConfirm('Ghép tất cả file đã dịch thành 1 file?')) return;
-        fetch(`/api/projects/${window.currentProject.slug}/merge`, { method: 'POST' })
-            .then(r => r.json()).then(data => {
-                if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
-                UiHelpers.showToast('Đã ghép file: ' + (data.output || ''), 'success');
-                ProjectManager.openProject(window.currentProject.slug);
-            }).catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
     },
 
     selectAllTranslatedFiles(checked) {

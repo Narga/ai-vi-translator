@@ -349,19 +349,104 @@ def sentence_aggregate_chunking(
     return chunks
 
 
-def process_text_for_chunking(text: str, min_chars: int, max_chars: int) -> List[str]:
+def _chunk_document_boundary(text: str, min_chars: int, max_chars: int) -> List[str]:
+    """Chunk theo boundary chương/heading + paragraph.
+
+    - Đơn vị atomic: paragraph (phân cách bằng blank line) hoặc heading.
+    - Heading Markdown (# ... ######) luôn bắt đầu block mới.
+    - Nếu block đơn lẻ > max_chars: giữ nguyên block đó trong chunk lớn hơn.
+    - Không cắt giữa heading và paragraph của cùng chương.
+
+    Regex đã sửa: tách tại blank line (\\n{2,}) hoặc newline trước heading
+    (\\n(?=#{1,6}\\s)). KHÔNG tách tại mọi ký tự non-whitespace — điều đó
+    sẽ phá vỡ paragraph nhiều dòng thành từng dòng riêng lẻ.
+    """
+    # Tách tại: (1) >= 2 newline liên tiếp (paragraph break)
+    #           (2) newline ngay trước heading Markdown
+    blocks = re.split(r"\n{2,}|\n(?=#{1,6}\s)", text)
+    chunks: List[str] = []
+    current = ""
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        if len(block) > max_chars:
+            if current:
+                chunks.append(current.strip())
+                current = ""
+            chunks.append(block)
+            continue
+        if len(current) + len(block) + 2 <= max_chars:
+            current = current + "\n\n" + block if current else block
+        else:
+            if current:
+                chunks.append(current.strip())
+            current = block
+    if current:
+        chunks.append(current.strip())
+    return chunks if chunks else [text]
+
+
+def _chunk_line_boundary(text: str, min_chars: int, max_chars: int) -> List[str]:
+    """Chunk theo dòng/record hoàn chỉnh.
+
+    - Đơn vị atomic: một dòng (bao gồm cả dòng trống — giữ nguyên format).
+    - Nếu dòng đơn lẻ > max_chars: giữ nguyên dòng đó trong chunk lớn hơn.
+    - Không cắt giữa các dòng.
+    - Giữ nguyên blank lines trong output (quan trọng cho JSON/CSV format).
+    """
+    lines = text.splitlines()
+    chunks: List[str] = []
+    current_lines: List[str] = []
+    current_len = 0
+    for line in lines:
+        line_stripped = line.rstrip()
+        line_len = len(line_stripped) + 1  # +1 cho newline
+        if line_len > max_chars:
+            if current_lines:
+                chunks.append("\n".join(current_lines))
+                current_lines, current_len = [], 0
+            chunks.append(line_stripped)
+            continue
+        if current_len + line_len > max_chars and current_lines:
+            chunks.append("\n".join(current_lines))
+            current_lines, current_len = [], 0
+        current_lines.append(line_stripped)
+        current_len += line_len
+    if current_lines:
+        chunks.append("\n".join(current_lines))
+    return chunks if chunks else [text]
+
+
+def process_text_for_chunking(
+    text: str,
+    min_chars: int,
+    max_chars: int,
+    boundary_mode: str = "legacy",
+) -> List[str]:
     """
     Hàm điều phối chính cho việc chia chunk.
-    Sử dụng Sentence Aggregation (v5.0.0) để đảm bảo không cắt ngang câu.
 
     Args:
-        text (str): Nội dung cần xử lý.
-        min_chars (int): Kích thước tối thiểu mỗi chunk.
-        max_chars (int): Kích thước tối đa mỗi chunk.
+        text: Nội dung cần xử lý.
+        min_chars: Kích thước tối thiểu mỗi chunk.
+        max_chars: Kích thước tối đa mỗi chunk.
+        boundary_mode: "legacy" giữ nguyên hành vi cũ (Sentence Aggregation).
+            "document": ưu tiên không cắt giữa chương/heading và paragraph; dùng cho .md/.txt.
+            "line": ưu tiên không cắt giữa dòng/record; dùng cho .json/.csv.
 
     Returns:
         List[str]: Một hoặc nhiều chunk tùy kích thước đầu vào.
     """
+    if not text or not text.strip():
+        return []
+
+    if boundary_mode == "document":
+        return _chunk_document_boundary(text, min_chars, max_chars)
+    if boundary_mode == "line":
+        return _chunk_line_boundary(text, min_chars, max_chars)
+
+    # legacy
     if len(text or "") <= max_chars:
         return [wrap_titles(text)]
     return sentence_aggregate_chunking(text, min_chars, max_chars)

@@ -2,6 +2,17 @@
 
 ## Hoàn thành
 
+### v8.22.0 (2026-08-08)
+- [x] 📦 **Di chuyển hoàn toàn Chia/Ghép tập tin vào Converter Tool**: Di chuyển logic Chia (`split_files`) và Ghép (`merge_files`) từ `projects.py` vào service `plugins/epub_converter/services/file_operations.py`.
+- [x] 📄 **Hỗ trợ 7 định dạng mở rộng**: Cho phép chia/ghép trên `.md`, `.txt`, `.html`, `.htm`, `.xhtml`, `.json`, `.csv`.
+- [x] 🧩 **Ghép HTML nâng cao với BeautifulSoup**: Trích xuất nội dung `<body>` ghép vào file HTML gốc, bảo toàn Doctype, HTML, Head & Style wrapper (`_merge_html_bodies`).
+- [x] ✂️ **Chunker Boundary Policy**: Mở rộng `process_text_for_chunking` với parameter `boundary_mode` (`document`, `line`, `legacy`) giúp phân chia văn bản theo chương/heading và paragraph hoàn chỉnh.
+- [x] 🛡️ **Chuẩn hóa Path Traversal Guard**: Cập nhật `_safe_project_file` trong `webui/routes/plugins.py` trả về `Path | None` độc lập với kiểm tra sự tồn tại file.
+- [x] 🎨 **Cải tiến UX Tab Converter**: Phân nhóm 6 nút thao tác (4 dồn trái, 2 dồn phải với separator `|`), đổi màu phân biệt, cấu hình ô nhập `max_chars` lấy mặc định hệ thống từ `/api/config` và ẩn nút spinner.
+- [x] 🐛 **Khắc phục lỗi `UnboundLocalError` scope**: Khắc phục triệt để lỗi biến `delete_source`, `section`, `filenames` do bị gán trùng lặp trong closure function `_run()`.
+- [x] 🛡️ **Frontend Guard JSON.parse**: Bổ sung `if (!r.ok) throw ...` cho 46 vị trí `fetch()` trên 8 module JavaScript chính (`api-client.js`, `editor-component.js`, `provider-manager.js`, `translation-worker.js`, `prompt-manager.js`, `converter-tool-plugin.js`, `project-manager.js`, `doc-manager.js`, `ui-helpers.js`) và backend Flask error handlers trong `webui/__init__.py`.
+- [x] 🧪 **Unit Test Suite**: Bổ sung `tests/unit/test_file_operations.py` phủ 100% test case cho 7 suffixes, HTML body merge, path traversal guard và safe atomic write.
+
 ### v8.21.0 (2026-08-05)
 - [x] 🤖 **Tác vụ AI Thông tin dự án chạy nền**: Chuyển `/api/projects/<slug>/summarize` từ sync sang task-based, trả `202 Accepted` + `job_id` ngay, worker chạy thread nền.
 - [x] 📊 **SSE Progress realtime**: Worker phát lifecycle events `started` → `loading_source` → `loading_prompt` → `planning` → `extracting` → `merging` → `synthesizing` → `validating` → `saving` → `complete`.

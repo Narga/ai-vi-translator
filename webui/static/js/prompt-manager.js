@@ -16,7 +16,10 @@ const PromptManager = {
 
     loadLibrary() {
         fetch('/api/prompts/library')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(sets => {
                 const el = document.getElementById('library-list');
                 if (!el) return;
@@ -39,7 +42,10 @@ const PromptManager = {
 
         // Load library set contents into prompt editor
         fetch(`/api/prompts/library/${slug}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const set = data.data || data;
                 const meta = set.meta || {};
@@ -138,7 +144,10 @@ const PromptManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, slug, description, prompts: {} })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 UiHelpers.showToast(`Đã tạo bộ prompt: ${name}`, 'success');
@@ -187,7 +196,10 @@ const PromptManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, description, prompts })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(data => {
             if (data.success) {
                 UiHelpers.showToast('Đã cập nhật thông tin bộ prompt!', 'success');
@@ -224,7 +236,10 @@ const PromptManager = {
         if (!await showConfirm('Xóa bộ prompt "' + PromptManager.currentLibrarySet + '"?', { danger: true })) return;
 
         fetch('/api/prompts/library/' + PromptManager.currentLibrarySet, { method: 'DELETE' })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.success) {
                     PromptManager.currentLibrarySet = '';
@@ -266,7 +281,10 @@ const PromptManager = {
         if (!window.currentProject) return;
         const slug = window.currentProject.slug;
         fetch(`/api/projects/${slug}/prompts`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 this.PROMPT_KEYS.forEach(key => {
                     const htmlKey = key === 'chinh_ta' ? 'chinh-ta' : key;
@@ -275,7 +293,12 @@ const PromptManager = {
                 });
 
                 // Populate library set dropdown
-                fetch('/api/prompts/library').then(r => r.json()).then(sets => {
+                fetch('/api/prompts/library')
+                    .then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                        return r.json();
+                    })
+                    .then(sets => {
                     const sel = document.getElementById('pm-prompt-library-select');
                     if (sel) {
                         let opts = '<option value="">— Chọn bộ prompt —</option>';
@@ -347,7 +370,10 @@ const PromptManager = {
         const key = activeTab === 'chinh-ta' ? 'chinh_ta' : activeTab;
 
         fetch(`/api/prompts/library/${librarySlug}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const set = data.data || data;
                 const content = set.prompts && set.prompts[key] || '';
@@ -398,7 +424,10 @@ const PromptManager = {
         PromptManager._populateModelSelect('pm-info-model');
 
         fetch(`/api/projects/${window.currentProject.slug}/guidelines`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const el = document.getElementById(mapping.elId);
                 if (el) el.value = data[mapping.field] || '';
@@ -436,7 +465,10 @@ const PromptManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ [backendKey]: el.value })
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(res => {
                 if (res.success) UiHelpers.showToast('Đã lưu thành công!', 'success');
                 else UiHelpers.showToast(res.error || 'Lỗi lưu', 'error');
@@ -490,7 +522,10 @@ const PromptManager = {
                     TranslationWorker.connectToProgress(btn, false, data.job_id, 1, function(evt) {
                         const assetFile = evt.asset_file || fieldKey + '.txt';
                         fetch(`/api/projects/${window.currentProject.slug}/file/assets/${assetFile}`)
-                            .then(r => r.json())
+                            .then(r => {
+                                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                                return r.json();
+                            })
                             .then(data => {
                                 if (outputEl && data.content) outputEl.value = data.content;
                                 UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');
@@ -574,7 +609,10 @@ const PromptManager = {
                     TranslationWorker.connectToProgress(btn, false, data.job_id, 1, function(evt) {
                         const assetFile = evt.asset_file || fieldKey + '.txt';
                         fetch(`/api/projects/${window.currentProject.slug}/file/assets/${assetFile}`)
-                            .then(r => r.json())
+                            .then(r => {
+                                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                                return r.json();
+                            })
                             .then(data => {
                                 if (outputEl && data.content) outputEl.value = data.content;
                                 UiHelpers.showToast(`Đã tạo và lưu vào assets/${assetFile}`, 'success');

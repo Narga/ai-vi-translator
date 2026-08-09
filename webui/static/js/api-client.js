@@ -19,7 +19,10 @@ const ApiClient = {
 
     loadApiKeys() {
         fetch('/api/keys')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const el = document.getElementById('config-api-keys');
                 if (el) el.value = data.content || '';
@@ -34,7 +37,10 @@ const ApiClient = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content: keysText })
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.success) {
                     UiHelpers.showToast('Đã lưu API Keys thành công', 'success');
@@ -281,7 +287,10 @@ const ApiClient = {
 
     loadAppConfig(provider) {
         fetch('/api/settings/app')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.success && data.config) {
                     const conf = data.config;
@@ -352,7 +361,10 @@ const ApiClient = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ config: data })
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(res => {
                 if (res.success) {
                     UiHelpers.showToast('Lưu Cấu hình thành công!', 'success');
@@ -364,7 +376,12 @@ const ApiClient = {
     },
 
     loadStats() {
-        fetch('/api/stats').then(r => r.json()).then(data => {
+        fetch('/api/stats')
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
+            .then(data => {
             const projCountEl = document.getElementById('project-count');
             const archiveCountEl = document.getElementById('archive-count');
 
@@ -378,7 +395,10 @@ const ApiClient = {
         if (!tbody) return;
         
         fetch('/api/archive')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(archives => {
                 if (!archives || !archives.length) {
                     tbody.innerHTML = `<tr><td colspan="3" class="pa5 tc silver i flex-column-center">Không có bản lưu trữ nào.</td></tr>`;
@@ -410,7 +430,10 @@ const ApiClient = {
 
     loadLogList() {
         fetch('/api/logs')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 const listEl = document.getElementById('sys-log-list');
                 window.selectedLogFiles = new Set();
@@ -451,7 +474,10 @@ const ApiClient = {
     async restartServer() {
         if (!await showConfirm('Khởi động lại Web Server?')) return;
         fetch('/api/restart', { method: 'POST' })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 UiHelpers.showToast(data.message || 'Đang khởi động lại...', 'info');
                 setTimeout(() => { location.reload(); }, 3000);
@@ -463,7 +489,10 @@ const ApiClient = {
 
     loadTasks() {
         fetch('/api/tasks')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(tasks => {
                 const taskCountEl = document.getElementById('task-count');
                 if (taskCountEl) {

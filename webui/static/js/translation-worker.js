@@ -10,7 +10,10 @@ const TranslationWorker = {
 
     stopTranslation() {
         fetch('/api/translate/cancel', { method: 'POST' })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 UiHelpers.addLog('Đã gửi yêu cầu dừng...', 'info');
             })
@@ -36,7 +39,10 @@ const TranslationWorker = {
             fetch(`/api/projects/${window.currentProject.slug}/translate`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ files: [window.currentProjectFile.name], force_retranslate: forceRetranslate })
-            }).then(r => r.json()).then(data => {
+            }).then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            }).then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else {
@@ -71,7 +77,10 @@ const TranslationWorker = {
                     chunk_size: parseInt(document.getElementById('chunk-size').value),
                     prompts: window.prompts
                 })
-            }).then(r => r.json()).then(data => {
+            }).then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            }).then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else {
@@ -89,7 +98,10 @@ const TranslationWorker = {
         fetch(`/api/projects/${window.currentProject.slug}/translate`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files: [filename], force_retranslate: forceRetranslate })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
                 TranslationWorker.connectToProgress(null, false, data.job_id, data.files_count || 1);
@@ -105,7 +117,10 @@ const TranslationWorker = {
         fetch(`/api/projects/${window.currentProject.slug}/translate`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files, force_retranslate: forceRetranslate })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
                 TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, data.job_id, data.files_count || files.length);
@@ -122,7 +137,10 @@ const TranslationWorker = {
         fetch(`/api/projects/${window.currentProject.slug}/spellcheck`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files, folder_type })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
                 TranslationWorker.connectToProgress(document.getElementById('pm-btn-spellcheck-selected'), true, data.job_id, data.files_count || files.length);
@@ -135,7 +153,10 @@ const TranslationWorker = {
         fetch(`/api/projects/${window.currentProject.slug}/spellcheck`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files: [filename], folder_type })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
                 TranslationWorker.connectToProgress(null, false, data.job_id, data.files_count || 1);
@@ -163,7 +184,10 @@ const TranslationWorker = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ files: [filename], force_retranslate: true })
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (btn) { btn.disabled = false; btn.classList.remove('spinning'); }
             if (data.error) {
                 UiHelpers.addLog(data.error, 'error');
@@ -412,7 +436,10 @@ const TranslationWorker = {
         }
         // Last resort: fetch from API
         fetch('/api/tasks')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(tasks => {
                 if (tasks.length > 0) {
                     const active = tasks.find(t => t.status === 'started');

@@ -76,7 +76,24 @@ window.ConverterToolPlugin = {
         this.runTask('create_epub', 'btn-create-epub', 'HTML → EPUB 3');
     },
 
-    runTask(task, buttonId, buttonLabel) {
+    runSplitFile() {
+        const maxChars = Number(document.getElementById('converter-tool-max-chars')?.value || 100000);
+        if (!Number.isInteger(maxChars) || maxChars < 1000) {
+            UiHelpers.showToast('Giới hạn chunk phải là số nguyên từ 1000 ký tự trở lên', 'error');
+            return;
+        }
+        this.runTask('split_file', 'btn-split-file', 'Chia tập tin', { max_chars: maxChars });
+    },
+
+    runMergeFiles() {
+        this.runTask('merge_files', 'btn-merge-files', 'Ghép tập tin');
+    },
+
+    runTask(task, buttonId, buttonLabel, options = {}) {
+        if (task === 'merge_files' && !this._preflightMergeCheck()) {
+            return;
+        }
+
         const selection = this.getSelectionFromWorkspace();
         if (!selection.slug) {
             UiHelpers.showToast('Vui lòng mở một dự án trước khi chạy Công cụ chuyển đổi', 'error');
@@ -101,20 +118,27 @@ window.ConverterToolPlugin = {
         this.clearLog();
         this.appendLog(`🔄 Gửi tác vụ ${buttonLabel}...`);
 
-        // Đọc checkbox xóa nguồn; missing element coi như false
         const deleteSource = !!document.getElementById('converter-tool-delete-source')?.checked;
+
+        const body = {
+            task,
+            section: selection.section,
+            filenames: selection.filenames,
+            delete_source: deleteSource,
+        };
+        if (task === 'split_file') {
+            body.max_chars = options.max_chars || 100000;
+        }
 
         fetch(`/api/projects/${encodeURIComponent(selection.slug)}/plugins/epub-converter`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                task,
-                section: selection.section,
-                filenames: selection.filenames,
-                delete_source: deleteSource,
-            }),
+            body: JSON.stringify(body),
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (!data.plugin_id) {
                     throw new Error(data.error || 'Plugin không trả về tiến trình');
@@ -128,11 +152,43 @@ window.ConverterToolPlugin = {
             });
     },
 
+    _preflightMergeCheck() {
+        const selection = this.getSelectionFromWorkspace();
+        if (!selection.filenames.length) return true;
+        const extGroups = new Map();
+        selection.filenames.forEach(fn => {
+            const ext = (fn.split('.').pop() || '').toLowerCase();
+            if (!extGroups.has(ext)) extGroups.set(ext, []);
+            extGroups.get(ext).push(fn);
+        });
+        if (extGroups.size <= 1) return true;
+
+        const groups = Array.from(extGroups.entries()).map(([ext, files]) =>
+            `${ext}: ${files.length} tập tin`
+        ).join('<br>');
+
+        const modal = document.getElementById('converter-tool-mixed-ext-modal');
+        const body = document.getElementById('converter-tool-mixed-ext-body');
+        if (modal && body) {
+            body.innerHTML = `Các tập tin đã chọn có nhiều định dạng khác nhau:<br><br><code>${groups}</code><br><br>Vui lòng chọn một nhóm định dạng duy nhất trước khi ghép.`;
+            ModalManager.show('converter-tool-mixed-ext-modal');
+        } else {
+            this.setSelectionSummaryHtml(
+                `<span class="light-red">⚠️ Mixed extensions: ${groups}</span>`,
+                'error'
+            );
+        }
+        return false;
+    },
+
     pollProgress(slug, pluginId, btn, buttonLabel) {
         let lastCount = 0;
         const interval = setInterval(() => {
             fetch(`/api/plugins/progress/${pluginId}`)
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => {
                     const messages = data.messages || [];
                     for (let i = lastCount; i < messages.length; i++) {
@@ -151,10 +207,11 @@ window.ConverterToolPlugin = {
                         if (data.status === 'done' || data.status === 'partial') {
                             const outputPath = data.result?.output_path
                                 || (data.result?.output_paths && data.result.output_paths[0]);
-                            const failedCount = data.result?.failed_count || 0;
-                            const doneCount = data.result?.converted_count || 0;
+                            const processedCount = data.result?.processed_count || 0;
+                            const failedFiles = data.result?.failed_files || [];
+                            const failedCount = failedFiles.length;
                             const summaryLabel = data.status === 'partial'
-                                ? `Hoàn tất một phần: ${doneCount} OK, ${failedCount} lỗi`
+                                ? `Hoàn tất một phần: ${processedCount} OK, ${failedCount} lỗi`
                                 : 'Đã hoàn tất chuyển đổi';
                             if (outputPath) {
                                 const name = outputPath.split('/').pop();
@@ -184,4 +241,26 @@ window.ConverterToolPlugin = {
                 });
         }, 1000);
     },
+
+    initDefaultChunkSize() {
+        const input = document.getElementById('converter-tool-max-chars');
+        if (!input) return;
+        fetch('/api/config')
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+                const val = data?.default_chunk_size;
+                if (typeof val === 'number' && val >= 1000) {
+                    input.value = String(val);
+                }
+            })
+            .catch(() => {
+                input.value = '100000';
+            });
+    },
 };
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => ConverterToolPlugin.initDefaultChunkSize());
+} else {
+    ConverterToolPlugin.initDefaultChunkSize();
+}

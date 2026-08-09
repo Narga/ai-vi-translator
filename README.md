@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.21.0)
+# 📚 Content Translator (v8.22.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,8 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.21.0):** Tác vụ tạo thông tin AI (summary/relationship/glossary/style_guide) chạy nền với SSE progress, retry, cancel và phân tích file lớn tự động qua map-reduce. UI tab Thông tin hiển thị tiến độ realtime thay vì chờ đồng bộ.
+**Tính năng mới (v8.22.0):** Hợp nhất hoàn toàn tính năng Chia/Ghép tập tin vào Converter Tool (`epub_converter` plugin), hỗ trợ 7 định dạng văn bản (`.md`, `.txt`, `.html`, `.htm`, `.xhtml`, `.json`, `.csv`), ghép HTML chuẩn BeautifulSoup (`<body>`), bảo vệ an toàn cho 46 vị trí fetch JSON frontend và kiểm tra đĩa an toàn.
+
 
 ---
 

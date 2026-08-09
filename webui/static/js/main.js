@@ -261,11 +261,8 @@ function hideProjectInfoModal() { ProjectManager.hideProjectInfoModal(); }
 function saveProjectInfo() { ProjectManager.saveProjectInfo(); }
 function archiveProjectFromModal() { ProjectManager.archiveProjectFromModal(); }
 function deleteProjectFromModal() { ProjectManager.deleteProjectFromModal(); }
-function showChunkConfig() { ProjectManager.showChunkConfig(); }
-function confirmChunking() { ProjectManager.confirmChunking(); }
 function selectAllProjectFiles() { ProjectManager.selectAllProjectFiles(); }
 function selectAllTranslatedFiles() { ProjectManager.selectAllTranslatedFiles(); }
-function mergeTranslatedFiles() { ProjectManager.mergeTranslatedFiles(); }
 function translateSelectedInProject() { TranslationWorker.translateSelectedInProject(); }
 function spellcheckSelectedInProject() { TranslationWorker.spellcheckSelectedInProject(); }
 function startTranslation() { TranslationWorker.startTranslation(); }

@@ -19,7 +19,10 @@ const DocManager = {
 
         // Tải cấu hình trước để đồng bộ các ô input
         fetch('/api/docs/config')
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(config => {
                 if (pathsInput) pathsInput.value = config.paths || '';
                 if (rootCheckbox) rootCheckbox.checked = config.include_root !== false;
@@ -27,7 +30,10 @@ const DocManager = {
                 // Sau đó tải danh sách file
                 return fetch('/api/docs');
             })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(files => {
                 this._loaded = true;
                 this._files = files; // Lưu trữ danh sách để lọc nhanh offline
@@ -150,7 +156,10 @@ const DocManager = {
         if (pathEl) pathEl.textContent = path;
 
         fetch(`/api/docs/content?path=${encodeURIComponent(path)}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.error) {
                     contentEl.innerHTML = `<p class="red pa3">${data.error}</p>`;
@@ -195,7 +204,10 @@ const DocManager = {
             },
             body: JSON.stringify({ paths, include_root })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(res => {
             if (res.success) {
                 // Đặt lại load để tải lại danh sách file mới

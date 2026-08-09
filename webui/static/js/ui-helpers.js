@@ -276,7 +276,10 @@ const UiHelpers = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(res => {
                 if (res.success) {
                     UiHelpers.showToast('Đã lưu cấu hình OpenAI', 'success');
@@ -357,7 +360,10 @@ const UiHelpers = {
         if (!await showConfirm('Xóa vĩnh viễn ' + files.length + ' file log đã chọn?', { danger: true })) return;
 
         Promise.all(files.map(filename =>
-            fetch(`/api/logs/${encodeURIComponent(filename)}`, { method: 'DELETE' }).then(r => r.json())
+            fetch(`/api/logs/${encodeURIComponent(filename)}`, { method: 'DELETE' }).then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
         ))
             .then(results => {
                 const failed = results.filter(r => !r.success);
@@ -382,7 +388,10 @@ const UiHelpers = {
         document.getElementById('sys-log-viewer').innerHTML = '<div class="tc silver mt5 i">Đang tải nội dung...</div>';
 
         fetch(`/api/logs/${encodeURIComponent(filename)}`)
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.error) throw new Error(data.error);
                 
@@ -425,7 +434,10 @@ const UiHelpers = {
         if (!await showConfirm('Xóa vĩnh viễn file log "' + UiHelpers.currentLogFile + '"?', { danger: true })) return;
         
         fetch(`/api/logs/${encodeURIComponent(UiHelpers.currentLogFile)}`, { method: 'DELETE' })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(data => {
                 if (data.success) {
                     UiHelpers.showToast('Đã xóa log', 'success');
@@ -488,7 +500,10 @@ const UiHelpers = {
         fetch(`/api/projects/${encodeURIComponent(slug)}/plugins/ocr`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-        }).then(r => r.json()).then(data => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(data => {
             if (data.plugin_id) {
                 UiHelpers.pollPluginProgress(data.plugin_id, 'ocr-log', btn, '🚀 Chạy OCR Toolbox');
             } else {
@@ -508,7 +523,10 @@ const UiHelpers = {
 
         const interval = setInterval(() => {
             fetch('/api/plugins/progress/' + pluginId)
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
                 .then(data => {
                     const msgs = data.messages || [];
                     for (let i = lastCount; i < msgs.length; i++) {

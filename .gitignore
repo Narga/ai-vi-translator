@@ -36,6 +36,7 @@ share/python-wheels/
 cache/
 .mypy_cache/
 .pytest_cache/
+pytest_tmp/
 .coverage
 htmlcov/
 .tox/

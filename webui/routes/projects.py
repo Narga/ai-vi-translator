@@ -653,12 +653,16 @@ def update_project_file_status(slug):
 @projects_bp.route("/api/projects/<slug>", methods=["DELETE"])
 def delete_project(slug):
     """Xóa dự án."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
+    try:
+        pdir = _get_project_dir(slug)
+        if not pdir.exists():
+            return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    shutil.rmtree(pdir)
-    return jsonify({"success": True})
+        shutil.rmtree(pdir)
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Lỗi delete_project [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 ARCHIVE_DIR = Path("workspace/archive")
@@ -667,39 +671,43 @@ ARCHIVE_DIR = Path("workspace/archive")
 @projects_bp.route("/api/projects/<slug>/archive", methods=["POST"])
 def archive_project(slug):
     """Nén dự án và di chuyển sang thư mục archive, sau đó xóa dự án gốc."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
+    try:
+        pdir = _get_project_dir(slug)
+        if not pdir.exists():
+            return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
 
-    data = request.json or {}
-    strategy = data.get("strategy", "check")  # "check", "overwrite", "copy"
+        data = request.json or {}
+        strategy = data.get("strategy", "check")  # "check", "overwrite", "copy"
 
-    # Target zip names
-    base_zip_name = f"{slug}.zip"
-    target_zip = ARCHIVE_DIR / base_zip_name
+        # Target zip names
+        base_zip_name = f"{slug}.zip"
+        target_zip = ARCHIVE_DIR / base_zip_name
 
-    if strategy == "check":
-        return jsonify({"exists": target_zip.exists()})
+        if strategy == "check":
+            return jsonify({"exists": target_zip.exists()})
 
-    final_zip_path = target_zip
+        final_zip_path = target_zip
 
-    if target_zip.exists() and strategy == "copy":
-        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        final_zip_path = ARCHIVE_DIR / f"{slug}_{stamp}.zip"
+        if target_zip.exists() and strategy == "copy":
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            final_zip_path = ARCHIVE_DIR / f"{slug}_{stamp}.zip"
 
-    # Nén vào thư mục temp hoặc trực tiếp
-    temp_zip = PROJECTS_DIR / f"temp_{slug}"
-    shutil.make_archive(str(temp_zip), "zip", str(pdir))
+        # Nén vào thư mục temp hoặc trực tiếp
+        temp_zip = PROJECTS_DIR / f"temp_{slug}"
+        shutil.make_archive(str(temp_zip), "zip", str(pdir))
 
-    # Di chuyển file zip tới archive
-    shutil.move(f"{temp_zip}.zip", final_zip_path)
+        # Di chuyển file zip tới archive
+        shutil.move(f"{temp_zip}.zip", final_zip_path)
 
-    # Xóa dự án gốc
-    shutil.rmtree(pdir)
+        # Xóa dự án gốc
+        shutil.rmtree(pdir)
 
-    return jsonify({"success": True, "message": f"Đã nén thành công vào {final_zip_path.name}"})
+        return jsonify({"success": True, "message": f"Đã nén thành công vào {final_zip_path.name}"})
+    except Exception as e:
+        logger.error(f"Lỗi archive_project [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/archive", methods=["GET"])
@@ -803,70 +811,78 @@ def download_archive(filename):
 @projects_bp.route("/api/projects/<slug>/export", methods=["GET"])
 def export_project(slug):
     """Export dự án thành file zip để tải về."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
-    
-    import zipfile
-    from io import BytesIO
-    
-    memory_file = BytesIO()
-    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for file_path in pdir.rglob("*"):
-            if file_path.is_file() and not file_path.name.startswith('.'):
-                arcname = file_path.relative_to(pdir.parent)
-                zf.write(file_path, arcname)
-    
-    memory_file.seek(0)
-    return send_file(
-        memory_file,
-        mimetype='application/zip',
-        as_attachment=True,
-        download_name=f"{slug}.zip"
-    )
+    try:
+        pdir = _get_project_dir(slug)
+        if not pdir.exists():
+            return jsonify({"error": "Dự án không tồn tại"}), 404
+
+        import zipfile
+        from io import BytesIO
+
+        memory_file = BytesIO()
+        with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for file_path in pdir.rglob("*"):
+                if file_path.is_file() and not file_path.name.startswith('.'):
+                    arcname = file_path.relative_to(pdir.parent)
+                    zf.write(file_path, arcname)
+
+        memory_file.seek(0)
+        return send_file(
+            memory_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=f"{slug}.zip"
+        )
+    except Exception as e:
+        logger.error(f"Lỗi export_project [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/projects/import", methods=["POST"])
 def import_project():
     """Nhập dự án từ file zip."""
-    if "file" not in request.files:
-        return jsonify({"error": "Không tìm thấy file"}), 400
-    
-    f = request.files["file"]
-    if not f.filename or not f.filename.endswith('.zip'):
-        return jsonify({"error": "File phải là định dạng .zip"}), 400
-    
-    import zipfile
-    import tempfile
-    
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        zip_path = Path(tmp_dir) / "import.zip"
-        f.save(str(zip_path))
-        
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(tmp_dir)
-        
-        # Tìm thư mục dự án trong zip
-        extracted_dirs = [d for d in Path(tmp_dir).iterdir() if d.is_dir()]
-        if not extracted_dirs:
-            return jsonify({"error": "File zip không hợp lệ"}), 400
-        
-        project_dir = extracted_dirs[0]
-        slug = project_dir.name
-        
-        # Kiểm tra trùng lặp
-        dest_dir = _get_project_dir(slug)
-        if dest_dir.exists():
-            return jsonify({"error": f"Dự án '{slug}' đã tồn tại"}), 409
-        
-        # Copy vào workspace
-        shutil.copytree(project_dir, dest_dir)
-        
-        meta = _load_project_meta(slug)
-        if meta:
-            return jsonify({"success": True, "slug": slug, "meta": meta})
-        else:
-            return jsonify({"error": "Không tìm thấy project.json trong file"}), 400
+    try:
+        if "file" not in request.files:
+            return jsonify({"error": "Không tìm thấy file"}), 400
+
+        f = request.files["file"]
+        if not f.filename or not f.filename.endswith('.zip'):
+            return jsonify({"error": "File phải là định dạng .zip"}), 400
+
+        import zipfile
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = Path(tmp_dir) / "import.zip"
+            f.save(str(zip_path))
+
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(tmp_dir)
+
+            # Tìm thư mục dự án trong zip
+            extracted_dirs = [d for d in Path(tmp_dir).iterdir() if d.is_dir()]
+            if not extracted_dirs:
+                return jsonify({"error": "File zip không hợp lệ"}), 400
+
+            project_dir = extracted_dirs[0]
+            slug = project_dir.name
+
+            # Kiểm tra trùng lặp
+            dest_dir = _get_project_dir(slug)
+            if dest_dir.exists():
+                return jsonify({"error": f"Dự án '{slug}' đã tồn tại"}), 409
+
+            # Copy vào workspace
+            shutil.copytree(project_dir, dest_dir)
+
+            meta = _load_project_meta(slug)
+            if meta:
+                return jsonify({"success": True, "slug": slug, "meta": meta})
+            else:
+                return jsonify({"error": "Không tìm thấy project.json trong file"}), 400
+    except Exception as e:
+        logger.error(f"Lỗi import_project: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 # ============================================================
@@ -922,53 +938,6 @@ def save_project_file(slug, filepath):
         file_path.write_text(content, encoding="utf-8")
         return jsonify({"success": True})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
-@projects_bp.route("/api/projects/<slug>/merge", methods=["POST"])
-def merge_project_files(slug):
-    """Ghép danh sách các file (thường ở translated/) thành 1 file duy nhất trong thư mục translated."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
-
-    data = request.json
-    filenames = data.get("files", [])
-    if not filenames or not isinstance(filenames, list):
-        return jsonify({"error": "Danh sách file không hợp lệ"}), 400
-
-    # Use project name as the merged file name, placed in translated/
-    out_name = f"{slug}.txt"
-    out_name = re.sub(r"[^\w\-\.]", "_", out_name)  # Sanitize
-
-    out_path = pdir / "translated" / out_name
-    # Ensure translated directory exists
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with open(out_path, "w", encoding="utf-8") as out_f:
-            for fname in filenames:
-                # Only allow merging from translated/ or sources/ (prefer translated)
-                fpath = pdir / "translated" / fname
-                if not fpath.exists():
-                    fpath = pdir / "sources" / fname
-
-                if fpath.exists() and fpath.is_file():
-                    content = fpath.read_text(encoding="utf-8").strip()
-                    if content:
-                        out_f.write(content + "\n\n")
-
-        size = out_path.stat().st_size
-        return jsonify(
-            {
-                "success": True,
-                "file": out_name,
-                "path": str(out_path.relative_to(pdir)),
-                "size": size,
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error merging files: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -1044,59 +1013,6 @@ def upload_project_file(slug):
             else f"{size / 1048576:.1f} MB",
         }
     )
-
-
-@projects_bp.route("/api/projects/<slug>/chunk/<filename>", methods=["POST"])
-def chunk_project_file(slug, filename):
-    """Chia file nguồn thành nhiều chunk nhỏ."""
-    pdir = _get_project_dir(slug)
-    src_file = pdir / "sources" / filename
-
-    if not src_file.exists():
-        return jsonify({"error": "File không tồn tại"}), 404
-
-    # Đọc cấu hình chunk size
-    data = request.json or {}
-    max_chars = data.get("max_chars", 100000)
-    min_chars = max(5000, max_chars // 2)
-
-    try:
-        from plugins.translation.chunker import process_text_for_chunking
-
-        text = src_file.read_text(encoding="utf-8")
-        chunks = process_text_for_chunking(text, min_chars, max_chars)
-
-        if len(chunks) <= 1:
-            return jsonify(
-                {
-                    "success": True,
-                    "chunks": 1,
-                    "message": "File quá nhỏ, không cần chia chunk.",
-                    "files": [filename],
-                }
-            )
-
-        # Tạo tên chunk: filename_chunk_001.txt, _chunk_002.txt...
-        stem = src_file.stem
-        ext = src_file.suffix
-        created_files = []
-        for i, chunk in enumerate(chunks, 1):
-            chunk_name = f"{stem}_chunk_{i:03d}{ext}"
-            chunk_path = pdir / "sources" / chunk_name
-            chunk_path.write_text(chunk, encoding="utf-8")
-            created_files.append(chunk_name)
-
-        return jsonify(
-            {
-                "success": True,
-                "chunks": len(chunks),
-                "files": created_files,
-                "message": f"Đã chia thành {len(chunks)} chunk.",
-            }
-        )
-    except Exception as e:
-        logger.error(f"Chunk error: {e}")
-        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/projects/<slug>/rename", methods=["POST"])
@@ -1207,55 +1123,65 @@ def rename_batch(slug):
 
     success_count = sum(1 for r in results if r.get("success"))
     return jsonify({"success": True, "results": results, "renamed": success_count})
+
+@projects_bp.route("/api/projects/<slug>/move-done", methods=["POST"])
 def project_move_done(slug):
     """Chuyển file source sang translated."""
-    data = request.json
-    filename = data.get("filename", "")
+    try:
+        data = request.json
+        filename = data.get("filename", "")
 
-    pdir = _get_project_dir(slug)
+        pdir = _get_project_dir(slug)
 
-    # Path traversal check
-    if not filename or ".." in filename or "/" in filename or "\\" in filename:
-        return jsonify({"error": "Tên file không hợp lệ"}), 403
-    src = (pdir / "sources" / filename).resolve()
-    if not str(src).startswith(str((pdir / "sources").resolve())):
-        return jsonify({"error": "Invalid path"}), 403
+        # Path traversal check
+        if not filename or ".." in filename or "/" in filename or "\\" in filename:
+            return jsonify({"error": "Tên file không hợp lệ"}), 403
+        src = (pdir / "sources" / filename).resolve()
+        if not str(src).startswith(str((pdir / "sources").resolve())):
+            return jsonify({"error": "Invalid path"}), 403
 
-    if not src.exists():
-        return jsonify({"error": "File nguồn không tồn tại"}), 404
+        if not src.exists():
+            return jsonify({"error": "File nguồn không tồn tại"}), 404
 
-    dest = pdir / "translated" / filename
-    dest.parent.mkdir(parents=True, exist_ok=True)
+        dest = pdir / "translated" / filename
+        dest.parent.mkdir(parents=True, exist_ok=True)
 
-    shutil.move(str(src), str(dest))
-    return jsonify({"success": True})
+        shutil.move(str(src), str(dest))
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Lỗi project_move_done [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/projects/<slug>/move-back", methods=["POST"])
 def project_move_back(slug):
     """Chuyển file translated về sources."""
-    data = request.json
-    filename = data.get("filename", "")
+    try:
+        data = request.json
+        filename = data.get("filename", "")
 
-    pdir = _get_project_dir(slug)
+        pdir = _get_project_dir(slug)
 
-    # Path traversal check
-    if not filename or ".." in filename or "/" in filename or "\\" in filename:
-        return jsonify({"error": "Tên file không hợp lệ"}), 403
-    src = (pdir / "translated" / filename).resolve()
-    if not str(src).startswith(str((pdir / "translated").resolve())):
-        return jsonify({"error": "Invalid path"}), 403
+        # Path traversal check
+        if not filename or ".." in filename or "/" in filename or "\\" in filename:
+            return jsonify({"error": "Tên file không hợp lệ"}), 403
+        src = (pdir / "translated" / filename).resolve()
+        if not str(src).startswith(str((pdir / "translated").resolve())):
+            return jsonify({"error": "Invalid path"}), 403
 
-    if not src.exists():
-        return jsonify({"error": "File dịch không tồn tại"}), 404
+        if not src.exists():
+            return jsonify({"error": "File dịch không tồn tại"}), 404
 
-    dest = pdir / "sources" / filename
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists():
-        dest.unlink()
+        dest = pdir / "sources" / filename
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            dest.unlink()
 
-    src.rename(dest)
-    return jsonify({"success": True})
+        src.rename(dest)
+        return jsonify({"success": True})
+    except Exception as e:
+        logger.error(f"Lỗi project_move_back [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 # Project prompt APIs moved to webui/routes/prompts.py
 
@@ -1269,55 +1195,67 @@ def project_move_back(slug):
 @projects_bp.route("/api/projects/<slug>/guidelines")
 def get_project_guidelines(slug):
     """Load tất cả guidelines/profile của dự án."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
+    try:
+        pdir = _get_project_dir(slug)
+        if not pdir.exists():
+            return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    assets_dir = pdir / "assets"
-    assets_dir.mkdir(parents=True, exist_ok=True)
+        assets_dir = pdir / "assets"
+        assets_dir.mkdir(parents=True, exist_ok=True)
 
-    fields = {
-        "summary": "summary.txt",
-        "characters": "relationship.txt",
-        "glossary": "glossary.txt",
-        "style_guide": "style_guide.txt",
-        "additional_notes": "additional_notes.txt",
-    }
+        fields = {
+            "summary": "summary.txt",
+            "characters": "relationship.txt",
+            "glossary": "glossary.txt",
+            "style_guide": "style_guide.txt",
+            "additional_notes": "additional_notes.txt",
+        }
 
-    result = {}
-    for key, fname in fields.items():
-        fp = assets_dir / fname
-        result[key] = fp.read_text(encoding="utf-8") if fp.exists() else ""
+        result = {}
+        for key, fname in fields.items():
+            fp = assets_dir / fname
+            try:
+                result[key] = fp.read_text(encoding="utf-8") if fp.exists() else ""
+            except UnicodeDecodeError as e:
+                result[key] = ""
+                logger.warning(f"Lỗi đọc guideline {fname}: {e}")
 
-    return jsonify(result)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Lỗi get_project_guidelines [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/projects/<slug>/guidelines", methods=["PUT"])
 def save_project_guidelines(slug):
     """Lưu guidelines/profile dự án."""
-    pdir = _get_project_dir(slug)
-    if not pdir.exists():
-        return jsonify({"error": "Dự án không tồn tại"}), 404
+    try:
+        pdir = _get_project_dir(slug)
+        if not pdir.exists():
+            return jsonify({"error": "Dự án không tồn tại"}), 404
 
-    assets_dir = pdir / "assets"
-    assets_dir.mkdir(parents=True, exist_ok=True)
+        assets_dir = pdir / "assets"
+        assets_dir.mkdir(parents=True, exist_ok=True)
 
-    data = request.json
-    fields = {
-        "summary": "summary.txt",
-        "characters": "relationship.txt",
-        "glossary": "glossary.txt",
-        "style_guide": "style_guide.txt",
-        "additional_notes": "additional_notes.txt",
-    }
+        data = request.json
+        fields = {
+            "summary": "summary.txt",
+            "characters": "relationship.txt",
+            "glossary": "glossary.txt",
+            "style_guide": "style_guide.txt",
+            "additional_notes": "additional_notes.txt",
+        }
 
-    saved = []
-    for key, fname in fields.items():
-        if key in data:
-            (assets_dir / fname).write_text(data[key], encoding="utf-8")
-            saved.append(key)
+        saved = []
+        for key, fname in fields.items():
+            if key in data:
+                (assets_dir / fname).write_text(data[key], encoding="utf-8")
+                saved.append(key)
 
-    return jsonify({"success": True, "saved": saved})
+        return jsonify({"success": True, "saved": saved})
+    except Exception as e:
+        logger.error(f"Lỗi save_project_guidelines [{slug}]: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
 
 @projects_bp.route("/api/projects/<slug>/summarize", methods=["POST"])

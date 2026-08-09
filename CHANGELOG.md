@@ -25,6 +25,28 @@ Tất cả các thay đổi quan trọng của dự án Content Translator sẽ 
 - **Hướng dẫn sử dụng Regex (`docs/MANUAL.md`)**: Bổ sung mục hướng dẫn cú pháp Regex chuẩn portable v1 và quy trình 3 bước Chạy thử an toàn cho người dùng.
 - **Bộ Kiểm thử Unit Test (`tests/unit/test_batch_regex.py`)**: Thêm unit test kiểm tra toàn diện các hàm compile, adapter replacement, đếm capture groups, và zero-width match.
 
+## [8.22.0] - 2026-08-08
+### Di chuyển hoàn toàn Chia/Ghép tập tin vào Converter Tool, Hỗ trợ 7 Định dạng, BeautifulSoup Merge & Guard Frontend CRUD
+
+**Converter Tool & Service Layer (`plugins/epub_converter/services/file_operations.py`, `webui/routes/plugins.py`):**
+- **Di chuyển hoàn toàn Chia & Ghép tập tin**: Chuyển logic `split_files` và `merge_files` từ `projects.py` vào service `file_operations.py` thuộc plugin `epub_converter`.
+- **Hỗ trợ 7 định dạng mở rộng**: Cho phép chia/ghép trên `.md`, `.txt`, `.html`, `.htm`, `.xhtml`, `.json`, `.csv`.
+- **Ghép HTML nâng cao với BeautifulSoup**: Trích xuất nội dung `<body>` ghép vào file HTML gốc, bảo toàn Doctype, HTML, Head & Style wrapper (`_merge_html_bodies`).
+- **Boundary Policy cho Chunker**: Bổ sung parameter `boundary_mode` (`document`, `line`, `legacy`) vào `process_text_for_chunking()`, bảo đảm phân chia theo chương/heading và đoạn văn hoàn chỉnh mà không cắt đứt markup HTML hay JSON/CSV record.
+- **Chuẩn hóa Path Traversal Guard**: Cập nhật `_safe_project_file()` trả về `Path | None` độc lập với kiểm tra sự tồn tại của file.
+- **Sửa lỗi scope Python `UnboundLocalError`**: Khắc phục triệt để lỗi `delete_source`, `section`, `filenames` do bị gán trùng lặp trong closure function `_run()`.
+
+**Giao diện WebUI Tab Converter (`workspace_ebook_kit.html`, `converter-tool-plugin.js`):**
+- **Tái cấu trúc 6 nút thao tác**: Dồn 4 nút sang trái, 2 nút EPUB 3 dồn sang phải có đường phân cách `|` phân biệt rõ nhóm chức năng.
+- **Tự động cấu hình `max_chars`**: Tải giá trị mặc định từ `/api/config` qua `initDefaultChunkSize()`, ẩn các nút tăng/giảm spinner trên ô nhập tay `max_chars`.
+
+**An toàn Frontend CRUD & Error Guarding (`webui/static/js/`, `webui/__init__.py`):**
+- **Thêm Guard `if (!r.ok)`**: Bổ sung kiểm tra HTTP status trên 46 vị trí `fetch()` thuộc 8 module JavaScript chính (`api-client.js`, `editor-component.js`, `provider-manager.js`, `translation-worker.js`, `prompt-manager.js`, `converter-tool-plugin.js`, `project-manager.js`, `doc-manager.js`, `ui-helpers.js`).
+- **Flask Error Handlers**: Bổ sung generic JSON handlers cho lỗi HTTP 404/405/500 trong backend Flask.
+
+**Bộ Kiểm thử Unit Test (`tests/unit/test_file_operations.py`):**
+- **Unit Test Suite mới**: Bổ sung test suite nghiệm thu toàn diện 7 định dạng suffix, BeautifulSoup HTML merge, safe atomic write và path traversal guard.
+
 ---
 
 ## [8.21.0] - 2026-08-05

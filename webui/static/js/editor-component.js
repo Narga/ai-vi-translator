@@ -34,15 +34,25 @@ const EditorComponent = {
         }
 
         if (section === 'sources') {
-            return fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(data => {
-                document.getElementById(prefix + 'source-text').value = data.content || '';
-                window.currentProjectFile = { name: filename, section };
-                if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
-                    ProjectManager.highlightActiveFile(filename);
-                }
-                if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
-                EditorComponent.updateTokenEstimate();
-                return fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(tData => {
+            return fetch(`/api/projects/${slug}/file/sources/${filename}`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
+                .then(data => {
+                    document.getElementById(prefix + 'source-text').value = data.content || '';
+                    window.currentProjectFile = { name: filename, section };
+                    if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
+                        ProjectManager.highlightActiveFile(filename);
+                    }
+                    if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
+                    EditorComponent.updateTokenEstimate();
+                    return fetch(`/api/projects/${slug}/file/translated/${filename}`)
+                        .then(r => {
+                            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                            return r.json();
+                        })
+                        .then(tData => {
                     document.getElementById(prefix + 'result-text').value = tData.content || '';
                     EditorComponent._resetEditorView(prefix + 'source-text');
                     EditorComponent._resetEditorView(prefix + 'result-text');
@@ -55,7 +65,12 @@ const EditorComponent = {
                 });
             });
         } else if (section === 'translated') {
-            return fetch(`/api/projects/${slug}/file/translated/${filename}`).then(r => r.json()).then(data => {
+            return fetch(`/api/projects/${slug}/file/translated/${filename}`)
+                .then(r => {
+                    if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                    return r.json();
+                })
+                .then(data => {
                 document.getElementById(prefix + 'result-text').value = data.content || '';
                 window.currentProjectFile = { name: filename, section };
                 if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
@@ -63,7 +78,12 @@ const EditorComponent = {
                 }
                 DirtyState.clean(prefix + 'result-text');
                 if (!prefix) document.getElementById('token-estimate-mini')?.classList.remove('dn');
-                return fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sData => {
+                return fetch(`/api/projects/${slug}/file/sources/${filename}`)
+                    .then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                        return r.json();
+                    })
+                    .then(sData => {
                     document.getElementById(prefix + 'source-text').value = sData.content || '';
                     EditorComponent._resetEditorView(prefix + 'source-text');
                     EditorComponent._resetEditorView(prefix + 'result-text');
@@ -89,15 +109,25 @@ const EditorComponent = {
             statusEl.innerHTML = `<strong>Tập tin:</strong> <em>${filename}</em> | `;
         }
 
-        fetch(`/api/projects/${slug}/file/spelling/${filename}`).then(r => r.json()).then(data => {
-            document.getElementById(prefix + 'spell-result-text').value = data.content || '';
-            window.currentProjectFile = { name: filename, section: 'spelling' };
-            if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
-                ProjectManager.highlightActiveFile(filename);
-            }
-            EditorComponent._resetEditorView(prefix + 'spell-result-text');
-            DirtyState.clean(prefix + 'spell-result-text');
-            fetch(`/api/projects/${slug}/file/spelling/${infoName}`).then(r => r.json()).then(infoData => {
+        fetch(`/api/projects/${slug}/file/spelling/${filename}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
+            .then(data => {
+                document.getElementById(prefix + 'spell-result-text').value = data.content || '';
+                window.currentProjectFile = { name: filename, section: 'spelling' };
+                if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
+                    ProjectManager.highlightActiveFile(filename);
+                }
+                EditorComponent._resetEditorView(prefix + 'spell-result-text');
+                DirtyState.clean(prefix + 'spell-result-text');
+                fetch(`/api/projects/${slug}/file/spelling/${infoName}`)
+                    .then(r => {
+                        if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                        return r.json();
+                    })
+                    .then(infoData => {
                 const logEl = document.getElementById(prefix + 'spell-log-content');
                 if (logEl) logEl.textContent = infoData.content || 'Không có dữ liệu soát lỗi.';
             }).catch(() => {
@@ -109,7 +139,12 @@ const EditorComponent = {
             const logEl = document.getElementById(prefix + 'spell-log-content');
             if (logEl) logEl.textContent = 'Lỗi tải file.';
         });
-        fetch(`/api/projects/${slug}/file/sources/${filename}`).then(r => r.json()).then(sourceData => {
+        fetch(`/api/projects/${slug}/file/sources/${filename}`)
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
+            .then(sourceData => {
             document.getElementById(prefix + 'spell-source-text').value = sourceData.content || '';
             EditorComponent._resetEditorView(prefix + 'spell-source-text');
             DirtyState.clean(prefix + 'spell-source-text');
@@ -235,7 +270,10 @@ const EditorComponent = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
         })
-        .then(r => r.json())
+        .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        })
         .then(res => {
             if (res.success) {
                 UiHelpers.showToast('Đã lưu file nguồn', 'success');
@@ -418,7 +456,10 @@ const EditorComponent = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
         })
-            .then(r => r.json())
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+                return r.json();
+            })
             .then(res => {
                 if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
                 if (res.success) {
@@ -449,7 +490,10 @@ const EditorComponent = {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ content })
-        }).then(r => r.json()).then(res => {
+        }).then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
+            return r.json();
+        }).then(res => {
             if (btn) { btn.innerHTML = originalText; btn.disabled = false; }
             if (res.success) {
                 UiHelpers.showToast('Đã lưu.', 'success');
