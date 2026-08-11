@@ -1547,6 +1547,7 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
     from backend.infrastructure.providers.provider_service import ProviderService
     from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
     from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+    from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
 
     def worker(job_id):
         try:
