@@ -94,6 +94,41 @@ def create_app():
     from webui.helpers import ensure_default_project
     ensure_default_project()
 
+    # Scan resumable checkpoints on startup
+    try:
+        from services.task_store import TaskStore
+        from services.checkpoint_service import CheckpointService
+        from pathlib import Path
+        store = TaskStore()
+        ck_dir = Path(store.db_path).parent / "checkpoints"
+        if ck_dir.exists():
+            for db_file in ck_dir.glob("*.db"):
+                ck = CheckpointService(str(ck_dir))
+                logical_name = db_file.stem
+                info = ck.get_resume_info(logical_name)
+                if info and info.get("can_resume") and info.get("translated_count", 0) < info.get("total_chunks", 0):
+                    existing = [t for t in store.list_tasks() if t.get("checkpoint_key") == db_file.name]
+                    if not existing:
+                        job_id = str(__import__('uuid').uuid4())
+                        saved_identity = info.get("identity", {})
+                        # project_file từ identity (e.g. "chapter1.txt"), fallback về stem
+                        project_file = saved_identity.get("project_file", logical_name)
+                        store.create_task(
+                            job_id=job_id,
+                            kind="translation",
+                            title=f"Resume {project_file}",
+                            project_slug="",  # không thể suy ra slug từ checkpoint
+                            filename=project_file,
+                            total_chunks=info.get("total_chunks", 0),
+                            checkpoint_key=db_file.name,
+                            identity=saved_identity,
+                        )
+                        store.update_status(job_id, "resumable",
+                                           completed_chunks=info.get("translated_count", 0),
+                                           current_chunk=info.get("next_chunk_index", 0))
+    except Exception as e:
+        logger.warning(f"Startup checkpoint scan failed: {e}")
+
     @app.after_request
     def force_static_mimetypes(response):
         # Force correct Content-Type for CSS/JS to prevent browser MIME-type blocking

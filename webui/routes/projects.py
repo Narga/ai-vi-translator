@@ -2,6 +2,7 @@
 # Blueprint: Project-Based Workspace API + Translation Memory APIs
 
 import json
+import hashlib
 import os
 import re
 import shutil
@@ -12,6 +13,9 @@ from datetime import datetime
 from threading import Thread
 
 from flask import Blueprint, request, jsonify, send_file
+
+from services.task_store import TaskStore
+from services.checkpoint_service import CheckpointService
 
 from webui.helpers import (
     load_api_keys,
@@ -325,10 +329,13 @@ def _load_project_meta(slug):
 
 
 def _save_project_meta(slug, meta):
-    """Lưu project.json."""
+    """Lưu project.json an toàn bằng atomic write."""
     meta_file = _get_project_dir(slug) / "project.json"
-    with open(meta_file, "w", encoding="utf-8") as f:
+    meta_file.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = meta_file.with_suffix(".tmp")
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
+    os.replace(str(tmp_path), str(meta_file))
 
 
 def _project_stats(slug):
@@ -1476,93 +1483,86 @@ def summarize_project(slug):
 
 # ============================================================
 
-# Project Translation API
+# ============================================================
+# Project Translation API - Resume helpers and endpoints
 # ============================================================
 
 
-@projects_bp.route("/api/projects/<slug>/translate", methods=["POST"])
-def translate_project_file(slug):
-    """Dịch file(s) trong dự án - dùng backend use case."""
-    import webui as _state
-    from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
-    from backend.infrastructure.config.api_key_service import ApiKeyService
-    from backend.infrastructure.config.prompt_service import PromptService
-    from backend.infrastructure.progress.task_registry import TaskRegistry
-
-    data = request.json
-    filenames = data.get("files", [])
-    force_retranslate = bool(data.get("force_retranslate", False))
-
-    pdir = _get_project_dir(slug)
-    meta = _load_project_meta(slug)
-    if not meta:
-        return jsonify({"error": "Dự án không tồn tại"}), 404
-
-    if not filenames:
-        return jsonify({"error": "Không có file nào được chọn"}), 400
-
-    # Load prompts bằng PromptService
-    prompt_service = PromptService()
-    prompts = prompt_service.load_merged_prompts(pdir)
-
-    # Dùng ProjectContextService thay vì đọc hardcode
-    from backend.infrastructure.config.project_context_service import ProjectContextService
-    context_service = ProjectContextService()
-    context_data = context_service.load_context(pdir)
-    prompts["main"] = context_service.render_prompt(prompts.get("main", ""), context_data)
-
-    # Glossary paths
-    glossary_filenames = ["glossary.txt", "relationship.txt"]
-    glossary_paths = [
-        pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
-    ]
-
-    # Dùng AppConfigService để lấy cấu hình hệ thống
+def _get_checkpoint_dir():
     from backend.infrastructure.config.app_config_service import AppConfigService
-    config_service = AppConfigService()
+    return AppConfigService().get_checkpoints_dir()
 
-    config = {
-        "provider_type": "", # Sẽ được điền bên trong worker
-        "base_url": "", # Sẽ được điền bên trong worker
-        "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
-        "qa_model": data.get("model", ""),
-        "temperature": float(data.get("temperature", config_service.get_temperature())),
-        "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
-        "force_retranslate": force_retranslate,
-        "thinking_level": data.get("thinking_level", config_service.get_thinking_level()),
-        "request_delay": config_service.get("PROCESSING", "REQUEST_DELAY", fallback=0, value_type=float),
-        "prompts": prompts,
-        "max_refinement_attempts": 2,
-        "min_length_ratio": 0.5,
-        "max_length_ratio": 5.0,
-        "context_char_count": config_service.get_context_char_count(),
+
+def _get_workspace_dir():
+    ck_dir = _get_checkpoint_dir()
+    ck_path = Path(ck_dir)
+    if ck_path.name == "checkpoints":
+        return str(ck_path.parent)
+    return str(ck_path.parent)
+
+
+def _checkpoint_key_for(filename: str) -> str:
+    return hashlib.md5(filename.encode()).hexdigest()[:12] + ".db"
+
+
+def _checkpoint_status_for(filename: str, source_text: str, config: dict) -> Optional[dict]:
+    ck_dir = _get_checkpoint_dir()
+    ck = CheckpointService(ck_dir)
+    info = ck.get_resume_info(filename)
+    if not info or not info.get("can_resume"):
+        return None
+
+    saved_ident = info.get("identity", {})
+    current_identity = {
+        "project_file": filename,
+        "source_hash": hashlib.sha256(source_text.encode()).hexdigest(),
+        "chunker_version": "v2",
+        "chunk_size": str(config.get("chunk_size", 22000)),
+        "provider_kind": config.get("provider_kind", "unknown"),
+        "provider_id": config.get("provider_id", "unknown"),
+        "base_url": config.get("base_url", "unknown"),
+        "model": config.get("model_name", "unknown"),
+        "qa_model": config.get("qa_model", "unknown"),
+        "credential_mode": config.get("credential_mode", "default"),
+        "prompt_hash": hashlib.sha256(
+            json.dumps(config.get("prompts", {}), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "schema_version": "1.0",
+    }
+    if saved_ident != current_identity:
+        return {"status": "stale_checkpoint", "identity_mismatch": True}
+
+    return {
+        "status": "resume_available",
+        "completed_chunks": info.get("translated_count", 0),
+        "total_chunks": info.get("total_chunks", 0),
+        "next_chunk": info.get("next_chunk_index", 0),
+        "checkpoint_key": _checkpoint_key_for(filename),
     }
 
-    registry = TaskRegistry()
-    job_id = registry.create_task("translation", f"Translate {slug}", len(filenames))
 
-    def _project_translate_worker(job_id):
-        """Worker dùng backend use case."""
+def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths, registry):
+    from services.translation_memory import TranslationMemory
+    from backend.infrastructure.providers.provider_service import ProviderService
+    from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
+    from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+
+    def worker(job_id):
         try:
-            from services.translation_memory import TranslationMemory
-            from backend.infrastructure.providers.provider_service import ProviderService
-            from backend.infrastructure.providers.model_catalog_service import ModelCatalogService
-            from backend.infrastructure.providers.endpoint_policy import classify_endpoint
-
             provider_service = ProviderService()
             active_provider = provider_service.get_active_provider_config() or {}
             provider_type = active_provider.get("type", "gemini")
             base_url = active_provider.get("base_url")
             gateway_api_key = active_provider.get("gateway_api_key", "")
             credential_mode = active_provider.get("credential_mode", "default")
-            
+
             policy = classify_endpoint(base_url)
             provider_kind = policy.provider_kind
-            
+
             model_from_req = config.get("model_name")
             if not model_from_req:
                 model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
-                
+
             model_from_req = policy.normalize_model(model_from_req)
             if not policy.validate_model(model_from_req):
                 registry.append_event(job_id, {"type": "error", "message": f"Model '{model_from_req}' không hợp lệ với provider '{provider_kind}'"})
@@ -1628,9 +1628,255 @@ def translate_project_file(slug):
             registry.append_event(job_id, {"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
             registry.update_status(job_id, "failed")
 
-    thread = Thread(target=_project_translate_worker, args=(job_id,), daemon=True)
+    return worker
+
+
+# ============================================================
+# Project Translation API
+# ============================================================
+
+
+# ============================================================
+
+
+@projects_bp.route("/api/projects/<slug>/translate", methods=["POST"])
+def translate_project_file(slug):
+    """Dịch file(s) trong dự án - dùng backend use case."""
+    import webui as _state
+    from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    from backend.infrastructure.config.prompt_service import PromptService
+    from backend.infrastructure.progress.task_registry import TaskRegistry
+
+    data = request.json
+    filenames = data.get("files", [])
+    force_retranslate = bool(data.get("force_retranslate", False))
+
+    pdir = _get_project_dir(slug)
+    meta = _load_project_meta(slug)
+    if not meta:
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    if not filenames:
+        return jsonify({"error": "Không có file nào được chọn"}), 400
+
+    # Load prompts bằng PromptService
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(pdir)
+
+    # Dùng ProjectContextService thay vì đọc hardcode
+    from backend.infrastructure.config.project_context_service import ProjectContextService
+    context_service = ProjectContextService()
+    context_data = context_service.load_context(pdir)
+    prompts["main"] = context_service.render_prompt(prompts.get("main", ""), context_data)
+
+    # Glossary paths
+    glossary_filenames = ["glossary.txt", "relationship.txt"]
+    glossary_paths = [
+        pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
+    ]
+
+    # Dùng AppConfigService để lấy cấu hình hệ thống
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+
+    config = {
+        "provider_type": "", # Sẽ được điền bên trong worker
+        "base_url": "", # Sẽ được điền bên trong worker
+        "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
+        "qa_model": data.get("model", ""),
+        "temperature": float(data.get("temperature", config_service.get_temperature())),
+        "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
+        "force_retranslate": force_retranslate,
+        "thinking_level": data.get("thinking_level", config_service.get_thinking_level()),
+        "request_delay": config_service.get("PROCESSING", "REQUEST_DELAY", fallback=0, value_type=float),
+        "prompts": prompts,
+        "max_refinement_attempts": 2,
+        "min_length_ratio": 0.5,
+        "max_length_ratio": 5.0,
+        "context_char_count": config_service.get_context_char_count(),
+    }
+
+    # Check for existing checkpoints when not force retranslating
+    if not force_retranslate:
+        resume_required = {}
+        for filename in filenames:
+            file_path = pdir / "sources" / filename
+            if not file_path.exists():
+                continue
+            source_text = file_path.read_text(encoding="utf-8")
+            ck_status = _checkpoint_status_for(filename, source_text, config)
+            if ck_status and ck_status.get("status") == "resume_available":
+                resume_required[filename] = ck_status
+        if resume_required:
+            return jsonify({
+                "status": "resume_required",
+                "checkpoints": resume_required,
+            }), 409
+
+    registry = TaskRegistry()
+    job_id = registry.create_task("translation", f"Translate {slug}", len(filenames))
+
+    worker = _build_translate_worker(
+        slug, pdir, meta, config, filenames, glossary_paths, registry
+    )
+    thread = Thread(target=worker, args=(job_id,), daemon=True)
     thread.start()
     return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
+
+
+@projects_bp.route("/api/projects/<slug>/translate/confirm-resume", methods=["POST"])
+def confirm_resume_translate(slug):
+    """Xác nhận resume cho các file có checkpoint."""
+    import webui as _state
+    from backend.application.use_cases.translate_project_files_use_case import TranslateProjectFilesUseCase
+    from backend.infrastructure.config.api_key_service import ApiKeyService
+    from backend.infrastructure.config.prompt_service import PromptService
+    from backend.infrastructure.progress.task_registry import TaskRegistry
+
+    data = request.json
+    filenames = data.get("files", [])
+
+    pdir = _get_project_dir(slug)
+    meta = _load_project_meta(slug)
+    if not meta:
+        return jsonify({"error": "Dự án không tồn tại"}), 404
+
+    if not filenames:
+        return jsonify({"error": "Không có file nào được chọn"}), 400
+
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(pdir)
+
+    from backend.infrastructure.config.project_context_service import ProjectContextService
+    context_service = ProjectContextService()
+    context_data = context_service.load_context(pdir)
+    prompts["main"] = context_service.render_prompt(prompts.get("main", ""), context_data)
+
+    glossary_filenames = ["glossary.txt", "relationship.txt"]
+    glossary_paths = [
+        pdir / "assets" / gf for gf in glossary_filenames if (pdir / "assets" / gf).exists()
+    ]
+
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+
+    config = {
+        "provider_type": "",
+        "base_url": "",
+        "model_name": data.get("model", ""),
+        "qa_model": data.get("model", ""),
+        "temperature": float(data.get("temperature", config_service.get_temperature())),
+        "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
+        "force_retranslate": False,
+        "thinking_level": data.get("thinking_level", config_service.get_thinking_level()),
+        "request_delay": config_service.get("PROCESSING", "REQUEST_DELAY", fallback=0, value_type=float),
+        "prompts": prompts,
+        "max_refinement_attempts": 2,
+        "min_length_ratio": 0.5,
+        "max_length_ratio": 5.0,
+        "context_char_count": config_service.get_context_char_count(),
+    }
+
+    registry = TaskRegistry()
+    job_id = registry.create_task("translation", f"Resume {slug}", len(filenames))
+
+    worker = _build_translate_worker(
+        slug, pdir, meta, config, filenames, glossary_paths, registry
+    )
+    thread = Thread(target=worker, args=(job_id,), daemon=True)
+    thread.start()
+    return jsonify({"status": "started", "job_id": job_id, "files_count": len(filenames)})
+
+
+@projects_bp.route("/api/tasks/<task_id>/resume", methods=["POST"])
+def resume_task(task_id):
+    from services.task_store import TaskStore
+    store = TaskStore(_get_checkpoint_dir().replace("checkpoints", ""))
+    task = store.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+    if task["status"] not in ("resumable", "failed", "paused"):
+        return jsonify({"error": f"Cannot resume task in status {task['status']}"}), 400
+
+    if task.get("checkpoint_key"):
+        existing = store.find_running_by_checkpoint_key(task["checkpoint_key"])
+        if existing and existing["task_id"] != task_id:
+            return jsonify({
+                "error": "Already resuming",
+                "job_id": existing["job_id"],
+            }), 409
+
+    new_job_id = str(uuid.uuid4())
+    store.create_resumed_task(task, new_job_id)
+
+    if not task.get("project_slug"):
+        return jsonify({
+            "error": "Task không có project_slug — dùng /api/projects/<slug>/translate/confirm-resume để resume",
+            "job_id": new_job_id,
+            "filename": task["filename"],
+            "checkpoint_key": task.get("checkpoint_key"),
+        }), 400
+
+    pdir = _get_project_dir(task["project_slug"])
+    meta = _load_project_meta(task["project_slug"])
+    filenames = [task["filename"]]
+
+    # Restore config from saved identity to ensure chunk_size, model, etc.
+    # match what was used when the checkpoint was created — prevents identity mismatch.
+    saved_identity = task.get("identity") or {}
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+    config = {
+        "provider_type": "",
+        "base_url": "",
+        "model_name": saved_identity.get("model", ""),
+        "qa_model": saved_identity.get("qa_model", ""),
+        "temperature": config_service.get_temperature(),
+        "chunk_size": int(saved_identity.get("chunk_size", config_service.get_default_chunk_size())),
+        "force_retranslate": False,
+        "thinking_level": config_service.get_thinking_level(),
+        "request_delay": config_service.get("PROCESSING", "REQUEST_DELAY", fallback=0, value_type=float),
+        "max_refinement_attempts": 2,
+        "min_length_ratio": 0.5,
+        "max_length_ratio": 5.0,
+        "context_char_count": config_service.get_context_char_count(),
+    }
+
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(pdir)
+    from backend.infrastructure.config.project_context_service import ProjectContextService
+    context_service = ProjectContextService()
+    context_data = context_service.load_context(pdir)
+    prompts["main"] = context_service.render_prompt(prompts.get("main", ""), context_data)
+    config["prompts"] = prompts
+
+    glossary_paths = [
+        pdir / "assets" / gf for gf in ["glossary.txt", "relationship.txt"]
+        if (pdir / "assets" / gf).exists()
+    ]
+
+    registry = TaskRegistry()
+    worker = _build_translate_worker(
+        task["project_slug"], pdir, meta, config, filenames, glossary_paths, registry
+    )
+    thread = Thread(target=worker, args=(new_job_id,), daemon=True)
+    thread.start()
+
+    return jsonify({
+        "status": "resumed",
+        "job_id": new_job_id,
+        "resume_of": task_id,
+        "checkpoint_key": task.get("checkpoint_key"),
+        "snapshot": {
+            "project_slug": task["project_slug"],
+            "filename": task["filename"],
+            "total_chunks": task.get("total_chunks", 0),
+            "completed_chunks": task.get("completed_chunks", 0),
+            "current_chunk": task.get("current_chunk", 0),
+            "phase": task.get("phase"),
+        },
+    })
 
 
 # ============================================================

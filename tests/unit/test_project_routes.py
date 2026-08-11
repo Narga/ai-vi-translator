@@ -87,31 +87,33 @@ class TestTranslateProjectForceRetranslate:
         mocks["prov_svc"] = patch("backend.infrastructure.providers.provider_service.ProviderService")
         mocks["tm_cls"] = patch("services.translation_memory.TranslationMemory")
         mocks["thread"] = patch("webui.routes.projects.Thread")
-        mocks["queue"] = patch("webui.progress_queue")
+        mocks["ck_status"] = patch("webui.routes.projects._checkpoint_status_for", return_value=None)
 
-        for p in mocks.values():
-            p.start()
+        started = {}
+        for k, p in mocks.items():
+            started[k] = p.start()
 
         mock_pdir = MagicMock(spec=Path)
         mock_pdir.__truediv__ = lambda self, x: MagicMock(spec=Path, exists=lambda: False)
-        mocks["dir"].start().return_value = mock_pdir
-
-        mocks["meta"].start().return_value = {"book_title": "Test", "slug": "test-slug"}
+        started["dir"].return_value = mock_pdir
+        started["meta"].return_value = {"book_title": "Test", "slug": "test-slug"}
 
         mock_prompt = MagicMock()
         mock_prompt.load_merged_prompts.return_value = {"main": "Dịch:"}
-        mocks["prompt_svc"].start().return_value = mock_prompt
+        started["prompt_svc"].return_value = mock_prompt
 
         mock_ctx = MagicMock()
         mock_ctx.load_context.return_value = {}
         mock_ctx.render_prompt.return_value = "Dịch:"
-        mocks["ctx_svc"].start().return_value = mock_ctx
+        started["ctx_svc"].return_value = mock_ctx
 
         mock_cfg = MagicMock()
         mock_cfg.get_temperature.return_value = 1.0
         mock_cfg.get_default_chunk_size.return_value = 22000
         mock_cfg.get_context_char_count.return_value = 500
-        mocks["cfg_svc"].start().return_value = mock_cfg
+        mock_cfg.get_thinking_level.return_value = "none"
+        mock_cfg.get.return_value = 0
+        started["cfg_svc"].return_value = mock_cfg
 
         mock_prov = MagicMock()
         mock_prov.get_active_provider_config.return_value = {
@@ -119,12 +121,10 @@ class TestTranslateProjectForceRetranslate:
             "api_keys": ["test-key"],
             "default_model": "gemini-flash",
         }
-        mocks["prov_svc"].start().return_value = mock_prov
+        started["prov_svc"].return_value = mock_prov
 
         mock_tm = MagicMock()
-        mocks["tm_cls"].start().return_value = mock_tm
-
-        mocks["queue"].start().empty.return_value = True
+        started["tm_cls"].return_value = mock_tm
 
         return mocks
 
