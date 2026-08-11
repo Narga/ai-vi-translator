@@ -493,28 +493,19 @@ const ApiClient = {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
                 return r.json();
             })
-            .then(tasks => {
+            .then(data => {
                 const taskCountEl = document.getElementById('task-count');
                 if (taskCountEl) {
-                    taskCountEl.textContent = tasks.length;
+                    taskCountEl.textContent = data.running_count || 0;
                 }
 
                 const taskSummaryEl = document.getElementById('task-summary');
                 if (!taskSummaryEl) return;
 
-                taskSummaryEl.textContent = '';
-                if (tasks.length > 0) {
-                    const active = tasks.find(t => t.status === 'started');
-                    if (active) {
-                        const completed = active.completed_files || 0;
-                        const total = active.total_files || 0;
-                        if (total > 0) {
-                            taskSummaryEl.textContent = ` — Đang dịch ${completed}/${total}`;
-                        } else {
-                            taskSummaryEl.textContent = ' — Đang dịch';
-                        }
-                    }
-                }
+                const parts = [];
+                if (data.running_count > 0) parts.push(`Đang chạy: ${data.running_count}`);
+                if (data.resumable_count > 0) parts.push(`Có thể resume: ${data.resumable_count}`);
+                taskSummaryEl.textContent = parts.length ? ' — ' + parts.join(', ') : '';
             })
             .catch(e => console.error('Failed to load tasks', e));
     }

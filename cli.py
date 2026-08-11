@@ -448,18 +448,112 @@ Ví dụ sử dụng:
 
     def _handle_resume(self, args) -> int:
         """Xử lý lệnh resume."""
+        from services.checkpoint_service import CheckpointService
+        from pathlib import Path
+
         checkpoint_path = Path(args.checkpoint)
 
         if not checkpoint_path.exists():
             self.logger.error(f"❌ Không tìm thấy checkpoint: {args.checkpoint}")
             return 1
 
-        self.logger.info(f"🔄 Tiếp tục từ: {args.checkpoint}")
+        ck = CheckpointService(str(checkpoint_path.parent))
+        logical_name = checkpoint_path.stem
+        info = ck.get_resume_info(logical_name)
 
-        # TODO: Implement checkpoint resume logic
-        self.logger.warning("⚠️ Chức năng resume đang được phát triển")
+        if not info or not info.get("can_resume"):
+            self.logger.error(f"❌ Checkpoint không hợp lệ hoặc đã hoàn tất: {args.checkpoint}")
+            return 1
 
-        return 0
+        self.logger.info(f"🔄 Checkpoint: {args.checkpoint}")
+        self.logger.info(f"   Tiến độ: {info['translated_count']}/{info['total_chunks']} chunk")
+        self.logger.info(f"   Tiếp tục từ chunk {info['next_chunk_index'] + 1}")
+
+        if args.force:
+            self.logger.warning("⚠️  Force mode: sẽ xóa checkpoint và dịch lại từ đầu")
+            ck.cleanup(logical_name)
+            return 0
+
+        # Find source file
+        source_candidates = [
+            Path("workspace/projects/default-project/sources") / logical_name,
+            Path("workspace") / logical_name,
+            Path(logical_name),
+        ]
+        source_file = None
+        for candidate in source_candidates:
+            if candidate.exists():
+                source_file = candidate
+                break
+
+        if not source_file:
+            self.logger.error(f"❌ Không tìm thấy file nguồn cho checkpoint: {logical_name}")
+            return 1
+
+        self.logger.info(f"📂 File nguồn: {source_file}")
+
+        # Run translation; executor auto-resumes from checkpoint
+        from backend.infrastructure.config.api_key_service import ApiKeyService
+        from backend.infrastructure.config.app_config_service import AppConfigService
+        from backend.infrastructure.config.prompt_service import PromptService
+        from backend.application.use_cases.translate_text_use_case import TranslateTextUseCase
+        from backend.application.dto.translation_request import TranslationRequest
+
+        config_service = AppConfigService()
+        key_service = ApiKeyService()
+        prompt_service = PromptService()
+
+        api_keys = key_service.load_gemini_keys()
+        if not api_keys:
+            self.logger.error("❌ Không tìm thấy API keys")
+            return 1
+
+        prompts = prompt_service.load_merged_prompts(Path("workspace/projects/default-project"))
+        glossary_paths = []
+        use_case = TranslateTextUseCase.from_services(
+            api_keys=api_keys,
+            config_service=config_service,
+            prompt_service=prompt_service,
+            project_dir=Path("workspace/projects/default-project"),
+            glossary_paths=glossary_paths or None,
+        )
+
+        try:
+            text_content = source_file.read_text(encoding="utf-8")
+            self.logger.info(f"Source: {len(text_content):,} chars")
+        except Exception as e:
+            self.logger.error(f"Cannot read file {source_file.name}: {e}")
+            return 1
+
+        out_path = source_file.parent.parent / "translated" / (source_file.stem + "_translated.txt")
+
+        def cli_callback(data, _fname=source_file.name):
+            evt_type = data.get("type")
+            if evt_type == "error":
+                self.logger.error(data.get("message", ""))
+            elif evt_type == "progress":
+                current = data.get("current", 0)
+                total = data.get("total", 0)
+                if total > 0:
+                    self.logger.info(f"  [{_fname}] {current}/{total} chunks")
+            elif evt_type == "complete":
+                self.logger.info(data.get("message", ""))
+
+        request = TranslationRequest(
+            text=text_content,
+            output_filename=source_file.stem,
+            output_file_path=out_path,
+            progress_callback=cli_callback,
+        )
+
+        result = use_case.execute(request)
+
+        if result.success:
+            self.logger.info(f"✅ Saved: {out_path}")
+            return 0
+        else:
+            self.logger.error(f"❌ Failed: {result.error_message}")
+            return 1
 
     def _handle_serve(self, args) -> int:
         """Xử lý lệnh serve."""

@@ -2,6 +2,13 @@
 
 ## Hoàn thành
 
+### v8.23.0 (2026-08-11)
+- [x] 💾 **Lưu trữ Tác vụ Nền SQLite TaskStore (`tasks.db`)**: Nâng cấp `TaskRegistry` từ RAM sang SQLite store (`TaskStore`), tự động lưu trạng thái tác vụ, tiến trình chunk và lịch sử event SSE xuống đĩa.
+- [x] 🔄 **Tự động Quét & Khôi phục Tác vụ khi Server Restart (`scan_and_recover`)**: Phát hiện các checkpoint SQLite và tác vụ chưa hoàn tất khi máy khởi động lại hoặc sau khi OS sleep/crash, tự động chuyển về trạng thái `resumable` hoặc `paused`.
+- [x] 🏷️ **Checkpoint Identity & Project Slug Mapping**: Lưu `project_slug` trực tiếp vào checkpoint identity để tự động liên kết checkpoint về đúng dự án gốc.
+- [x] 🐛 **Vá lỗi UI Tiến trình Modal (TDZ) & Stream Event SSE**: Sửa lỗi `ReferenceError: Cannot access 'btnResume' before initialization` trong `translation-worker.js`, bổ sung `jsonify` bị thiếu và cập nhật ngắt kết nối SSE khi task chuyển về trạng thái `resumable`/`paused`.
+- [x] 🧪 **Bộ Kiểm thử Unit Test cho SQLite TaskStore**: Thêm unit test suite `test_task_store.py` và `test_task_registry_persistence.py` kiểm thử toàn diện luồng lưu trữ và quét khôi phục tác vụ.
+
 ### v8.22.0 (2026-08-08)
 - [x] 📦 **Di chuyển hoàn toàn Chia/Ghép tập tin vào Converter Tool**: Di chuyển logic Chia (`split_files`) và Ghép (`merge_files`) từ `projects.py` vào service `plugins/epub_converter/services/file_operations.py`.
 - [x] 📄 **Hỗ trợ 7 định dạng mở rộng**: Cho phép chia/ghép trên `.md`, `.txt`, `.html`, `.htm`, `.xhtml`, `.json`, `.csv`.

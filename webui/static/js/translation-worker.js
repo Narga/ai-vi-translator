@@ -433,6 +433,8 @@ const TranslationWorker = {
         }
 
         function updateResumeButton(status) {
+            const btnResume = document.getElementById('btn-progress-resume');
+            const btnStop = document.getElementById('btn-progress-stop');
             if (!btnResume) return;
             if (['paused', 'failed', 'interrupted', 'resumable'].includes(status)) {
                 btnResume.classList.remove('dn');

@@ -2,6 +2,23 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.23.0] - 2026-08-11
+### Khôi phục Tác vụ Nền SQLite TaskStore, Tự động Khôi phục Checkpoint & Vá lỗi UI Modal Progress
+
+**Kiên cố hóa Trạng thái Tác vụ Nền qua SQLite TaskStore (`services/task_store.py`, `backend/infrastructure/progress/task_registry.py`):**
+- **Lưu trữ Tác vụ Nền xuống Đĩa (`workspace/tasks.db`)**: Nâng cấp `TaskRegistry` từ bộ nhớ tạm RAM thành SQLite-backed store (`TaskStore`), tự động lưu lại thông tin tác vụ, lịch sử event SSE, tiến trình chunk và trạng thái lifecycle.
+- **Tự động Quét & Khôi phục Tác vụ khi Server Restart (`scan_and_recover`)**: Tự động phát hiện các checkpoint SQLite và task chưa hoàn tất khi máy khởi động lại hoặc sau khi OS sleep/crash; tự động khôi phục tác vụ về trạng thái `resumable` hoặc `paused`.
+- **Identity & Project Mapping**: Lưu `project_slug` trực tiếp vào checkpoint identity để tự động liên kết checkpoint về đúng dự án gốc khi thực hiện quét hệ thống.
+
+**Vá lỗi UI Tiến trình & Khắc phục Crash Server (`webui/static/js/translation-worker.js`, `webui/__init__.py`):**
+- **Sửa lỗi Temporal Dead Zone (TDZ)**: Sửa lỗi `ReferenceError: Cannot access 'btnResume' before initialization` trong `translation-worker.js` giúp modal tiến trình hiển thị chính xác khi người dùng bấm Dịch hoặc bấm xem chi tiết tác vụ.
+- **Sửa lỗi Import & Stream Event SSE**: Bổ sung `jsonify` bị thiếu trong `webui/__init__.py`, bổ sung import `TranslateProjectFilesUseCase` cho worker, và cập nhật kết thúc stream SSE cho các trạng thái kết thúc/tạm dừng (`resumable`, `paused`).
+
+**Bộ Kiểm thử Unit Test (`tests/unit/test_task_store.py`, `tests/unit/test_task_registry_persistence.py`):**
+- **Bổ sung Suite Kiểm thử SQLite TaskStore & Persistence**: Đảm bảo 100% độ tin cậy cho luồng tạo tác vụ, ghi nhận sự kiện, lọc trạng thái và tự động quét khôi phục checkpoint mồ côi.
+
+---
+
 ## [8.20.0] - 2026-08-02
 ### Chuẩn hóa Portable Markdown Regex, API Replace Preview & Nút Chạy thử Bảo vệ Thao tác
 

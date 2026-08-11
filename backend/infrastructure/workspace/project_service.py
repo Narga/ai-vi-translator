@@ -9,6 +9,7 @@ Phase 06: Tách logic project ra khỏi webui/routes/projects.py.
 
 import json
 import logging
+import os
 import re
 import shutil
 from datetime import datetime
@@ -100,16 +101,14 @@ class ProjectService:
 
     def save_project_meta(self, slug: str, meta: Dict) -> None:
         """
-        Lưu project.json.
-
-        Args:
-            slug: Project slug
-            meta: Dict chứa metadata
+        Lưu project.json an toàn bằng atomic write.
         """
         meta_file = self.get_project_dir(slug) / "project.json"
         meta_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(meta_file, "w", encoding="utf-8") as f:
+        tmp_path = meta_file.with_suffix(".tmp")
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
+        os.replace(str(tmp_path), str(meta_file))
 
     def update_project_meta(self, slug: str, updates: Dict) -> Optional[Dict]:
         """
@@ -131,6 +130,28 @@ class ProjectService:
                 meta[key] = updates[key]
 
         meta["updated_at"] = datetime.now().isoformat()
+        self.save_project_meta(slug, meta)
+        return meta
+
+    def update_project_task_meta(self, slug: str, filename: str, task_meta: Dict) -> Optional[Dict]:
+        """
+        Cập nhật translation task metadata trong project.json.
+
+        Args:
+            slug: Project slug
+            filename: Tên file đang dịch
+            task_meta: Dict chứa metadata cần cập nhật
+
+        Returns:
+            Updated metadata hoặc None nếu project không tồn tại
+        """
+        meta = self.load_project_meta(slug)
+        if meta is None:
+            return None
+
+        tasks = meta.get("translation_tasks", {})
+        tasks[filename] = {**tasks.get(filename, {}), **task_meta, "updated_at": datetime.now().isoformat()}
+        meta["translation_tasks"] = tasks
         self.save_project_meta(slug, meta)
         return meta
 
