@@ -1515,6 +1515,7 @@ def _checkpoint_status_for(filename: str, source_text: str, config: dict) -> Opt
     saved_ident = info.get("identity", {})
     current_identity = {
         "project_file": filename,
+        "project_slug": config.get("project_slug", ""),
         "source_hash": hashlib.sha256(source_text.encode()).hexdigest(),
         "chunker_version": "v2",
         "chunk_size": str(config.get("chunk_size", 22000)),
@@ -1581,6 +1582,7 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
                 return
 
             worker_config = config.copy()
+            worker_config["project_slug"] = slug
             worker_config["provider_type"] = provider_type
             worker_config["provider_kind"] = provider_kind
             worker_config["base_url"] = base_url

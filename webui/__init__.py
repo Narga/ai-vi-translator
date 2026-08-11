@@ -111,13 +111,14 @@ def create_app():
                     if not existing:
                         job_id = str(__import__('uuid').uuid4())
                         saved_identity = info.get("identity", {})
-                        # project_file từ identity (e.g. "chapter1.txt"), fallback về stem
+                        # project_file và project_slug từ identity (lưu từ v8.23+)
                         project_file = saved_identity.get("project_file", logical_name)
+                        project_slug = saved_identity.get("project_slug", "")
                         store.create_task(
                             job_id=job_id,
                             kind="translation",
                             title=f"Resume {project_file}",
-                            project_slug="",  # không thể suy ra slug từ checkpoint
+                            project_slug=project_slug,
                             filename=project_file,
                             total_chunks=info.get("total_chunks", 0),
                             checkpoint_key=db_file.name,

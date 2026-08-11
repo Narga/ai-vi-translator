@@ -78,6 +78,7 @@ class TranslationExecutor:
         
         return {
             "project_file": filename,
+            "project_slug": self.config.get("project_slug", ""),
             "source_hash": source_hash,
             "chunker_version": "v2",
             "chunk_size": str(self.config.get("chunk_size", 22000)),
