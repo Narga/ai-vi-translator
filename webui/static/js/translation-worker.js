@@ -45,7 +45,23 @@ const TranslationWorker = {
             }).then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
-                else {
+                else if (data.status === 'resume_required') {
+                    const ck = data.checkpoints[window.currentProjectFile.name];
+                    if (ck && confirm(`File này còn checkpoint: đã lưu ${ck.completed_chunks}/${ck.total_chunks} chunk. Bạn có muốn resume không?`)) {
+                        fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ files: [window.currentProjectFile.name] })
+                        }).then(r => r.json()).then(resumeData => {
+                            if (resumeData.status === 'started') {
+                                ApiClient.loadTasks();
+                                TranslationWorker.connectToProgress(btn, false, resumeData.job_id, resumeData.files_count || 1);
+                            } else UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+                        });
+                    } else {
+                        TranslationWorker.resetButton(btn);
+                    }
+                }
+                else if (data.status === 'started') {
                     ApiClient.loadTasks();
                     TranslationWorker.connectToProgress(btn, false, data.job_id, data.files_count || 1);
                 }
@@ -124,6 +140,20 @@ const TranslationWorker = {
             if (data.status === 'started') {
                 ApiClient.loadTasks();
                 TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, data.job_id, data.files_count || files.length);
+            } else if (data.status === 'resume_required') {
+                const names = Object.keys(data.checkpoints || {});
+                const msg = names.map(n => `${n}: đã lưu ${data.checkpoints[n].completed_chunks}/${data.checkpoints[n].total_chunks} chunk`).join('\n');
+                if (confirm(`Các file sau có checkpoint sẵn:\n${msg}\n\nBạn có muốn resume không?`)) {
+                    fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: names })
+                    }).then(r => r.json()).then(resumeData => {
+                        if (resumeData.status === 'started') {
+                            ApiClient.loadTasks();
+                            TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, resumeData.job_id, resumeData.files_count || names.length);
+                        } else UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+                    });
+                }
             } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
         });
     },
@@ -228,6 +258,7 @@ const TranslationWorker = {
             totalFiles: totalFiles || 0
         };
         taskState.status = 'started';
+        updateResumeButton('started');
         if (totalFiles > 0) taskState.totalFiles = totalFiles;
         TranslationWorker._taskStateByJob.set(job_id, taskState);
         TranslationWorker._activeJobId = job_id;
@@ -240,6 +271,12 @@ const TranslationWorker = {
         if (btnDone) btnDone.classList.add('dn');
         const btnStop = document.getElementById('btn-progress-stop');
         if (btnStop) btnStop.classList.remove('dn');
+        const btnResume = document.getElementById('btn-progress-resume');
+        if (btnResume) {
+            btnResume.classList.add('dn');
+            btnResume.disabled = false;
+            btnResume.textContent = 'Tiếp tục';
+        }
 
         if (window._autoReturnTimer) {
             clearInterval(window._autoReturnTimer);
@@ -291,6 +328,7 @@ const TranslationWorker = {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'completed';
+                updateResumeButton('completed');
                 taskState.percent = 100;
                 taskState.message = 'Tất cả hoàn tất! 🚀';
                 TranslationWorker._lastViewedJobId = job_id;
@@ -333,6 +371,7 @@ const TranslationWorker = {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'failed';
+                updateResumeButton('failed');
                 taskState.message = 'Lỗi: ' + data.message;
                 TranslationWorker._lastViewedJobId = job_id;
                 TranslationWorker._activeJobId = null;
@@ -346,6 +385,7 @@ const TranslationWorker = {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'cancelled';
+                updateResumeButton('cancelled');
                 taskState.message = data.message || 'Đã dừng';
                 TranslationWorker._lastViewedJobId = job_id;
                 TranslationWorker._activeJobId = null;
@@ -367,6 +407,42 @@ const TranslationWorker = {
             TranslationWorker.resetButton(btn, isBatch);
             if (btnStop) btnStop.classList.add('dn');
         };
+
+        if (btnResume) {
+            btnResume.onclick = function () {
+                if (!job_id) return;
+                btnResume.disabled = true;
+                btnResume.textContent = 'Đang khôi phục...';
+                fetch(`/api/tasks/${job_id}/resume`, { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.job_id) {
+                            if (TranslationWorker._evtSource) TranslationWorker._evtSource.close();
+                            TranslationWorker._taskStateByJob.delete(job_id);
+                            TranslationWorker.connectToProgress(null, false, data.job_id);
+                        } else {
+                            btnResume.disabled = false;
+                            btnResume.textContent = 'Tiếp tục';
+                        }
+                    })
+                    .catch(e => {
+                        btnResume.disabled = false;
+                        btnResume.textContent = 'Tiếp tục';
+                    });
+            };
+        }
+
+        function updateResumeButton(status) {
+            if (!btnResume) return;
+            if (['paused', 'failed', 'interrupted', 'resumable'].includes(status)) {
+                btnResume.classList.remove('dn');
+                if (btnStop) btnStop.classList.add('dn');
+            } else if (status === 'running' || status === 'started') {
+                btnResume.classList.add('dn');
+            } else if (status === 'completed') {
+                btnResume.classList.add('dn');
+            }
+        }
     },
 
     updateProgress(percent, message) {
@@ -440,9 +516,10 @@ const TranslationWorker = {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
                 return r.json();
             })
-            .then(tasks => {
+            .then(data => {
+                const tasks = data.tasks || [];
                 if (tasks.length > 0) {
-                    const active = tasks.find(t => t.status === 'started');
+                    const active = tasks.find(t => t.status === 'running' || t.status === 'started' || t.status === 'resumable');
                     if (active) {
                         TranslationWorker.openTaskProgress(active.job_id);
                     }

@@ -5,7 +5,7 @@ import os
 import logging
 from queue import Queue
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 # Setup logging
 from datetime import datetime
