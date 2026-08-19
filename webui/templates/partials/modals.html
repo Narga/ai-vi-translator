@@ -10,6 +10,9 @@
             </div>
             <div class="flex items-center gap-2">
                 <button id="btn-progress-resume" class="dn pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 transition-all">Tiếp tục</button>
+                <button id="btn-progress-recovery" class="dn pointer ph3 pv1 f7 bn white bg-orange br2 shadow-1 hover-bg-dark-orange fw6 transition-all">Giữ phần đã dịch + tạo task mới</button>
+                <button id="btn-export-partial" class="dn pointer ph3 pv1 f7 bn white bg-gray br2 shadow-1 hover-bg-dark-gray fw6 transition-all">Chỉ xuất phần đã dịch</button>
+                <button id="btn-progress-close-partial" class="dn pointer ph3 pv1 f7 bn white bg-purple br2 shadow-1 hover-bg-dark-purple fw6 transition-all">Chia tách phần đã dịch</button>
                 <button id="btn-progress-stop" class="pointer ph3 pv1 f7 bn white bg-red br2 shadow-1 hover-bg-dark-red fw6" onclick="TranslationWorker.stopTranslation()">Dừng</button>
                 <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="TranslationWorker.closeProgress()">Xong</button>
             </div>
@@ -26,6 +29,12 @@
                 <div class="h1 w-100 bg-near-white br-pill overflow-hidden ba b--black-05">
                     <div id="progress-bar" class="h-100 bg-blue transition-all" style="width: 0%"></div>
                 </div>
+            </div>
+
+            <!-- Recovery Info (ẩn mặc định) -->
+            <div id="recovery-info" class="dn mb4 pa3 bg-washed-yellow br2">
+                <p class="f7 gray ma0"><span class="fw6">Task cũ:</span> <span id="source-task-status">failed</span></p>
+                <p class="f7 gray ma0"><span class="fw6">Recovery:</span> <span id="recovery-task-status">chờ tạo task mới</span></p>
             </div>
 
             <!-- Log Section -->
@@ -186,6 +195,33 @@
         <div class="flex justify-end gap-3 pt3 bt b--black-10">
             <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('edit-library-modal')">Hủy bỏ</button>
             <button type="button" id="btn-confirm-edit-library" class="nt-btn nt-btn-success" onclick="PromptManager.confirmEditLibrary()">Cập nhật</button>
+        </div>
+    </div>
+</div>
+
+<!-- Resume Action Modal -->
+<div id="resume-action-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+    <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative animate-pop">
+        <h3 class="f4 mt0 mb3 fw6 dark-gray pb2 bb b--black-10">⚠️ Phát hiện bản dịch dang dở</h3>
+        <p class="f6 lh-copy dark-gray mb3">Một số file đã được dịch một phần từ trước. Bạn muốn tiếp tục dịch, chia tách phần đã dịch để kiểm tra, hay bỏ qua?</p>
+
+        <div class="mb3">
+            <div id="resume-action-files-preview" class="ba b--black-10 br2 pa2 bg-near-white f7 overflow-y-auto" style="max-height: 150px;"></div>
+        </div>
+
+        <div class="flex flex-column gap-2 mb3">
+            <button type="button" id="btn-resume-action-close-partial" class="nt-btn nt-btn-outline w-100 flex items-center justify-center gap-2">
+                <i class="ti ti-scissors"></i> Chia tách phần dịch
+            </button>
+            <button type="button" id="btn-resume-action-continue" class="nt-btn nt-btn-primary w-100 flex items-center justify-center gap-2">
+                <i class="ti ti-player-play"></i> Tiến hành dịch
+            </button>
+            <button type="button" id="btn-resume-action-restart" class="nt-btn nt-btn-outline w-100 flex items-center justify-center gap-2">
+                <i class="ti ti-refresh"></i> Dịch lại từ đầu
+            </button>
+        </div>
+        <div class="flex justify-end pt3 bt b--black-10">
+            <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('resume-action-modal')">Đóng</button>
         </div>
     </div>
 </div>

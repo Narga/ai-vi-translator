@@ -205,12 +205,20 @@
 ---
 
 
-## Đang phát triển / Sắp tới (Kế hoạch dọn dẹp & Tối ưu hóa)
+## Đang phát triển / Sắp tới (Kế hoạch Kiến trúc Checkpoint & Phân tán)
 
-### Việc cần làm ngay (Mức độ ưu tiên cao)
-- [ ] ⏳ **Kiểm soát `empty_response` & Request Budget**: Giới hạn retry budget cho streak response rỗng trong `translator.py`, gán status/cooldown phù hợp cho key thay vì xoay key `keys * 3`.
-- [ ] ⏳ **Đảm bảo tính toàn vẹn trạng thái Terminal của Batch Job**: Đồng bộ trạng thái kết thúc `completed`, `partial_failed`, `failed` giữa `TranslateProjectFilesUseCase` và `TaskRegistry` worker.
-- [ ] ⏳ **Chuẩn hóa Chunking 2 tầng & Fallback Batch Parse**: Tối ưu hóa Virtual Chunk size và ngăn chặn fallback dịch lại toàn bộ file.
+### Việc cần làm ngay: Giai đoạn P1.7 — Lease An Toàn & Fencing Token (Core Engine Hardening)
+- [ ] ⏱️ **`LeaseKeepAlive` Background Daemon**: Triển khai context manager quản lý daemon thread duy trì heartbeat định kỳ trong suốt in-flight LLM call (có `threading.Event`, `join(1.0)`, cleanup `finally`).
+- [ ] 🏷️ **Fencing Token (`lease_token` / `lease_epoch`)**: Gán token cho Worker khi nhận task; kiểm tra token hợp lệ trước mọi thao tác cập nhật `heartbeat_at` và commit checkpoint/kết quả.
+- [ ] 🛑 **Worker Abort khi Mất Quyền**: Tự động ngắt luồng xử lý và hủy bỏ kết quả cục bộ nếu phát hiện `lease_token` đã bị Reconciler thu hồi, chống ghi đè dữ liệu rác (zombie write).
+- [ ] 🧪 **Bộ 6 Test Suites Kiểm chứng Edge-case P1.7**: Kiểm thử API call dài hơn lease timeout, worker crash, lease bị thu hồi, zombie worker cố ghi đè, server restart giữa chừng và 2 worker tranh chấp task.
+
+### Việc cần làm tiếp theo: Giai đoạn P2 — Mở rộng Phân tán & Hardening (Post-P1.7)
+- [ ] 🔒 **DB-Level Cross-Process Idempotency**: Chuyển đổi từ `_RECOVERY_CREATE_LOCK` (`threading.Lock`) sang Unique Index trên database và transaction atomic claim (`UPDATE ... WHERE status = 'QUEUED'`).
+- [ ] 🧹 **Auto-Merge & Retention Cleanup**: Thu gom rác định kỳ cho các checkpoint cũ và log task đã hoàn tất.
+- [ ] 🛡️ **Poison Job Quarantine**: Bổ sung `recovery_attempts` và trạng thái `FAILED_POISON_PILL` ngắt vòng lặp crash lặp lại vô tận.
+- [ ] 🔌 **SSE Reconnection**: Hoàn thiện cơ chế client resume stream từ `last_event_id`.
+- [ ] 👥 **Multi-Process Worker Pool**: Chuẩn hóa quy trình điều phối đa tiến trình worker an toàn.
 
 ### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`

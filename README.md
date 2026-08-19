@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.23.0)
+# 📚 Content Translator (v8.24.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.23.0):** Kiên cố hóa lưu trữ trạng thái tác vụ dịch xuống SQLite TaskStore (`tasks.db`), tự động quét khôi phục checkpoint mồ côi và tác vụ dở dang khi khởi động lại server / máy sleep (Sleep Recovery), vá lỗi hiển thị modal tiến trình UI.
+**Tính năng mới (v8.24.0):** Hoàn thiện hạ tầng Checkpoint Resume Recovery P0, chuẩn hóa Logical/Physical Checkpoint Key, cách ly hủy tác vụ theo từng `job_id` (Scoped Cancel), bảo toàn chunk đã dịch khi đổi model/provider, đóng partial atomic barrier và hermetic test suite matrix.
 
 
 ---

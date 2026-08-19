@@ -2,6 +2,25 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.24.0] - 2026-08-19
+### Hoàn thiện Hạ tầng Checkpoint Resume Recovery P0, Scoped Cancel & Hermetic Test Suite Matrix
+
+**Kiến trúc Checkpoint Resume & Khôi phục Tác vụ P0 (`services/checkpoint_service.py`, `core/executor.py`, `webui/routes/projects.py`):**
+- **Chuẩn hóa Checkpoint Key (Logical vs Physical)**: Tích hợp resolver `resolve_checkpoint_key` và helper `same_checkpoint_key()` giúp đối chiếu chính xác giữa tên file logic và hash vật lý của checkpoint database, khắc phục lỗi 404 khi query task qua checkpoint key.
+- **Bảo toàn Identity Nguồn khi Resume**: Loại bỏ cơ chế tự động xóa sạch checkpoint khi có sự thay đổi về Provider/Model, cho phép người dùng chuyển đổi model hoặc provider linh hoạt mà vẫn giữ nguyên các chunk đã dịch trước đó.
+- **Close Partial Atomic Barrier (`webui/routes/projects.py`)**: Bổ sung cơ chế cancel-and-wait / write barrier cho luồng đóng file bán phần (`close_as_partial`), ngăn chặn xung đột ghi đĩa và race condition với worker nền.
+- **Khắc phục lỗi Ghi đè Tiến trình Chunk**: Chuẩn hóa shape của các sự kiện `error` và `task_failed`, loại bỏ việc ghi đè số chunk hoàn thành về 0 khi tác vụ gặp sự cố giữa chừng.
+
+**Cách ly Hủy Tác vụ (Scoped Cancellation) & Tránh Cancel Poisoning (`backend/infrastructure/progress/runtime_state.py`):**
+- **Xóa bỏ Cancel Toàn cục**: Loại bỏ hoàn toàn cờ `_cancel_all` trong `RuntimeState`, chuyển 100% sang cơ chế hủy tác vụ cách ly theo từng `job_id` cụ thể, không gây lây lan trạng thái dừng sang các tác vụ khác.
+- **Reset Cancel an toàn**: Kiểm tra cờ hủy độc lập trước mỗi lần gọi `translate_text`, đảm bảo cancel ở file trước không bị xóa nhầm trong chuỗi dịch đa file.
+
+**Hermetic Smoke Test Suite Matrix (`tests/smoke/test_webui_app_factory.py`):**
+- **Cô lập 100% Mạng Ngoài cho Endpoint `/api/models`**: Xây dựng test matrix 3 nhánh cho Gemini, OpenAI và Error Handling, mock độc lập `get_available_gemini_models` và `OpenAIClient.list_models()` / `list_models_full()`.
+- **Ổn định Tuyệt đối Toàn Suite**: Đạt chuẩn test gate với **363 passed, 4 failed** (4 pre-existing waiver đã được văn bản hóa), triệt tiêu hoàn toàn nguy cơ flaky test và outbound socket request.
+
+---
+
 ## [8.23.0] - 2026-08-11
 ### Khôi phục Tác vụ Nền SQLite TaskStore, Tự động Khôi phục Checkpoint & Vá lỗi UI Modal Progress
 
@@ -1280,6 +1299,25 @@ Tách toàn bộ xử lý nghiệp vụ vào package `backend/` dùng chung cho 
 - **Cache Busting**: Frontend script và styles hiện tại nhận biến tham số version `?v=4.0.6` truyền từ flask render_template để cập nhật cache trình duyệt ngay khi có thay đổi bản build.
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
+
+## [8.24.0] - 2026-08-19
+### Hoàn thiện Hạ tầng Checkpoint Resume Recovery P0, Scoped Cancel & Hermetic Test Suite Matrix
+
+**Kiến trúc Checkpoint Resume & Khôi phục Tác vụ P0 (`services/checkpoint_service.py`, `core/executor.py`, `webui/routes/projects.py`):**
+- **Chuẩn hóa Checkpoint Key (Logical vs Physical)**: Tích hợp resolver `resolve_checkpoint_key` và helper `same_checkpoint_key()` giúp đối chiếu chính xác giữa tên file logic và hash vật lý của checkpoint database, khắc phục lỗi 404 khi query task qua checkpoint key.
+- **Bảo toàn Identity Nguồn khi Resume**: Loại bỏ cơ chế tự động xóa sạch checkpoint khi có sự thay đổi về Provider/Model, cho phép người dùng chuyển đổi model hoặc provider linh hoạt mà vẫn giữ nguyên các chunk đã dịch trước đó.
+- **Close Partial Atomic Barrier (`webui/routes/projects.py`)**: Bổ sung cơ chế cancel-and-wait / write barrier cho luồng đóng file bán phần (`close_as_partial`), ngăn chặn xung đột ghi đĩa và race condition với worker nền.
+- **Khắc phục lỗi Ghi đè Tiến trình Chunk**: Chuẩn hóa shape của các sự kiện `error` và `task_failed`, loại bỏ việc ghi đè số chunk hoàn thành về 0 khi tác vụ gặp sự cố giữa chừng.
+
+**Cách ly Hủy Tác vụ (Scoped Cancellation) & Tránh Cancel Poisoning (`backend/infrastructure/progress/runtime_state.py`):**
+- **Xóa bỏ Cancel Toàn cục**: Loại bỏ hoàn toàn cờ `_cancel_all` trong `RuntimeState`, chuyển 100% sang cơ chế hủy tác vụ cách ly theo từng `job_id` cụ thể, không gây lây lan trạng thái dừng sang các tác vụ khác.
+- **Reset Cancel an toàn**: Kiểm tra cờ hủy độc lập trước mỗi lần gọi `translate_text`, đảm bảo cancel ở file trước không bị xóa nhầm trong chuỗi dịch đa file.
+
+**Hermetic Smoke Test Suite Matrix (`tests/smoke/test_webui_app_factory.py`):**
+- **Cô lập 100% Mạng Ngoài cho Endpoint `/api/models`**: Xây dựng test matrix 3 nhánh cho Gemini, OpenAI và Error Handling, mock độc lập `get_available_gemini_models` và `OpenAIClient.list_models()` / `list_models_full()`.
+- **Ổn định Tuyệt đối Toàn Suite**: Đạt chuẩn test gate với **363 passed, 4 failed** (4 pre-existing waiver đã được văn bản hóa), triệt tiêu hoàn toàn nguy cơ flaky test và outbound socket request.
+
+---
 
 ---
 

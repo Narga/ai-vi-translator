@@ -3,6 +3,20 @@ import urllib.parse
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
 
+def _is_censorship_blocked(status_code: int, error_payload: Optional[dict] = None) -> bool:
+    """
+    Nhận diện lỗi 451 / censorship_blocked.
+    """
+    if status_code != 451:
+        return False
+
+    if error_payload:
+        error_type = error_payload.get("error", {}).get("type", "")
+        if error_type in ("censorship_blocked", "content_policy_violation"):
+            return True
+
+    return True
+
 class ProviderRequestError(Exception):
     def __init__(self, message: str, http_status: Optional[int], error_code: Optional[str], retryable: bool, provider_kind: str, request_id: Optional[str], safe_message: str):
         super().__init__(message)
@@ -60,6 +74,17 @@ class CloudflareGatewayPolicy(EndpointPolicy):
         return super().validate_model(model) and not model.endswith(":free")
 
     def classify_error(self, status: int, body: Any) -> ProviderRequestError:
+        if _is_censorship_blocked(status):
+            return ProviderRequestError(
+                message=f"Cloudflare Gateway error {status}",
+                http_status=status,
+                error_code="censorship_blocked",
+                retryable=False,
+                provider_kind=self.provider_kind,
+                request_id=None,
+                safe_message="Nội dung bị chặn bởi provider (HTTP 451)",
+            )
+
         retryable = status in (408, 429) or status >= 500
         safe_message = f"Cloudflare Gateway error {status}"
         return ProviderRequestError(
@@ -81,6 +106,17 @@ class VercelGatewayPolicy(EndpointPolicy):
         return headers
 
     def classify_error(self, status: int, body: Any) -> ProviderRequestError:
+        if _is_censorship_blocked(status):
+            return ProviderRequestError(
+                message=f"Vercel Gateway error {status}",
+                http_status=status,
+                error_code="censorship_blocked",
+                retryable=False,
+                provider_kind=self.provider_kind,
+                request_id=None,
+                safe_message="Nội dung bị chặn bởi provider (HTTP 451)",
+            )
+
         retryable = status in (408, 429) or status >= 500
         safe_message = f"Vercel Gateway error {status}"
         return ProviderRequestError(
@@ -104,6 +140,17 @@ class NativeOpenAIPolicy(EndpointPolicy):
         return headers
 
     def classify_error(self, status: int, body: Any) -> ProviderRequestError:
+        if _is_censorship_blocked(status):
+            return ProviderRequestError(
+                message=f"OpenAI native error {status}",
+                http_status=status,
+                error_code="censorship_blocked",
+                retryable=False,
+                provider_kind=self.provider_kind,
+                request_id=None,
+                safe_message="Nội dung bị chặn bởi provider (HTTP 451)",
+            )
+
         retryable = status in (408, 429) or status >= 500
         safe_message = f"OpenAI native error {status}"
         return ProviderRequestError(
@@ -124,6 +171,17 @@ class OpenAICompatiblePolicy(EndpointPolicy):
         return headers
 
     def classify_error(self, status: int, body: Any) -> ProviderRequestError:
+        if _is_censorship_blocked(status):
+            return ProviderRequestError(
+                message=f"OpenAI compatible error {status}",
+                http_status=status,
+                error_code="censorship_blocked",
+                retryable=False,
+                provider_kind=self.provider_kind,
+                request_id=None,
+                safe_message="Nội dung bị chặn bởi provider (HTTP 451)",
+            )
+
         retryable = status in (408, 429) or status >= 500
         safe_message = f"OpenAI compatible error {status}"
         return ProviderRequestError(

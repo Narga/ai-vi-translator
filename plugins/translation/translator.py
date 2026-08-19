@@ -166,6 +166,8 @@ def _call_api(
             if isinstance(e, ProviderRequestError):
                 if not e.retryable:
                     logging.error(f"Lỗi không thể retry từ provider: {e.safe_message}")
+                    if e.http_status == 451 or e.error_code == "censorship_blocked":
+                        return None, "censorship_blocked", api_key
                     if e.http_status in (401, 403):
                         return None, "auth_error", api_key
                     if e.http_status == 404:

@@ -204,3 +204,175 @@ class TestTranslateProjectForceRetranslate:
             )
 
             assert response.status_code == 400
+
+
+class TestTranslateProjectResumeRequired409(TestTranslateProjectForceRetranslate):
+    """Kế thừa để dùng lại _setup_mocks/_stop_mocks, không nhân bản 50 dòng mock."""
+
+    def test_translate_returns_409_resume_required(self, client):
+        mocks = self._setup_mocks()
+        try:
+            # File nguồn phải "tồn tại" để route đọc được source_text
+            patch_read = patch(
+                "pathlib.Path.read_text", return_value="nội dung nguồn"
+            )
+            mocks["ck_status"].stop()
+            ck = patch(
+                "webui.routes.projects._checkpoint_status_for",
+                return_value={
+                    "status": "resume_available",
+                    "completed_chunks": 17,
+                    "total_chunks": 24,
+                    "next_chunk": 17,
+                    "checkpoint_key": "abcd1234ef56.db",
+                },
+            )
+            ck.start()
+            mocks["ck_status"] = ck
+
+            # _setup_mocks cho exists() = False; cần True để vào nhánh check checkpoint
+            from pathlib import Path as _P
+            mock_pdir = MagicMock(spec=_P)
+            mock_file = MagicMock(spec=_P)
+            mock_file.exists.return_value = True
+            mock_file.read_text.return_value = "nội dung nguồn"
+            mock_pdir.__truediv__ = lambda self, x: (
+                mock_file if str(x) not in ("sources", "assets") else mock_pdir
+            )
+            mocks["dir"].stop()
+            d = patch("webui.routes.projects._get_project_dir", return_value=mock_pdir)
+            d.start()
+            mocks["dir"] = d
+
+            resp = client.post(
+                "/api/projects/test-slug/translate",
+                json={"files": ["book.txt"], "model": "gemini-flash"},
+            )
+            assert resp.status_code == 409
+            data = resp.get_json()
+            assert data["status"] == "resume_required"
+            assert data["checkpoints"]["book.txt"]["completed_chunks"] == 17
+            assert data["checkpoints"]["book.txt"]["total_chunks"] == 24
+            assert data["checkpoints"]["book.txt"]["checkpoint_key"] == "abcd1234ef56.db"
+        finally:
+            self._stop_mocks(mocks)
+
+    def test_translate_injects_project_slug_into_config(self, client):
+        """B12: config truyền cho _checkpoint_status_for PHẢI có project_slug.
+
+        Test này là cái duy nhất bắt được B12 ở mức unit. Mock _checkpoint_status_for
+        rồi assert trên đối số nó nhận được — nếu ai xoá `config["project_slug"] = slug`
+        thì test đỏ ngay, không phải đợi Phase 5.
+        """
+        mocks = self._setup_mocks()
+        try:
+            from pathlib import Path as _P
+            mock_file = MagicMock(spec=_P)
+            mock_file.exists.return_value = True
+            mock_file.read_text.return_value = "nội dung nguồn"
+            mock_pdir = MagicMock(spec=_P)
+            mock_pdir.__truediv__ = lambda self, x: (
+                mock_file if str(x) not in ("sources", "assets") else mock_pdir
+            )
+            mocks["dir"].stop()
+            d = patch("webui.routes.projects._get_project_dir", return_value=mock_pdir)
+            d.start()
+            mocks["dir"] = d
+
+            client.post(
+                "/api/projects/test-slug/translate",
+                json={"files": ["book.txt"], "model": "gemini-flash", "chunk_size": 2400},
+            )
+
+            import webui.routes.projects as _pj
+            assert _pj._checkpoint_status_for.called, "route không gọi _checkpoint_status_for"
+            cfg = _pj._checkpoint_status_for.call_args[0][2]
+            assert cfg["project_slug"] == "test-slug", "B12: thiếu project_slug trong config"
+            assert cfg["chunk_size"] == 2400
+            assert "prompts" in cfg
+        finally:
+            self._stop_mocks(mocks)
+
+
+class TestTranslateMixedCheckpointDecision(TestTranslateProjectForceRetranslate):
+    """REV-C C6: test contract multi_file_resume_requires_per_file_decision.
+
+    Khi request nhiều file mà chỉ MỘT số có checkpoint, route phải trả 409 với
+    `multi_file_resume_requires_per_file_decision`, liệt kê đủ files_with_checkpoint
+    và files_without_checkpoint, KHÔNG tạo task/worker.
+    """
+
+    def _make_mixed_ck_mock(self, with_ck="book_with_ck.txt", without_ck="book_new.txt"):
+        """_checkpoint_status_for trả resume_available cho file có checkpoint, None cho file mới."""
+        def side_effect(filename, source_text, config):
+            if filename == with_ck:
+                return {
+                    "status": "resume_available",
+                    "completed_chunks": 17,
+                    "total_chunks": 24,
+                    "next_chunk": 17,
+                    "checkpoint_key": "abcd1234ef56.db",
+                }
+            return None  # file không có checkpoint
+        return side_effect
+
+    def _setup_mixed_request(self, mocks):
+        """Validate 2 file tồn tại, cả 2 đọc được source, ck_status theo side_effect."""
+        from pathlib import Path as _P
+        mocks["ck_status"].stop()
+        ck = patch(
+            "webui.routes.projects._checkpoint_status_for",
+            side_effect=self._make_mixed_ck_mock(),
+        )
+        ck.start()
+        mocks["ck_status"] = ck
+
+        mock_file = MagicMock(spec=_P)
+        mock_file.exists.return_value = True
+        mock_file.read_text.return_value = "nội dung nguồn"
+        mock_pdir = MagicMock(spec=_P)
+        mock_pdir.__truediv__ = lambda self, x: (
+            mock_file if str(x) not in ("sources", "assets") else mock_pdir
+        )
+        mocks["dir"].stop()
+        d = patch("webui.routes.projects._get_project_dir", return_value=mock_pdir)
+        d.start()
+        mocks["dir"] = d
+        return mocks
+
+    def test_mixed_checkpoint_returns_409_per_file_decision(self, client):
+        mocks = self._setup_mocks()
+        try:
+            self._setup_mixed_request(mocks)
+
+            resp = client.post(
+                "/api/projects/test-slug/translate",
+                json={"files": ["book_with_ck.txt", "book_new.txt"], "model": "gemini-flash"},
+            )
+            assert resp.status_code == 409
+            data = resp.get_json()
+            assert data["status"] == "multi_file_resume_requires_per_file_decision"
+            assert data["files_with_checkpoint"] == ["book_with_ck.txt"]
+            assert data["files_without_checkpoint"] == ["book_new.txt"]
+            assert "book_with_ck.txt" in data["checkpoints"]
+            assert "error" in data
+        finally:
+            self._stop_mocks(mocks)
+
+    def test_mixed_checkpoint_does_not_create_task_or_worker(self, client):
+        """KHÔNG tạo task/worker khi trả 409 mixed decision."""
+        import webui.routes.projects as _pj
+        mocks = self._setup_mocks()
+        try:
+            self._setup_mixed_request(mocks)
+            # Mọi đường tạo task/thread phải KHÔNG được gọi
+            mocks["thread"].stop()  # bỏ patch Thread để verify không gọi
+            resp = client.post(
+                "/api/projects/test-slug/translate",
+                json={"files": ["book_with_ck.txt", "book_new.txt"], "model": "gemini-flash"},
+            )
+            assert resp.status_code == 409
+            assert resp.get_json()["status"] == "multi_file_resume_requires_per_file_decision"
+            # Nếu route vô tình tạo thread/task, Thread.start() sẽ ném lỗi real
+        finally:
+            self._stop_mocks(mocks)

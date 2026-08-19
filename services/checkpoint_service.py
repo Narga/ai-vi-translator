@@ -44,6 +44,45 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from threading import Lock
 
+# ============================================================
+# Checkpoint identity: tách "nguồn" và "thực thi"
+# Nguồn đổi  → checkpoint KHÔNG còn dùng được (phải dịch lại từ đầu).
+# Thực thi đổi → checkpoint VẪN dùng được, chỉ cần ghi nhận mixed_provider.
+# Dùng CHUNG cho core/executor.py và webui/routes/projects.py — không nhân bản logic.
+# ============================================================
+SOURCE_IDENTITY_FIELDS = (
+    "project_file", "project_slug", "source_hash",
+    "chunker_version", "chunk_size", "prompt_hash", "schema_version",
+)
+EXECUTION_IDENTITY_FIELDS = (
+    "provider_kind", "provider_id", "base_url", "model", "qa_model", "credential_mode",
+)
+
+
+def source_identity(identity: Optional[dict]) -> Dict[str, str]:
+    """Chỉ giữ các field quyết định checkpoint còn dùng được hay không."""
+    identity = identity or {}
+    return {k: str(identity.get(k, "")) for k in SOURCE_IDENTITY_FIELDS}
+
+
+def execution_identity(identity: Optional[dict]) -> Dict[str, str]:
+    identity = identity or {}
+    return {k: str(identity.get(k, "")) for k in EXECUTION_IDENTITY_FIELDS}
+
+
+def same_source_identity(saved: Optional[dict], current: Optional[dict]) -> bool:
+    return source_identity(saved) == source_identity(current)
+
+
+def execution_drift(saved: Optional[dict], current: Optional[dict]) -> List[str]:
+    """Danh sách field thực thi đã đổi (sorted). Rỗng = không đổi."""
+    a, b = execution_identity(saved), execution_identity(current)
+    return sorted(k for k in EXECUTION_IDENTITY_FIELDS if a[k] != b[k])
+
+
+def _is_hex12(value: str) -> bool:
+    return len(value) == 12 and all(c in "0123456789abcdef" for c in value)
+
 
 class CheckpointService:
     """
@@ -171,7 +210,8 @@ class CheckpointService:
 
     def save_chunk(self, filename: str, chunk_index: int,
                    original_text: str, translated_text: str,
-                   api_key_used: str = "", tokens_used: int = 0):
+                   api_key_used: str = "", tokens_used: int = 0,
+                   status: str = 'done'):
         """
         Lưu kết quả dịch cho một chunk.
 
@@ -182,6 +222,7 @@ class CheckpointService:
             translated_text: Text đã dịch
             api_key_used: API key đã sử dụng
             tokens_used: Số tokens đã dùng
+            status: 'done' hoặc 'failed'
         """
         with self._lock:
             conn = self._get_connection(filename)
@@ -190,15 +231,283 @@ class CheckpointService:
                 """INSERT OR REPLACE INTO chunks
                    (chunk_index, original_text, translated_text, status,
                     api_key_used, tokens_used, updated_at)
-                   VALUES (?, ?, ?, 'done', ?, ?, ?)""",
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (chunk_index, original_text, translated_text,
-                 api_key_used, tokens_used, datetime.now().isoformat())
+                 status, api_key_used, tokens_used, datetime.now().isoformat())
             )
             conn.commit()
 
             self._logger.debug(
-                f"💾 Saved chunk {chunk_index}: {filename}"
+                f"💾 Saved chunk {chunk_index}: {filename} ({status})"
             )
+
+    def clone_namespace(self, source_filename: str, target_filename: str) -> bool:
+        """
+        Copy toàn bộ checkpoint từ source DB sang target DB (tạo mới).
+        Dùng cho recovery: source checkpoint giữ nguyên, target là namespace mới.
+
+        Args:
+            source_filename: Tên file checkpoint gốc
+            target_filename: Tên file checkpoint mới
+
+        Returns:
+            True nếu thành công
+        """
+        source_path = self._get_db_path(source_filename)
+        target_path = self._get_db_path(target_filename)
+
+        if not source_path.exists():
+            self._logger.error(f"❌ Source checkpoint không tồn tại: {source_path}")
+            return False
+
+        if target_path.exists():
+            self._logger.error(f"❌ Target checkpoint đã tồn tại: {target_path}")
+            return False
+
+        try:
+            src_conn = sqlite3.connect(str(source_path))
+            src_conn.row_factory = sqlite3.Row
+            tgt_conn = sqlite3.connect(str(target_path))
+            tgt_conn.execute("PRAGMA journal_mode=WAL")
+            tgt_conn.execute("PRAGMA synchronous=NORMAL")
+
+            with tgt_conn:
+                src_conn.backup(tgt_conn)
+
+            source_meta = src_conn.execute(
+                "SELECT value FROM metadata WHERE key = 'filename'"
+            ).fetchone()
+            source_filename = source_meta[0] if source_meta else source_filename
+
+            tgt_conn.execute(
+                "UPDATE metadata SET value = ? WHERE key = 'filename'",
+                (target_filename,)
+            )
+            tgt_conn.execute(
+                "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+                ("source_filename", source_filename),
+            )
+            tgt_conn.execute(
+                "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+                ("checkpoint_id", target_filename),
+            )
+
+            tgt_conn.commit()
+            tgt_conn.close()
+            src_conn.close()
+
+            self._logger.info(
+                f"📋 Cloned checkpoint: {source_filename} → {target_filename}"
+            )
+            return True
+
+        except Exception as e:
+            self._logger.error(f"❌ Lỗi clone namespace: {e}")
+            if target_path.exists():
+                target_path.unlink()
+            return False
+
+    def assemble_partial(
+        self,
+        filename: str,
+        marker: str = (
+            "[CHUNK {idx} CHƯA DỊCH | nguồn: ký tự {char_start}-{char_end} "
+            "(end không gồm), dòng {line_start}-{line_end} | xem manifest để lấy nội dung]"
+        ),
+    ) -> Optional[str]:
+        """
+        Assemble partial file từ checkpoint hiện tại.
+        Chunk thiếu được thay bằng marker.
+
+        Args:
+            filename: Tên file checkpoint
+            marker: Template marker cho chunk thiếu (dùng {idx} làm placeholder)
+
+        Returns:
+            Nội dung partial đã assemble, hoặc None nếu lỗi
+        """
+        db_path = self._get_db_path(filename)
+
+        if not db_path.exists():
+            return None
+
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+
+            meta = {}
+            for row in conn.execute("SELECT key, value FROM metadata"):
+                meta[row["key"]] = row["value"]
+
+            total = int(meta.get("total_chunks", 0))
+            if total == 0:
+                return None
+
+            chunks = {}
+            for row in conn.execute(
+                """
+                SELECT chunk_index, original_text, translated_text, status
+                FROM chunks
+                ORDER BY chunk_index
+                """
+            ):
+                chunks[row["chunk_index"]] = {
+                    "original_text": row["original_text"] or "",
+                    "text": row["translated_text"],
+                    "status": row["status"],
+                }
+
+            conn.close()
+
+            parts = []
+            missing = []
+            source_cursor = 0
+            source_line = 1
+            for i in range(total):
+                if i in chunks and chunks[i]["status"] == "done" and chunks[i]["text"]:
+                    parts.append(chunks[i]["text"])
+                else:
+                    original_text = chunks.get(i, {}).get("original_text", "")
+                    char_start = source_cursor
+                    char_end = char_start + len(original_text)
+                    line_start = source_line
+                    line_end = line_start + original_text.count("\n")
+                    parts.append(marker.format(
+                        idx=i,
+                        char_start=char_start,
+                        char_end=char_end,
+                        line_start=line_start,
+                        line_end=line_end,
+                    ))
+                    missing.append(i)
+
+                if i in chunks:
+                    original_text = chunks[i]["original_text"]
+                    source_cursor += len(original_text) + 2
+                    source_line += original_text.count("\n") + 1
+
+            if missing:
+                self._logger.warning(
+                    f"⚠️ Partial file có {len(missing)} chunk thiếu: {missing}"
+                )
+
+            return "\n\n".join(parts)
+
+        except Exception as e:
+            self._logger.error(f"❌ Lỗi assemble partial: {e}")
+            return None
+
+    def write_partial_file(
+        self,
+        checkpoint_filename: str,
+        output_dir: Path,
+        marker: str = (
+            "[CHUNK {idx} CHƯA DỊCH | nguồn: ký tự {char_start}-{char_end} "
+            "(end không gồm), dòng {line_start}-{line_end} | xem manifest để lấy nội dung]"
+        ),
+    ) -> Optional[Path]:
+        """
+        Assemble và ghi partial file với manifest sidecar.
+
+        Args:
+            checkpoint_filename: Tên file checkpoint
+            output_dir: Thư mục output (ví dụ: translated/.recovery/)
+            marker: Marker cho chunk thiếu
+
+        Returns:
+            Path đến file partial, hoặc None nếu lỗi
+        """
+        import json
+
+        content = self.assemble_partial(checkpoint_filename, marker)
+        if content is None:
+            return None
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        db_path = self._get_db_path(checkpoint_filename)
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        meta = {}
+        for row in conn.execute("SELECT key, value FROM metadata"):
+            meta[row["key"]] = row["value"]
+
+        chunk_rows = conn.execute(
+            """
+            SELECT chunk_index, original_text, translated_text, status
+            FROM chunks
+            ORDER BY chunk_index
+            """
+        ).fetchall()
+
+        done_count_row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM chunks WHERE status='done'"
+        ).fetchone()
+        done_count = done_count_row["cnt"] if done_count_row else 0
+        conn.close()
+
+        source_filename = meta.get("source_filename", meta.get("filename", checkpoint_filename))
+
+        partial_name = f"{source_filename}.{checkpoint_filename}.partial.md"
+        partial_path = output_dir / partial_name
+
+        tmp_path = partial_path.with_suffix(".tmp")
+        tmp_path.write_text(content, encoding="utf-8")
+        tmp_path.replace(partial_path)
+
+        # The partial text alone cannot tell a user what to resend manually.
+        # Keep an explicit source map in the sidecar manifest. Offsets refer to
+        # the original source assembled with the same ``\n\n`` separator used
+        # by the translator, and line numbers are 1-based and inclusive.
+        chunks_manifest = []
+        source_cursor = 0
+        for row in chunk_rows:
+            original_text = row["original_text"] or ""
+            source_start = source_cursor
+            source_end = source_start + len(original_text)
+            chunks_manifest.append({
+                "index": row["chunk_index"],
+                "status": row["status"],
+                "source_char_start": source_start,
+                "source_char_end": source_end,
+                "source_line_start": None,
+                "source_line_end": None,
+                "source_char_count": len(original_text),
+                "source_text": original_text if row["status"] != "done" else None,
+            })
+            source_cursor = source_end + 2
+
+        source_line = 1
+        for chunk_info, row in zip(chunks_manifest, chunk_rows):
+            original_text = row["original_text"] or ""
+            chunk_info["source_line_start"] = source_line
+            chunk_info["source_line_end"] = source_line + original_text.count("\n")
+            source_line = chunk_info["source_line_end"] + 1
+
+        manifest = {
+            "source_file": source_filename,
+            "checkpoint_file": checkpoint_filename,
+            "total_chunks": int(meta.get("total_chunks", 0)),
+            "done_chunks": done_count,
+            "is_complete": False,
+            "marker_template": marker,
+            "created_at": datetime.now().isoformat(),
+            "position_format": {
+                "character_offsets": "0-based, end-exclusive",
+                "line_numbers": "1-based, inclusive",
+                "separator_between_chunks": "\\n\\n",
+            },
+            "chunks": chunks_manifest,
+        }
+        manifest_path = partial_path.with_suffix(".manifest.json")
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8"
+        )
+
+        self._logger.info(f"📄 Partial file written: {partial_path}")
+        return partial_path
 
     def save(self, filename: str, chunk_index: int, total_chunks: int,
              translated_chunks: Dict[int, str],
@@ -487,6 +796,7 @@ class CheckpointService:
 
             return {
                 "can_resume": done_count < total,
+                "filename": meta.get("filename") or filename,   # ← THÊM (B2)
                 "next_chunk_index": next_chunk_index,
                 "chunk_index": next_chunk_index - 1 if next_chunk_index > 0 else 0,
                 "total_chunks": total,
@@ -499,6 +809,184 @@ class CheckpointService:
 
         except Exception as e:
             self._logger.error(f"❌ Lỗi lấy resume info: {e}")
+            return None
+
+    def get_resume_info_from_path(self, checkpoint_path: str) -> Optional[Dict[str, Any]]:
+        """Read resume metadata for an already-discovered SQLite path.
+
+        Startup scans enumerate physical DB files, so they must not pass the
+        MD5 stem back through ``get_resume_info(filename)`` (which hashes its
+        argument as a logical filename).
+        """
+        path = Path(checkpoint_path)
+        if not path.exists():
+            return None
+        try:
+            conn = sqlite3.connect(str(path))
+            row = conn.execute(
+                "SELECT value FROM metadata WHERE key = 'filename'"
+            ).fetchone()
+            conn.close()
+            if not row or not row[0]:
+                return None
+            return self.get_resume_info(row[0])
+        except Exception as e:
+            self._logger.error(f"❌ Lỗi đọc resume theo path: {e}")
+            return None
+
+    @staticmethod
+    def _assert_safe_key(key: str) -> str:
+        """Chặn path traversal: key đến từ URL `<path:checkpoint_key>` và từ DB.
+
+        Chỉ cho phép MỘT thành phần tên file. Không '/', '\\', '..', không absolute.
+        """
+        key = (key or "").strip()
+        if not key:
+            raise ValueError("checkpoint_key rỗng")
+        if key in (".", "..") or "/" in key or "\\" in key or "\x00" in key:
+            raise ValueError(f"checkpoint_key không hợp lệ: {key!r}")
+        if Path(key).name != key:
+            raise ValueError(f"checkpoint_key không hợp lệ: {key!r}")
+        return key
+
+    def physical_checkpoint_key(self, key: str) -> Optional[str]:
+        """Chuẩn hóa key về TÊN FILE VẬT LÝ, KHÔNG cần đọc đĩa.
+
+        - "f1ed388c8e76.db"  → chính nó          (đã vật lý, không hash lại)
+        - "f1ed388c8e76"     → + ".db"           (MD5 stem)
+        - "book.txt", "f1ed388c8e76.db.9a1b2c3d" → md5(...)[:12] + ".db"
+
+        Nhận diện "đã vật lý" bằng ĐÚNG khuôn `<12 hex>.db` — không dùng
+        `endswith(".db")` để một file nguồn tên "notes.db" không bị hiểu sai.
+        Dùng cho SO SÁNH key (task row lưu tên logic, payload 409 lưu tên vật lý — B4/B9).
+        """
+        try:
+            key = self._assert_safe_key(key)
+        except ValueError:
+            return None
+        if key.endswith(".db") and _is_hex12(key[:-3]):
+            return key
+        if _is_hex12(key):
+            return key + ".db"
+        return self._get_db_path(key).name
+
+    def same_checkpoint_key(self, a: Optional[str], b: Optional[str]) -> bool:
+        """True nếu 2 key (logic hoặc vật lý, lẫn lộn tùy ý) chỉ về cùng 1 checkpoint."""
+        if not a or not b:
+            return False
+        if a == b:
+            return True
+        pa, pb = self.physical_checkpoint_key(a), self.physical_checkpoint_key(b)
+        return bool(pa) and pa == pb
+
+    def _read_logical_filename(self, db_path: Path) -> Optional[str]:
+        """Đọc metadata['filename'] — tên logic thật của checkpoint."""
+        try:
+            conn = sqlite3.connect(str(db_path))
+            row = conn.execute(
+                "SELECT value FROM metadata WHERE key = 'filename'"
+            ).fetchone()
+            conn.close()
+            return row[0] if row and row[0] else None
+        except Exception as e:
+            self._logger.error(f"❌ Lỗi đọc metadata filename: {e}")
+            return None
+
+    def resolve_checkpoint_key(self, key: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Resolve một checkpoint key bất kỳ về MỘT checkpoint vật lý duy nhất.
+
+        Chấp nhận: logical filename ("book.txt"), tên file .db ("f1ed388c8e76.db"),
+        MD5 stem ("f1ed388c8e76"), hoặc namespace recovery ("f1ed…db.9a1b2c3d").
+
+        Trả về dict {checkpoint_key, filename, path, resume_info} hoặc None.
+        `filename` là tên LOGIC đọc từ metadata của chính file đó — đây là giá trị
+        duy nhất được phép truyền vào get_done_pending_indices / write_partial_file /
+        assemble_partial / get_translated_chunks (các hàm đó tự hash).
+        """
+        if not key:
+            return None
+        try:
+            key = self._assert_safe_key(key)
+        except ValueError as e:
+            self._logger.warning(f"⚠️ resolve_checkpoint_key bị từ chối: {e}")
+            return None
+
+        path = None
+        # 1) key trỏ trực tiếp tới file trong checkpoint_dir (KHÔNG hash lại)
+        for cand in (key, f"{key}.db"):
+            p = self.checkpoint_dir / cand
+            if p.is_file() and p.stat().st_size > 0:
+                path = p
+                break
+        # 2) coi key là logical filename
+        if path is None:
+            lp = self._get_db_path(key)
+            if lp.is_file() and lp.stat().st_size > 0:
+                path = lp
+        if path is None:
+            return None
+
+        logical = self._read_logical_filename(path)
+        info = self.get_resume_info(logical) if logical else None
+        # Bất biến: metadata phải trỏ về đúng file vừa mở. Nếu lệch (checkpoint bị copy
+        # tay/rename) thì tin PATH, không tin metadata, và không hash lại.
+        if logical and self._get_db_path(logical).name != path.name:
+            self._logger.warning(
+                f"⚠️ Checkpoint {path.name} có metadata filename={logical!r} không khớp hash; dùng path."
+            )
+            info = self.get_resume_info_from_path(str(path))
+
+        return {
+            "checkpoint_key": path.name,   # LUÔN là tên vật lý
+            "filename": logical,           # có thể None nếu metadata hỏng
+            "path": str(path),
+            "resume_info": info,
+        }
+
+    def get_done_pending_indices(self, filename: str, db_path_override: Optional[str] = None) -> Optional[Dict[str, List[int]]]:
+        """
+        Lấy danh sách index done/pending/failed chính xác.
+        Không dùng done_count làm proxy — trả về list index thực tế.
+        """
+        if db_path_override:
+            db_path = Path(db_path_override)
+        else:
+            db_path = self._get_db_path(filename)
+
+        if not db_path.exists():
+            return None
+
+        try:
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+
+            done = [
+                row["chunk_index"]
+                for row in conn.execute(
+                    "SELECT chunk_index FROM chunks WHERE status='done' ORDER BY chunk_index"
+                )
+            ]
+            pending = [
+                row["chunk_index"]
+                for row in conn.execute(
+                    "SELECT chunk_index FROM chunks WHERE status IN ('pending','failed') ORDER BY chunk_index"
+                )
+            ]
+            failed = [
+                row["chunk_index"]
+                for row in conn.execute(
+                    "SELECT chunk_index FROM chunks WHERE status='failed' ORDER BY chunk_index"
+                )
+            ]
+
+            conn.close()
+            return {
+                "done_indices": done,
+                "pending_indices": pending,
+                "failed_indices": failed,
+            }
+        except Exception as e:
+            self._logger.error(f"❌ Lỗi lấy indices: {e}")
             return None
 
     def get_translated_chunks(self, filename: str) -> Dict[int, str]:
@@ -532,6 +1020,8 @@ class CheckpointService:
         except Exception as e:
             self._logger.error(f"❌ Lỗi đọc translated chunks: {e}")
             return {}
+
+
 
     def close(self):
         """Đóng tất cả connections."""

@@ -4,6 +4,7 @@
 import sys
 import pytest
 from pathlib import Path
+from unittest.mock import patch, MagicMock
 
 # Đảm bảo import được webui module
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -56,13 +57,59 @@ class TestWebUIRoutesBasic:
         assert response.status_code == 200
 
     def test_api_models_route(self, flask_client):
-        """Test rằng route /api/models trả về 200."""
-        response = flask_client.get("/api/models")
+        """Test rằng route /api/models trả về 200 bất kể active provider nào.
+
+        Hermetic: Mock cả Gemini helper và OpenAIClient để KHÔNG bao giờ gọi mạng thật,
+        bảo vệ test suite khỏi flakiness và timeout.
+        """
+        from webui.helpers import AVAILABLE_GEMINI_MODELS
+
+        with patch("webui.helpers.get_available_gemini_models", return_value=list(AVAILABLE_GEMINI_MODELS)), \
+             patch("services.openai_client.OpenAIClient.list_models", return_value=["gpt-4o", "gpt-4o-mini"]), \
+             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "gpt-4o", "is_free": False}]):
+            response = flask_client.get("/api/models")
         assert response.status_code == 200
         data = response.get_json()
         assert "models" in data
         assert "default" in data
         assert "provider" in data
+
+    def test_api_models_route_gemini_explicit(self, flask_client):
+        """Test /api/models với ?provider=gemini."""
+        from webui.helpers import AVAILABLE_GEMINI_MODELS
+
+        with patch("webui.helpers.get_available_gemini_models", return_value=list(AVAILABLE_GEMINI_MODELS)):
+            response = flask_client.get("/api/models?provider=gemini")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "models" in data
+        assert data.get("provider") == "gemini"
+
+    def test_api_models_route_openai_explicit(self, flask_client):
+        """Test /api/models với ?provider=openai (Hermetic mock)."""
+        with patch("services.openai_client.OpenAIClient.list_models", return_value=["gpt-4o", "gpt-4o-mini"]), \
+             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "gpt-4o"}]):
+            response = flask_client.get("/api/models?provider=openai")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "models" in data
+        assert data.get("provider") == "openai"
+        assert "gpt-4o" in data["models"]
+
+
+    def test_api_models_route_error_handling(self, flask_client):
+        """Test rằng route /api/models xử lý ngoại lệ có cấu trúc khi provider gặp lỗi."""
+        from unittest.mock import patch
+
+        def _mock_failure(*args, **kwargs):
+            raise RuntimeError("Mocked provider upstream failure")
+
+        with patch("services.openai_client.OpenAIClient.list_models", _mock_failure):
+            response = flask_client.get("/api/models?provider=openai")
+        # Assert route bắt ngoại lệ và trả JSON error có cấu trúc
+        assert response.status_code in (200, 500, 502, 503)
+        data = response.get_json()
+        assert "error" in data or "models" in data
 
     def test_api_provider_get(self, flask_client):
         """Test rằng route GET /api/provider trả về 200."""

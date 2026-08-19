@@ -10,7 +10,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
-from threading import Thread
+import time
+from threading import Lock, Thread
 
 from flask import Blueprint, request, jsonify, send_file
 
@@ -30,6 +31,12 @@ logger = logging.getLogger(__name__)
 projects_bp = Blueprint("projects", __name__)
 
 PROJECTS_DIR = Path("workspace/projects")
+CLOSE_WAIT_TIMEOUT_SECONDS = 6.0
+
+# Phase 6 idempotency: khóa vòng "check active recovery → create recovery task" để chống
+# hai request đồng thời tạo recovery worker kép trên cùng source task. Kiểm tra rồi tạo
+# task nằm trong cùng một critical section; không atomic nếu chỉ dùng ORM/SQLite rời rạc.
+_RECOVERY_CREATE_LOCK = Lock()
 
 
 # ============================================================
@@ -1303,7 +1310,13 @@ def summarize_project(slug):
 
     # Tạo task và chạy worker nền
     registry = TaskRegistry()
-    job_id = registry.create_task("project_info", f"AI {content_type} cho {slug}", 1)
+    job_id = registry.create_task(
+        kind="project_info",
+        title=f"AI {content_type} cho {slug}",
+        total_files=1,
+        project_slug=slug,
+        filename=""
+    )
 
     def _project_info_worker(job_id):
         try:
@@ -1505,32 +1518,47 @@ def _checkpoint_key_for(filename: str) -> str:
     return hashlib.md5(filename.encode()).hexdigest()[:12] + ".db"
 
 
+def _current_checkpoint_identity(filename: str, source_text: str, config: dict) -> dict:
+    """Build identity hiện tại theo ĐÚNG công thức của TranslationExecutor.
+
+    Phải khớp từng ký tự với `TranslationExecutor._build_checkpoint_identity`
+    (core/executor.py:72-93): cùng sha256, cùng `json.dumps(..., ensure_ascii=False,
+    sort_keys=True, separators=(",", ":"))`. Đổi một bên mà không đổi bên kia là
+    làm resume chết âm thầm — không có test nào bắt được ngoài Phase 5.
+    """
+    return {
+        "project_file": filename,
+        "project_slug": config.get("project_slug", ""),
+        "source_hash": hashlib.sha256(source_text.encode()).hexdigest(),
+        "chunker_version": "v2",
+        "chunk_size": str(config.get("chunk_size", 22000)),
+        "prompt_hash": hashlib.sha256(
+            json.dumps(config.get("prompts", {}), ensure_ascii=False,
+                       sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest(),
+        "schema_version": "1.0",
+        # 6 field thực thi CỐ TÌNH không có ở đây: chúng không quyết định checkpoint
+        # còn dùng được hay không, và route không biết giá trị thật của chúng
+        # (worker mới điền — projects.py:1592-1601). Xem execution_drift().
+    }
+
+
 def _checkpoint_status_for(filename: str, source_text: str, config: dict) -> Optional[dict]:
+    """Checkpoint có resume được không. So SOURCE identity, bỏ qua execution identity.
+
+    Đổi provider/model KHÔNG làm mất khả năng resume — chỉ ghi nhận `mixed_provider`.
+    """
+    from services.checkpoint_service import same_source_identity
+
     ck_dir = _get_checkpoint_dir()
     ck = CheckpointService(ck_dir)
     info = ck.get_resume_info(filename)
     if not info or not info.get("can_resume"):
         return None
 
-    saved_ident = info.get("identity", {})
-    current_identity = {
-        "project_file": filename,
-        "project_slug": config.get("project_slug", ""),
-        "source_hash": hashlib.sha256(source_text.encode()).hexdigest(),
-        "chunker_version": "v2",
-        "chunk_size": str(config.get("chunk_size", 22000)),
-        "provider_kind": config.get("provider_kind", "unknown"),
-        "provider_id": config.get("provider_id", "unknown"),
-        "base_url": config.get("base_url", "unknown"),
-        "model": config.get("model_name", "unknown"),
-        "qa_model": config.get("qa_model", "unknown"),
-        "credential_mode": config.get("credential_mode", "default"),
-        "prompt_hash": hashlib.sha256(
-            json.dumps(config.get("prompts", {}), ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest(),
-        "schema_version": "1.0",
-    }
-    if saved_ident != current_identity:
+    saved = info.get("identity", {})
+    current = _current_checkpoint_identity(filename, source_text, config)
+    if not same_source_identity(saved, current):
         return {"status": "stale_checkpoint", "identity_mismatch": True}
 
     return {
@@ -1538,6 +1566,9 @@ def _checkpoint_status_for(filename: str, source_text: str, config: dict) -> Opt
         "completed_chunks": info.get("translated_count", 0),
         "total_chunks": info.get("total_chunks", 0),
         "next_chunk": info.get("next_chunk_index", 0),
+        # Tên VẬT LÝ. Task row lưu tên LOGIC (projects.py:1738 → filename).
+        # Đừng so sánh 2 giá trị này bằng `==` ở bất kỳ đâu — dùng
+        # CheckpointService.same_checkpoint_key (Phase 0.5). Đây là B4.
         "checkpoint_key": _checkpoint_key_for(filename),
     }
 
@@ -1607,11 +1638,24 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
 
             def emit_event(event):
                 event_type = event.get("type", "info")
+                # append_event TRƯỚC: nó là writer duy nhất của metadata failure, và phải chạy
+                # khi task còn non-terminal để iter_events chưa break (B7).
+                registry.append_event(job_id, event)
+                # P1 Phase 7 lease: heartbeat trên mỗi event để chứng minh worker còn sống.
+                if event_type == "progress" and getattr(registry, "_store", None):
+                    try:
+                        registry._store.touch_heartbeat(job_id)
+                    except Exception:
+                        pass
                 if event_type == "complete":
                     registry.update_status(job_id, "completed")
-                elif event_type == "error":
+                elif event_type == "task_failed":
                     registry.update_status(job_id, "failed")
-                registry.append_event(job_id, event)
+                elif event_type == "cancelled":
+                    registry.update_status(job_id, "cancelled")
+                # "error" / "file_error" / "batch_error": KHÔNG terminal. Chỉ log vào stream.
+                # Lỗi chunk lẻ không được đóng SSE trước khi task_failed kịp mang
+                # http_status + checkpoint_key ra frontend.
 
             def save_meta():
                 meta["updated_at"] = datetime.now().isoformat()
@@ -1624,11 +1668,21 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
                 progress_callback=emit_event,
                 translation_memory=project_tm,
                 save_meta_callback=save_meta,
+                job_id=job_id,
             )
 
         except Exception as e:
             logger.error(f"Lỗi Translate Worker: {str(e)}")
-            registry.append_event(job_id, {"type": "error", "message": f"❌ Lỗi hệ thống: {str(e)}"})
+            registry.append_event(job_id, {
+                "type": "task_failed",
+                "message": f"❌ Lỗi hệ thống: {str(e)}",
+                "error_context": {
+                    "status": "worker_exception",
+                    "http_status": None,
+                    "retryable": False,
+                    "message": f"❌ Lỗi hệ thống: {str(e)}",
+                },
+            })
             registry.update_status(job_id, "failed")
 
     return worker
@@ -1700,9 +1754,15 @@ def translate_project_file(slug):
         "context_char_count": config_service.get_context_char_count(),
     }
 
+    # BẮT BUỘC: identity của checkpoint chứa project_slug (executor đọc từ worker_config,
+    # projects.py:1592). Nếu config của route thiếu nó, _checkpoint_status_for so lệch và
+    # KHÔNG BAO GIỜ trả resume_available. Xem B12.
+    config["project_slug"] = slug
+
     # Check for existing checkpoints when not force retranslating
     if not force_retranslate:
         resume_required = {}
+        files_without_checkpoint = []
         for filename in filenames:
             file_path = pdir / "sources" / filename
             if not file_path.exists():
@@ -1711,14 +1771,33 @@ def translate_project_file(slug):
             ck_status = _checkpoint_status_for(filename, source_text, config)
             if ck_status and ck_status.get("status") == "resume_available":
                 resume_required[filename] = ck_status
+            else:
+                files_without_checkpoint.append(filename)
         if resume_required:
+            # REV-C C6: Nếu request nhiều file và chỉ một phần có checkpoint,
+            # trả lỗi thay vì âm thầm bỏ qua file không có checkpoint.
+            if files_without_checkpoint and len(filenames) > 1:
+                return jsonify({
+                    "status": "multi_file_resume_requires_per_file_decision",
+                    "error": "Một số file được chọn chưa có checkpoint. Vui lòng xử lý từng file hoặc chọn 'Dịch lại từ đầu' cho các file này.",
+                    "files_with_checkpoint": list(resume_required.keys()),
+                    "files_without_checkpoint": files_without_checkpoint,
+                    "checkpoints": resume_required,
+                }), 409
             return jsonify({
                 "status": "resume_required",
                 "checkpoints": resume_required,
             }), 409
 
     registry = TaskRegistry()
-    job_id = registry.create_task("translation", f"Translate {slug}", len(filenames))
+    main_filename = filenames[0] if filenames else ""
+    job_id = registry.create_task(
+        kind="translation",
+        title=f"Translate {slug}",
+        total_files=len(filenames),
+        project_slug=slug,
+        filename=main_filename
+    )
 
     worker = _build_translate_worker(
         slug, pdir, meta, config, filenames, glossary_paths, registry
@@ -1780,9 +1859,18 @@ def confirm_resume_translate(slug):
         "max_length_ratio": 5.0,
         "context_char_count": config_service.get_context_char_count(),
     }
+    config["project_slug"] = slug
 
     registry = TaskRegistry()
-    job_id = registry.create_task("translation", f"Resume {slug}", len(filenames))
+    # Ghi nhận project_slug và filename vào persistent store
+    main_filename = filenames[0] if filenames else ""
+    job_id = registry.create_task(
+        kind="translation",
+        title=f"Resume {slug}",
+        total_files=len(filenames),
+        project_slug=slug,
+        filename=main_filename
+    )
 
     worker = _build_translate_worker(
         slug, pdir, meta, config, filenames, glossary_paths, registry
@@ -1794,13 +1882,28 @@ def confirm_resume_translate(slug):
 
 @projects_bp.route("/api/tasks/<task_id>/resume", methods=["POST"])
 def resume_task(task_id):
+    import uuid
     from services.task_store import TaskStore
+    from backend.infrastructure.config.prompt_service import PromptService
+    from backend.infrastructure.progress.task_registry import TaskRegistry
     store = TaskStore(_get_checkpoint_dir().replace("checkpoints", ""))
     task = store.get_task(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
     if task["status"] not in ("resumable", "failed", "paused"):
         return jsonify({"error": f"Cannot resume task in status {task['status']}"}), 400
+
+    # A task row can outlive its SQLite checkpoint (for example after a
+    # successful cleanup or manual file removal). Do not create a new resume
+    # task when the source checkpoint is missing, unreadable, or complete.
+    checkpoint_service = CheckpointService(_get_checkpoint_dir())
+    resolved = checkpoint_service.resolve_checkpoint_key(task.get("checkpoint_key"))
+    checkpoint_info = resolved["resume_info"] if resolved else None
+    if not checkpoint_info or not checkpoint_info.get("can_resume"):
+        return jsonify({
+            "error": "Checkpoint không còn tồn tại, không đọc được hoặc đã hoàn tất; task không thể resume.",
+            "task_id": task_id,
+        }), 409
 
     if task.get("checkpoint_key"):
         existing = store.find_running_by_checkpoint_key(task["checkpoint_key"])
@@ -1845,6 +1948,7 @@ def resume_task(task_id):
         "max_length_ratio": 5.0,
         "context_char_count": config_service.get_context_char_count(),
     }
+    config["project_slug"] = task["project_slug"]
 
     prompt_service = PromptService()
     prompts = prompt_service.load_merged_prompts(pdir)
@@ -1880,6 +1984,400 @@ def resume_task(task_id):
             "phase": task.get("phase"),
         },
     })
+
+
+@projects_bp.route("/api/tasks/<task_id>/recover-from-checkpoint", methods=["POST"])
+def recover_from_checkpoint(task_id: str):
+    from services.task_store import TaskStore
+    from services.checkpoint_service import CheckpointService
+    from backend.infrastructure.config.prompt_service import PromptService
+    import uuid
+    from pathlib import Path
+
+    task_store = TaskStore(_get_checkpoint_dir().replace("checkpoints", ""))
+    checkpoint_service = CheckpointService(_get_checkpoint_dir())
+
+    data = request.get_json(silent=True) or {}
+    provider_id = data.get("provider_id")
+    model = data.get("model")
+    export_partial = data.get("export_partial", True)
+
+    source_task = task_store.get_task(task_id)
+    if not source_task:
+        return jsonify({"error": "Task không tồn tại"}), 404
+
+    project_dir = _get_project_dir(source_task["project_slug"])
+
+    if source_task["status"] not in ("failed", "resumable"):
+        return jsonify({"error": f"Task không ở trạng thái recovery: {source_task['status']}"}), 400
+
+    # CRITICAL SECTION — chống race tạo recovery worker kép:
+    # Phải giữ lock từ lúc kiểm tra active recovery cho tới sau create_recovery_task,
+    # nếu không hai request đồng thời có thể cùng vượt qua find_active_recovery_for_source.
+    # `return` trong `with` vẫn tự nhả lock (context manager exit).
+    with _RECOVERY_CREATE_LOCK:
+        existing_recovery = task_store.find_active_recovery_for_source(task_id)
+        if existing_recovery:
+            return jsonify({
+                "error": "Đã có recovery task đang chạy",
+                "recovery_task_id": existing_recovery["task_id"],
+            }), 409
+
+        resolved = checkpoint_service.resolve_checkpoint_key(source_task.get("checkpoint_key"))
+        if not resolved or not resolved.get("filename"):
+            return jsonify({"error": "Không đọc được checkpoint hoặc metadata hỏng"}), 400
+        ck_logical = resolved["filename"]
+
+        indices = checkpoint_service.get_done_pending_indices(ck_logical)
+        if not indices:
+            return jsonify({"error": "Không đọc được checkpoint"}), 400
+
+        done_count = len(indices["done_indices"])
+        pending_count = len(indices["pending_indices"])
+        total_count = done_count + pending_count
+
+        if pending_count == 0:
+            return jsonify({"error": "Tất cả chunk đã dịch, không cần recovery"}), 400
+
+        if done_count == 0:
+            return jsonify({"error": "Không có chunk nào đã dịch, nên dùng resume thường"}), 400
+
+        # Validate the selected provider before cloning the checkpoint or creating
+        # the recovery task. Otherwise a missing credential can leave an orphaned
+        # recovery DB/task behind after the API has already returned 400.
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        if provider_id:
+            active_provider = provider_service.get_provider_by_id(provider_id) or {}
+            if not active_provider:
+                return jsonify({"error": f"Provider không tồn tại: {provider_id}"}), 400
+        else:
+            active_provider = provider_service.get_active_provider_config() or {}
+
+        provider_type = active_provider.get("type", "gemini")
+        if provider_type == "gemini":
+            api_keys = active_provider.get("api_keys", [])
+        else:
+            api_key = active_provider.get("api_key")
+            gateway_api_key = active_provider.get("gateway_api_key", "")
+            api_keys = [api_key or gateway_api_key] if (api_key or gateway_api_key) else []
+
+        if not api_keys or not api_keys[0]:
+            return jsonify({"error": f"Chưa cấu hình API key cho provider {active_provider.get('name', provider_type)}"}), 400
+
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        policy = classify_endpoint(active_provider.get("base_url"))
+        selected_model = (
+            model
+            or (source_task.get("identity") or {}).get("model", "")
+            or active_provider.get("default_model", "")
+            or "gpt-4o-mini"
+        )
+        selected_model = policy.normalize_model(selected_model)
+        if not policy.validate_model(selected_model):
+            return jsonify({
+                "error": f"Model '{selected_model}' không hợp lệ với provider '{policy.provider_kind}'"
+            }), 400
+        model = selected_model
+
+        recovery_job_id = str(uuid.uuid4())
+        recovery_ck_key = f"{ck_logical}.{recovery_job_id[:8]}"
+
+        if not checkpoint_service.clone_namespace(ck_logical, recovery_ck_key):
+            return jsonify({"error": "Không thể clone checkpoint"}), 500
+
+        saved_identity = source_task.get("identity") or {}
+        mixed_provider = (
+            provider_id and provider_id != saved_identity.get("provider_id")
+        ) or (
+            model and model != saved_identity.get("model")
+        )
+
+        task_store.create_recovery_task(
+            source_task=source_task,
+            recovery_job_id=recovery_job_id,
+            recovery_checkpoint_key=recovery_ck_key,
+            provider_id=provider_id or saved_identity.get("provider_id", ""),
+            model=model or saved_identity.get("model", ""),
+            mixed_provider=mixed_provider,
+        )
+
+        task_store.update_recovery_task(
+            recovery_job_id,
+            pending_chunks=indices["pending_indices"],
+            completed_chunks=done_count,
+            checkpoint_key=recovery_ck_key,
+        )
+
+    partial_output_path = None
+    if export_partial:
+        partial_path = checkpoint_service.write_partial_file(
+            recovery_ck_key,
+            project_dir / "translated" / ".recovery",
+        )
+        if partial_path:
+            partial_output_path = str(partial_path)
+            task_store.update_recovery_task(recovery_job_id, partial_output_path=partial_output_path)
+
+    from core.executor import TranslationExecutor
+    from backend.infrastructure.progress.task_registry import TaskRegistry
+    from services.api_service import ApiManager
+    provider_type = active_provider.get("type", "gemini")
+    base_url = active_provider.get("base_url")
+    gateway_api_key = active_provider.get("gateway_api_key", "")
+    credential_mode = active_provider.get("credential_mode", "default")
+
+    config = {
+        "provider_type": provider_type,
+        "provider_kind": active_provider.get("type", provider_type),
+        "base_url": base_url or "",
+        "model_name": model or saved_identity.get("model", "") or active_provider.get("default_model", ""),
+        "qa_model": saved_identity.get("qa_model", ""),
+        "temperature": 1.0,
+        "chunk_size": int(saved_identity.get("chunk_size", 22000)),
+        "force_retranslate": False,
+        "thinking_level": "MEDIUM",
+        "request_delay": 0.0,
+        "max_refinement_attempts": 2,
+        "min_length_ratio": 0.5,
+        "max_length_ratio": 5.0,
+        "context_char_count": 500,
+        "gateway_api_key": gateway_api_key,
+        "credential_mode": credential_mode,
+        "provider_api_key": active_provider.get("api_key", ""),
+        "provider_id": active_provider.get("id", provider_id or ""),
+    }
+
+    prompt_service = PromptService()
+    prompts = prompt_service.load_merged_prompts(_get_project_dir(source_task["project_slug"]))
+    config["prompts"] = prompts
+
+    executor = TranslationExecutor(api_keys=api_keys, config=config)
+
+    registry = TaskRegistry()
+    # create_recovery_task() already persisted the row. Hydrate the in-memory
+    # registry entry instead of calling create_task(), which would generate a
+    # different job id or duplicate the persistent primary key.
+    if not registry.get_task(recovery_job_id):
+        task_store.update_recovery_task(
+            recovery_job_id,
+            status="failed",
+            last_error="Không thể đăng ký recovery task vào registry",
+        )
+        checkpoint_service.delete(str(checkpoint_service._get_db_path(recovery_ck_key)))
+        return jsonify({"error": "Không thể đăng ký recovery task"}), 500
+
+    output_path = project_dir / "translated" / (
+        f"{source_task['filename']}.recovery.{recovery_job_id[:8]}.txt"
+    )
+
+    def recovery_progress(event: dict):
+        registry.append_event(recovery_job_id, event)
+        # P1 Phase 7 lease: recovery worker còn sống (progress) thì touch heartbeat.
+        if event["type"] == "progress" and getattr(task_store, "_connections", None):
+            task_store.touch_heartbeat(recovery_job_id)
+        if event["type"] == "complete":
+            registry.update_status(recovery_job_id, "completed")
+            task_store.update_recovery_task(
+                recovery_job_id,
+                status="completed",
+                final_output_path=str(output_path),
+            )
+        elif event["type"] == "cancelled":
+            registry.update_status(recovery_job_id, "cancelled")
+            task_store.update_recovery_task(
+                recovery_job_id,
+                status="cancelled",
+                last_error=event.get("message", ""),
+            )
+        elif event["type"] == "error":
+            registry.update_status(recovery_job_id, "failed")
+            task_store.update_recovery_task(
+                recovery_job_id,
+                status="failed",
+                last_error=event.get("message", ""),
+                error_class=event.get("error_class") or event.get("status"),
+                http_status=event.get("http_status"),
+                retryable=event.get("retryable"),
+                current_chunk=event.get("chunk_index"),
+            )
+
+    worker_thread = Thread(
+        target=executor.recover_from_checkpoint,
+        args=(ck_logical, recovery_ck_key, output_path, recovery_progress, recovery_job_id),
+        daemon=True,
+    )
+    worker_thread.start()
+
+    return jsonify({
+        "status": "recovery_started",
+        "job_id": recovery_job_id,
+        "recovery_of": task_id,
+        "partial_output": partial_output_path,
+        "checkpoint": {
+            "completed_chunks": done_count,
+            "total_chunks": total_count,
+            "done_indices": indices["done_indices"],
+            "pending_indices": indices["pending_indices"],
+        },
+        "mixed_provider": mixed_provider,
+    }), 200
+
+
+@projects_bp.route("/api/tasks/<task_id>/export-partial", methods=["POST"])
+def export_partial(task_id: str):
+    from services.task_store import TaskStore
+    from services.checkpoint_service import CheckpointService
+
+    task_store = TaskStore(_get_checkpoint_dir().replace("checkpoints", ""))
+    checkpoint_service = CheckpointService(_get_checkpoint_dir())
+
+    task = task_store.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task không tồn tại"}), 404
+
+    project_dir = _get_project_dir(task["project_slug"])
+
+    resolved = checkpoint_service.resolve_checkpoint_key(task.get("checkpoint_key"))
+    if not resolved or not resolved.get("filename"):
+        return jsonify({"error": "Không đọc được checkpoint hoặc metadata hỏng"}), 400
+    ck_logical = resolved["filename"]
+
+    indices = checkpoint_service.get_done_pending_indices(ck_logical)
+    if not indices or not indices["done_indices"]:
+        return jsonify({"error": "Không có chunk nào đã dịch"}), 400
+
+    partial_path = checkpoint_service.write_partial_file(
+        ck_logical,
+        project_dir / "translated" / ".recovery",
+    )
+
+    if not partial_path:
+        return jsonify({"error": "Không thể tạo partial file"}), 500
+
+    return jsonify({
+        "partial_output": str(partial_path),
+        "done_chunks": len(indices["done_indices"]),
+        "pending_chunks": len(indices["pending_indices"]),
+    }), 200
+
+
+@projects_bp.route("/api/tasks/<task_id>/close-as-partial", methods=["POST"])
+def close_as_partial(task_id: str):
+    """Chốt task thành partial.
+
+    Luồng bắt buộc: validate confirm → cancel scoped → chờ worker/lease hết hạn →
+    resolve checkpoint (canonical resolver) → assemble partial + manifest atomic →
+    persistent status `closed_partial` → registry mirror `closed_partial`.
+    KHÔNG BAO GIỜ gọi status `completed` trong luồng này.
+    """
+    from services.task_store import TaskStore
+    from services.checkpoint_service import CheckpointService
+    from backend.infrastructure.progress.runtime_state import RuntimeState
+
+    data = request.get_json(silent=True) or {}
+    if not data.get("confirm"):
+        return jsonify({"error": "Cần xác nhận: {\"confirm\": true}"}), 400
+
+    task_store = TaskStore(_get_workspace_dir())
+    checkpoint_service = CheckpointService(_get_checkpoint_dir())
+
+    task = task_store.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task không tồn tại"}), 404
+
+    # Idempotent: đã chốt rồi thì trả lại kết quả cũ, không assemble lần hai.
+    # Cần thiết vì frontend có thể retry sau khi nhận 202 close_pending.
+    if task["status"] == "closed_partial" and task.get("partial_output_path"):
+        existing = Path(task["partial_output_path"])
+        if existing.is_file():
+            return jsonify({
+                "status": "closed_partial",
+                "task_id": task_id,
+                "partial_output": str(existing),
+                "completed_chunks": task.get("completed_chunks", 0),
+                "pending_chunks": max(0, (task.get("total_chunks") or 0) - (task.get("completed_chunks") or 0)),
+                "idempotent": True,
+            }), 200
+
+    # `partial_completed` là status RÁC do route cũ ghi trước khi crash (B16) — chấp nhận ĐỌC
+    # để người dùng chốt lại được, nhưng KHÔNG BAO GIỜ ghi lại giá trị này.
+    if task["status"] not in ("running", "started", "queued", "resumable", "paused",
+                              "interrupted", "failed", "partial_completed"):
+        return jsonify({"error": f"Không thể chốt task ở trạng thái {task['status']}"}), 400
+
+    job_id = task.get("job_id") or task_id
+    _RUNNING = ("running", "started")
+
+    # 1. Cancel scoped — chỉ khi worker có thể còn chạy
+    if task["status"] in _RUNNING:
+        RuntimeState().request_cancel(job_id)
+
+    # 2. Chờ worker dừng / lease hết hạn. Quá timeout → close_pending, KHÔNG assemble
+    if task["status"] in _RUNNING:
+        deadline = time.monotonic() + CLOSE_WAIT_TIMEOUT_SECONDS
+        while time.monotonic() < deadline:
+            current = task_store.get_task(task_id) or {}
+            st = current.get("status")
+            if st not in _RUNNING:
+                task = current
+                break
+            time.sleep(0.2)
+        else:
+            return jsonify({"status": "close_pending", "task_id": task_id}), 202
+
+    # 3. Resolve checkpoint bằng canonical resolver (logical | physical | stem)
+    resolved = checkpoint_service.resolve_checkpoint_key(
+        task.get("checkpoint_key") or task.get("filename") or task_id
+    )
+    if not resolved or not resolved.get("filename"):
+        return jsonify({"error": "Không tìm thấy checkpoint cho task hoặc metadata hỏng"}), 400
+    ck_logical = resolved["filename"]
+
+    # 4. Đọc checkpoint trong transaction/read-safe boundary
+    indices = checkpoint_service.get_done_pending_indices(ck_logical)
+    if not indices or not indices["done_indices"]:
+        return jsonify({"error": "Không có chunk nào đã dịch"}), 400
+
+    slug = task.get("project_slug") or ""
+    if not slug:
+        # Task mồ côi: không biết ghi partial vào đâu. Ghi vào PROJECTS_DIR/"" sẽ rải file
+        # rác ra workspace/projects/translated/ — chặn thẳng thay vì đoán.
+        return jsonify({"error": "Task không có project_slug, không xác định được nơi ghi partial"}), 400
+    project_dir = _get_project_dir(slug)
+    partial_path = checkpoint_service.write_partial_file(
+        ck_logical, project_dir / "translated" / ".recovery"
+    )
+    if not partial_path:
+        return jsonify({"error": "Không thể tạo partial file"}), 500
+
+    done_count = len(indices["done_indices"])
+    pending_count = len(indices["pending_indices"])
+
+    # 5. Registry mirror TRƯỚC (dọn cancel token qua update_status Phase 1).
+    #    Phải chạy TRƯỚC bước 6, xem ghi chú thứ tự bên dưới.
+    from backend.infrastructure.progress.task_registry import TaskRegistry
+    registry = TaskRegistry()
+    registry.update_status(job_id, "closed_partial")
+
+    # 6. Persistent status closed_partial (terminal với worker, KHÔNG phải completed).
+    #    Ghi SAU cùng để con số từ checkpoint (nguồn chân lý) là giá trị cuối trong DB.
+    task_store.update_status(
+        task_id,
+        "closed_partial",
+        partial_output_path=str(partial_path),
+        completed_chunks=done_count,
+        current_chunk=done_count,
+        last_error=None,
+    )
+
+    return jsonify({
+        "status": "closed_partial",
+        "task_id": task_id,
+        "partial_output": str(partial_path),
+        "completed_chunks": done_count,
+        "pending_chunks": pending_count,
+    }), 200
 
 
 # ============================================================
@@ -1937,7 +2435,14 @@ def spellcheck_project_file(slug):
     }
 
     registry = TaskRegistry()
-    job_id = registry.create_task("spellcheck", f"Spellcheck {slug}", len(filenames))
+    main_filename = filenames[0] if filenames else ""
+    job_id = registry.create_task(
+        kind="spellcheck",
+        title=f"Spellcheck {slug}",
+        total_files=len(filenames),
+        project_slug=slug,
+        filename=main_filename
+    )
 
     def _project_spellcheck_worker(job_id):
         """Worker dùng backend use case."""

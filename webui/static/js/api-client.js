@@ -305,6 +305,11 @@ const ApiClient = {
                                     ApiClient.fetchModelInfo(m.MODEL, provider || window.activeProvider);
                                 }
                             }
+                            // Update header info
+                            const headerModel = document.getElementById('header-active-model');
+                            if (headerModel) {
+                                headerModel.textContent = m.MODEL;
+                            }
                         }
                         if (m.QA_MODEL) {
                             const qaSel = document.getElementById('cfg-qa-model');
@@ -508,7 +513,22 @@ const ApiClient = {
                 taskSummaryEl.textContent = parts.length ? ' — ' + parts.join(', ') : '';
             })
             .catch(e => console.error('Failed to load tasks', e));
-    }
+
+    translateFiles(slug, files, opts = {}) {
+        return fetch(`/api/projects/${slug}/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files, ...opts })
+        }).then(async r => {
+            const text = await r.text();
+            let data = {};
+            try { data = text ? JSON.parse(text) : {}; } catch { throw new Error(`Server không trả JSON (${r.status})`); }
+            // 409 + {status: resume_required} là response nghiệp vụ, KHÔNG phải exception UI
+            if (r.status === 409 && data.status === 'resume_required') return data;
+            if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+            return data;
+        });
+    },
 };
 
 window.ApiClient = ApiClient;

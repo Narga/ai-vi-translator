@@ -61,7 +61,65 @@ try:
         similarity_threshold=0.85,
     )
 except Exception as e:
-    logger.warning(f"Translation Memory init failed: {e}")
+    logger.warning(f"Translation Memory init failed: {e}"    )
+
+
+def scan_and_recover(store, ck_dir):
+    """Startup reconciliation: running → interrupted; checkpoint mồ côi → resumable task.
+
+    Tách ra để test. KHÔNG hash-of-hash: dùng get_resume_info_from_path cho file vật lý,
+    fallback filename lấy từ metadata, không phải MD5 stem.
+    Trả về số task mới tạo.
+    """
+    import uuid
+    from services.checkpoint_service import CheckpointService
+
+    created = 0
+    # P1 Phase 7 lease: task `running` có worker crash (heartbeat stale/null) → interrupted.
+    # KHÔNG convert mù mọi `running`: task đang chạy thật (heartbeat gần đây) được giữ.
+    store.reconcile_lease_expired(lease_timeout_seconds=30.0)
+
+    if not ck_dir.exists():
+        return created
+
+    ck = CheckpointService(str(ck_dir))
+    # Đọc bảng task MỘT lần rồi tự cập nhật danh sách khóa đã dùng: list_tasks() trong
+    # vòng lặp là O(số checkpoint × số task) truy vấn SQLite mỗi lần khởi động.
+    known_keys = [t.get("checkpoint_key") for t in store.list_tasks() if t.get("checkpoint_key")]
+
+    for db_file in sorted(ck_dir.glob("*.db")):
+        info = ck.get_resume_info_from_path(str(db_file))
+        if not (info and info.get("can_resume")
+                and info.get("translated_count", 0) < info.get("total_chunks", 0)):
+            continue
+        # B9: task cũ có thể lưu tên LOGIC ("book.txt") còn db_file.name là tên VẬT LÝ
+        # ("f1ed388c8e76.db"). So thô bằng "==" không bao giờ khớp → mỗi lần khởi động lại
+        # đẻ thêm một task resumable trùng trong workspace/tasks.db (dữ liệu thật của người dùng).
+        if any(ck.same_checkpoint_key(k, db_file.name) for k in known_keys):
+            continue
+        job_id = str(uuid.uuid4())
+        saved_identity = info.get("identity", {})
+        logical = info.get("filename") or ""
+        project_file = saved_identity.get("project_file") or logical
+        project_slug = saved_identity.get("project_slug", "")
+        store.create_task(
+            job_id=job_id,
+            kind="translation",
+            title=f"Resume {project_file}",
+            project_slug=project_slug,
+            filename=project_file,
+            total_chunks=info.get("total_chunks", 0),
+            checkpoint_key=db_file.name,
+            identity=saved_identity,
+        )
+        store.update_status(
+            job_id, "resumable",
+            completed_chunks=info.get("translated_count", 0),
+            current_chunk=info.get("next_chunk_index", 0),
+        )
+        known_keys.append(db_file.name)
+        created += 1
+    return created
 
 
 def create_app():
@@ -97,36 +155,9 @@ def create_app():
     # Scan resumable checkpoints on startup
     try:
         from services.task_store import TaskStore
-        from services.checkpoint_service import CheckpointService
         from pathlib import Path
         store = TaskStore()
-        ck_dir = Path(store.db_path).parent / "checkpoints"
-        if ck_dir.exists():
-            for db_file in ck_dir.glob("*.db"):
-                ck = CheckpointService(str(ck_dir))
-                logical_name = db_file.stem
-                info = ck.get_resume_info(logical_name)
-                if info and info.get("can_resume") and info.get("translated_count", 0) < info.get("total_chunks", 0):
-                    existing = [t for t in store.list_tasks() if t.get("checkpoint_key") == db_file.name]
-                    if not existing:
-                        job_id = str(__import__('uuid').uuid4())
-                        saved_identity = info.get("identity", {})
-                        # project_file và project_slug từ identity (lưu từ v8.23+)
-                        project_file = saved_identity.get("project_file", logical_name)
-                        project_slug = saved_identity.get("project_slug", "")
-                        store.create_task(
-                            job_id=job_id,
-                            kind="translation",
-                            title=f"Resume {project_file}",
-                            project_slug=project_slug,
-                            filename=project_file,
-                            total_chunks=info.get("total_chunks", 0),
-                            checkpoint_key=db_file.name,
-                            identity=saved_identity,
-                        )
-                        store.update_status(job_id, "resumable",
-                                           completed_chunks=info.get("translated_count", 0),
-                                           current_chunk=info.get("next_chunk_index", 0))
+        scan_and_recover(store, Path(store.db_path).parent / "checkpoints")
     except Exception as e:
         logger.warning(f"Startup checkpoint scan failed: {e}")
 

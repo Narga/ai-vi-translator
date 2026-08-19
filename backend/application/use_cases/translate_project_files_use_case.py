@@ -169,6 +169,7 @@ class TranslateProjectFilesUseCase:
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         translation_memory=None,
         save_meta_callback: Optional[Callable] = None,
+        job_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Thực hiện dịch nhiều file trong project.
@@ -234,7 +235,14 @@ class TranslateProjectFilesUseCase:
             emit({"type": "info", "message": f"📦 Batch plan [{_bi}/{len(batches)}]: {len(_bf)} file, ~{_sz:,} ký tự"})
 
         # Xử lý từng batch
+        from backend.infrastructure.progress.runtime_state import RuntimeState
+        runtime_state = RuntimeState()
+
         for batch_idx, batch_files in enumerate(batches, 1):
+            if job_id and runtime_state.is_cancelled(job_id):
+                emit({"type": "info", "message": "Đã nhận yêu cầu dừng, bỏ qua các file còn lại."})
+                break
+
             emit({
                 "type": "info",
                 "message": f"📦 [{batch_idx}/{len(batches)}] Đang dịch batch có {len(batch_files)} file: {batch_files}"
@@ -260,14 +268,23 @@ class TranslateProjectFilesUseCase:
                             data["message"] = f"✅ Đã dịch xong file: {_fname}"
                         emit(data)
 
+                    if job_id and runtime_state.is_cancelled(job_id):
+                        emit({"type": "info", "message": f"⏹️ Bỏ qua {filename}: đã có yêu cầu dừng."})
+                        break
+
                     result = executor.translate_text(
                         text=text,
                         output_filename=filename,
                         output_file_path=project_dir / "translated" / filename,
                         progress_callback=cb,
                         translation_memory=translation_memory,
+                        job_id=job_id,
                     )
-                    
+
+                    if job_id and runtime_state.is_cancelled(job_id):
+                        # Bị dừng giữa file: KHÔNG đếm fail, KHÔNG emit file_error.
+                        # Checkpoint còn nguyên nên file này resume được.
+                        break
                     if result:
                         ok += 1
                     else:
@@ -308,14 +325,20 @@ class TranslateProjectFilesUseCase:
                         emit(data)
 
                     # Dịch batch text
+                    if job_id and runtime_state.is_cancelled(job_id):
+                        emit({"type": "info", "message": f"⏹️ Bỏ qua batch {batch_idx}: đã có yêu cầu dừng."})
+                        break
                     translated_text = executor.translate_text(
                         text=batch_text,
                         output_filename=f"batch_{batch_idx}",
                         progress_callback=cb,
                         translation_memory=translation_memory,
                         write_output=False,
+                        job_id=job_id,
                     )
                     
+                    if job_id and runtime_state.is_cancelled(job_id):
+                        break
                     if translated_text:
                         # Parse response
                         parsed_result = self._parse_batch_response(
@@ -347,7 +370,11 @@ class TranslateProjectFilesUseCase:
                                     "type": "info",
                                     "message": f"📂 [1/{len(batch_files)}] Đang dịch lại (fallback): {fallback_filename}"
                                 })
-                                
+
+                                if job_id and runtime_state.is_cancelled(job_id):
+                                    emit({"type": "info", "message": "⏹️ Dừng vòng dịch lại (fallback) theo yêu cầu."})
+                                    break
+
                                 try:
                                     # Tạo executor mới cho mỗi file fallback
                                     fallback_executor = TranslationExecutor(
@@ -369,8 +396,11 @@ class TranslateProjectFilesUseCase:
                                         output_file_path=project_dir / "translated" / fallback_filename,
                                         progress_callback=fallback_cb,
                                         translation_memory=translation_memory,
+                                        job_id=job_id,
                                     )
                                     
+                                    if job_id and runtime_state.is_cancelled(job_id):
+                                        break
                                     if result:
                                         ok += 1
                                     else:
@@ -405,10 +435,38 @@ class TranslateProjectFilesUseCase:
 
         total_processed = len(valid_filenames)
         skipped = total_files - total_processed
-        
-        emit({
-            "type": "complete",
-            "message": f"🚀 Đã hoàn tất: {ok} thành công, {fail} thất bại, {skipped} bỏ qua, trên tổng {total_files} file!"
-        })
+
+        summary = f"{ok} thành công, {fail} thất bại, {skipped} bỏ qua, trên tổng {total_files} file!"
+        if job_id and runtime_state.is_cancelled(job_id):
+            emit({"type": "cancelled", "message": f"⏹️ Đã dừng theo yêu cầu: {summary}"})
+        elif fail > 0 and ok == 0:
+            # Chỉ terminal-fail khi KHÔNG có file nào thành công. Có file thành công thì
+            # task vẫn là "completed" với error_count > 0 — người dùng còn kết quả để dùng.
+            # Nếu executor đã emit task_failed (ví dụ 451) thì KHÔNG ghi đè error_class bằng
+            # "all_files_failed" — giữ nguyên thông tin lỗi thật từ executor.
+            already_failed = False
+            if job_id:
+                try:
+                    from backend.infrastructure.progress.task_registry import TaskRegistry
+                    existing = TaskRegistry().get_task(job_id)
+                    if existing and existing.status == "failed":
+                        already_failed = True
+                except Exception:
+                    pass
+            if already_failed:
+                emit({"type": "info", "message": f"🚫 Dịch thất bại: {summary}"})
+            else:
+                emit({
+                    "type": "task_failed",
+                    "message": f"🚫 Dịch thất bại: {summary}",
+                    "error_context": {
+                        "status": "all_files_failed",
+                        "http_status": None,
+                        "retryable": True,
+                        "message": f"🚫 Dịch thất bại: {summary}",
+                    },
+                })
+        else:
+            emit({"type": "complete", "message": f"🚀 Đã hoàn tất: {summary}"})
 
         return {"success": ok > 0, "ok": ok, "fail": fail, "skipped": skipped, "total": total_files}

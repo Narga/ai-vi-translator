@@ -8,8 +8,30 @@ const TranslationWorker = {
     _lastViewedJobId: null,
     _taskStateByJob: new Map(),
 
+    // Nhánh "Dịch lại từ đầu" của modal resume. Gửi trực tiếp force_retranslate:true.
+    // KHÔNG dùng checkbox #force-retranslate / #pm-force-retranslate (không tồn tại trong DOM)
+    // và KHÔNG .click() vào #btn-translate-single (không tồn tại) — xem B14.
+    _forceTranslate(slug, files, btn = null, isBatch = false) {
+        return ApiClient.translateFiles(slug, files, { force_retranslate: true })
+            .then(data => {
+                if (data.status === 'started') {
+                    ApiClient.loadTasks();
+                    TranslationWorker.connectToProgress(btn, isBatch, data.job_id, data.files_count || files.length);
+                } else {
+                    UiHelpers.showToast(data.error || 'Không thể dịch lại từ đầu', 'error');
+                    TranslationWorker.resetButton(btn, isBatch);
+                }
+            })
+            .catch(e => {
+                UiHelpers.showToast('Lỗi dịch lại: ' + e.message, 'error');
+                TranslationWorker.resetButton(btn, isBatch);
+            });
+    },
+
     stopTranslation() {
-        fetch('/api/translate/cancel', { method: 'POST' })
+        const jobId = TranslationWorker._activeJobId;
+        const endpoint = jobId ? `/api/tasks/${jobId}/cancel` : '/api/translate/cancel';
+        fetch(endpoint, { method: 'POST' })
             .then(r => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
                 return r.json();
@@ -34,32 +56,34 @@ const TranslationWorker = {
             const guardTimer = setTimeout(() => { TranslationWorker.resetButton(btn); }, 3000);
 
             UiHelpers.addLog('Bắt đầu dịch nội dung...', 'info');
-            const forceRetranslateEl = document.getElementById('force-retranslate');
-            const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
-            fetch(`/api/projects/${window.currentProject.slug}/translate`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: [window.currentProjectFile.name], force_retranslate: forceRetranslate })
-            }).then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-                return r.json();
-            }).then(data => {
+            ApiClient.translateFiles(window.currentProject.slug, [window.currentProjectFile.name], {})
+            .then(data => {
                 clearTimeout(guardTimer);
                 if (data.error) { UiHelpers.addLog(data.error, 'error'); TranslationWorker.resetButton(btn); }
                 else if (data.status === 'resume_required') {
-                    const ck = data.checkpoints[window.currentProjectFile.name];
-                    if (ck && confirm(`File này còn checkpoint: đã lưu ${ck.completed_chunks}/${ck.total_chunks} chunk. Bạn có muốn resume không?`)) {
-                        fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
-                            method: 'POST', headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ files: [window.currentProjectFile.name] })
-                        }).then(r => r.json()).then(resumeData => {
-                            if (resumeData.status === 'started') {
-                                ApiClient.loadTasks();
-                                TranslationWorker.connectToProgress(btn, false, resumeData.job_id, resumeData.files_count || 1);
-                            } else UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
-                        });
-                    } else {
-                        TranslationWorker.resetButton(btn);
-                    }
+                    TranslationWorker.showResumeActionModal(data.checkpoints, (action) => {
+                        if (action === 'continue') {
+                            fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ files: [window.currentProjectFile.name] })
+                            }).then(r => r.json()).then(resumeData => {
+                                if (resumeData.status === 'started') {
+                                    ApiClient.loadTasks();
+                                    TranslationWorker.connectToProgress(btn, false, resumeData.job_id, resumeData.files_count || 1);
+                                } else {
+                                    UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+                                    TranslationWorker.resetButton(btn);
+                                }
+                            }).catch(e => { UiHelpers.showToast('Lỗi resume: ' + e.message, 'error'); TranslationWorker.resetButton(btn); });
+                        } else if (action === 'restart') {
+                            TranslationWorker._forceTranslate(window.currentProject.slug, [window.currentProjectFile.name], btn, false);
+                        } else if (action === 'close_partial') {
+                            TranslationWorker.handleClosePartialByCheckpoints(data.checkpoints, window.currentProject.slug);
+                            TranslationWorker.resetButton(btn);
+                        } else {
+                            TranslationWorker.resetButton(btn);
+                        }
+                    });
                 }
                 else if (data.status === 'started') {
                     ApiClient.loadTasks();
@@ -109,53 +133,168 @@ const TranslationWorker = {
 
     translateFileInProject(filename) {
         if (!window.currentProject) return;
-        const forceRetranslateEl = document.getElementById('force-retranslate');
-        const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
-        fetch(`/api/projects/${window.currentProject.slug}/translate`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: [filename], force_retranslate: forceRetranslate })
-        }).then(r => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-            return r.json();
-        }).then(data => {
-            if (data.status === 'started') {
-                ApiClient.loadTasks();
-                TranslationWorker.connectToProgress(null, false, data.job_id, data.files_count || 1);
-            } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
-        });
+        ApiClient.translateFiles(window.currentProject.slug, [filename], {})
+            .then(data => {
+                if (data.status === 'started') {
+                    ApiClient.loadTasks();
+                    TranslationWorker.connectToProgress(null, false, data.job_id, data.files_count || 1);
+                } else if (data.status === 'resume_required') {
+                    TranslationWorker.showResumeActionModal(data.checkpoints, (action) => {
+                        if (action === 'continue') {
+                            fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ files: [filename] })
+                            }).then(r => r.json()).then(resumeData => {
+                                if (resumeData.status === 'started') {
+                                    ApiClient.loadTasks();
+                                    TranslationWorker.connectToProgress(null, false, resumeData.job_id, resumeData.files_count || 1);
+                                } else UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+                            }).catch(e => UiHelpers.showToast('Lỗi resume: ' + e.message, 'error'));
+                        } else if (action === 'restart') {
+                            TranslationWorker._forceTranslate(window.currentProject.slug, [filename], null, false);
+                        } else if (action === 'close_partial') {
+                            TranslationWorker.handleClosePartialByCheckpoints(data.checkpoints, window.currentProject.slug);
+                        }
+                    });
+                } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
+            })
+            .catch(e => UiHelpers.showToast('Lỗi: ' + e.message, 'error'));
     },
 
     translateSelectedInProject() {
         if (!window.currentProject || window.selectedFiles.size === 0) { UiHelpers.showToast('Chưa chọn file!', 'error'); return; }
         const files = Array.from(window.selectedFiles);
-        const forceRetranslateEl = document.getElementById('force-retranslate');
-        const forceRetranslate = forceRetranslateEl ? forceRetranslateEl.checked : false;
-        fetch(`/api/projects/${window.currentProject.slug}/translate`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files, force_retranslate: forceRetranslate })
-        }).then(r => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-            return r.json();
-        }).then(data => {
-            if (data.status === 'started') {
-                ApiClient.loadTasks();
-                TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, data.job_id, data.files_count || files.length);
-            } else if (data.status === 'resume_required') {
-                const names = Object.keys(data.checkpoints || {});
-                const msg = names.map(n => `${n}: đã lưu ${data.checkpoints[n].completed_chunks}/${data.checkpoints[n].total_chunks} chunk`).join('\n');
-                if (confirm(`Các file sau có checkpoint sẵn:\n${msg}\n\nBạn có muốn resume không?`)) {
-                    fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ files: names })
-                    }).then(r => r.json()).then(resumeData => {
-                        if (resumeData.status === 'started') {
-                            ApiClient.loadTasks();
-                            TranslationWorker.connectToProgress(document.getElementById('pm-btn-translate-selected'), true, resumeData.job_id, resumeData.files_count || names.length);
-                        } else UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+        const selBtn = document.getElementById('pm-btn-translate-selected');
+        ApiClient.translateFiles(window.currentProject.slug, files, {})
+            .then(data => {
+                if (data.status === 'started') {
+                    ApiClient.loadTasks();
+                    TranslationWorker.connectToProgress(selBtn, true, data.job_id, data.files_count || files.length);
+                } else if (data.status === 'resume_required') {
+                    TranslationWorker.showResumeActionModal(data.checkpoints, (action) => {
+                        const names = Object.keys(data.checkpoints || {});
+                        if (action === 'continue') {
+                            fetch(`/api/projects/${window.currentProject.slug}/translate/confirm-resume`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ files: names })
+                            }).then(r => r.json()).then(resumeData => {
+                                if (resumeData.status === 'started') {
+                                    ApiClient.loadTasks();
+                                    TranslationWorker.connectToProgress(selBtn, true, resumeData.job_id, resumeData.files_count || names.length);
+                                } else {
+                                    UiHelpers.showToast(resumeData.error || 'Lỗi resume', 'error');
+                                    TranslationWorker.resetButton(selBtn, true);
+                                }
+                            }).catch(e => { UiHelpers.showToast('Lỗi resume: ' + e.message, 'error'); TranslationWorker.resetButton(selBtn, true); });
+                        } else if (action === 'restart') {
+                            // Dịch lại từ đầu CHỈ những file có checkpoint (names), không phải
+                            // toàn bộ `files` — các file khác đã được server nhận ở lần POST đầu.
+                            TranslationWorker._forceTranslate(window.currentProject.slug, names, selBtn, true);
+                        } else if (action === 'close_partial') {
+                            TranslationWorker.handleClosePartialByCheckpoints(data.checkpoints, window.currentProject.slug);
+                            TranslationWorker.resetButton(selBtn, true);
+                        } else {
+                            TranslationWorker.resetButton(selBtn, true);
+                        }
                     });
+                } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
+            })
+            .catch(e => {
+                UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+                TranslationWorker.resetButton(selBtn, true);
+            });
+    },
+
+    showResumeActionModal(checkpoints, onAction) {
+        const preview = document.getElementById('resume-action-files-preview');
+        if (!preview) return;
+        const names = Object.keys(checkpoints || {});
+        preview.innerHTML = names.map(n => `<div class="mb1 bb b--black-05 pb1"><strong>${n}</strong> <span class="gray">(Đã dịch: ${checkpoints[n].completed_chunks}/${checkpoints[n].total_chunks} chunk)</span></div>`).join('');
+
+        const closePartialBtn = document.getElementById('btn-resume-action-close-partial');
+        const continueBtn = document.getElementById('btn-resume-action-continue');
+        const restartBtn = document.getElementById('btn-resume-action-restart');
+        if (!closePartialBtn || !continueBtn || !restartBtn) return;
+
+        const newClosePartial = closePartialBtn.cloneNode(true);
+        const newContinue = continueBtn.cloneNode(true);
+        const newRestart = restartBtn.cloneNode(true);
+
+        closePartialBtn.parentNode.replaceChild(newClosePartial, closePartialBtn);
+        continueBtn.parentNode.replaceChild(newContinue, continueBtn);
+        restartBtn.parentNode.replaceChild(newRestart, restartBtn);
+
+        let locked = false;
+        const fire = (action) => {
+            if (locked) return;
+            locked = true;
+            ModalManager.hide('resume-action-modal');
+            onAction(action);
+        };
+        newClosePartial.addEventListener('click', () => fire('close_partial'));
+        newContinue.addEventListener('click', () => fire('continue'));
+        newRestart.addEventListener('click', () => fire('restart'));
+
+        ModalManager.show('resume-action-modal');
+    },
+
+    async resolveTaskForFile(filename, checkpointKey) {
+        try {
+            const res = await fetch('/api/tasks');
+            if (!res.ok) return null;
+            const data = await res.json();
+            const tasks = data.tasks || [];
+            let task = tasks.find(t => t.filename === filename);
+            if (task) return task;
+            if (checkpointKey) {
+                const norm = String(checkpointKey).replace(/\.db$/, '');
+                task = tasks.find(t => (t.checkpoint_key || '').replace(/\.db$/, '') === norm);
+                if (task) return task;
+                const r = await fetch(`/api/tasks/by-checkpoint/${encodeURIComponent(checkpointKey)}`);
+                if (r.ok) {
+                    const body = await r.json();
+                    if (body.task_id) {
+                        return tasks.find(t => t.task_id === body.task_id) ||
+                               { task_id: body.task_id, job_id: body.job_id, status: body.status };
+                    }
                 }
-            } else UiHelpers.showToast(data.error || 'Lỗi', 'error');
-        });
+            }
+            return null;
+        } catch (e) {
+            console.error('resolveTaskForFile failed', e);
+            return null;
+        }
+    },
+
+    async handleClosePartialByCheckpoints(checkpoints, projectSlug) {
+        let successCount = 0;
+        let failCount = 0;
+        let pendingCount = 0;
+        for (const [name, ck] of Object.entries(checkpoints)) {
+            try {
+                const task = await TranslationWorker.resolveTaskForFile(name, ck.checkpoint_key);
+                if (!task || !task.task_id) { failCount++; continue; }
+                const res = await fetch(`/api/tasks/${task.task_id}/close-as-partial`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ confirm: true, export_partial: true })
+                });
+                if (res.status === 202) { pendingCount++; continue; }
+                if (res.ok) { successCount++; }
+                else { failCount++; }
+            } catch (e) {
+                console.error(e);
+                failCount++;
+            }
+        }
+        let msg = `Đã chia tách ${successCount} file thành công.`;
+        if (pendingCount > 0) msg += ` ${pendingCount} file đang chờ worker dừng.`;
+        if (failCount > 0) msg += ` Lỗi: ${failCount} file.`;
+        UiHelpers.showToast(msg, successCount > 0 ? 'success' : (pendingCount > 0 ? 'info' : 'error'));
+        if (typeof ProjectManager !== 'undefined' && ProjectManager.loadFiles) {
+            ProjectManager.loadFiles(projectSlug);
+        }
+        ApiClient.loadTasks();
     },
 
     spellcheckSelectedInProject() {
@@ -250,6 +389,7 @@ const TranslationWorker = {
 
         const taskState = TranslationWorker._taskStateByJob.get(job_id) || {
             jobId: job_id,
+            taskId: job_id,
             status: 'started',
             percent: 0,
             message: 'Đang chuẩn bị...',
@@ -258,7 +398,8 @@ const TranslationWorker = {
             totalFiles: totalFiles || 0
         };
         taskState.status = 'started';
-        updateResumeButton('started');
+        taskState.taskId = taskState.taskId || job_id;
+        TranslationWorker._updateResumeButton('started');
         if (totalFiles > 0) taskState.totalFiles = totalFiles;
         TranslationWorker._taskStateByJob.set(job_id, taskState);
         TranslationWorker._activeJobId = job_id;
@@ -277,6 +418,8 @@ const TranslationWorker = {
             btnResume.disabled = false;
             btnResume.textContent = 'Tiếp tục';
         }
+        const recoveryInfo = document.getElementById('recovery-info');
+        if (recoveryInfo) recoveryInfo.classList.add('dn');
 
         if (window._autoReturnTimer) {
             clearInterval(window._autoReturnTimer);
@@ -288,11 +431,43 @@ const TranslationWorker = {
             if (data.type === 'stream_end') {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
+                // Nếu bị end stream đột ngột (task đã resumable/interrupted từ trước)
+                fetch(`/api/tasks/${job_id}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(snapshot => {
+                        if (snapshot) {
+                            taskState.status = snapshot.status;
+                            taskState.taskId = snapshot.task_id || taskState.taskId;
+                            taskState.completedChunks = snapshot.completed_chunks || taskState.completedChunks || 0;
+                            taskState.totalChunks = snapshot.total_chunks || taskState.totalChunks || 0;
+                            if (snapshot.total_chunks > 0) {
+                                taskState.percent = Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100);
+                            }
+                            taskState.message = snapshot.last_error || (snapshot.status === 'resumable' ? 'Đã tạm dừng' : 'Đã kết thúc');
+                            TranslationWorker.updateProgress(taskState.percent, taskState.message);
+                            if (ModalManager.isOpen('translation-progress-modal')) {
+                                UiHelpers.renderProgressModal(taskState);
+                            }
+                            TranslationWorker._updateResumeButton(snapshot.status);
+
+                            if (snapshot.status === 'failed') {
+                                taskState.recoveryAvailable = snapshot.recovery_available !== false;
+                                TranslationWorker._showRecoveryActions(taskState);
+                            }
+                        }
+                    })
+                    .catch(() => {
+                        TranslationWorker.updateProgress(taskState.percent, 'Đã kết thúc stream');
+                    });
                 return;
             }
             if (data.type === 'progress') {
                 taskState.percent = data.percent;
                 taskState.message = data.message;
+                if (data.current !== undefined) taskState.completedChunks = data.current;
+                if (data.total !== undefined) taskState.totalChunks = data.total
+
+                TranslationWorker._updateResumeButton(taskState.status);
                 TranslationWorker.updateProgress(data.percent, data.message);
                 if (ModalManager.isOpen('translation-progress-modal')) {
                     UiHelpers.renderProgressModal(taskState);
@@ -328,7 +503,7 @@ const TranslationWorker = {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'completed';
-                updateResumeButton('completed');
+                TranslationWorker._updateResumeButton('completed');
                 taskState.percent = 100;
                 taskState.message = 'Tất cả hoàn tất! 🚀';
                 TranslationWorker._lastViewedJobId = job_id;
@@ -371,7 +546,7 @@ const TranslationWorker = {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'failed';
-                updateResumeButton('failed');
+                TranslationWorker._updateResumeButton('failed');
                 taskState.message = 'Lỗi: ' + data.message;
                 TranslationWorker._lastViewedJobId = job_id;
                 TranslationWorker._activeJobId = null;
@@ -381,11 +556,46 @@ const TranslationWorker = {
                 if (btnStop) btnStop.classList.add('dn');
                 ApiClient.loadTasks();
             }
+            else if (data.type === 'task_failed') {
+                evtSource.close();
+                TranslationWorker._evtSource = null;
+                taskState.status = 'failed';
+                taskState.errorClass = data.error_context?.status || 'unknown';
+                taskState.httpStatus = data.error_context?.http_status || null;
+                taskState.retryable = data.error_context?.retryable || false;
+                taskState.recoveryAvailable = true;
+                TranslationWorker._updateResumeButton('failed');
+                taskState.message = data.error_context?.message || 'Lỗi: dịch thất bại';
+                TranslationWorker._lastViewedJobId = job_id;
+                TranslationWorker._activeJobId = null;
+                UiHelpers.addLog(taskState.message, 'error');
+                TranslationWorker.resetButton(btn, isBatch);
+                TranslationWorker.updateProgress(0, taskState.message);
+                if (btnStop) btnStop.classList.add('dn');
+                ApiClient.loadTasks();
+                // The persistent task is the source of truth for recovery
+                // metadata; refresh it before enabling recovery actions.
+                fetch(`/api/tasks/${taskState.taskId}`)
+                    .then(r => r.ok ? r.json() : null)
+                    .then(snapshot => {
+                        if (snapshot) {
+                            taskState.completedChunks = snapshot.completed_chunks || taskState.completedChunks || 0;
+                            taskState.totalChunks = snapshot.total_chunks || taskState.totalChunks || 0;
+                            taskState.recoveryAvailable = snapshot.recovery_available !== false;
+                        }
+                        TranslationWorker._updateResumeButton('failed');
+                        TranslationWorker._showRecoveryActions(taskState);
+                    })
+                    .catch(() => {
+                        TranslationWorker._updateResumeButton('failed');
+                        TranslationWorker._showRecoveryActions(taskState);
+                    });
+            }
             else if (data.type === 'cancelled') {
                 evtSource.close();
                 TranslationWorker._evtSource = null;
                 taskState.status = 'cancelled';
-                updateResumeButton('cancelled');
+                TranslationWorker._updateResumeButton('cancelled');
                 taskState.message = data.message || 'Đã dừng';
                 TranslationWorker._lastViewedJobId = job_id;
                 TranslationWorker._activeJobId = null;
@@ -406,6 +616,39 @@ const TranslationWorker = {
             TranslationWorker._evtSource = null;
             TranslationWorker.resetButton(btn, isBatch);
             if (btnStop) btnStop.classList.add('dn');
+
+            // Lấy state từ DB vì stream bị lỗi (ví dụ 404 do task không nằm trong RAM registry)
+            fetch(`/api/tasks/${job_id}`)
+                .then(r => r.ok ? r.json() : null)
+                .then(snapshot => {
+                    if (snapshot) {
+                        taskState.status = snapshot.status;
+                        taskState.taskId = snapshot.task_id || taskState.taskId;
+                        taskState.completedChunks = snapshot.completed_chunks || taskState.completedChunks || 0;
+                        taskState.totalChunks = snapshot.total_chunks || taskState.totalChunks || 0;
+                        if (snapshot.total_chunks > 0) {
+                            taskState.percent = Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100);
+                        }
+                        taskState.message = snapshot.last_error || (snapshot.status === 'resumable' ? 'Đã tạm dừng' : 'Đã kết thúc');
+                        TranslationWorker.updateProgress(taskState.percent, taskState.message);
+                        if (ModalManager.isOpen('translation-progress-modal')) {
+                            UiHelpers.renderProgressModal(taskState);
+                        }
+                        TranslationWorker._updateResumeButton(snapshot.status)
+
+                        if (snapshot.status === 'failed') {
+                            taskState.recoveryAvailable = snapshot.recovery_available !== false;
+                            TranslationWorker._showRecoveryActions(taskState);
+                        }
+                    } else {
+                        TranslationWorker.updateProgress(taskState.percent, 'Không thể kết nối đến máy chủ.');
+                        TranslationWorker._updateResumeButton('interrupted');
+                    }
+                })
+                .catch(() => {
+                    TranslationWorker.updateProgress(taskState.percent, 'Không thể kết nối đến máy chủ.');
+                    TranslationWorker._updateResumeButton('interrupted');
+                });
         };
 
         if (btnResume) {
@@ -413,7 +656,11 @@ const TranslationWorker = {
                 if (!job_id) return;
                 btnResume.disabled = true;
                 btnResume.textContent = 'Đang khôi phục...';
-                fetch(`/api/tasks/${job_id}/resume`, { method: 'POST' })
+                // Lấy taskId thực sự từ state nếu có
+                const state = TranslationWorker._taskStateByJob.get(job_id);
+                const targetTaskId = state ? state.taskId : job_id
+
+                fetch(`/api/tasks/${targetTaskId}/resume`, { method: 'POST' })
                     .then(r => r.json())
                     .then(data => {
                         if (data.job_id) {
@@ -432,18 +679,64 @@ const TranslationWorker = {
             };
         }
 
-        function updateResumeButton(status) {
-            const btnResume = document.getElementById('btn-progress-resume');
-            const btnStop = document.getElementById('btn-progress-stop');
-            if (!btnResume) return;
-            if (['paused', 'failed', 'interrupted', 'resumable'].includes(status)) {
-                btnResume.classList.remove('dn');
-                if (btnStop) btnStop.classList.add('dn');
-            } else if (status === 'running' || status === 'started') {
-                btnResume.classList.add('dn');
-            } else if (status === 'completed') {
-                btnResume.classList.add('dn');
-            }
+        // Recovery buttons
+        const btnRecovery = document.getElementById('btn-progress-recovery');
+        const btnExportPartial = document.getElementById('btn-export-partial');
+        if (btnRecovery) {
+            btnRecovery.onclick = function () {
+                const taskState = TranslationWorker._taskStateByJob.get(job_id);
+                if (taskState) TranslationWorker._startRecovery(taskState);
+            };
+        }
+        if (btnExportPartial) {
+            btnExportPartial.onclick = function () {
+                const taskState = TranslationWorker._taskStateByJob.get(job_id);
+                if (taskState) TranslationWorker._exportPartial(taskState);
+            };
+        }
+        const btnClosePartial = document.getElementById('btn-progress-close-partial');
+        if (btnClosePartial) {
+            btnClosePartial.onclick = function () {
+                const taskState = TranslationWorker._taskStateByJob.get(job_id);
+                if (taskState) TranslationWorker._closeAsPartial(taskState);
+            };
+        }
+    },
+
+    _updateResumeButton(status) {
+        const btnResume = document.getElementById('btn-progress-resume');
+        const btnStop = document.getElementById('btn-progress-stop');
+        const btnRecovery = document.getElementById('btn-progress-recovery');
+        const btnExportPartial = document.getElementById('btn-export-partial');
+        const btnClosePartial = document.getElementById('btn-progress-close-partial')
+
+        if (!btnResume) return
+
+        const taskState = TranslationWorker._taskStateByJob.get(TranslationWorker._activeJobId || TranslationWorker._lastViewedJobId)
+        const hasChunks = taskState && taskState.completedChunks > 0
+
+        if (['paused', 'failed', 'interrupted', 'resumable'].includes(status)) {
+            btnResume.classList.remove('dn')
+            btnResume.disabled = false
+            btnResume.textContent = 'Tiếp tục'
+            if (btnStop) btnStop.classList.add('dn')
+        } else if (status === 'running' || status === 'started') {
+            btnResume.classList.add('dn')
+            if (btnStop) btnStop.classList.remove('dn')
+        } else if (status === 'completed' || status === 'cancelled' || status === 'closed_partial') {
+            btnResume.classList.add('dn')
+            if (btnStop) btnStop.classList.add('dn')
+        }
+
+        if (btnRecovery) {
+            btnRecovery.classList.toggle('dn', status !== 'failed');
+        }
+        if (btnExportPartial) {
+            btnExportPartial.classList.toggle('dn', status !== 'failed');
+        }
+        if (btnClosePartial) {
+            const canClosePartial = hasChunks && ['running', 'started', 'resumable', 'paused', 'failed', 'interrupted'].includes(status);
+            btnClosePartial.classList.toggle('dn', !canClosePartial);
         }
     },
 
@@ -489,16 +782,63 @@ const TranslationWorker = {
     },
 
     openTaskProgress(jobId) {
-        const state = TranslationWorker._taskStateByJob.get(jobId);
-        if (state) {
-            TranslationWorker._activeJobId = jobId;
-            TranslationWorker._lastViewedJobId = jobId;
-            UiHelpers.renderProgressModal(state);
-            ModalManager.show('translation-progress-modal');
-            return;
-        }
+        // Tải snapshot trước khi quyết định connect SSE
+        fetch(`/api/tasks/${jobId}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(snapshot => {
+                if (snapshot) {
+                    let state = TranslationWorker._taskStateByJob.get(jobId);
+                    if (!state) {
+                        state = {
+                            jobId: jobId,
+                            taskId: snapshot.task_id || jobId,
+                            status: snapshot.status || 'resumable',
+                            percent: snapshot.total_chunks ? Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100) : 0,
+                            message: snapshot.last_error || (snapshot.status === 'resumable' ? 'Đã tạm dừng' : ''),
+                            logs: [],
+                            completedChunks: snapshot.completed_chunks || 0,
+                            totalChunks: snapshot.total_chunks || 0,
+                            recoveryAvailable: snapshot.recovery_available !== false,
+                            httpStatus: null,
+                            retryable: false
+                        };
+                        TranslationWorker._taskStateByJob.set(jobId, state);
+                    } else {
+                        state.status = snapshot.status;
+                        state.taskId = snapshot.task_id || state.taskId;
+                        state.completedChunks = snapshot.completed_chunks || state.completedChunks || 0;
+                        state.totalChunks = snapshot.total_chunks || state.totalChunks || 0;
+                        if (snapshot.total_chunks > 0) {
+                            state.percent = Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100);
+                        }
+                    }
 
-        TranslationWorker.connectToProgress(null, false, jobId);
+                    TranslationWorker._activeJobId = jobId;
+                    TranslationWorker._lastViewedJobId = jobId;
+
+                    if (state.status === 'running' || state.status === 'started') {
+                        TranslationWorker.connectToProgress(null, false, jobId)
+                    } else {
+                        // Trạng thái đã dừng, chỉ hiển thị snapshot, KHÔNG connect SSE
+                        TranslationWorker._activeJobId = null // không khóa job active
+                        UiHelpers.resetProgressModal()
+                        UiHelpers.renderProgressModal(state)
+                        TranslationWorker.updateProgress(state.percent, state.message)
+                        TranslationWorker._updateResumeButton(state.status)
+
+                        const btnDone = document.getElementById('btn-progress-done')
+                        if (btnDone) btnDone.classList.add('dn')
+
+                        if (state.status === 'failed' && state.recoveryAvailable) {
+                            TranslationWorker._showRecoveryActions(state);
+                        }
+                        ModalManager.show('translation-progress-modal');
+                    }
+                } else {
+                    TranslationWorker.connectToProgress(null, false, jobId);
+                }
+            })
+            .catch(() => TranslationWorker.connectToProgress(null, false, jobId));
     },
 
     openLatestTaskProgress() {
@@ -528,7 +868,150 @@ const TranslationWorker = {
                 }
             })
             .catch(e => console.error('Failed to load tasks', e));
-    }
+    },
+
+    _showRecoveryActions(taskState) {
+        const recoverySection = document.getElementById('recovery-actions');
+        const sourceStatus = document.getElementById('source-task-status');
+        const recoveryStatus = document.getElementById('recovery-task-status');
+        const recoveryInfo = document.getElementById('recovery-info');
+        if (recoverySection) recoverySection.classList.remove('dn');
+        if (recoveryInfo) recoveryInfo.classList.remove('dn');
+        if (sourceStatus) sourceStatus.textContent = `failed / provider blocked (${taskState.httpStatus || '451'})`;
+        if (recoveryStatus) recoveryStatus.textContent = 'chờ tạo task mới';
+    },
+
+    async _startRecovery(taskState) {
+        const confirmed = await showConfirm(
+            `Giữ ${taskState.completedChunks || 0} chunk đã dịch và tạo task mới để dịch tiếp phần còn lại?\n\n` +
+            `Task cũ: ${taskState.taskId}\n` +
+            `Provider/model sẽ được giữ nguyên hoặc chọn mới trong modal.`
+        );
+        if (!confirmed) return;
+
+        const btnRecovery = document.getElementById('btn-progress-recovery');
+        if (btnRecovery) {
+            btnRecovery.disabled = true;
+            btnRecovery.textContent = 'Đang tạo recovery...';
+        }
+
+        try {
+            const response = await fetch(`/api/tasks/${taskState.taskId}/recover-from-checkpoint`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider_id: document.getElementById('provider-select')?.value || '',
+                    model: document.getElementById('model')?.value || '',
+                    export_partial: true,
+                }),
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Không thể tạo recovery');
+            }
+
+            const result = await response.json();
+
+            if (TranslationWorker._evtSource) {
+                TranslationWorker._evtSource.close();
+                TranslationWorker._evtSource = null;
+            }
+            TranslationWorker._taskStateByJob.delete(taskState.taskId);
+
+            const newState = {
+                ...taskState,
+                jobId: result.job_id,
+                status: 'running',
+                recoveryOf: taskState.taskId,
+                partialOutput: result.partial_output,
+                completedChunks: result.checkpoint?.completed_chunks || 0,
+                totalChunks: result.checkpoint?.total_chunks || 0,
+            };
+            TranslationWorker._taskStateByJob.set(result.job_id, newState);
+            TranslationWorker._activeJobId = result.job_id;
+            TranslationWorker._lastViewedJobId = result.job_id;
+
+            const recoveryStatus = document.getElementById('recovery-task-status');
+            if (recoveryStatus) recoveryStatus.textContent = 'running';
+
+            UiHelpers.addLog(`Đã tạo recovery task: ${result.job_id}`, 'success');
+            TranslationWorker.connectToProgress(null, false, result.job_id);
+
+        } catch (err) {
+            UiHelpers.showToast('Lỗi: ' + err.message, 'error');
+            if (btnRecovery) {
+                btnRecovery.disabled = false;
+                btnRecovery.textContent = 'Giữ phần đã dịch + tạo task mới';
+            }
+        }
+    },
+
+    async _exportPartial(taskState) {
+        try {
+            const response = await fetch(`/api/tasks/${taskState.taskId}/export-partial`, { method: 'POST' });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Không thể xuất partial');
+            }
+            const result = await response.json();
+            UiHelpers.showToast(`Đã xuất partial: ${result.partial_output}`, 'success');
+            UiHelpers.addLog(`Partial file: ${result.partial_output} (${result.done_chunks} chunk đã dịch)`, 'info');
+        } catch (err) {
+            UiHelpers.showToast('Lỗi: ' + err.message, 'error');
+        }
+    },
+
+    async _closeAsPartial(taskState) {
+        const confirmed = await showConfirm(
+            `Bạn có chắc muốn chia tách phần đã dịch và kết thúc task này?\n\n` +
+            `Một file .partial.md sẽ được tạo ra với ${taskState.completedChunks} chunk đã dịch.`
+        );
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch(`/api/tasks/${taskState.taskId}/close-as-partial`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirm: true, export_partial: true })
+            });
+            if (response.status === 202) {
+                // close_pending: worker chưa dừng trong timeout. KHÔNG assemble, KHÔNG cancel thêm.
+                await response.json();
+                UiHelpers.showToast('Task đang chạy, chờ worker dừng hẳn rồi thử lại...', 'info');
+                setTimeout(() => TranslationWorker.openTaskProgress(taskState.jobId), 3000);
+                return;
+            }
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Không thể chốt task');
+            }
+            const result = await response.json();
+            UiHelpers.showToast(`Đã chốt file: ${result.partial_output}`, 'success');
+
+            if (TranslationWorker._evtSource) {
+                TranslationWorker._evtSource.close();
+                TranslationWorker._evtSource = null;
+            }
+            TranslationWorker._taskStateByJob.delete(taskState.jobId);
+            // KHÔNG gọi /cancel ở đây — xem B15. Route đã cancel scoped và đã chờ worker dừng.
+            ApiClient.loadTasks();
+        } catch (err) {
+            UiHelpers.showToast('Lỗi: ' + err.message, 'error');
+        }
+    },
+
+    _setRecoveryInProgress(inProgress) {
+        const btnRecovery = document.getElementById('btn-progress-recovery');
+        const btnExportPartial = document.getElementById('btn-export-partial');
+        if (btnRecovery) {
+            btnRecovery.disabled = inProgress;
+            btnRecovery.textContent = inProgress ? 'Đang tạo recovery...' : 'Giữ phần đã dịch + tạo task mới';
+        }
+        if (btnExportPartial) {
+            btnExportPartial.disabled = inProgress;
+        }
+    },
 };
 
 window.TranslationWorker = TranslationWorker;

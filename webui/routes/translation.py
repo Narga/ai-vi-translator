@@ -168,10 +168,19 @@ def progress_stream():
 
 @translation_bp.route("/api/translate/cancel", methods=["POST"])
 def cancel_translation():
-    """Yêu cầu dừng tiến trình dịch."""
+    """Compatibility shim: chỉ cancel khi có job_id. KHÔNG BAO GIỜ cancel toàn cục."""
     from backend.infrastructure.progress.runtime_state import RuntimeState
+    data = request.get_json(silent=True) or {}
+    job_id = data.get("job_id") or request.args.get("job_id")
+    if not job_id:
+        return jsonify({
+            "error": "Thiếu job_id — không thể cancel toàn cục",
+            "code": "job_id_required",
+        }), 400
     state = RuntimeState()
-    state.request_cancel()
+    state.request_cancel(job_id)
+    # GIỮ LẠI: SSE legacy của trang dịch đơn lẻ đọc từ progress_queue (generate() cùng file).
+    # Bỏ dòng này là mất phản hồi "đã dừng" trên UI dịch đơn — đây là hồi quy UX, không phải dọn rác.
     from webui import progress_queue
     progress_queue.put({"type": "cancelled", "message": "Đã dừng theo yêu cầu"})
     return jsonify({"success": True, "message": "Đã gửi yêu cầu dừng"})
