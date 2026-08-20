@@ -5,7 +5,7 @@
 
 import time
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Tuple, Any
 from threading import Lock
 from collections import deque
@@ -118,14 +118,14 @@ class AdaptiveRateLimiter:
         self.cool_down_until: Dict[str, float] = {}
         self.daily_usage: Dict[str, int] = {}
         self.daily_tokens: Dict[str, int] = {}
-        self.last_reset_date: str = datetime.utcnow().strftime("%Y-%m-%d")
+        self.last_reset_date: str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         self._round_robin_offset: int = 0  # Tie-break cho least_used
         self._lock = Lock()
         self._logger = logging.getLogger(__name__)
 
     def _check_daily_reset(self) -> None:
         """Reset daily usage nếu đã sang ngày mới (UTC)."""
-        current_date = datetime.utcnow().strftime("%Y-%m-%d")
+        current_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         if current_date != self.last_reset_date:
             self._logger.info(
                 f"🔄 Daily quota reset: {self.last_reset_date} → {current_date}"

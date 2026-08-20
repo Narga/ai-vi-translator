@@ -4,7 +4,7 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class TaskStore:
@@ -38,6 +38,9 @@ class TaskStore:
             # NULL = task trước lease hoặc non-running. Startup dùng lease timeout để
             # chuyển running + stale heartbeat → interrupted (worker crash, không restart).
             ("heartbeat_at", "TEXT", "NULL"),
+            # P1.7: Fencing token & epoch chống zombie worker ghi đè dữ liệu
+            ("lease_token", "TEXT", "NULL"),
+            ("lease_epoch", "INTEGER", "0"),
         ]
 
         existing = {
@@ -177,9 +180,11 @@ class TaskStore:
         provider_id: str,
         model: str,
         mixed_provider: bool,
+        source_checkpoint_key: Optional[str] = None,
+        root_recovery_of: Optional[str] = None,
     ) -> str:
         """
-        Tạo task recovery mới liên kết với task lỗi.
+        Tạo task recovery mới liên kết với task lỗi (hỗ trợ recovery lineage nhiều cấp).
 
         Args:
             source_task: Task bị lỗi (dict từ get_task)
@@ -188,11 +193,23 @@ class TaskStore:
             provider_id: Provider mới
             model: Model mới
             mixed_provider: True nếu provider/model khác source
+            source_checkpoint_key: Checkpoint của task nguồn trực tiếp
+            root_recovery_of: Root task ID đầu tiên trong chuỗi lineage
 
         Returns:
             recovery_task_id
         """
         now = datetime.now().isoformat()
+        src_ck_key = (
+            source_checkpoint_key
+            or source_task.get("recovery_checkpoint_key")
+            or source_task.get("checkpoint_key")
+        )
+        root_rec_of = (
+            root_recovery_of
+            or source_task.get("recovery_of")
+            or source_task["task_id"]
+        )
         with self._cursor() as cur:
             cur.execute(
                 """INSERT INTO tasks (
@@ -217,9 +234,9 @@ class TaskStore:
                     source_task.get("phase", "recovery"),
                     recovery_checkpoint_key,
                     source_task.get("resume_of"),
+                    root_rec_of,
                     source_task["task_id"],
-                    source_task["task_id"],
-                    source_task.get("checkpoint_key"),
+                    src_ck_key,
                     recovery_checkpoint_key,
                     None,
                     None,
@@ -236,7 +253,20 @@ class TaskStore:
             )
         return recovery_job_id
 
-    def update_recovery_task(self, task_id: str, **kwargs):
+    def delete_task(self, task_id: str) -> bool:
+        """Xóa task và các events liên quan (dùng cho rollback khi prepare thất bại)."""
+        with self._cursor() as cur:
+            cur.execute("DELETE FROM task_events WHERE task_id = ?", (task_id,))
+            cur.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+            return cur.rowcount > 0
+
+    def update_recovery_task(
+        self,
+        task_id: str,
+        lease_epoch: Optional[int] = None,
+        lease_token: Optional[str] = None,
+        **kwargs,
+    ) -> bool:
         """
         Cập nhật recovery task metadata.
         Kwargs có thể bao gồm: partial_output_path, final_output_path,
@@ -246,12 +276,13 @@ class TaskStore:
             "partial_output_path", "final_output_path", "pending_chunks",
             "completed_chunks", "current_chunk", "status", "last_error",
             "error_class", "http_status", "retryable", "heartbeat_at",
+            "checkpoint_key",
         }
         sets = ["updated_at = ?"]
         vals: list = [datetime.now().isoformat()]
 
         for k, v in kwargs.items():
-            if k not in allowed:
+            if k not in allowed or v is None:
                 continue
             if k == "pending_chunks" and isinstance(v, list):
                 v = json.dumps(v, ensure_ascii=False)
@@ -259,11 +290,20 @@ class TaskStore:
             vals.append(v)
 
         vals.append(task_id)
+        where_clause = "WHERE task_id = ?"
+        if lease_epoch is not None:
+            where_clause += " AND lease_epoch = ?"
+            vals.append(lease_epoch)
+        if lease_token is not None:
+            where_clause += " AND lease_token = ?"
+            vals.append(lease_token)
+
         with self._cursor() as cur:
             cur.execute(
-                f"UPDATE tasks SET {', '.join(sets)} WHERE task_id = ?",
+                f"UPDATE tasks SET {', '.join(sets)} {where_clause}",
                 vals,
             )
+            return cur.rowcount > 0
 
     def get_task(self, task_id: str) -> Optional[dict]:
         row = self._get_connection().execute(
@@ -283,61 +323,175 @@ class TaskStore:
             row = cur.fetchone()
             return self._row_to_task(row) if row else None
 
-    def update_status(self, task_id: str, status: str, **kwargs):
+    def update_status(
+        self,
+        task_id: str,
+        status: str,
+        lease_epoch: Optional[int] = None,
+        lease_token: Optional[str] = None,
+        **kwargs,
+    ) -> bool:
         sets = ["status = ?", "updated_at = ?"]
         vals: list = [status, datetime.now().isoformat()]
+        if status in ("completed", "failed", "cancelled", "closed_partial"):
+            sets.append("lease_token = NULL")
         for k, v in kwargs.items():
-            sets.append(f"{k} = ?")
-            vals.append(v)
+            if v is not None:
+                sets.append(f"{k} = ?")
+                vals.append(v)
         vals.append(task_id)
+        where_clause = "WHERE task_id = ?"
+        if lease_epoch is not None:
+            where_clause += " AND lease_epoch = ?"
+            vals.append(lease_epoch)
+        if lease_token is not None:
+            where_clause += " AND lease_token = ?"
+            vals.append(lease_token)
+
         with self._cursor() as cur:
             cur.execute(
-                f"UPDATE tasks SET {', '.join(sets)} WHERE task_id = ?",
+                f"UPDATE tasks SET {', '.join(sets)} {where_clause}",
                 vals,
             )
+            return cur.rowcount > 0
+
+    def acquire_lease(
+        self, task_id: str, lease_timeout_seconds: float = 30.0
+    ) -> Optional[tuple]:
+        """
+        Atomic claim lease trên task.
+        Chỉ thành công nếu task ở trạng thái:
+        - 'queued', 'interrupted', 'resumable'
+        - hoặc 'running' nhưng heartbeat_at đã hết hạn quá lease_timeout_seconds (hoặc heartbeat_at IS NULL).
+        Tuyệt đối KHÔNG acquire task ở trạng thái: 'completed', 'failed', 'cancelled', 'closed_partial'.
+        Trả về (lease_token, lease_epoch) nếu thành công, None nếu thất bại.
+        """
+        import uuid
+        from datetime import timedelta
+        new_token = str(uuid.uuid4())
+        now = datetime.now()
+        now_iso = now.isoformat()
+        stale_threshold = (now - timedelta(seconds=lease_timeout_seconds)).isoformat()
+
+        with self._cursor() as cur:
+            cur.execute(
+                """UPDATE tasks
+                   SET lease_token = ?,
+                       lease_epoch = COALESCE(lease_epoch, 0) + 1,
+                       heartbeat_at = ?,
+                       status = 'running',
+                       updated_at = ?
+                   WHERE task_id = ?
+                     AND (
+                         status IN ('queued', 'interrupted', 'resumable')
+                         OR (status = 'running' AND (heartbeat_at IS NULL OR heartbeat_at < ?))
+                     )""",
+                (new_token, now_iso, now_iso, task_id, stale_threshold),
+            )
+            if cur.rowcount == 0:
+                return None
+
+            cur.execute("SELECT lease_epoch FROM tasks WHERE task_id = ?", (task_id,))
+            row = cur.fetchone()
+            epoch = row[0] if row else 1
+            return new_token, epoch
+
+    def touch_lease(
+        self, task_id: str, lease_epoch: int, lease_token: Optional[str] = None
+    ) -> bool:
+        """
+        Cập nhật heartbeat_at có điều kiện (atomic CAS).
+        Chỉ thành công nếu task đang 'running', lease_epoch khớp (và lease_token khớp nếu có).
+        """
+        now_iso = datetime.now().isoformat()
+        query = (
+            "UPDATE tasks SET heartbeat_at = ?, updated_at = ? "
+            "WHERE task_id = ? AND lease_epoch = ? AND status = 'running'"
+        )
+        params = [now_iso, now_iso, task_id, lease_epoch]
+        if lease_token is not None:
+            query += " AND lease_token = ?"
+            params.append(lease_token)
+        with self._cursor() as cur:
+            cur.execute(query, params)
+            return cur.rowcount > 0
+
+    def is_lease_valid(
+        self, task_id: str, lease_epoch: Optional[int], lease_token: Optional[str]
+    ) -> bool:
+        """
+        Durable check trực tiếp vào SQLite tasks.db (Fail-Closed & Strict State):
+        Chỉ trả về True khi:
+        - task_id tồn tại,
+        - status == 'running',
+        - lease_epoch khớp chính xác,
+        - lease_token khớp chính xác và không rỗng.
+        """
+        if not task_id or lease_epoch is None or not lease_token:
+            return False
+        with self._cursor() as cur:
+            cur.execute(
+                "SELECT lease_epoch, lease_token, status FROM tasks WHERE task_id = ?",
+                (task_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return False
+            curr_epoch, curr_token, status = row
+            if status != "running":
+                return False
+            if curr_epoch != lease_epoch or curr_token != lease_token:
+                return False
+            return True
 
     def touch_heartbeat(self, task_id: str) -> None:
-        """Cập nhật heartbeat để chứng minh worker task đang còn sống (P1 Phase 7 lease).
-
-        Worker gọi định kỳ. Startup dùng heartbeat_at + lease timeout để phát hiện
-        worker crash (running nhưng không còn heartbeat) → chuyển interrupted.
-        """
+        """Cập nhật heartbeat để chứng minh worker task đang còn sống (P1 Phase 7 lease)."""
         with self._cursor() as cur:
             cur.execute(
                 "UPDATE tasks SET heartbeat_at = ?, updated_at = ? WHERE task_id = ?",
                 (datetime.now().isoformat(), datetime.now().isoformat(), task_id),
             )
 
-    def reconcile_lease_expired(self, lease_timeout_seconds: float) -> int:
-        """Chuyển task `running` + heartbeat cũ hơn lease_timeout → `interrupted`.
-
-        Worker crash không kịp cleanup → task không bị kẹt `running` thành completed giả.
-        Trả số task bị chuyển. Nếu heartbeat_at NULL (task cũ/isinstance) mà `running`,
-        coi là hết hạn để không treo vĩnh viễn.
-        """
+    def reconcile_lease_expired(self, lease_timeout_seconds: float = 30.0) -> int:
+        """Chuyển task `running` + heartbeat cũ hơn lease_timeout → `interrupted` và thu hồi lease_token."""
+        from datetime import timedelta
         now = datetime.now()
-        rows = self._get_connection().execute(
-            "SELECT task_id, heartbeat_at FROM tasks WHERE status = 'running'"
-        ).fetchall()
-        moved = 0
-        for task_id, hb in rows:
-            stale = False
-            if not hb:
-                stale = True  # chưa từng heartbeat → không có worker thật
-            else:
-                try:
-                    hb_dt = datetime.fromisoformat(hb)
-                    stale = (now - hb_dt).total_seconds() > lease_timeout_seconds
-                except ValueError:
-                    stale = True
-            if stale:
-                self.update_status(task_id, "interrupted")
-                moved += 1
-        return moved
+        stale_threshold = (now - timedelta(seconds=lease_timeout_seconds)).isoformat()
+        now_iso = now.isoformat()
+        with self._cursor() as cur:
+            cur.execute(
+                """UPDATE tasks
+                   SET status = 'interrupted',
+                       lease_token = NULL,
+                       updated_at = ?
+                   WHERE status = 'running'
+                     AND (heartbeat_at IS NULL OR heartbeat_at < ?)""",
+                (now_iso, stale_threshold),
+            )
+            return cur.rowcount
 
-    def append_event(self, task_id: str, event: dict):
+    def append_event(
+        self,
+        task_id: str,
+        event: dict,
+        lease_epoch: Optional[int] = None,
+        lease_token: Optional[str] = None,
+    ) -> bool:
         with self._lock:
             conn = self._get_connection()
+            if lease_epoch is not None or lease_token is not None:
+                query = "SELECT 1 FROM tasks WHERE task_id = ? AND status = 'running'"
+                params = [task_id]
+                if lease_epoch is not None:
+                    query += " AND lease_epoch = ?"
+                    params.append(lease_epoch)
+                if lease_token is not None:
+                    query += " AND lease_token = ?"
+                    params.append(lease_token)
+                row = conn.execute(query, params).fetchone()
+                if not row:
+                    return False
+
             cursor = (
                 conn.execute(
                     "SELECT COALESCE(MAX(cursor), -1) FROM task_events WHERE task_id = ?",
@@ -356,6 +510,7 @@ class TaskStore:
                 ),
             )
             conn.commit()
+            return True
 
     def iter_events(self, task_id: str, start_cursor: int = 0) -> List[dict]:
         rows = self._get_connection().execute(
@@ -404,7 +559,41 @@ class TaskStore:
         if conn:
             conn.close()
 
-    def _row_to_task(self, row: tuple) -> dict:
+    def get_recovery_attempt_count(self, root_task_id: str) -> int:
+        """Đếm số lần đã thử recovery cho root task ID (Phase 9: Poison Job Quarantine)."""
+        if not root_task_id:
+            return 0
+        with self._cursor() as cur:
+            row = cur.execute(
+                "SELECT COUNT(*) FROM tasks WHERE recovery_of = ? AND task_id != ?",
+                (root_task_id, root_task_id),
+            ).fetchone()
+            return row[0] if row else 0
+
+    def quarantine_task(self, task_id: str, reason: str = "max_recovery_attempts") -> bool:
+        """
+        Đánh dấu canonical poison job quarantine (Phase 9).
+        Tuân thủ quy tắc: status='failed', error_class='poison_job', không tạo status phi chuẩn.
+        """
+        now = datetime.now().isoformat()
+        with self._cursor() as cur:
+            cur.execute(
+                """
+                UPDATE tasks
+                SET status = 'failed',
+                    error_class = 'poison_job',
+                    last_error = ?,
+                    lease_token = NULL,
+                    updated_at = ?
+                WHERE task_id = ? OR job_id = ?
+                """,
+                (f"Quarantined poison job: {reason}", now, task_id, task_id),
+            )
+            return cur.rowcount > 0
+
+    def _row_to_task(self, row: Any) -> dict:
+        if not row:
+            return {}
         keys = [
             "task_id",
             "job_id",
@@ -435,14 +624,24 @@ class TaskStore:
             "retryable",
             "mixed_provider",
             "heartbeat_at",
+            "lease_token",
+            "lease_epoch",
         ]
-        d = dict(zip(keys, row))
-        d["identity"] = json.loads(d["identity"] or "{}")
+        if hasattr(row, "keys"):
+            row_keys = set(row.keys())
+            d = {k: row[k] if k in row_keys else None for k in keys}
+        elif isinstance(row, dict):
+            d = {k: row.get(k) for k in keys}
+        else:
+            d = dict(zip(keys, row))
+
+        d["identity"] = json.loads(d.get("identity") or "{}") if isinstance(d.get("identity"), str) else (d.get("identity") or {})
         if d.get("pending_chunks"):
-            try:
-                d["pending_chunks"] = json.loads(d["pending_chunks"])
-            except Exception:
-                d["pending_chunks"] = []
+            if isinstance(d["pending_chunks"], str):
+                try:
+                    d["pending_chunks"] = json.loads(d["pending_chunks"])
+                except Exception:
+                    d["pending_chunks"] = []
         else:
             d["pending_chunks"] = []
         return d

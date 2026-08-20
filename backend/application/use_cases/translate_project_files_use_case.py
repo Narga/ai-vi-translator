@@ -170,6 +170,7 @@ class TranslateProjectFilesUseCase:
         translation_memory=None,
         save_meta_callback: Optional[Callable] = None,
         job_id: Optional[str] = None,
+        lease_keep_alive: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """
         Thực hiện dịch nhiều file trong project.
@@ -279,6 +280,7 @@ class TranslateProjectFilesUseCase:
                         progress_callback=cb,
                         translation_memory=translation_memory,
                         job_id=job_id,
+                        lease_keep_alive=lease_keep_alive,
                     )
 
                     if job_id and runtime_state.is_cancelled(job_id):
@@ -335,6 +337,7 @@ class TranslateProjectFilesUseCase:
                         translation_memory=translation_memory,
                         write_output=False,
                         job_id=job_id,
+                        lease_keep_alive=lease_keep_alive,
                     )
                     
                     if job_id and runtime_state.is_cancelled(job_id):

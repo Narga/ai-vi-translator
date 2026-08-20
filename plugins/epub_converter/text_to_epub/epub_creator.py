@@ -6,7 +6,7 @@ import zipfile
 import html
 from pathlib import Path
 from typing import List, Dict
-from datetime import datetime
+from datetime import datetime, timezone
 
 # (Các hằng số MIMETYPE và CONTAINER_XML giữ nguyên)
 MIMETYPE = "application/epub+zip"
@@ -81,7 +81,7 @@ def _create_content_opf(oebps_dir: Path, book_info: Dict, xhtml_files: List[Path
     """
     Tạo tệp Package Document (content.opf), bao gồm cả metadata cho Calibre.
     """
-    modified_date = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    modified_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     
     metadata_xml = f"""
     <dc:identifier id="bookid">{book_info['identifier']}</dc:identifier>

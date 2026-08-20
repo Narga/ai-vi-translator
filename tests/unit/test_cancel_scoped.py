@@ -172,3 +172,47 @@ def test_progress_event_advances_current(_reset_registry, tmp_path):
                           "retryable": True, "message": "x"},
     })
     assert store.get_task_by_job_id(job_id)["completed_chunks"] == 7
+
+
+def test_cancel_before_translate_text_is_preserved(tmp_path, monkeypatch):
+    """Kiểm tra: Cancel request được gửi ngay trước khi executor.translate_text()
+
+    bắt đầu chạy thì KHÔNG bị xóa mù bởi reset_cancel.
+    """
+    from core.executor import TranslationExecutor
+    from services.checkpoint_service import CheckpointService
+
+    ck_dir = tmp_path / "checkpoints"
+    ck_service = CheckpointService(str(ck_dir))
+
+    # Đặt cancel request trước khi chạy translate_text
+    job_id = "test-early-cancel"
+    RuntimeState().request_cancel(job_id)
+
+    api_called = [False]
+
+    def fake_rt(*args, **kwargs):
+        api_called[0] = True
+        return "translation", "success", "k"
+
+    monkeypatch.setattr("core.executor.robust_translate", fake_rt)
+
+    executor = TranslationExecutor(api_keys=["test-key"], config={"chunk_size": 2400})
+    executor.checkpoint_service = ck_service
+
+    events = []
+    res = executor.translate_text(
+        text="chunk 0\n\nchunk 1",
+        output_filename="test_cancel_preserved.txt",
+        job_id=job_id,
+        progress_callback=lambda e: events.append(e),
+    )
+
+    # 1. translate_text trả về None
+    assert res is None
+
+    # 2. Không gọi API vì đã nhận diện cancel ngay từ Guard 1
+    assert api_called[0] is False
+
+    # 3. Emit event cancelled
+    assert any(e.get("type") == "cancelled" for e in events)

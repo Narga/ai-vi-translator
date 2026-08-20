@@ -565,11 +565,9 @@ const UiHelpers = {
 
     // Restore app state
     restoreAppState() {
-        const savedMainTab = localStorage.getItem('nt_active_main_tab');
-        if (savedMainTab) {
-            const tabLink = document.querySelector(`.nav-link[data-tab="${savedMainTab}"]`);
-            if (tabLink) tabLink.click();
-        }
+        const savedMainTab = localStorage.getItem('nt_active_main_tab') || 'projects';
+        const tabLink = document.querySelector(`.nav-link[data-tab="${savedMainTab}"]`) || document.querySelector('.nav-link');
+        if (tabLink) tabLink.click();
 
         const savedInfoTab = localStorage.getItem('nt_active_info_tab');
         if (savedInfoTab) {

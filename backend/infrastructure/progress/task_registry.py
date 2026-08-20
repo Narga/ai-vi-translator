@@ -182,49 +182,64 @@ class TaskRegistry:
             "chunk_index": event.get("chunk_index"),
         }
 
-    def append_event(self, job_id: str, event: Dict[str, Any]):
+    def append_event(
+        self,
+        job_id: str,
+        event: Dict[str, Any],
+        lease_epoch: Optional[int] = None,
+        lease_token: Optional[str] = None,
+    ) -> bool:
+        if getattr(self, "_store", None):
+            ok = self._store.append_event(
+                job_id, event, lease_epoch=lease_epoch, lease_token=lease_token
+            )
+            if not ok:
+                # CAS fencing reject: Không cập nhật in-memory hay SSE stream
+                return False
+
         task = self.get_task(job_id)
         if task:
             task.append_event(event)
-        if not getattr(self, "_store", None):
-            return
-        self._store.append_event(job_id, event)
 
-        if event.get("type") not in self._TERMINAL_FAILURE_EVENTS:
-            return
+        if getattr(self, "_store", None) and event.get("type") in self._TERMINAL_FAILURE_EVENTS:
+            ctx = self._error_context_of(event)
+            kwargs = {
+                "error_class": ctx.get("status"),
+                "http_status": ctx.get("http_status"),
+                "retryable": ctx.get("retryable"),
+                "last_error": ctx.get("message") or event.get("message"),
+            }
+            if event.get("checkpoint_key"):
+                kwargs["checkpoint_key"] = event["checkpoint_key"]
 
-        ctx = self._error_context_of(event)
-        kwargs = {
-            "error_class": ctx.get("status"),
-            "http_status": ctx.get("http_status"),
-            "retryable": ctx.get("retryable"),
-            "last_error": ctx.get("message") or event.get("message"),
-        }
-        if event.get("checkpoint_key"):
-            kwargs["checkpoint_key"] = event["checkpoint_key"]
-
-        # B6: chỉ ghi completed_chunks khi có số dương VÀ không nhỏ hơn số đã lưu.
-        # KHÔNG BAO GIỜ ghi 0 lên một task đã có tiến độ — checkpoint mới là nguồn sự thật.
-        progress = task.current if task else 0
-        if progress > 0:
-            try:
-                row = self._store.get_task_by_job_id(job_id) or {}
-                if progress >= (row.get("completed_chunks") or 0):
+            # B6: chỉ ghi completed_chunks khi có số dương VÀ không nhỏ hơn số đã lưu.
+            progress = task.current if task else 0
+            if progress > 0:
+                try:
+                    row = self._store.get_task_by_job_id(job_id) or {}
+                    if progress >= (row.get("completed_chunks") or 0):
+                        kwargs["completed_chunks"] = progress
+                except Exception:
                     kwargs["completed_chunks"] = progress
-            except Exception:
-                kwargs["completed_chunks"] = progress
 
-        self._store.update_status(job_id, status="failed", **kwargs)
+            self._store.update_status(
+                job_id,
+                status="failed",
+                lease_epoch=lease_epoch,
+                lease_token=lease_token,
+                **kwargs,
+            )
 
-    def update_status(self, job_id: str, status: str):
+        return True
+
+    def update_status(
+        self,
+        job_id: str,
+        status: str,
+        lease_epoch: Optional[int] = None,
+        lease_token: Optional[str] = None,
+    ) -> bool:
         task = self.get_task(job_id)
-        if task:
-            with task._cond:
-                task.status = status
-                task.updated_at = time.time()
-                if status in ("completed", "failed", "cancelled", "closed_partial"):
-                    task.finished_at = time.time()
-                task._cond.notify_all()
         if getattr(self, "_store", None):
             kwargs = {}
             if task:
@@ -232,12 +247,31 @@ class TaskRegistry:
                     kwargs["completed_chunks"] = task.current
                 if task.checkpoint_key:
                     kwargs["checkpoint_key"] = task.checkpoint_key
-            self._store.update_status(job_id, status, **kwargs)
+            ok = self._store.update_status(
+                job_id,
+                status,
+                lease_epoch=lease_epoch,
+                lease_token=lease_token,
+                **kwargs,
+            )
+            if not ok:
+                return False
+
+        if task:
+            with task._cond:
+                task.status = status
+                task.updated_at = time.time()
+                if status in ("completed", "failed", "cancelled", "closed_partial"):
+                    task.finished_at = time.time()
+                task._cond.notify_all()
+
         # Dọn cancel token sau khi task rời trạng thái đang chạy (chống poison job mới
         # cùng job_id). KHÔNG xóa token của job khác — reset_cancel chỉ discard đúng id.
         if status not in ("running", "started"):
             from backend.infrastructure.progress.runtime_state import RuntimeState
             RuntimeState().reset_cancel(job_id)
+
+        return True
 
     def list_tasks(self) -> List[Dict[str, Any]]:
         with self._lock:

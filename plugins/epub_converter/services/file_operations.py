@@ -50,7 +50,7 @@ def split_files(
     max_chars: int,
     log: Callable[[str], None],
 ) -> dict[str, Any]:
-    min_chars = max(5000, max_chars // 2)
+    min_chars = max(100, max_chars // 2) if max_chars <= 10000 else max(5000, max_chars // 2)
     output_paths: list[str] = []
     processed_count = 0
     failed_files: list[dict[str, str]] = []

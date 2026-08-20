@@ -80,6 +80,12 @@ const ApiClient = {
 
                 if (data.error) {
                     UiHelpers.showToast(data.error, 'error');
+                }
+
+                if (data.models && data.models.length > 0) {
+                    window.availableModels = data.models;
+                } else {
+                    window.availableModels = [];
                     const emptyHtml = ApiClient.renderModelOptions([], '');
                     if (sel) sel.innerHTML = emptyHtml;
                     ['cfg-qa-model', 'summarize-model', 'style-guide-model', 'relationship-model',
@@ -89,15 +95,9 @@ const ApiClient = {
                             ? '<option value="">— Mặc định —</option>' + emptyHtml
                             : '<option value="">— Chọn Model —</option>' + emptyHtml;
                     });
-                    window.availableModels = [];
-                    return;
-                }
-
-                if (data.models && data.models.length > 0) {
-                    window.availableModels = data.models;
-                } else {
-                    window.availableModels = [];
-                    UiHelpers.showToast('Không lấy được danh sách models. Kiểm tra lại API key và Base URL.', 'info');
+                    if (!data.error) {
+                        UiHelpers.showToast('Không lấy được danh sách models. Kiểm tra lại API key và Base URL.', 'info');
+                    }
                 }
 
                 window.defaultModelVal = data.default || '';
@@ -111,6 +111,7 @@ const ApiClient = {
                     sel.disabled = false;
                     sel.innerHTML = '<option value="">— Lỗi kết nối —</option>';
                 }
+                ApiClient.loadAppConfig(window.activeProvider || 'gemini');
             });
     },
 
@@ -302,8 +303,15 @@ const ApiClient = {
                                 const hasSavedModel = Array.from(sel.options).some(opt => opt.value === m.MODEL);
                                 if (hasSavedModel) {
                                     sel.value = m.MODEL;
-                                    ApiClient.fetchModelInfo(m.MODEL, provider || window.activeProvider);
+                                } else if (m.MODEL) {
+                                    const opt = document.createElement('option');
+                                    opt.value = m.MODEL;
+                                    opt.textContent = m.MODEL;
+                                    opt.selected = true;
+                                    sel.appendChild(opt);
+                                    sel.value = m.MODEL;
                                 }
+                                ApiClient.fetchModelInfo(m.MODEL, provider || window.activeProvider);
                             }
                             // Update header info
                             const headerModel = document.getElementById('header-active-model');
@@ -313,8 +321,18 @@ const ApiClient = {
                         }
                         if (m.QA_MODEL) {
                             const qaSel = document.getElementById('cfg-qa-model');
-                            if (qaSel && Array.from(qaSel.options).some(opt => opt.value === m.QA_MODEL)) {
-                                qaSel.value = m.QA_MODEL;
+                            if (qaSel) {
+                                const hasSavedQa = Array.from(qaSel.options).some(opt => opt.value === m.QA_MODEL);
+                                if (hasSavedQa) {
+                                    qaSel.value = m.QA_MODEL;
+                                } else if (m.QA_MODEL) {
+                                    const opt = document.createElement('option');
+                                    opt.value = m.QA_MODEL;
+                                    opt.textContent = m.QA_MODEL;
+                                    opt.selected = true;
+                                    qaSel.appendChild(opt);
+                                    qaSel.value = m.QA_MODEL;
+                                }
                             }
                         }
                         if (m.THINKING_LEVEL) {

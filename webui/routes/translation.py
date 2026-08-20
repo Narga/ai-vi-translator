@@ -130,6 +130,37 @@ def index():
     from webui.helpers import get_app_version
     app_version = get_app_version()
 
+    import configparser
+    from pathlib import Path
+    from backend.infrastructure.providers.provider_service import ProviderService
+
+    provider_service = ProviderService()
+    prov_data = provider_service.load_providers()
+    providers_list = prov_data.get("providers", [])
+    active_id = prov_data.get("active_id", "")
+    active_prov = provider_service.get_active_provider_config() or {}
+    active_provider_type = active_prov.get("type", "gemini")
+
+    gemini_provs = [p for p in providers_list if p.get("type") == "gemini"]
+    gemini_keys = []
+    for gp in gemini_provs:
+        gemini_keys.extend(gp.get("api_keys", []))
+    gemini_api_keys_text = "\n".join(gemini_keys)
+
+    openai_providers = [p for p in providers_list if p.get("type") == "openai"]
+    active_openai = active_prov if active_prov.get("type") == "openai" else (openai_providers[0] if openai_providers else {})
+
+    app_ini_path = Path("config/app.ini")
+    app_cfg = configparser.ConfigParser()
+    app_cfg.optionxform = str
+    if app_ini_path.exists():
+        app_cfg.read(app_ini_path)
+    
+    app_config_dict = {
+        section: dict(app_cfg.items(section))
+        for section in app_cfg.sections()
+    }
+
     return render_template(
         "index.html",
         default_chunk=get_default_chunk_size(),
@@ -137,6 +168,12 @@ def index():
         available_models=json.dumps(available_models),
         prompts_json=json.dumps(prompts),
         app_version=app_version,
+        active_provider_type=active_provider_type,
+        gemini_api_keys_text=gemini_api_keys_text,
+        openai_providers=openai_providers,
+        active_openai=active_openai,
+        active_id=active_id,
+        app_config=app_config_dict,
     )
 
 

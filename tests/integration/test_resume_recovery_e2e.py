@@ -142,7 +142,7 @@ def _create_project_file(proj):
     return src
 
 
-def _run_translate(client):
+def _run_translate(client, store=None):
     """POST translate (không force) → worker chạy inline → 451 tại 17."""
     resp = client.post("/api/projects/p/translate",
                        json={"files": ["book.txt"], "model": "gpt-test", "chunk_size": E2E_CHUNK_SIZE})
@@ -150,10 +150,16 @@ def _run_translate(client):
     data = resp.get_json()
     assert data["status"] == "started"
     job_id = data["job_id"]
-    
-    # Wait for task to complete (failed or completed)
+
+    # Bounded wait for task to complete (failed or completed)
     import time
-    time.sleep(0.5)
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        if store is not None:
+            row = store.get_task(job_id)
+            if row and row.get("status") in ("failed", "completed", "cancelled"):
+                break
+        time.sleep(0.02)
     return job_id
 
 
@@ -169,7 +175,7 @@ def test_full_451_close_partial_scenario(tmp_path, monkeypatch):
     client = _make_flask_client(monkeypatch, ws, proj)
 
     # 1) Dịch → fail censorship_blocked tại 17
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
     assert task is not None
     assert task["status"] == "failed"
@@ -233,7 +239,7 @@ def test_full_451_recovery_scenario(tmp_path, monkeypatch):
     ck_service, store, recovery_control = _install_fakes(monkeypatch, ws, proj, sent)
     client = _make_flask_client(monkeypatch, ws, proj)
 
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
     assert task["status"] == "failed"
     assert task["http_status"] == 451
@@ -314,7 +320,7 @@ def test_cancel_recovery_isolated(tmp_path, monkeypatch):
     ck_service, store, recovery_control = _install_fakes(monkeypatch, ws, proj, sent)
     client = _make_flask_client(monkeypatch, ws, proj)
 
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
 
     resp = client.post(f"/api/tasks/{job_id}/recover-from-checkpoint",
@@ -376,7 +382,7 @@ def test_recovery_provider_failure_marks_failed(tmp_path, monkeypatch, fail_stat
     ck_service, store, recovery_control = _install_fakes(monkeypatch, ws, proj, sent)
     client = _make_flask_client(monkeypatch, ws, proj)
 
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
     assert task["status"] == "failed"
     source_ck_key = task["checkpoint_key"]
@@ -423,7 +429,7 @@ def test_double_recovery_rejected_while_running(tmp_path, monkeypatch):
     ck_service, store, recovery_control = _install_fakes(monkeypatch, ws, proj, sent)
     client = _make_flask_client(monkeypatch, ws, proj)
 
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
     assert task["status"] == "failed"
 
@@ -474,7 +480,7 @@ def test_concurrent_double_recovery_race(tmp_path, monkeypatch):
     ck_service, store, recovery_control = _install_fakes(monkeypatch, ws, proj, sent)
     client = _make_flask_client(monkeypatch, ws, proj)
 
-    job_id = _run_translate(client)
+    job_id = _run_translate(client, store)
     task = store.get_task(job_id)
     assert task["status"] == "failed"
 

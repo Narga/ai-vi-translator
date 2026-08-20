@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.24.0)
+# 📚 Content Translator (v8.25.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.24.0):** Hoàn thiện hạ tầng Checkpoint Resume Recovery P0, chuẩn hóa Logical/Physical Checkpoint Key, cách ly hủy tác vụ theo từng `job_id` (Scoped Cancel), bảo toàn chunk đã dịch khi đổi model/provider, đóng partial atomic barrier và hermetic test suite matrix.
+**Tính năng mới (v8.25.0):** Kiến trúc Lease Fencing & Failsafe CAS, `LeaseKeepAlive` daemon, Durable lease validation trực tiếp vào `tasks.db`, Recovery-of-Recovery Lineage, bắt buộc Manifest contract v1.0, Auto-merge verification gate và cách ly Poison Job (đạt chuẩn 400/400 tests passed, 0 warnings).
 
 
 ---
@@ -85,5 +85,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga
-**Phiên bản:** 8.21.0
-**Ngày:** 05/08/2026
+**Phiên bản:** 8.25.0
+**Ngày:** 20/08/2026

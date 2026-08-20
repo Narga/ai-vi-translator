@@ -10,7 +10,9 @@
                     </div>
 
                     <!-- Row 1: Provider Cards (Alpine.js managed) -->
-                    <div x-data="{ activeProvider: 'gemini' }" class="flex flex-wrap mhn2 mb3">
+                    <div x-data="{ activeProvider: '{{ active_provider_type or 'gemini' }}' }" 
+                         x-init="fetch('/api/providers').then(r=>r.json()).then(d=>{ const a=(d.providers||[]).find(p=>p.id===d.active_id); if(a) activeProvider = a.type; })"
+                         class="flex flex-wrap mhn2 mb3">
                         <!-- Gemini API Keys -->
                         <div class="w-100 w-50-ns ph2 mb3">
                             <div id="provider-gemini-col" class="nt-provider-col flex flex-column justify-between h-100 ba br2 bg-white pa3 shadow-1 pointer overflow-hidden transition-all" :class="activeProvider === 'gemini' ? 'b--blue o-100' : 'b--black-10 o-60'" data-provider="gemini" x-on:click="activeProvider = 'gemini'; UiHelpers.switchProvider('gemini')">
@@ -26,7 +28,7 @@
                                     </div>
                                     <div class="mb3">
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Keys (mỗi dòng 1 key)</label>
-                                        <textarea id="config-api-keys" class="ba b--black-10 br2 pa2 w-100 code f7 outline-0 api-keys-textarea" placeholder="AIzaSy..." @click.stop></textarea>
+                                        <textarea id="config-api-keys" class="ba b--black-10 br2 pa2 w-100 code f7 outline-0 api-keys-textarea" placeholder="AIzaSy..." @click.stop>{{ gemini_api_keys_text or '' }}</textarea>
                                     </div>
                                 </div>
                                 <div class="mt2">
@@ -54,6 +56,9 @@
                                         <div class="flex items-center gap-2 mb3">
                                             <select id="openai-provider-select" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="OpenAIProvider.onSelectProvider(this.value)" @click.stop>
                                                 <option value="">— Chọn provider —</option>
+                                                {% for p in openai_providers or [] %}
+                                                <option value="{{ p.id }}" {% if active_openai and p.id == active_openai.id %}selected{% endif %}>{{ p.name }}</option>
+                                                {% endfor %}
                                             </select>
                                             <button class="ba b--red bg-white pa2 br2 pointer f7 red hover-bg-washed-red nowrap shadow-sm" onclick="OpenAIProvider.deleteSelected()" title="Xóa provider đang chọn">✕</button>
                                         </div>
@@ -61,11 +66,11 @@
                                     <!-- Tên + API Key + Base URL (auto-fill khi chọn provider) -->
                                     <div class="mb3">
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Nhà cung cấp mẫu hình</label>
-                                        <input type="text" id="openai-provider-name" class="ba b--black-10 br2 pa2 w-100 f7 mb3 outline-0" placeholder="Chọn provider từ dropdown hoặc nhập tên mới" @click.stop>
+                                        <input type="text" id="openai-provider-name" class="ba b--black-10 br2 pa2 w-100 f7 mb3 outline-0" placeholder="Chọn provider từ dropdown hoặc nhập tên mới" value="{{ active_openai.name if active_openai else '' }}" @click.stop>
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">API Key</label>
-                                        <input type="text" id="openai-api-key" class="ba b--black-10 br2 pa2 w-100 code f7 mb3 outline-0" placeholder="Nhập API Key" @click.stop>
+                                        <input type="text" id="openai-api-key" class="ba b--black-10 br2 pa2 w-100 code f7 mb3 outline-0" placeholder="Nhập API Key" value="{{ active_openai.api_key if active_openai else '' }}" @click.stop>
                                         <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">Base URL</label>
-                                        <input type="text" id="openai-base-url" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" placeholder="https://openrouter.ai/api/v1" @click.stop>
+                                        <input type="text" id="openai-base-url" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" placeholder="https://openrouter.ai/api/v1" value="{{ active_openai.base_url if active_openai else '' }}" @click.stop>
                                     </div>
                                     <!-- Nút Thêm / Sửa -->
                                     <div class="bt b--black-10 pt3 mt3">
@@ -94,7 +99,11 @@
                                 <a id="cf-info-icon" href="https://developers.cloudflare.com/ai/models/" target="_blank" rel="noopener" class="dn ml2 f7 gray hover-blue" style="text-decoration: underline;">Thông tin Cloudflare Models</a>
                             </h3>
                             <div class="flex items-center gap-2 mb2 flex-wrap">
-                                <select id="model" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="onModelChange(this.value)"></select>
+                                <select id="model" class="ba b--black-10 br2 pa2 flex-auto f7 outline-0" onchange="onModelChange(this.value)">
+                                    {% if default_model %}
+                                    <option value="{{ default_model }}" selected>{{ default_model }}</option>
+                                    {% endif %}
+                                </select>
                                 <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm flex-none" onclick="ApiClient.markModel()" title="Đánh dấu">🔖</button>
                                 <button class="ba b--black-10 bg-white pa2 br2 pointer f7 nowrap hover-bg-near-white fw6 gray shadow-sm flex-none" onclick="ApiClient.loadModels()" title="Lấy danh sách">🔄</button>
                                 
@@ -121,7 +130,7 @@
                                             <span class="nt-help-icon" data-tooltip="Số ký tự tối đa cho mỗi đoạn văn bản AI xử lý một lần.">ⓘ</span>
                                         </span>
                                     </label>
-                                    <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                    <input type="number" id="chunk-size" name="PROCESSING.MAX_CHARS_PER_CHUNK" min="1000" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" value="{{ (app_config.get('PROCESSING', {}) if app_config else {}).get('MAX_CHARS_PER_CHUNK', 20000) }}">
                                 </div>
                                 <div class="w-100 w-50-ns ph2 mb3">
                                     <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
@@ -130,12 +139,13 @@
                                             <span class="nt-help-icon" data-tooltip="Mức độ phân tích logic của AI. Cao hơn sẽ tốn token hơn nhưng thông minh hơn.">ⓘ</span>
                                         </span>
                                     </label>
+                                    {% set curr_thinking = ((app_config.get('MODEL', {}) if app_config else {}).get('THINKING_LEVEL', 'OFF')) | upper %}
                                     <select id="cfg-thinking" name="MODEL.THINKING_LEVEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
-                                        <option value="OFF">OFF (Tắt thinking)</option>
-                                        <option value="MINIMAL">MINIMAL</option>
-                                        <option value="LOW">LOW</option>
-                                        <option value="MEDIUM" selected>MEDIUM</option>
-                                        <option value="HIGH">HIGH</option>
+                                        <option value="OFF" {% if curr_thinking == 'OFF' %}selected{% endif %}>OFF (Tắt thinking)</option>
+                                        <option value="MINIMAL" {% if curr_thinking == 'MINIMAL' %}selected{% endif %}>MINIMAL</option>
+                                        <option value="LOW" {% if curr_thinking == 'LOW' %}selected{% endif %}>LOW</option>
+                                        <option value="MEDIUM" {% if curr_thinking == 'MEDIUM' %}selected{% endif %}>MEDIUM</option>
+                                        <option value="HIGH" {% if curr_thinking == 'HIGH' %}selected{% endif %}>HIGH</option>
                                     </select>
                                 </div>
                             </div>
@@ -152,7 +162,12 @@
                                                     <span class="nt-help-icon" data-tooltip="Dùng để rà soát & sửa lỗi bản dịch sau khi hoàn tất.">ⓘ</span>
                                                 </span>
                                             </label>
-                                            <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0"></select>
+                                            {% set qa_model_val = (app_config.get('MODEL', {}) if app_config else {}).get('QA_MODEL', '') %}
+                                            <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                                {% if qa_model_val %}
+                                                <option value="{{ qa_model_val }}" selected>{{ qa_model_val }}</option>
+                                                {% endif %}
+                                            </select>
                                         </div>
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
@@ -161,16 +176,17 @@
                                                     <span class="nt-help-icon" data-tooltip="Số ký tự bao quanh đoạn đang dịch để AI hiểu ngữ cảnh (trước/sau).">ⓘ</span>
                                                 </span>
                                             </label>
-                                            <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                            <input type="number" id="cfg-context" name="PROCESSING.CONTEXT_CHAR_COUNT" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" value="{{ (app_config.get('PROCESSING', {}) if app_config else {}).get('CONTEXT_CHAR_COUNT', 500) }}">
                                         </div>
                                         <div class="w-100 ph2 mb3">
+                                            {% set temp_val = (app_config.get('PROCESSING', {}) if app_config else {}).get('TEMPERATURE', '1.0') %}
                                             <label class="db f7 fw6 gray mb2 uppercase tracked">
-                                                Temperature (<span id="temp-value" class="blue fw6">0.7</span>)
+                                                Temperature (<span id="temp-value" class="blue fw6">{{ temp_val }}</span>)
                                                 <span class="nt-tooltip-container">
                                                     <span class="nt-help-icon" data-tooltip="Độ sáng tạo: 0.0 là máy móc, 1.0+ là bay bổng (có thể sai lệch).">ⓘ</span>
                                                 </span>
                                             </label>
-                                            <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer">
+                                            <input type="range" id="temperature" name="PROCESSING.TEMPERATURE" min="0" max="2" step="0.1" class="w-100 pointer" value="{{ temp_val }}">
                                         </div>
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
@@ -179,7 +195,7 @@
                                                     <span class="nt-help-icon" data-tooltip="Thời gian nghỉ giữa các yêu cầu để tránh bị khóa API (Rate Limit).">ⓘ</span>
                                                 </span>
                                             </label>
-                                            <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
+                                            <input type="number" id="cfg-delay" name="PROCESSING.REQUEST_DELAY" min="0" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" value="{{ (app_config.get('PROCESSING', {}) if app_config else {}).get('REQUEST_DELAY', 5) }}">
                                         </div>
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">

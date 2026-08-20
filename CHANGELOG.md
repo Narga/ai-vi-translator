@@ -2,6 +2,33 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.25.0] - 2026-08-20
+### Kiến Trúc Lease Fencing & Failsafe CAS, Recovery Lineage, Bắt Buộc Manifest Contract v1.0 & Kiểm Thử Toàn Diện 400 Tests
+
+**Kiến trúc Lease Lifecycle & Fencing CAS (`backend/infrastructure/progress/lease_manager.py`, `services/task_store.py`, `services/checkpoint_service.py`):**
+- **Daemon `LeaseKeepAlive` Quản lý Lease Worker**: Context manager duy trì heartbeat định kỳ trong suốt in-flight LLM call (có `threading.Event`, `join(1.0)`, cleanup `finally`).
+- **Siết chặt Điều kiện `acquire_lease`**: Chỉ cho phép nhận lại lease đối với các task `queued`, `interrupted`, `resumable` hoặc task `running` có heartbeat đã hết hạn; chặn đứng việc tranh chấp hoặc chạy lại task terminal (`completed`, `failed`, `cancelled`, `closed_partial`).
+- **Unified Fencing Token + Epoch CAS**: Áp dụng fencing token (`lease_token`) và epoch (`lease_epoch`) trên mọi DB side effects (`task_events`, `task_status`, `save_chunk`).
+- **Durable Lease Validation & Fail-Closed Guard**: `save_chunk()` và `atomic_write_file()` (trước `os.replace()`) trực tiếp xác thực quyền sở hữu lease trong `tasks.db` qua `is_lease_valid()`. Tự động dừng worker, hủy bỏ ghi đè và dọn sạch file tạm `.tmp` nếu mất quyền sở hữu hoặc xảy ra lỗi DB (fail-closed), loại bỏ hoàn toàn nguy cơ zombie worker làm hỏng dữ liệu.
+
+**Recovery-of-Recovery Lineage & Bất Biến Nguồn (`core/executor.py`, `webui/routes/projects.py`):**
+- **Lineage Chain 2 Cấp**: Hỗ trợ khôi phục tiếp tục trên checkpoint đã recovery trước đó, tạo lineage chain `recovery_of` và `source_task_id` đầy đủ; bảo đảm source checkpoint bất biến không bị mutate.
+- **Rollback Nguyên tử khi Lỗi Chuẩn bị**: Tự động rollback checkpoint đã clone, task entry trong DB và file partial output nếu khôi phục thất bại ở giai đoạn chuẩn bị.
+
+**Auto-Merge, Bắt Buộc Manifest Contract v1.0 & Verification Gate (`services/checkpoint_service.py`, `core/executor.py`):**
+- **Verification Gate 100% Chunks**: Kiểm tra nghiêm ngặt 100% chunk hoàn tất và không chứa marker lỗi trước khi tạo bản dịch cuối.
+- **Bắt buộc Manifest Sidecar v1.0**: Mọi tác vụ dịch và khôi phục bắt buộc tạo và lưu file `.manifest.json` chứa metadata đầy đủ (checkpoint_key, provider_id, model, token stats, hash toàn vẹn). Nếu sinh manifest lỗi, executor lập tức hủy commit, dọn sạch output và bảo toàn nguyên trạng checkpoint để thử lại.
+
+**Hardening & Cách Ly Poison Job (`backend/infrastructure/progress/task_registry.py`, `services/task_store.py`):**
+- **Poison Job Quarantine**: Tự động phát hiện tác vụ thất bại vượt quá số lần khôi phục tối đa (`max_recovery_attempts = 3`) và chuyển sang `status='failed'`, `error_class='poison_job'` ngắt chu kỳ lỗi lặp vô hạn.
+- **Khắc phục Race Condition `reset_cancel`**: Loại bỏ lệnh gọi `reset_cancel` không an toàn trong luồng spellcheck, bảo toàn trạng thái cancel scoped.
+- **Loại bỏ Hoàn toàn Deprecation Warnings**: Chuyển đổi toàn bộ `datetime.utcnow()` sang `datetime.now(timezone.utc)` chuẩn Python 3.12+.
+
+**Bộ Kiểm Thử Toàn Diện (Full Test Suite 400 Tests Passed & 0 Warning):**
+- Bổ sung các integration test đa worker zombie fencing (`test_multi_worker_zombie_fencing.py`), test kịch bản race condition checkpoint CAS / last-mile file replace (`test_fencing_token_side_effects.py`), fail-closed store validator tests, và recovery lineage tests. Toàn bộ 400 tests vượt qua 100% không cảnh báo.
+
+---
+
 ## [8.24.0] - 2026-08-19
 ### Hoàn thiện Hạ tầng Checkpoint Resume Recovery P0, Scoped Cancel & Hermetic Test Suite Matrix
 

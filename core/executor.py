@@ -3,6 +3,7 @@
 # Executor hợp nhất cho cả WebUI và CLI.
 
 import copy
+import json
 import logging
 import re
 from pathlib import Path
@@ -137,6 +138,7 @@ class TranslationExecutor:
         translation_memory: Optional[Any] = None,
         write_output: bool = True,
         job_id: Optional[str] = None,
+        lease_keep_alive: Optional[Any] = None,
     ) -> Optional[str]:
         """
         Thực hiện dịch thuật một đoạn văn bản lớn.
@@ -149,6 +151,7 @@ class TranslationExecutor:
             translation_memory: Object TranslationMemory (tuỳ chọn).
             write_output: Có ghi file kết quả ra đĩa hay không (mặc định True).
             job_id: ID công việc để kiểm soát tiến trình (cancel).
+            lease_keep_alive: Đối tượng LeaseKeepAlive kiểm soát lease heartbeat (P1.7).
 
         Returns:
             Nội dung đã dịch hoàn chỉnh, hoặc None nếu thất bại.
@@ -158,15 +161,19 @@ class TranslationExecutor:
             if progress_callback:
                 progress_callback({"type": event_type, **kwargs})
 
+        def _is_aborted() -> Optional[str]:
+            from backend.infrastructure.progress.runtime_state import RuntimeState
+            if job_id and RuntimeState().is_cancelled(job_id):
+                return "cancelled"
+            if lease_keep_alive and getattr(lease_keep_alive, "abort_requested", False):
+                return "lease_lost"
+            return None
+
         # Đăng ký handler để chuyển hướng log vào UI
         ui_log_handler = ProgressLogHandler(emit)
         logging.root.addHandler(ui_log_handler)
 
         try:
-            # Reset cancel state trước khi chạy
-            from backend.infrastructure.progress.runtime_state import RuntimeState
-            RuntimeState().reset_cancel(job_id)
-
             # 1. Chunking
             emit("progress", percent=5, message="Đang chia nhỏ văn bản...")
             chunk_size = self.config.get("chunk_size", 22000)
@@ -176,68 +183,57 @@ class TranslationExecutor:
             emit("info", message=f"Đã chia thành {len(chunks)} chunks")
             emit("progress", percent=10, message=f"Đã chia thành {len(chunks)} chunks")
 
-            # 2. Force mode: cleanup checkpoint và bỏ qua resume
-            if self.force_retranslate:
-                emit("info", message="Force retranslate: bỏ qua checkpoint/cache/TM cho lần chạy này.")
-                self.checkpoint_service.cleanup(output_filename)
-
-            # 3. Checkpoint Resume (chỉ khi không force)
+            # 2. Khởi tạo identity & state
             translated_chunks: Dict[int, str] = {}
             prev_context = ""
             start_index = 0
             identity = self._build_checkpoint_identity(output_filename, text)
 
+            # 2. Force mode: cleanup checkpoint và tạo session mới
+            if self.force_retranslate:
+                emit("info", message="Force retranslate: bỏ qua checkpoint/cache/TM cho lần chạy này.")
+                self.checkpoint_service.cleanup(output_filename)
+                self.checkpoint_service.init_session(
+                    filename=output_filename,
+                    total_chunks=len(chunks),
+                    chunks_text=chunks,
+                    identity=identity,
+                    reset=True,
+                )
+
+            # 3. Checkpoint Resume (chỉ khi không force)
             if not self.force_retranslate:
                 resume_info = self.checkpoint_service.get_resume_info(output_filename)
-
-                can_resume = False
-                if resume_info and resume_info.get("total_chunks") == len(chunks):
-                    saved_ident = resume_info.get("identity", {})
-                    if same_source_identity(saved_ident, identity):
-                        can_resume = True
-                        drift = execution_drift(saved_ident, identity)
-                        if drift:
-                            # Thực thi đổi (model/provider/base_url/...) KHÔNG làm checkpoint
-                            # vô hiệu. Ghi nhận để UI/task hiển thị mixed_provider, giữ nguyên
-                            # chunk đã dịch. TUYỆT ĐỐI không reset ở nhánh này.
-                            emit(
-                                "info",
-                                message=(
-                                    "Tiếp tục checkpoint với thông số thực thi đã thay đổi "
-                                    f"({', '.join(drift)}). Chunk đã dịch được giữ nguyên."
-                                ),
-                                mixed_provider=True,
-                                execution_drift=drift,
-                            )
-                    else:
-                        emit(
-                            "info",
-                            message="Nội dung nguồn/chunk size/prompt đã thay đổi. Checkpoint cũ không dùng được, dịch lại từ đầu...",
+                if resume_info and resume_info.get("can_resume"):
+                    saved_identity = resume_info.get("identity") or {}
+                    if not same_source_identity(saved_identity, identity):
+                        emit("warning", message="Nội dung nguồn hoặc prompt đã thay đổi, bỏ qua checkpoint cũ và dịch lại từ đầu.")
+                        self.checkpoint_service.cleanup(output_filename)
+                        self.checkpoint_service.init_session(
+                            filename=output_filename,
+                            total_chunks=len(chunks),
+                            chunks_text=chunks,
+                            identity=identity,
+                            reset=True,
                         )
+                    else:
+                        drift = execution_drift(saved_identity, identity)
+                        if drift:
+                            emit("info", message=f"Đổi cấu hình ({', '.join(drift)}) — giữ các chunk đã dịch.")
+                        translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
+                        start_index = resume_info.get("next_chunk_index", 0)
+                        emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
+                        emit("progress", percent=15, message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
 
-                if can_resume:
-                    translated_chunks = self.checkpoint_service.get_translated_chunks(output_filename)
-                    start_index = resume_info.get("next_chunk_index", 0)
-                    emit("info", message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
-                    emit("progress", percent=15, message=f"Resume từ chunk {start_index + 1}/{len(chunks)}")
-
-                    if start_index > 0 and (start_index - 1) in translated_chunks:
-                        prev_context = self._tail_context(translated_chunks[start_index - 1])
+                        if start_index > 0 and (start_index - 1) in translated_chunks:
+                            prev_context = self._tail_context(translated_chunks[start_index - 1])
                 else:
                     self.checkpoint_service.init_session(
                         filename=output_filename,
                         total_chunks=len(chunks),
                         chunks_text=chunks,
                         identity=identity,
-                        reset=True,
                     )
-            else:
-                self.checkpoint_service.init_session(
-                    filename=output_filename,
-                    total_chunks=len(chunks),
-                    chunks_text=chunks,
-                    identity=identity,
-                )
 
             # 3. Dịch từng chunk
             stats = {"tokens": 0, "tm_hits": 0}
@@ -248,23 +244,8 @@ class TranslationExecutor:
                     continue
                 chunk = chunks[i]
 
-                # Check cancel request
-                from backend.infrastructure.progress.runtime_state import RuntimeState
-                if RuntimeState().is_cancelled(job_id):
-                    emit("cancelled", message=f"Đã dừng theo yêu cầu ở chunk {i + 1}/{len(chunks)}")
-                    return None
+                base_percent = int((i / len(chunks)) * 90 + 10)
                 
-                # Granular progress within a chunk
-                base_percent = 10 + int((i / len(chunks)) * 90)
-                
-                emit(
-                    "progress",
-                    current=i + 1,
-                    total=len(chunks),
-                    percent=base_percent + 2,
-                    message=f"Đang chuẩn bị chunk {i + 1}/{len(chunks)}...",
-                )
-
                 emit(
                     "progress",
                     current=i + 1,
@@ -281,10 +262,16 @@ class TranslationExecutor:
                     translation_memory=translation_memory,
                     stats=stats,
                     emit=emit,
+                    is_aborted=_is_aborted,
+                    lease_keep_alive=lease_keep_alive,
                 )
 
                 if result is None or (isinstance(result, dict) and result.get("_error")):
                     error_ctx = result.get("context") if isinstance(result, dict) else {}
+                    fail_status = error_ctx.get("status") or "unknown_error"
+                    if fail_status == "cancelled":
+                        emit("cancelled", message=f"Đã dừng theo yêu cầu ở chunk {i + 1}/{len(chunks)}")
+                        return None
                     emit("task_failed", error_context=error_ctx, checkpoint_key=output_filename)
                     return None  # Đã emit error bên trong _translate_single_chunk
 
@@ -300,20 +287,42 @@ class TranslationExecutor:
                 prev_context = self._tail_context(result)
 
             if len(translated_chunks) != len(chunks):
-                from backend.infrastructure.progress.runtime_state import RuntimeState
-                if RuntimeState().is_cancelled(job_id):
+                abort_reason = _is_aborted()
+                if abort_reason == "cancelled":
                     emit("cancelled", message="Dịch chưa hoàn tất do đã bị dừng.")
                 else:
                     emit(
                         "task_failed",
                         error_context={
-                            "status": "incomplete_chunks",
+                            "status": abort_reason or "incomplete_chunks",
                             "http_status": None,
                             "retryable": True,
                             "message": "Dịch chưa hoàn tất: vẫn còn chunk chưa xử lý",
                         },
                         checkpoint_key=output_filename,
                     )
+                return None
+
+            # Guard 4: Kiểm tra trước khi assemble & ghi output cuối
+            abort_reason = _is_aborted()
+            if abort_reason:
+                emit("cancelled" if abort_reason == "cancelled" else "task_failed",
+                     message=f"Dừng trước khi ghi output: {abort_reason}")
+                return None
+
+            # Verification Gate
+            is_complete, details = self.checkpoint_service.verify_checkpoint_completeness(output_filename)
+            if not is_complete:
+                emit(
+                    "task_failed",
+                    message="Verification Gate: phát hiện chunk thiếu hoặc không hợp lệ trước khi ghi output",
+                    error_context={
+                        "status": "verification_failed",
+                        "missing_indices": details.get("missing_indices"),
+                        "marker_violations": details.get("marker_violations"),
+                    },
+                    checkpoint_key=output_filename,
+                )
                 return None
 
             # 4. Lưu kết quả
@@ -323,9 +332,66 @@ class TranslationExecutor:
 
             if write_output:
                 final_path = self._resolve_output_path(output_file_path, output_filename)
-                final_path.parent.mkdir(parents=True, exist_ok=True)
-                final_path.write_text(full_translation, encoding="utf-8")
-                output_file_name = final_path.name
+                manifest_path = final_path.with_suffix(".manifest.json")
+
+                def _durable_lease_guard() -> bool:
+                    if _is_aborted():
+                        return False
+                    if lease_keep_alive and hasattr(lease_keep_alive, "is_durable_valid"):
+                        if not lease_keep_alive.is_durable_valid():
+                            return False
+                    return True
+
+                try:
+                    # Last-mile fencing: Kiểm tra durable lease còn hợp lệ trong tasks.db trước khi atomic replace output
+                    self.checkpoint_service.atomic_write_file(
+                        final_path,
+                        full_translation,
+                        pre_replace_check=_durable_lease_guard,
+                    )
+                    output_file_name = final_path.name
+
+                    # Phase 8: Bắt buộc tạo & ghi standard manifest sidecar v1.0
+                    manifest = self.checkpoint_service.create_manifest(
+                        checkpoint_key=output_filename,
+                        provider_id=self.config.get("provider_id"),
+                        model=self.config.get("model_name"),
+                        output_text=full_translation,
+                    )
+                    if not isinstance(manifest, dict) or not manifest.get("is_complete"):
+                        raise ValueError("Manifest contract v1.0 verification failed (incomplete)")
+                    manifest_content = json.dumps(manifest, ensure_ascii=False, indent=2)
+                    self.checkpoint_service.atomic_write_file(
+                        manifest_path,
+                        manifest_content,
+                        pre_replace_check=_durable_lease_guard,
+                    )
+                except Exception as m_err:
+                    logger.error(f"Lỗi bắt buộc ghi manifest: {m_err}")
+                    # Cleanup output chưa hợp lệ / thiếu manifest
+                    if final_path.exists():
+                        try:
+                            final_path.unlink()
+                        except OSError:
+                            pass
+                    if manifest_path.exists():
+                        try:
+                            manifest_path.unlink()
+                        except OSError:
+                            pass
+
+                    emit(
+                        "task_failed",
+                        message=f"Lỗi tạo standard manifest: {m_err}",
+                        error_context={
+                            "status": "manifest_generation_failed",
+                            "http_status": None,
+                            "retryable": True,
+                            "message": f"Không thể tạo manifest hợp lệ: {m_err}",
+                        },
+                        checkpoint_key=output_filename,
+                    )
+                    return None
             else:
                 output_file_name = output_file_path.name if output_file_path else f"{output_filename}.txt"
 
@@ -340,22 +406,21 @@ class TranslationExecutor:
                 "complete",
                 message=f"Dịch hoàn tất! ({tm_info})",
                 result=full_translation,
-                chunks=len(chunks),
-                tm_hits=stats["tm_hits"],
-                source_length=len(text),
-                translated_length=len(full_translation),
                 output_file=output_file_name,
-                tokens_used=stats["tokens"],
+                chunks=len(chunks),
+                tokens=stats["tokens"],
+                tm_hits=stats["tm_hits"],
             )
 
             return full_translation
 
         except Exception as e:
-            logger.error(f"Translation execution error: {e}", exc_info=True)
+            self.checkpoint_service.set_status(output_filename, "interrupted")
+            _try_calculate_stats()
             emit(
                 "task_failed",
                 error_context={
-                    "status": "executor_exception",
+                    "status": "exception",
                     "http_status": None,
                     "retryable": True,
                     "message": f"Lỗi: {e}",
@@ -374,6 +439,7 @@ class TranslationExecutor:
         output_file_path: Path,
         progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         job_id: Optional[str] = None,
+        lease_keep_alive: Optional[Any] = None,
     ) -> Optional[str]:
         """
         Recovery: chỉ dịch các chunk pending trong checkpoint mới.
@@ -384,6 +450,8 @@ class TranslationExecutor:
             recovery_checkpoint_key: Checkpoint recovery (đã có done + pending)
             output_file_path: Đường dẫn file output cuối
             progress_callback: Progress callback
+            job_id: ID recovery job
+            lease_keep_alive: Đối tượng LeaseKeepAlive kiểm soát lease heartbeat (P1.7)
 
         Returns:
             Translated text hoặc None nếu thất bại
@@ -392,7 +460,13 @@ class TranslationExecutor:
             if progress_callback:
                 progress_callback({"type": event_type, **kwargs})
 
-        from backend.infrastructure.progress.runtime_state import RuntimeState
+        def _is_aborted() -> Optional[str]:
+            from backend.infrastructure.progress.runtime_state import RuntimeState
+            if job_id and RuntimeState().is_cancelled(job_id):
+                return "cancelled"
+            if lease_keep_alive and getattr(lease_keep_alive, "abort_requested", False):
+                return "lease_lost"
+            return None
 
         resume_info = self.checkpoint_service.get_resume_info(recovery_checkpoint_key)
         if not resume_info or not resume_info.get("can_resume"):
@@ -403,8 +477,18 @@ class TranslationExecutor:
         start_index = resume_info["next_chunk_index"]
         translated_chunks = self.checkpoint_service.get_translated_chunks(recovery_checkpoint_key)
 
+        done_count = len(translated_chunks)
+        initial_pct = int((done_count / total_chunks) * 100) if total_chunks > 0 else 0
         emit("info", message=f"Recovery: resume từ chunk {start_index + 1}/{total_chunks}")
-        emit("progress", percent=15, message=f"Recovery: {len(translated_chunks)}/{total_chunks} chunk đã có")
+        emit(
+            "progress",
+            current=done_count,
+            total=total_chunks,
+            percent=initial_pct,
+            message=f"Recovery: {done_count}/{total_chunks} chunk đã có",
+            completed_chunks=done_count,
+            checkpoint_key=recovery_checkpoint_key,
+        )
 
         stats = {"tokens": 0, "tm_hits": 0}
         prev_context = ""
@@ -413,9 +497,10 @@ class TranslationExecutor:
             prev_context = self._tail_context(translated_chunks[start_index - 1])
 
         for i in range(start_index, total_chunks):
-            from backend.infrastructure.progress.runtime_state import RuntimeState
-            if job_id and RuntimeState().is_cancelled(job_id):
-                emit("cancelled", message=f"Recovery dừng theo yêu cầu ở chunk {i + 1}/{total_chunks}")
+            abort_reason = _is_aborted()
+            if abort_reason:
+                emit("cancelled" if abort_reason == "cancelled" else "task_failed",
+                     message=f"Recovery dừng ở chunk {i + 1}/{total_chunks}: {abort_reason}")
                 return None
             if i in translated_chunks:
                 prev_context = self._tail_context(translated_chunks[i])
@@ -425,17 +510,25 @@ class TranslationExecutor:
                 "SELECT original_text FROM chunks WHERE chunk_index = ?", (i,)
             ).fetchone()
             if not chunk_text:
-                emit("error", message=f"Không tìm thấy chunk {i} trong checkpoint recovery")
+                emit(
+                    "task_failed",
+                    message=f"Không tìm thấy chunk {i} trong checkpoint recovery",
+                    error_context={"status": "missing_chunk", "chunk_index": i},
+                    completed_chunks=len(translated_chunks),
+                    checkpoint_key=recovery_checkpoint_key,
+                )
                 return None
 
             chunk = chunk_text[0]
-            base_percent = 15 + int((i / total_chunks) * 80)
+            cur_done = len(translated_chunks)
+            cur_pct = int((cur_done / total_chunks) * 100) if total_chunks > 0 else 0
 
             # P1 Phase 7 lease: emit progress TRƯỚC API call để touch heartbeat — nếu API
             # call lâu hơn lease timeout mà không có event nào, worker vẫn không bị đánh dấu
             # interrupted (heartbeat được làm mới ngay trước request).
-            emit("progress", current=i + 1, total=total_chunks, percent=base_percent,
-                 message=f"Recovery: đang gửi chunk {i + 1}/{total_chunks}")
+            emit("progress", current=i + 1, total=total_chunks, percent=cur_pct,
+                 message=f"Recovery: đang gửi chunk {i + 1}/{total_chunks}",
+                 completed_chunks=cur_done, checkpoint_key=recovery_checkpoint_key)
 
             result = self._translate_single_chunk(
                 chunk=chunk,
@@ -445,40 +538,145 @@ class TranslationExecutor:
                 translation_memory=None,
                 stats=stats,
                 emit=emit,
+                is_aborted=_is_aborted,
+                lease_keep_alive=lease_keep_alive,
             )
 
             if result is None or (isinstance(result, dict) and result.get("_error")):
                 error_ctx = result.get("context") if isinstance(result, dict) else {}
+                fail_status = error_ctx.get("status") or "unknown_error"
+                if fail_status == "cancelled":
+                    emit("cancelled", message=f"Recovery dừng theo yêu cầu ở chunk {i + 1}/{total_chunks}")
+                    return None
                 emit(
-                    "error",
-                    message=f"Recovery thất bại tại chunk {i + 1}: {error_ctx.get('status', 'unknown')}",
-                    **{"status": error_ctx.get("status"),
-                       "http_status": error_ctx.get("http_status"),
-                       "retryable": error_ctx.get("retryable"),
-                       "error_class": error_ctx.get("status"),
-                       "chunk_index": i},
+                    "task_failed",
+                    message=f"Recovery thất bại tại chunk {i + 1}: {fail_status}",
+                    error_context={
+                        "status": fail_status,
+                        "http_status": error_ctx.get("http_status"),
+                        "retryable": error_ctx.get("retryable", False),
+                        "message": f"Recovery thất bại tại chunk {i + 1}: {fail_status}",
+                        "chunk_index": i,
+                    },
+                    completed_chunks=len(translated_chunks),
+                    checkpoint_key=recovery_checkpoint_key,
                 )
                 return None
 
             translated_chunks[i] = result
             prev_context = self._tail_context(result)
 
-        if len(translated_chunks) != total_chunks:
-            emit("error", message=f"Recovery thiếu chunk: {len(translated_chunks)}/{total_chunks}")
+            done_after = len(translated_chunks)
+            pct_after = int((done_after / total_chunks) * 100) if total_chunks > 0 else 0
+            emit("progress", current=i + 1, total=total_chunks, percent=pct_after,
+                 message=f"Recovery: hoàn thành chunk {i + 1}/{total_chunks}",
+                 completed_chunks=done_after, checkpoint_key=recovery_checkpoint_key)
+
+        # Guard 4: Kiểm tra trước khi assemble & ghi output cuối
+        abort_reason = _is_aborted()
+        if abort_reason:
+            emit("cancelled" if abort_reason == "cancelled" else "task_failed",
+                 message=f"Recovery dừng trước khi ghi output: {abort_reason}",
+                 completed_chunks=len(translated_chunks),
+                 checkpoint_key=recovery_checkpoint_key)
+            return None
+
+        # Phase 8: Verification Gate (Kiểm tra 100% chunk 0..total-1 trong SQLite & Zero-marker)
+        is_complete, details = self.checkpoint_service.verify_checkpoint_completeness(recovery_checkpoint_key)
+        if not is_complete:
+            emit(
+                "task_failed",
+                message="Verification Gate: checkpoint recovery chưa hoàn chỉnh hoặc phát hiện marker lỗi",
+                error_context={
+                    "status": "verification_failed",
+                    "missing_indices": details.get("missing_indices"),
+                    "marker_violations": details.get("marker_violations"),
+                    "done_count": details.get("done_count"),
+                    "total_chunks": total_chunks,
+                },
+                completed_chunks=details.get("done_count", len(translated_chunks)),
+                checkpoint_key=recovery_checkpoint_key,
+            )
             return None
 
         full_translation = "\n\n".join(
-            translated_chunks[i] for i in range(total_chunks)
+            translated_chunks[i] for i in range(total_chunks) if i in translated_chunks
         )
 
-        output_file_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = output_file_path.with_suffix(".tmp")
-        tmp_path.write_text(full_translation, encoding="utf-8")
-        tmp_path.replace(output_file_path)
+        # Atomic file write với Last-mile durable fencing (Phase 8: ghi ra .tmp -> fsync -> pre_replace_check -> replace)
+        manifest_path = output_file_path.with_suffix(".manifest.json")
 
-        emit("complete", message="Recovery hoàn tất!",
-             output_file=output_file_path.name,
-             chunks=total_chunks)
+        def _durable_lease_guard() -> bool:
+            if _is_aborted():
+                return False
+            if lease_keep_alive and hasattr(lease_keep_alive, "is_durable_valid"):
+                if not lease_keep_alive.is_durable_valid():
+                    return False
+            return True
+
+        try:
+            self.checkpoint_service.atomic_write_file(
+                output_file_path,
+                full_translation,
+                pre_replace_check=_durable_lease_guard,
+            )
+
+            # Tạo & ghi Manifest sidecar chuẩn v1.0 (Phase 8: Bắt buộc)
+            provider_info = self.config or {}
+            manifest = self.checkpoint_service.create_manifest(
+                checkpoint_key=recovery_checkpoint_key,
+                source_task_id=source_checkpoint_key,
+                recovery_task_id=job_id,
+                provider_id=provider_info.get("provider_id"),
+                model=provider_info.get("model_name"),
+                output_text=full_translation,
+            )
+            if not isinstance(manifest, dict) or not manifest.get("is_complete"):
+                raise ValueError("Recovery manifest incomplete: verification gate failed")
+            self.checkpoint_service.atomic_write_file(
+                manifest_path,
+                json.dumps(manifest, ensure_ascii=False, indent=2),
+                pre_replace_check=_durable_lease_guard,
+            )
+        except Exception as m_err:
+            logger.error(f"Lỗi bắt buộc ghi manifest trong recovery: {m_err}")
+            if output_file_path.exists():
+                try:
+                    output_file_path.unlink()
+                except OSError:
+                    pass
+            if manifest_path.exists():
+                try:
+                    manifest_path.unlink()
+                except OSError:
+                    pass
+
+            emit(
+                "task_failed",
+                message=f"Lỗi tạo recovery manifest: {m_err}",
+                error_context={
+                    "status": "manifest_generation_failed",
+                    "http_status": None,
+                    "retryable": True,
+                    "message": f"Không thể tạo manifest recovery hợp lệ: {m_err}",
+                },
+                completed_chunks=total_chunks,
+                checkpoint_key=recovery_checkpoint_key,
+            )
+            return None
+
+        emit(
+            "complete",
+            message=f"Recovery hoàn thành: {total_chunks}/{total_chunks} chunks",
+            completed_chunks=total_chunks,
+            total_chunks=total_chunks,
+            final_output_path=str(output_file_path),
+            manifest_path=str(manifest_path),
+            output_hash=manifest.get("output_hash"),
+            checkpoint_key=recovery_checkpoint_key,
+            output_file=output_file_path.name,
+            chunks=total_chunks,
+        )
 
         return full_translation
 
@@ -527,9 +725,6 @@ class TranslationExecutor:
         logging.root.addHandler(ui_log_handler)
 
         try:
-            from backend.infrastructure.progress.runtime_state import RuntimeState
-            RuntimeState().reset_cancel(job_id)
-
             emit("progress", percent=5, message="Đang chia nhỏ văn bản để soát lỗi...")
             chunk_size = self.config.get("chunk_size", 22000)
             chunks = process_text_for_chunking(
@@ -628,38 +823,26 @@ class TranslationExecutor:
 
             self.checkpoint_service.cleanup(ck_key)
 
-            emit("complete", message="Soát lỗi hoàn tất!",
-                 clean_length=len(full_clean), errors=full_log.count("---"))
-
+            emit("complete", message="Soát lỗi chính tả hoàn tất!", result=full_clean, error_log=full_log)
             return full_clean, full_log
 
         except Exception as e:
-            logger.error(f"Spellcheck execution error: {e}", exc_info=True)
-            emit("error", message=f"Lỗi: {e}")
+            logger.error(f"Lỗi không xác định trong quá trình soát lỗi: {e}", exc_info=True)
+            emit("error", status="fatal_error", message=str(e))
             return None
         finally:
             logging.root.removeHandler(ui_log_handler)
-    @staticmethod
-    def _parse_spellcheck_chunk(result: str) -> tuple:
-        """
-        Tách kết quả AI thành (văn_bản_sạch, bảng_log_lỗi).
-        Dấu phân cách: dòng '---' đứng một mình, hoặc heading Bảng/Log.
-        Trả về (result, '') nếu không tìm thấy phân cách.
-        """
-        for pattern in [r"\n---\n", r"\n===\n", r"\n#+ Bảng", r"\n#+ Log"]:
-            parts = re.split(pattern, result, maxsplit=1, flags=re.IGNORECASE)
-            if len(parts) == 2:
-                return parts[0].strip(), parts[1].strip()
 
-        # Fallback: tìm bảng Markdown
+    def _parse_spellcheck_chunk(self, result: str) -> tuple:
+        """Tách kết quả chunk của prompt chính tả thành (clean_text, error_log)."""
         lines = result.split("\n")
-        clean, log = [], []
+        clean = []
+        log = []
         in_log = False
         for line in lines:
             if not in_log and "|" in line and ("---" in line or "Từ gốc" in line):
                 in_log = True
             (log if in_log else clean).append(line)
-
         if log:
             return "\n".join(clean).strip(), "\n".join(log).strip()
         return result.strip(), ""
@@ -709,14 +892,23 @@ class TranslationExecutor:
         translation_memory: Optional[Any],
         stats: Dict[str, int],
         emit: Callable,
+        is_aborted: Optional[Callable[[], Optional[str]]] = None,
+        lease_keep_alive: Optional[Any] = None,
     ) -> Any:
         """
-        Dịch một chunk đơn lẻ, xử lý TM/glossary/API.
+        Dịch một chunk đơn lẻ, xử lý TM/glossary/API và kiểm soát 5 Guard points.
 
         Returns:
             Kết quả dịch (str), hoặc dict {"_error": True, "context": {...}} nếu thất bại.
         """
         i = chunk_index
+
+        # Guard 1: Trước API call
+        if is_aborted:
+            reason = is_aborted()
+            if reason:
+                logger.warning(f"🚨 [GUARD_1_ABORT] Bỏ qua chunk {i + 1} do worker bị dừng: {reason}")
+                return {"_error": True, "context": {"status": reason, "message": f"Worker aborted: {reason}", "chunk_index": i}}
 
         # Force mode: bỏ qua TM
         if not self.force_retranslate and translation_memory:
@@ -744,18 +936,53 @@ class TranslationExecutor:
             previous_chunk_context=prev_context,
         )
 
+        # Guard 2: Sau API call (Hủy response nếu lease đã mất trong lúc chờ mạng)
+        if is_aborted:
+            reason = is_aborted()
+            if reason:
+                logger.warning(f"🚨 [GUARD_2_ABORT] Nhận kết quả chunk {i + 1} nhưng lease đã mất ({reason}) -> Hủy response!")
+                return {"_error": True, "context": {"status": reason, "message": f"Worker aborted: {reason}", "chunk_index": i}}
+
+        # Guard 3: Trước Checkpoint Save (Atomic Fencing CAS)
         if status == "success" and result:
+            if is_aborted:
+                reason = is_aborted()
+                if reason:
+                    logger.warning(f"🚨 [GUARD_3_ABORT] Bỏ qua lưu checkpoint chunk {i + 1} ({reason})")
+                    return {"_error": True, "context": {"status": reason, "message": f"Worker aborted: {reason}", "chunk_index": i}}
+
             result = self._clean_chunk_result(result)
             if translation_memory:
                 translation_memory.add_translation(chunk, result, output_filename, provider_kind=self._tm_scope())
             stats["tokens"] += len(chunk) // 2
-            self.checkpoint_service.save_chunk(
+            epoch = getattr(lease_keep_alive, "lease_epoch", None) if lease_keep_alive else None
+            token = getattr(lease_keep_alive, "lease_token", None) if lease_keep_alive else None
+            lease_val = lease_keep_alive.is_durable_valid if (lease_keep_alive and hasattr(lease_keep_alive, "is_durable_valid")) else None
+            saved = self.checkpoint_service.save_chunk(
                 filename=output_filename,
                 chunk_index=i,
                 original_text=chunk,
                 translated_text=result,
                 api_key_used=api_key_used,
+                lease_epoch=epoch,
+                lease_token=token,
+                lease_validator=lease_val,
             )
+            if not saved:
+                logger.warning(
+                    f"🚨 [GUARD_3_CAS_FAIL] Checkpoint rejected chunk {i + 1} vì lease mismatch (epoch={epoch}, token={token})!"
+                )
+                return {
+                    "_error": True,
+                    "context": {
+                        "status": "lease_lost",
+                        "http_status": 409,
+                        "retryable": False,
+                        "message": f"Checkpoint CAS rejected write for chunk {i + 1} (lease expired or stolen)",
+                        "chunk_index": i,
+                    },
+                }
+
             return result
 
         error_context = {

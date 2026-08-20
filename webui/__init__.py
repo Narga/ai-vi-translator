@@ -167,8 +167,10 @@ def create_app():
         path = request.path.lower()
         if path.endswith('.css'):
             response.headers['Content-Type'] = 'text/css'
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         elif path.endswith('.js'):
             response.headers['Content-Type'] = 'application/javascript'
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         return response
 
     @app.errorhandler(Exception)

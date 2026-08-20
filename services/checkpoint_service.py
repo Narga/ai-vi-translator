@@ -40,7 +40,7 @@ import sqlite3
 import logging
 import hashlib
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple, Callable
 from datetime import datetime
 from threading import Lock
 
@@ -104,6 +104,26 @@ class CheckpointService:
         self._connections: Dict[str, sqlite3.Connection] = {}
 
         self._logger.info(f"📍 CheckpointService initialized (SQLite): {self.checkpoint_dir}")
+
+    @staticmethod
+    def _is_valid_sqlite_file(path: Path) -> bool:
+        """Kiểm tra file tồn tại và không rỗng."""
+        try:
+            return path.is_file() and path.stat().st_size > 0
+        except OSError:
+            return False
+
+    @staticmethod
+    def _has_table(conn: sqlite3.Connection, table_name: str) -> bool:
+        """Kiểm tra table có tồn tại trong sqlite connection hay không."""
+        try:
+            row = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                (table_name,)
+            ).fetchone()
+            return row is not None
+        except Exception:
+            return False
 
     def _get_db_path(self, filename: str) -> Path:
         """Tạo đường dẫn database từ tên file."""
@@ -211,21 +231,67 @@ class CheckpointService:
     def save_chunk(self, filename: str, chunk_index: int,
                    original_text: str, translated_text: str,
                    api_key_used: str = "", tokens_used: int = 0,
-                   status: str = 'done'):
+                   status: str = 'done',
+                   lease_epoch: Optional[int] = None,
+                   lease_token: Optional[str] = None,
+                   lease_validator: Optional[Callable[[], bool]] = None) -> bool:
         """
-        Lưu kết quả dịch cho một chunk.
-
-        Args:
-            filename: Tên file đang dịch
-            chunk_index: Index của chunk
-            original_text: Text gốc
-            translated_text: Text đã dịch
-            api_key_used: API key đã sử dụng
-            tokens_used: Số tokens đã dùng
-            status: 'done' hoặc 'failed'
+        Lưu kết quả dịch cho một chunk với atomic lease fencing CAS & durable lease check.
+        - Kiểm tra lease_validator (durable lease check từ tasks.db) nếu có.
+        - Kiểm tra checkpoint metadata lease_epoch / lease_token.
+        Trả về True nếu lưu thành công, False nếu bị reject bởi fencing CAS.
         """
         with self._lock:
+            if lease_validator is not None:
+                if not lease_validator():
+                    self._logger.warning(
+                        f"🚨 [CHECKPOINT_FENCING_REJECT] Reject chunk {chunk_index} vì durable lease check trong tasks.db thất bại!"
+                    )
+                    return False
+
             conn = self._get_connection(filename)
+
+            if lease_epoch is not None:
+                if not lease_token:
+                    self._logger.warning(
+                        f"🚨 [CHECKPOINT_FENCING_REJECT] Reject chunk {chunk_index} vì có lease_epoch ({lease_epoch}) nhưng thiếu lease_token!"
+                    )
+                    return False
+
+                row_epoch = conn.execute("SELECT value FROM metadata WHERE key = 'lease_epoch'").fetchone()
+                row_token = conn.execute("SELECT value FROM metadata WHERE key = 'lease_token'").fetchone()
+                current_epoch = None
+                current_token = None
+                if row_epoch and row_epoch[0]:
+                    try:
+                        current_epoch = int(row_epoch[0])
+                    except ValueError:
+                        pass
+                if row_token and row_token[0]:
+                    current_token = str(row_token[0])
+
+                if current_epoch is not None:
+                    if lease_epoch < current_epoch:
+                        self._logger.warning(
+                            f"🚨 [CHECKPOINT_FENCING_REJECT] Reject chunk {chunk_index} vì lease_epoch cũ: {lease_epoch} < {current_epoch}"
+                        )
+                        return False
+                    elif lease_epoch == current_epoch:
+                        if not current_token or not lease_token or lease_token != current_token:
+                            self._logger.warning(
+                                f"🚨 [CHECKPOINT_FENCING_REJECT] Reject chunk {chunk_index} vì metadata token thiếu/hỏng hoặc không khớp tại epoch {lease_epoch}: '{lease_token}' vs '{current_token}'"
+                            )
+                            return False
+
+                conn.execute(
+                    "INSERT OR REPLACE INTO metadata (key, value) VALUES ('lease_epoch', ?)",
+                    (str(lease_epoch),)
+                )
+                if lease_token:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO metadata (key, value) VALUES ('lease_token', ?)",
+                        (str(lease_token),)
+                    )
 
             conn.execute(
                 """INSERT OR REPLACE INTO chunks
@@ -240,6 +306,7 @@ class CheckpointService:
             self._logger.debug(
                 f"💾 Saved chunk {chunk_index}: {filename} ({status})"
             )
+            return True
 
     def clone_namespace(self, source_filename: str, target_filename: str) -> bool:
         """
@@ -291,6 +358,10 @@ class CheckpointService:
                 "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
                 ("checkpoint_id", target_filename),
             )
+            # Reset lease metadata để task recovery mới có thể acquire và ghi với token mới
+            tgt_conn.execute(
+                "DELETE FROM metadata WHERE key IN ('lease_token', 'lease_epoch')"
+            )
 
             tgt_conn.commit()
             tgt_conn.close()
@@ -328,12 +399,15 @@ class CheckpointService:
         """
         db_path = self._get_db_path(filename)
 
-        if not db_path.exists():
+        if not self._is_valid_sqlite_file(db_path):
             return None
 
         try:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
+            if not self._has_table(conn, "metadata") or not self._has_table(conn, "chunks"):
+                conn.close()
+                return None
 
             meta = {}
             for row in conn.execute("SELECT key, value FROM metadata"):
@@ -585,13 +659,17 @@ class CheckpointService:
         """
         path = Path(checkpoint_path)
 
-        if not path.exists():
-            self._logger.error(f"❌ Checkpoint không tồn tại: {checkpoint_path}")
+        if not self._is_valid_sqlite_file(path):
+            self._logger.warning(f"⚠️ Checkpoint không tồn tại hoặc rỗng: {checkpoint_path}")
             return None
 
         try:
             conn = sqlite3.connect(str(path))
             conn.row_factory = sqlite3.Row
+
+            if not self._has_table(conn, "metadata") or not self._has_table(conn, "chunks"):
+                conn.close()
+                return None
 
             # Load metadata
             meta = {}
@@ -678,9 +756,14 @@ class CheckpointService:
             key=lambda p: p.stat().st_mtime,
             reverse=True,
         ):
+            if not self._is_valid_sqlite_file(db_file):
+                continue
             try:
                 conn = sqlite3.connect(str(db_file))
                 conn.row_factory = sqlite3.Row
+                if not self._has_table(conn, "metadata") or not self._has_table(conn, "chunks"):
+                    conn.close()
+                    continue
 
                 meta = {}
                 for row in conn.execute("SELECT key, value FROM metadata"):
@@ -753,6 +836,19 @@ class CheckpointService:
         db_path = self._get_db_path(filename)
         return self.delete(str(db_path))
 
+    def delete_by_key(self, checkpoint_key: str) -> bool:
+        """
+        Xóa checkpoint dựa trên checkpoint key (logical hoặc physical).
+        Dùng cho rollback preparation hoặc dọn dẹp checkpoint.
+        """
+        if not checkpoint_key:
+            return False
+        resolved = self.resolve_checkpoint_key(checkpoint_key)
+        if resolved and resolved.get("path"):
+            return self.delete(resolved["path"])
+        db_path = self._get_db_path(checkpoint_key)
+        return self.delete(str(db_path))
+
     def get_resume_info(self, filename: str) -> Optional[Dict[str, Any]]:
         """
         Lấy thông tin resume nhanh (không load toàn bộ text).
@@ -765,12 +861,16 @@ class CheckpointService:
         """
         db_path = self._get_db_path(filename)
 
-        if not db_path.exists():
+        if not self._is_valid_sqlite_file(db_path):
             return None
 
         try:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
+
+            if not self._has_table(conn, "metadata") or not self._has_table(conn, "chunks"):
+                conn.close()
+                return None
 
             meta = {}
             for row in conn.execute("SELECT key, value FROM metadata"):
@@ -819,10 +919,13 @@ class CheckpointService:
         argument as a logical filename).
         """
         path = Path(checkpoint_path)
-        if not path.exists():
+        if not self._is_valid_sqlite_file(path):
             return None
         try:
             conn = sqlite3.connect(str(path))
+            if not self._has_table(conn, "metadata"):
+                conn.close()
+                return None
             row = conn.execute(
                 "SELECT value FROM metadata WHERE key = 'filename'"
             ).fetchone()
@@ -831,7 +934,7 @@ class CheckpointService:
                 return None
             return self.get_resume_info(row[0])
         except Exception as e:
-            self._logger.error(f"❌ Lỗi đọc resume theo path: {e}")
+            self._logger.warning(f"⚠️ Lỗi đọc resume theo path '{checkpoint_path}': {e}")
             return None
 
     @staticmethod
@@ -881,15 +984,20 @@ class CheckpointService:
 
     def _read_logical_filename(self, db_path: Path) -> Optional[str]:
         """Đọc metadata['filename'] — tên logic thật của checkpoint."""
+        if not self._is_valid_sqlite_file(db_path):
+            return None
         try:
             conn = sqlite3.connect(str(db_path))
+            if not self._has_table(conn, "metadata"):
+                conn.close()
+                return None
             row = conn.execute(
                 "SELECT value FROM metadata WHERE key = 'filename'"
             ).fetchone()
             conn.close()
             return row[0] if row and row[0] else None
         except Exception as e:
-            self._logger.error(f"❌ Lỗi đọc metadata filename: {e}")
+            self._logger.warning(f"⚠️ Lỗi đọc metadata filename '{db_path}': {e}")
             return None
 
     def resolve_checkpoint_key(self, key: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -953,12 +1061,16 @@ class CheckpointService:
         else:
             db_path = self._get_db_path(filename)
 
-        if not db_path.exists():
+        if not self._is_valid_sqlite_file(db_path):
             return None
 
         try:
             conn = sqlite3.connect(str(db_path))
             conn.row_factory = sqlite3.Row
+
+            if not self._has_table(conn, "chunks"):
+                conn.close()
+                return None
 
             done = [
                 row["chunk_index"]
@@ -978,9 +1090,14 @@ class CheckpointService:
                     "SELECT chunk_index FROM chunks WHERE status='failed' ORDER BY chunk_index"
                 )
             ]
+            meta_row = conn.execute(
+                "SELECT value FROM metadata WHERE key='total_chunks'"
+            ).fetchone()
+            total_chunks = int(meta_row["value"]) if meta_row else (len(done) + len(pending))
 
             conn.close()
             return {
+                "total_chunks": total_chunks,
                 "done_indices": done,
                 "pending_indices": pending,
                 "failed_indices": failed,
@@ -988,6 +1105,10 @@ class CheckpointService:
         except Exception as e:
             self._logger.error(f"❌ Lỗi lấy indices: {e}")
             return None
+
+    def clone_checkpoint(self, source_filename: str, target_filename: str) -> bool:
+        """Alias cho clone_namespace (P1 Phase 8)."""
+        return self.clone_namespace(source_filename, target_filename)
 
     def get_translated_chunks(self, filename: str) -> Dict[int, str]:
         """
@@ -1022,6 +1143,127 @@ class CheckpointService:
             return {}
 
 
+
+    def verify_checkpoint_completeness(self, checkpoint_key: str) -> Tuple[bool, dict]:
+        """
+        Verification Gate cho Recovery / Translation (Phase 8):
+        - Kiểm tra tính toàn vẹn 100% của SQLite checkpoint: done_indices == set(range(total_chunks)).
+        - Zero-marker check: các đoạn dịch không chứa chuỗi placeholder "[CHUNK n CHƯA DỊCH".
+        - Trả về (is_valid, details_dict).
+        """
+        resolved = self.resolve_checkpoint_key(checkpoint_key)
+        if not resolved:
+            return False, {"error": "Checkpoint not found", "checkpoint_key": checkpoint_key}
+
+        filename = resolved["filename"]
+        idx_info = self.get_done_pending_indices(filename)
+        if not idx_info:
+            return False, {"error": "Cannot read indices", "checkpoint_key": checkpoint_key}
+
+        total_chunks = idx_info["total_chunks"]
+        done_indices = set(idx_info["done_indices"])
+        pending_indices = idx_info["pending_indices"]
+
+        expected_indices = set(range(total_chunks))
+        missing_from_done = sorted(list(expected_indices - done_indices))
+
+        is_complete = (len(missing_from_done) == 0 and len(pending_indices) == 0)
+
+        # Sanity check marker trong text
+        marker_violations = []
+        if is_complete:
+            translated_chunks = self.get_translated_chunks(filename)
+            for idx, text in translated_chunks.items():
+                if not text or not text.strip():
+                    is_complete = False
+                    marker_violations.append({"index": idx, "reason": "empty_translation"})
+                elif f"[CHUNK {idx} CHƯA DỊCH" in text or f"[CHUNK {idx + 1} CHƯA DỊCH" in text:
+                    is_complete = False
+                    marker_violations.append({"index": idx, "reason": "marker_placeholder_found"})
+
+        details = {
+            "checkpoint_key": checkpoint_key,
+            "filename": filename,
+            "total_chunks": total_chunks,
+            "done_count": len(done_indices),
+            "done_indices": sorted(list(done_indices)),
+            "pending_indices": pending_indices,
+            "missing_indices": missing_from_done,
+            "marker_violations": marker_violations,
+            "is_complete": is_complete,
+        }
+        return is_complete, details
+
+    def create_manifest(
+        self,
+        checkpoint_key: str,
+        source_task_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        provider_id: Optional[str] = None,
+        model: Optional[str] = None,
+        output_text: Optional[str] = None,
+    ) -> dict:
+        """
+        Tạo manifest chuẩn JSON contract v1.0 (Phase 8).
+        """
+        import hashlib
+        is_complete, details = self.verify_checkpoint_completeness(checkpoint_key)
+
+        output_hash = None
+        if output_text is not None:
+            output_hash = f"sha256:{hashlib.sha256(output_text.encode('utf-8')).hexdigest()}"
+
+        manifest = {
+            "manifest_version": "1.0",
+            "source_task_id": source_task_id,
+            "recovery_task_id": recovery_task_id,
+            "checkpoint_key": checkpoint_key,
+            "total_chunks": details.get("total_chunks", 0),
+            "done_indices": details.get("done_indices", []),
+            "pending_indices": details.get("pending_indices", []),
+            "output_hash": output_hash,
+            "timestamp": datetime.now().isoformat(),
+            "provider_id": provider_id,
+            "model": model,
+            "is_complete": is_complete,
+        }
+        return manifest
+
+    def atomic_write_file(
+        self,
+        target_path: Path,
+        content: str,
+        pre_replace_check: Optional[Callable[[], bool]] = None,
+    ) -> Path:
+        """
+        Ghi file an toàn nguyên tử (atomic): ghi ra .tmp -> fsync -> kiểm tra lease guard -> replace.
+        Nếu pre_replace_check trả về False (lease mất ngay trước replace), xóa tmp_path và raise RuntimeError.
+        """
+        import os, uuid
+        target_path = Path(target_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_name = f".{target_path.name}.tmp.{uuid.uuid4().hex[:8]}"
+        tmp_path = target_path.parent / tmp_name
+
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+
+            if pre_replace_check is not None:
+                if not pre_replace_check():
+                    raise RuntimeError("Lease lost before atomic file replace")
+
+            os.replace(tmp_path, target_path)
+            return target_path
+        except Exception:
+            if tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+            raise
 
     def close(self):
         """Đóng tất cả connections."""

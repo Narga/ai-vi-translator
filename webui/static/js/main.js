@@ -61,22 +61,7 @@ function initTabs() {
             e.preventDefault();
             const targetId = item.getAttribute('data-tab');
 
-            if (targetId === 'archive') ApiClient.loadArchiveList();
-            if (targetId === 'logs') ApiClient.loadLogList();
-            if (targetId === 'docs') DocManager.loadDocList();
-            if (targetId === 'projects') ProjectManager.loadProjectCards();
-            if (targetId === 'prompts') PromptManager.loadLibrary();
-            if (targetId === 'config') {
-                ApiClient.loadApiKeys();
-                if (typeof OpenAIProvider !== 'undefined') OpenAIProvider.loadProviders();
-            }
-
-            if (targetId === 'workspace') {
-                if (typeof startStatsPolling === 'function') startStatsPolling();
-            } else {
-                if (typeof stopStatsPolling === 'function') stopStatsPolling();
-            }
-
+            // 1. Chuyển tab trên UI trước
             localStorage.setItem('nt_active_main_tab', targetId);
 
             navItems.forEach(n => n.classList.remove('active'));
@@ -91,6 +76,28 @@ function initTabs() {
                 targetSection.classList.remove('dn');
                 targetSection.classList.add('active');
                 targetSection.scrollTo(0, 0);
+            }
+
+            // 2. Tải dữ liệu tương ứng
+            try {
+                if (targetId === 'archive') ApiClient.loadArchiveList();
+                if (targetId === 'logs') ApiClient.loadLogList();
+                if (targetId === 'docs') DocManager.loadDocList();
+                if (targetId === 'projects') ProjectManager.loadProjectCards();
+                if (targetId === 'prompts') PromptManager.loadLibrary();
+                if (targetId === 'config') {
+                    ApiClient.loadApiKeys();
+                    ApiClient.loadAppConfig();
+                    if (typeof OpenAIProvider !== 'undefined') OpenAIProvider.loadProviders();
+                }
+
+                if (targetId === 'workspace') {
+                    if (typeof startStatsPolling === 'function') startStatsPolling();
+                } else {
+                    if (typeof stopStatsPolling === 'function') stopStatsPolling();
+                }
+            } catch (err) {
+                console.error(`Lỗi khi nạp dữ liệu cho tab ${targetId}:`, err);
             }
         });
     });

@@ -82,3 +82,24 @@ def test_scan_missing_dir_is_noop(tmp_path):
     store = TaskStore(str(tmp_path))
     from webui import scan_and_recover
     assert scan_and_recover(store, tmp_path / "khong-ton-tai") == 0
+
+
+def test_scan_ignores_empty_and_non_schema_checkpoints(tmp_path):
+    """File 0-byte hoặc DB rỗng không có bảng metadata không gây lỗi khi khởi động."""
+    store = TaskStore(str(tmp_path))
+    ck_dir = tmp_path / "checkpoints"
+    ck_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. 0-byte file
+    (ck_dir / "empty.db").touch()
+
+    # 2. SQLite db with no metadata table
+    import sqlite3
+    conn = sqlite3.connect(str(ck_dir / "dummy.db"))
+    conn.execute("CREATE TABLE other_table (id INT)")
+    conn.close()
+
+    from webui import scan_and_recover
+    assert scan_and_recover(store, ck_dir) == 0
+    assert store.list_tasks() == []
+

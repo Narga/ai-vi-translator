@@ -19,6 +19,8 @@ def mock_deps():
          patch("backend.infrastructure.providers.provider_service.ProviderService") as mock_ps_cls:
 
         mock_cp = MagicMock()
+        mock_cp.verify_checkpoint_completeness.return_value = (True, {})
+        mock_cp.create_manifest.return_value = {"is_complete": True, "output_hash": "sha256:123"}
         mock_cp_cls.return_value = mock_cp
 
         mock_translate.return_value = ("Bản dịch AI", "success", "key-abc")

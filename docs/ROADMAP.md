@@ -2,6 +2,23 @@
 
 ## Hoàn thành
 
+### v8.25.0 (2026-08-20)
+- [x] ⏱️ **`LeaseKeepAlive` Background Daemon & Strict Lease Lifecycle**: Context manager duy trì heartbeat định kỳ trong suốt in-flight LLM call (có `threading.Event`, `join(1.0)`, cleanup `finally`). Điều kiện `acquire_lease` nghiêm ngặt loại trừ mọi terminal status (`completed`, `failed`, `cancelled`, `closed_partial`).
+- [x] 🏷️ **Fencing Token & Atomic CAS (`lease_token` / `lease_epoch`)**: Fencing token + epoch CAS trên mọi DB side effects (`task_events`, `task_status`, `save_chunk`).
+- [x] 🛑 **Fail-Closed Durable Lease Validation & Worker Abort**: `CheckpointService.save_chunk` và `atomic_write_file` (trước `os.replace()`) trực tiếp xác thực quyền sở hữu lease trong `tasks.db` qua `is_lease_valid()`. Tự động ngắt luồng và dọn dẹp sạch file tạm `.tmp` nếu mất quyền hoặc có lỗi DB (fail-closed), loại bỏ hoàn toàn zombie write.
+- [x] 🔄 **Lineage Chain & Recovery-of-Recovery (Phase 6)**: Hỗ trợ khôi phục tiếp trên checkpoint đã recovery trước đó, tạo lineage chain `recovery_of` và `source_task_id` đầy đủ; bảo đảm source checkpoint bất biến và rollback nguyên tử khi lỗi preparation.
+- [x] 📜 **Bắt buộc Manifest Contract v1.0 & Zero-Marker Verification Gate (Phase 8)**: Verification gate 100% chunks hoàn tất & không chứa marker lỗi; bắt buộc tạo manifest sidecar `.manifest.json` và atomic replace.
+- [x] 🛡️ **Canonical Poison Job Quarantine (Phase 9)**: Tự động phát hiện và cách ly tác vụ vượt quá số lần recovery tối đa (`max_recovery_attempts = 3`) sang `status='failed'` với `error_class='poison_job'`.
+- [x] 🧪 **Bộ Kiểm Thử Toàn Diện 400 Tests Passed & 0 Warning**: Bổ sung các integration test đa worker zombie fencing, multi-worker race conditions, fail-closed guards, và last-mile replace verification (400 passed / 400 tests).
+
+### v8.24.0 (2026-08-19)
+- [x] 💾 **Chuẩn hóa Checkpoint Key (Logical vs Physical)**: Tích hợp resolver `resolve_checkpoint_key` và helper `same_checkpoint_key()` giúp đối chiếu chính xác giữa tên file logic và hash vật lý của checkpoint database, khắc phục lỗi 404 khi query task qua checkpoint key.
+- [x] 🔄 **Bảo toàn Identity Nguồn khi Resume**: Loại bỏ cơ chế tự động xóa sạch checkpoint khi có sự thay đổi về Provider/Model, cho phép người dùng chuyển đổi model hoặc provider linh hoạt mà vẫn giữ nguyên các chunk đã dịch trước đó.
+- [x] 🛑 **Cách ly Hủy Tác vụ (Scoped Cancellation)**: Loại bỏ hoàn toàn cờ `_cancel_all` trong `RuntimeState`, chuyển 100% sang cơ chế hủy tác vụ cách ly theo từng `job_id` cụ thể, không gây lây lan trạng thái dừng sang các tác vụ khác.
+- [x] 🛡️ **Close Partial Atomic Write Barrier**: Bổ sung cơ chế cancel-and-wait / write barrier cho luồng đóng file bán phần (`close_as_partial`), ngăn chặn xung đột ghi đĩa và race condition với worker nền.
+- [x] 📊 **Chuẩn hóa Event Failure & Chunk Counter**: Ngăn chặn việc ghi đè số chunk hoàn thành về 0 khi tác vụ gặp sự cố giữa chừng.
+- [x] 🧪 **Hermetic Smoke Test Suite Matrix**: Xây dựng test matrix 3 nhánh cho Gemini, OpenAI và Error Handling, mock độc lập `get_available_gemini_models` và `OpenAIClient.list_models()`, cô lập hoàn toàn kết nối mạng ngoài.
+
 ### v8.23.0 (2026-08-11)
 - [x] 💾 **Lưu trữ Tác vụ Nền SQLite TaskStore (`tasks.db`)**: Nâng cấp `TaskRegistry` từ RAM sang SQLite store (`TaskStore`), tự động lưu trạng thái tác vụ, tiến trình chunk và lịch sử event SSE xuống đĩa.
 - [x] 🔄 **Tự động Quét & Khôi phục Tác vụ khi Server Restart (`scan_and_recover`)**: Phát hiện các checkpoint SQLite và tác vụ chưa hoàn tất khi máy khởi động lại hoặc sau khi OS sleep/crash, tự động chuyển về trạng thái `resumable` hoặc `paused`.
@@ -205,22 +222,15 @@
 ---
 
 
-## Đang phát triển / Sắp tới (Kế hoạch Kiến trúc Checkpoint & Phân tán)
+## Đang phát triển / Sắp tới
 
-### Việc cần làm ngay: Giai đoạn P1.7 — Lease An Toàn & Fencing Token (Core Engine Hardening)
-- [ ] ⏱️ **`LeaseKeepAlive` Background Daemon**: Triển khai context manager quản lý daemon thread duy trì heartbeat định kỳ trong suốt in-flight LLM call (có `threading.Event`, `join(1.0)`, cleanup `finally`).
-- [ ] 🏷️ **Fencing Token (`lease_token` / `lease_epoch`)**: Gán token cho Worker khi nhận task; kiểm tra token hợp lệ trước mọi thao tác cập nhật `heartbeat_at` và commit checkpoint/kết quả.
-- [ ] 🛑 **Worker Abort khi Mất Quyền**: Tự động ngắt luồng xử lý và hủy bỏ kết quả cục bộ nếu phát hiện `lease_token` đã bị Reconciler thu hồi, chống ghi đè dữ liệu rác (zombie write).
-- [ ] 🧪 **Bộ 6 Test Suites Kiểm chứng Edge-case P1.7**: Kiểm thử API call dài hơn lease timeout, worker crash, lease bị thu hồi, zombie worker cố ghi đè, server restart giữa chừng và 2 worker tranh chấp task.
+### Việc cần làm tiếp theo: Mở rộng Phân tán & Tối ưu Lưu trữ (Post-P1.7 & P2)
+- [ ] 🔒 **DB-Level Cross-Process Idempotency**: Bổ sung Unique Index trên database và transaction atomic claim (`UPDATE ... WHERE status = 'QUEUED'`) cho triển khai phân tán đa tiến trình (multi-process).
+- [ ] 🧹 **Auto-Merge & Retention Cleanup**: Thu gom rác định kỳ cho các checkpoint cũ và log task đã hoàn tất lâu ngày.
+- [ ] 🔌 **SSE Reconnection**: Hoàn thiện cơ chế client tự động khôi phục stream SSE từ `last_event_id` khi mất kết nối mạng.
+- [ ] 👥 **Multi-Process Worker Pool**: Chuẩn hóa quy trình điều phối đa tiến trình worker an toàn trên môi trường production server (Gunicorn / uWSGI).
 
-### Việc cần làm tiếp theo: Giai đoạn P2 — Mở rộng Phân tán & Hardening (Post-P1.7)
-- [ ] 🔒 **DB-Level Cross-Process Idempotency**: Chuyển đổi từ `_RECOVERY_CREATE_LOCK` (`threading.Lock`) sang Unique Index trên database và transaction atomic claim (`UPDATE ... WHERE status = 'QUEUED'`).
-- [ ] 🧹 **Auto-Merge & Retention Cleanup**: Thu gom rác định kỳ cho các checkpoint cũ và log task đã hoàn tất.
-- [ ] 🛡️ **Poison Job Quarantine**: Bổ sung `recovery_attempts` và trạng thái `FAILED_POISON_PILL` ngắt vòng lặp crash lặp lại vô tận.
-- [ ] 🔌 **SSE Reconnection**: Hoàn thiện cơ chế client resume stream từ `last_event_id`.
-- [ ] 👥 **Multi-Process Worker Pool**: Chuẩn hóa quy trình điều phối đa tiến trình worker an toàn.
-
-### Việc cần làm tiếp theo (Mức độ ưu tiên trung bình)
+### Việc cần làm tiếp theo (Refactoring & Code Cleanup)
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
 - [ ] ⚙️ Dọn sạch các key cấu hình chết (`THINKING_LEVEL`, `REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)

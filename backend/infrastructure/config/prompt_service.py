@@ -210,6 +210,20 @@ class PromptService:
             prompts.update(project_prompts)
         return prompts
 
+    def reset_project_prompts(self, project_dir: Path) -> None:
+        """Reset tất cả project prompts về default (xóa folder prompt/)."""
+        prompt_dir = project_dir / "prompt"
+        if prompt_dir.exists():
+            shutil.rmtree(prompt_dir)
+            logger.info(f"Reset project prompts for {project_dir}")
+
+    def import_prompts_to_project(self, project_dir: Path, slug: str) -> int:
+        """Import một bộ prompt từ library vào project."""
+        lib_data = self.get_library_set(slug)
+        prompts = lib_data.get("prompts", {})
+        self.save_project_prompts(project_dir, prompts)
+        return len(prompts)
+
     def get_project_prompt_status(self, project_dir: Path) -> Dict[str, bool]:
         """Trả về dict {key: is_custom} cho biết prompt nào đã tùy chỉnh."""
         prompt_dir = project_dir / "prompt"

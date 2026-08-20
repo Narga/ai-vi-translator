@@ -86,12 +86,23 @@ def get_models():
                 gateway_api_key=gateway_api_key,
                 credential_mode=credential_mode
             )
-            if full:
-                models = client.list_models_full()
-                # Prioritize free models
-                models.sort(key=lambda x: not x.get("is_free", False))
-            else:
-                models = client.list_models()
+            try:
+                if full:
+                    models = client.list_models_full()
+                    # Prioritize free models
+                    models.sort(key=lambda x: not x.get("is_free", False))
+                else:
+                    models = client.list_models()
+            except Exception as e:
+                logger.warning(f"Failed to fetch OpenAI models: {e}")
+                def_m = active_provider.get("default_model") or get_default_model() or ""
+                fallback_models = [{"id": def_m, "name": def_m}] if (full and def_m) else ([def_m] if def_m else [])
+                return jsonify({
+                    "models": fallback_models,
+                    "default": def_m,
+                    "provider": "openai",
+                    "error": f"Không thể lấy danh sách models từ provider: {e}"
+                }), 200
         else:
             # Gemini
             from webui.helpers import get_available_gemini_models
@@ -121,7 +132,7 @@ def get_models():
         return jsonify({"models": models, "default": default_model, "provider": provider})
     except Exception as e:
         logger.error(f"get_models error: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"models": [], "default": "", "provider": provider if 'provider' in locals() else 'gemini', "error": str(e)}), 200
 
 
 
