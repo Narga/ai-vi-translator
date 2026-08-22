@@ -247,7 +247,7 @@ const EditorComponent = {
     },
 
     openSearchReplaceModal(textareaId) {
-        const el = document.querySelector('[x-data="searchReplace()"]');
+        const el = document.querySelector('[x-data*="searchReplace"]');
         if (el && el._x_dataStack) {
             const component = Alpine.$data(el);
             if (component && component.open) {

@@ -177,6 +177,10 @@ def index():
     )
 
 
+@translation_bp.route("/favicon.ico")
+def favicon():
+    """Handle browser favicon request cleanly."""
+    return ("", 204)
 
 
 

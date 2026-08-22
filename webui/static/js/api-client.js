@@ -531,6 +531,7 @@ const ApiClient = {
                 taskSummaryEl.textContent = parts.length ? ' — ' + parts.join(', ') : '';
             })
             .catch(e => console.error('Failed to load tasks', e));
+    },
 
     translateFiles(slug, files, opts = {}) {
         return fetch(`/api/projects/${slug}/translate`, {

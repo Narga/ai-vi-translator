@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.25.0)
+# 📚 Content Translator (v8.26.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.25.0):** Kiến trúc Lease Fencing & Failsafe CAS, `LeaseKeepAlive` daemon, Durable lease validation trực tiếp vào `tasks.db`, Recovery-of-Recovery Lineage, bắt buộc Manifest contract v1.0, Auto-merge verification gate và cách ly Poison Job (đạt chuẩn 400/400 tests passed, 0 warnings).
+**Tính năng mới (v8.26.0):** Sửa lỗi cú pháp tê liệt Frontend trong `api-client.js`, phục hồi dữ liệu hiển thị toàn hệ thống (Lưu trữ, Nhật ký, Quản lý dự án), tái cấu trúc Project Card và thanh tiến độ, dọn dẹp CSS xung đột & overlay modal, tối ưu hóa dọn dẹp kết nối SSE stream, nâng `z-index` Toast notification và bổ sung route Favicon 204.
 
 
 ---

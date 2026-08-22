@@ -328,7 +328,7 @@
     
     <!-- TEMPLATES -->
     <template id="tpl-project-card">
-        <div class="project-card bg-white br3 ba b--black-10 pa3 flex flex-column justify-between">
+        <div class="project-card">
             <div>
                 <!-- Header Card: Dot màu + Tên dự án -->
                 <div class="flex items-center gap-2 mb2">
@@ -365,12 +365,12 @@
                 
                 <!-- Progress Bar -->
                 <div class="mt2">
-                    <div class="flex justify-between items-center f7 mb1">
-                        <span class="gray">Tiến độ</span>
-                        <span class="js-progress-percent f6 fw6" style="color: var(--primary-indigo, #3730A3);">0%</span>
+                    <div class="flex justify-between items-baseline mb1">
+                        <span class="f7 gray">Tiến độ</span>
+                        <span class="js-progress-percent f7 fw6" style="color: var(--primary-indigo, #3730A3);">0%</span>
                     </div>
-                    <div class="ba b--black-10 br2 overflow-hidden" style="height: 6px; background: #F3F4F6;">
-                        <div class="js-progress-bar-fill" style="height: 100%; width: 0%; background-color: var(--primary-indigo, #3730A3); transition: width 0.3s ease, background-color 0.3s ease;"></div>
+                    <div class="project-progress-track">
+                        <div class="project-progress-fill js-progress-bar-fill" style="background-color: var(--primary-indigo, #3730A3);"></div>
                     </div>
                 </div>
             </div>
@@ -378,7 +378,7 @@
     </template>
 
     <!-- Search & Replace Modal -->
-    <div x-data="searchReplace()" x-show="isOpen" class="fixed absolute--fill bg-black-70 flex items-center justify-center z-max" style="z-index: 99999; display: none;" x-cloak @keydown.escape.window="closeModal()">
+    <div x-data="searchReplace()" x-show="isOpen" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 99999;" x-cloak @keydown.escape.window="closeModal()">
         <div class="bg-white br3 shadow-5 w-100 mw6 pa3" @click.outside="closeModal()">
             <h3 class="f5 ma0 fw6 dark-gray mb3 flex items-center gap1">🔍 Tìm kiếm & Thay thế</h3>
             
@@ -449,7 +449,7 @@
     </div>
 
     <!-- MODALBOX: TẠO DỰ ÁN MỚI -->
-    <div id="modal-create-project" class="fixed absolute--fill flex items-center justify-center" style="display: none !important; background: rgba(0,0,0,0.5); z-index: var(--z-modal-top, 10000);" onclick="ProjectManager.closeCreateProjectModal()">
+    <div id="modal-create-project" class="dn fixed absolute--fill items-center justify-center" style="background: rgba(0,0,0,0.5); z-index: var(--z-modal-top, 10000);" onclick="ProjectManager.closeCreateProjectModal()">
         <div class="bg-white br3 shadow-5 w-100 mw6 pa4 relative" onclick="event.stopPropagation()">
             <button class="absolute top-1 right-1 pointer bg-transparent bn gray hover-dark-gray f4 pa2" onclick="ProjectManager.closeCreateProjectModal()">✕</button>
             

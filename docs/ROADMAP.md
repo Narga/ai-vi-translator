@@ -2,6 +2,16 @@
 
 ## Hoàn thành
 
+### v8.26.0 (2026-08-22)
+- [x] 🐛 **Khắc phục Lỗi Cú pháp Tê liệt Frontend (`api-client.js`)**: Sửa lỗi thiếu dấu đóng khối `},` và bổ sung `.catch()` chuẩn hóa cho `loadTasks()`, sửa lại phương thức `translateFiles()`. Phục hồi toàn bộ dữ liệu hiển thị (Lưu trữ, Nhật ký, Thống kê dự án) và khôi phục hoạt động cho mọi nút chức năng (Dịch file, Dịch đã chọn, Soát lỗi AI, Nạp task).
+- [x] 🎨 **Tái cấu trúc Project Card & Sửa lỗi Tiến độ Lệch (`style.css`, `tab_projects.html`, `project-manager.js`)**: Dọn sạch các đoạn CSS thừa/trùng lặp gây đè style, tái thiết kế thanh tiến trình dạng pill track mượt mà, căn chỉnh baseline chuẩn xác, cấu hình `.projects-cards-grid` tự co giãn (`repeat(auto-fill, minmax(320px, 1fr))`) và cho phép click toàn bộ card để mở workspace.
+- [x] 📐 **Sửa Selector Cột Editor Workspace (`project-manager.js`)**: Cập nhật hàm `updateColumnLayout()` tìm chính xác `#pm-translation-workspace` và `#pm-spellcheck-workspace` qua query selector sâu, tránh phụ thuộc trực tiếp vào cấu trúc children lồng nhau.
+- [x] 🛡️ **Dọn dẹp Overlay Modal & Chuẩn hóa Lớp Ẩn (`tab_projects.html`, `modals.html`, `editor-component.js`)**: Loại bỏ `display: none !important;` gây lỗi chặn tương tác click trên thanh công cụ soạn thảo, chuẩn hóa lớp `dn` cho `#modal-create-project`, `#new-project-modal` và `#searchReplace`.
+- [x] 🔍 **Mở rộng Selector Search & Replace (`editor-component.js`)**: Hỗ trợ nhận diện cả 2 định dạng cấu hình Alpine.js `[x-data*="searchReplace"]`.
+- [x] 🔄 **Tối ưu Hóa Quản lý SSE Stream (`translation-worker.js`)**: Bổ sung cơ chế tự động đóng kết nối stream `_evtSource` cũ trước khi tạo kết nối mới trong `connectToProgress()`, ngăn ngừa rò rỉ kết nối và nghẽn luồng.
+- [x] 📢 **Nâng cấp `z-index` Toast Container (`style.css`)**: Đặt `#toast-container` lên `z-index: 100001` bảo đảm popup thông báo luôn nổi trên cùng, không bị che khuất bởi modalbox.
+- [x] 🌐 **Triệt tiêu Browser 404 Favicon Noise (`webui/routes/translation.py`)**: Thêm endpoint `/favicon.ico` trả về `204 No Content` giúp triệt tiêu log 404 không cần thiết khi trình duyệt tự động gửi yêu cầu icon.
+
 ### v8.25.0 (2026-08-20)
 - [x] ⏱️ **`LeaseKeepAlive` Background Daemon & Strict Lease Lifecycle**: Context manager duy trì heartbeat định kỳ trong suốt in-flight LLM call (có `threading.Event`, `join(1.0)`, cleanup `finally`). Điều kiện `acquire_lease` nghiêm ngặt loại trừ mọi terminal status (`completed`, `failed`, `cancelled`, `closed_partial`).
 - [x] 🏷️ **Fencing Token & Atomic CAS (`lease_token` / `lease_epoch`)**: Fencing token + epoch CAS trên mọi DB side effects (`task_events`, `task_status`, `save_chunk`).

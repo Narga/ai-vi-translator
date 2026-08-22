@@ -2,6 +2,31 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.26.0] - 2026-08-22
+### Sửa Lỗi Cú Pháp Tê Liệt Frontend, Tái Cấu Trúc Project Card, Chuẩn Hóa Modal Overlay & Tối Ưu Quản Lý SSE Stream
+
+**Khắc phục Lỗi Cú pháp Tê liệt Giao diện (`webui/static/js/api-client.js`):**
+- **Sửa Lỗi Cú pháp `api-client.js`**: Bổ sung dấu đóng khối `},` và `.catch()` chuẩn hóa cho hàm `loadTasks()`, định nghĩa hoàn chỉnh phương thức `translateFiles(slug, files, opts)`.
+- **Phục hồi Toàn bộ Chức năng Giao diện**: Khắc phục triệt để lỗi `SyntaxError` / `ReferenceError: ApiClient is not defined` làm dừng luồng JavaScript; khôi phục khả năng nạp dữ liệu cho tab Lưu trữ, Nhật ký hệ thống, thống kê dự án và kích hoạt lại toàn bộ các nút chức năng (Dịch file, Dịch đã chọn, Soát lỗi AI, v.v.).
+
+**Tái cấu trúc & Cải tiến Giao diện Project Card (`webui/static/css/style.css`, `webui/templates/partials/tab_projects.html`, `webui/static/js/project-manager.js`):**
+- **Dọn dẹp CSS Trùng lặp & Tối ưu Card Dự án**: Loại bỏ các block CSS thừa gây đè style, thiết kế lại thanh tiến trình tiến độ dạng pill track mượt mà, căn chỉnh baseline chuẩn xác.
+- **Tối ưu Grid & Trải nghiệm Click**: Chuẩn hóa `.projects-cards-grid` tự động co giãn (`repeat(auto-fill, minmax(320px, 1fr))`), hỗ trợ click toàn bộ card dự án để mở trực tiếp workspace.
+- **Sửa Selector Cột Editor**: Cập nhật hàm `updateColumnLayout()` tìm chính xác `#pm-translation-workspace` và `#pm-spellcheck-workspace` qua query selector đa cấp, không bị phụ thuộc cấu trúc DOM trực tiếp.
+
+**Dọn dẹp Overlay Modal & Chuẩn hóa Tìm kiếm/Thay thế (`webui/templates/partials/tab_projects.html`, `webui/templates/partials/modals.html`, `webui/static/js/editor-component.js`):**
+- **Loại bỏ Lớp Phủ Ẩn Gây Chặn Click**: Chuẩn hóa lớp `dn` cho `#modal-create-project`, `#new-project-modal` và `#searchReplace`, loại bỏ `display: none !important;` gây lỗi chặn tương tác click trên thanh công cụ biên tập.
+- **Mở rộng Selector Search & Replace**: Cập nhật `EditorComponent.openSearchReplaceModal()` nhận diện cả 2 định dạng cấu hình Alpine.js `[x-data*="searchReplace"]`.
+
+**Tối ưu Hóa Quản lý SSE Stream & Nâng cấp Toast Notification (`webui/static/js/translation-worker.js`, `webui/static/css/style.css`):**
+- **Dọn dẹp Kết nối Stream Cũ**: Bổ sung lệnh tự động đóng kết nối `_evtSource.close()` trước khi khởi tạo kết nối SSE mới trong `connectToProgress()`, ngăn chặn xung đột tiến trình và rò rỉ kết nối stream.
+- **Nâng `z-index` Toast Notification**: Đặt `#toast-container` lên `z-index: 100001` bảo đảm popup thông báo luôn hiển thị trên cùng, không bị che khuất bởi modalbox.
+
+**Triệt tiêu Log 404 từ Trình duyệt (`webui/routes/translation.py`):**
+- **Thêm Route Favicon**: Bổ sung endpoint `/favicon.ico` trả về `204 No Content` giúp triệt tiêu hoàn toàn log 404 không cần thiết khi trình duyệt tự động gửi yêu cầu icon.
+
+---
+
 ## [8.25.0] - 2026-08-20
 ### Kiến Trúc Lease Fencing & Failsafe CAS, Recovery Lineage, Bắt Buộc Manifest Contract v1.0 & Kiểm Thử Toàn Diện 400 Tests
 

@@ -380,6 +380,11 @@ const TranslationWorker = {
             }
         }
 
+        if (TranslationWorker._evtSource) {
+            TranslationWorker._evtSource.close();
+            TranslationWorker._evtSource = null;
+        }
+
         const url = job_id ? `/api/tasks/${job_id}/events` : '/api/progress';
         const evtSource = new EventSource(url);
         TranslationWorker._evtSource = evtSource;

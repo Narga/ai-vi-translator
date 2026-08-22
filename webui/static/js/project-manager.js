@@ -199,6 +199,15 @@ const ProjectManager = {
                 const titleEl = clone.querySelector('.js-title');
                 titleEl.textContent = p.name || p.book_title;
                 titleEl.onclick = () => ProjectManager.openProject(p.slug);
+
+                const cardRoot = clone.querySelector('.project-card');
+                if (cardRoot) {
+                    cardRoot.onclick = (e) => {
+                        if (!e.target.closest('button') && !e.target.closest('input') && !e.target.closest('.project-card-actions')) {
+                            ProjectManager.openProject(p.slug);
+                        }
+                    };
+                }
                 
                 // Author
                 const authorEl = clone.querySelector('.js-author');
@@ -258,8 +267,7 @@ const ProjectManager = {
 
             // Append dashed "Tạo dự án mới" Card at the end of the grid
             const createCard = document.createElement('div');
-            createCard.className = 'create-project-card-dashed pa4 flex flex-column items-center justify-center tc pointer';
-            createCard.style.minHeight = '180px';
+            createCard.className = 'create-project-card-dashed pointer';
             createCard.onclick = () => ProjectManager.showCreateProjectModal();
             createCard.innerHTML = `
                 <div class="br-100 flex items-center justify-center mb3 white" style="width: 48px; height: 48px; background-color: var(--primary-indigo, #3730A3);">
@@ -280,12 +288,18 @@ const ProjectManager = {
 
     showCreateProjectModal() {
         const modal = document.getElementById('modal-create-project');
-        if (modal) modal.style.display = 'flex';
+        if (modal) {
+            modal.classList.remove('dn');
+            modal.style.display = 'flex';
+        }
     },
 
     closeCreateProjectModal() {
         const modal = document.getElementById('modal-create-project');
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.classList.add('dn');
+            modal.style.display = 'none';
+        }
     },
 
     createNewProject() {
@@ -754,10 +768,7 @@ const ProjectManager = {
         if (!editorContainer) return;
 
         // Tìm workspace đang hoạt động (không bị ẩn display: none)
-        const activeWorkspace = Array.from(editorContainer.children).find(child => {
-            return (child.id === 'pm-translation-workspace' || child.id === 'pm-spellcheck-workspace') &&
-                   child.style.display !== 'none';
-        });
+        const activeWorkspace = editorContainer.querySelector('#pm-translation-workspace:not([style*="display: none"]), #pm-spellcheck-workspace:not([style*="display: none"])') || document.getElementById('pm-translation-workspace');
 
         if (!activeWorkspace) return;
 
