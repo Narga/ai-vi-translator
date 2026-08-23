@@ -608,5 +608,57 @@ def test_checkpoint_save_chunk_rejects_when_metadata_token_is_missing_at_same_ep
     assert saved is False
 
 
+def test_cross_task_resume_checkpoint_save_chunk_success(tmp_path):
+    """Kiểm tra Task B resume checkpoint của Task A:
+    Task A (epoch 1, token A) ghi chunk 0 thành công rồi dừng.
+    Task B là một task mới (epoch 1, token B) resume checkpoint và ghi chunk 1 với lease_validator hợp lệ.
+    Save chunk 1 PHẢI THÀNH CÔNG và cập nhật token của checkpoint sang token B.
+    """
+    from backend.infrastructure.progress.lease_manager import LeaseKeepAlive
+
+    store = TaskStore(str(tmp_path))
+    ck_dir = tmp_path / "checkpoints"
+    ck_service = CheckpointService(str(ck_dir))
+
+    # Task A tạo và ghi chunk 0
+    task_id_A = "task-A"
+    store.create_task(job_id=task_id_A, kind="translation", title="T1", project_slug="p", filename="book.txt", total_chunks=3)
+    tokenA, epochA = store.acquire_lease(task_id_A)
+    keep_alive_A = LeaseKeepAlive(task_id=task_id_A, lease_token=tokenA, lease_epoch=epochA, task_store=store)
+
+    saved0 = ck_service.save_chunk(
+        "book.txt", 0, "c0", "trans0",
+        lease_epoch=epochA, lease_token=tokenA,
+        lease_validator=keep_alive_A.is_durable_valid,
+    )
+    assert saved0 is True
+
+    # Task A kết thúc / gián đoạn
+    store.update_status(task_id_A, "interrupted")
+
+    # Task B (task_id khác, epoch 1 mới, token B mới) resume checkpoint
+    task_id_B = "task-B"
+    store.create_task(job_id=task_id_B, kind="translation", title="T2", project_slug="p", filename="book.txt", total_chunks=3)
+    tokenB, epochB = store.acquire_lease(task_id_B)
+    assert epochB == 1
+    assert tokenB != tokenA
+    keep_alive_B = LeaseKeepAlive(task_id=task_id_B, lease_token=tokenB, lease_epoch=epochB, task_store=store)
+
+    # Task B ghi chunk 1: PHẢI THÀNH CÔNG nhờ lease_validator xác nhận quyền sở hữu từ tasks.db
+    saved1 = ck_service.save_chunk(
+        "book.txt", 1, "c1", "trans1",
+        lease_epoch=epochB, lease_token=tokenB,
+        lease_validator=keep_alive_B.is_durable_valid,
+    )
+    assert saved1 is True
+
+    # Kiểm tra cả 2 chunks đều có trong checkpoint
+    chunks = ck_service.get_translated_chunks("book.txt")
+    assert len(chunks) == 2
+    assert chunks[0] == "trans0"
+    assert chunks[1] == "trans1"
+
+
+
 
 

@@ -365,6 +365,9 @@ const ApiClient = {
     },
 
     saveAppConfig() {
+        const pollIntervalEl = document.getElementById('cfg-poll-interval');
+        const pollSec = pollIntervalEl ? parseInt(pollIntervalEl.value, 10) || 15 : 15;
+
         const data = {
             MODEL: {
                 MODEL: document.getElementById('model').value,
@@ -375,7 +378,8 @@ const ApiClient = {
                 MAX_CHARS_PER_CHUNK: document.getElementById('chunk-size').value,
                 CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
                 TEMPERATURE: document.getElementById('temperature').value,
-                REQUEST_DELAY: document.getElementById('cfg-delay').value
+                REQUEST_DELAY: document.getElementById('cfg-delay').value,
+                TASK_POLL_INTERVAL: pollSec
             }
         };
 
@@ -390,6 +394,7 @@ const ApiClient = {
             })
             .then(res => {
                 if (res.success) {
+                    ApiClient.startTaskPolling(pollSec);
                     UiHelpers.showToast('Lưu Cấu hình thành công!', 'success');
                 } else {
                     UiHelpers.showToast('Lưu bị lỗi: ' + (res.error || ''), 'error');
@@ -557,8 +562,35 @@ const ApiClient = {
             return data;
         });
     },
+
+    _taskPollTimer: null,
+    pollIntervalSeconds: 15,
+
+    startTaskPolling(intervalSeconds) {
+        if (intervalSeconds) {
+            this.pollIntervalSeconds = Math.max(5, parseInt(intervalSeconds, 10) || 15);
+        }
+        if (this._taskPollTimer) {
+            clearInterval(this._taskPollTimer);
+            this._taskPollTimer = null;
+        }
+        this._taskPollTimer = setInterval(() => {
+            ApiClient.loadTasks();
+        }, this.pollIntervalSeconds * 1000);
+    }
 };
 
 window.ApiClient = ApiClient;
-setInterval(ApiClient.loadTasks, 5000);
+
+// Khởi tạo polling mặc định 15s và tải cấu hình từ server
+ApiClient.startTaskPolling(15);
 setTimeout(ApiClient.loadTasks, 1000);
+fetch('/api/config')
+    .then(r => r.ok ? r.json() : null)
+    .then(cfg => {
+        if (cfg && cfg.task_poll_interval) {
+            ApiClient.startTaskPolling(cfg.task_poll_interval);
+        }
+    })
+    .catch(() => {});
+

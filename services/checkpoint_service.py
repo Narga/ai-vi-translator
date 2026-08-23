@@ -103,7 +103,7 @@ class CheckpointService:
         self._logger = logging.getLogger(__name__)
         self._connections: Dict[str, sqlite3.Connection] = {}
 
-        self._logger.info(f"📍 CheckpointService initialized (SQLite): {self.checkpoint_dir}")
+        self._logger.debug(f"📍 CheckpointService initialized (SQLite): {self.checkpoint_dir}")
 
     @staticmethod
     def _is_valid_sqlite_file(path: Path) -> bool:
@@ -224,7 +224,7 @@ class CheckpointService:
                     )
 
             conn.commit()
-            self._logger.info(
+            self._logger.debug(
                 f"📍 Session initialized: {filename} - {total_chunks} chunks"
             )
 
@@ -270,7 +270,7 @@ class CheckpointService:
                 if row_token and row_token[0]:
                     current_token = str(row_token[0])
 
-                if current_epoch is not None:
+                if current_epoch is not None and lease_validator is None:
                     if lease_epoch < current_epoch:
                         self._logger.warning(
                             f"🚨 [CHECKPOINT_FENCING_REJECT] Reject chunk {chunk_index} vì lease_epoch cũ: {lease_epoch} < {current_epoch}"

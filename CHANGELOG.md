@@ -2,6 +2,35 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.28.0] - 2026-08-23
+### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
+
+**Khắc phục Lỗi Kẹt Tiến trình & Checkpoint Fencing CAS Mismatch (`services/checkpoint_service.py`, `services/openai_client.py`, `tests/unit/test_fencing_token_side_effects.py`):**
+- **Tối ưu hóa Fencing CAS khi Resume Task**: Sửa logic CAS trong `save_chunk()`: khi `lease_validator` từ `tasks.db` đã xác nhận worker hợp lệ, checkpoint sẽ chấp nhận ghi kết quả dịch và cập nhật token mới cho file checkpoint thay vì từ chối do xung đột token cũ (`CHECKPOINT_FENCING_REJECT`).
+- **Hard Socket Timeout 600s**: Bổ sung `"timeout": 600.0` (10 phút) vào `OpenAIClient.chat.completions.create` để tự động ngắt kết nối và retry/chuyển key khi máy chủ AI upstream bị nghẽn mạng thay vì treo socket vô hạn.
+- **Unit Test Fencing Cross-task**: Bổ sung test case `test_cross_task_resume_checkpoint_save_chunk_success` kiểm thử toàn diện luồng khôi phục chéo task.
+
+**Luồng SSE Heartbeat Keep-Alive & Tránh "Đóng băng" Giao diện (`webui/routes/tasks.py`, `webui/static/js/translation-worker.js`, `core/executor.py`):**
+- **SSE Heartbeat Ping (`: ping\n\n`)**: Phát tín hiệu keep-alive comment mỗi 10 giây trong endpoint `/api/tasks/<job_id>/events`, ngăn chặn trình duyệt và proxy TCP ngắt kết nối stream khi AI xử lý chunk lớn kéo dài 5-10 phút.
+- **Auto-Reconnect Stream Frontend**: Trong `translation-worker.js`, `evtSource.onerror` tự động đồng bộ trạng thái từ `tasks.db` và kết nối lại stream sau 2 giây nếu tác vụ vẫn đang ở trạng thái `running`.
+- **Thông điệp Tiến trình Chi tiết & Live Timer**: Cập nhật thông báo trực quan `Đang dịch Chunk i/N (M ký tự)...` kèm Live Timer `⏱️ MM:SS` đếm thời gian thực theo từng giây trên modal tiến trình.
+
+**Triệt tiêu Log Flood & Cấu hình Chu kỳ Quét Tác vụ (`services/checkpoint_service.py`, `webui/routes/tasks.py`, `config/app.ini`, `webui/routes/settings.py`, `webui/templates/partials/tab_config.html`, `webui/static/js/api-client.js`, `webui/static/js/task-dashboard.js`):**
+- **Triệt tiêu Log Flood**: Chuyển log khởi tạo `CheckpointService` và Session từ `INFO` sang `DEBUG`, cache service instance theo workspace path trong `tasks.py`, throttle `reconcile_lease_expired` tối đa 1 lần/60s.
+- **Cấu hình Chu kỳ Quét Tác vụ (`TASK_POLL_INTERVAL`)**: Thêm cấu hình `TASK_POLL_INTERVAL = 15` (mặc định 15s) vào section `[PROCESSING]` trong `config/app.ini`, cho phép tùy chỉnh trực tiếp qua form Cấu hình nâng cao trên WebUI và đồng bộ tự động xuống Frontend.
+
+**Sửa Lỗi Chọn & Chia Tập Tin Liên Tiếp trong Công Cụ Chuyển Đổi (`webui/static/js/converter-tool-plugin.js`, `webui/static/js/project-manager.js`, `webui/static/js/editor-component.js`, `plugins/epub_converter/services/file_operations.py`, `tests/unit/test_file_operations.py`):**
+- **Smart Selection Fallback**: Tự động nhận diện và sử dụng tập tin đang active trong workspace khi người dùng click vào dòng tên file mà không cần tick ô checkbox.
+- **Sửa Bug Ternary Dead-code L29**: Loại bỏ biểu thức copy-paste `(sourcesBtn && ...) ? 'sources' : 'sources'`, chuẩn hóa `let section = 'sources'`.
+- **One-Shot Suppress Summary Protection**: Cờ `_suppressSyncSummary` tự reset sau lần chặn đầu tiên, bảo đảm việc tải lại danh sách file không xóa đè link tải sau khi chia file xong.
+- **Báo cáo Chính xác Skipped Files**: Đọc `skippedFiles[0].reason` hiển thị đúng nguyên nhân bỏ qua (định dạng không hỗ trợ hoặc kích thước < giới hạn chia); bổ sung `len(text)` và `max_chars` vào log cảnh báo `⚠️` của backend.
+- **Khắc phục Double-Assignment & Race Condition**: Gán `window.currentProjectFile` đồng bộ ngay đầu `_loadFilePair` kèm chú thích trade-off rõ ràng.
+
+**Cập nhật Tài liệu Hướng dẫn Sử dụng (`docs/MANUAL.md`):**
+- Bổ sung Mục 7.A trong `docs/MANUAL.md` hướng dẫn xử lý tác vụ dịch nhiều chunk bị treo/kẹt mạng, cơ chế toàn vẹn checkpoint SQLite và quy trình khôi phục nhanh qua nút Dừng $\rightarrow$ Tiếp tục hoặc Xuất phần đã dịch.
+
+---
+
 ## [8.27.0] - 2026-08-23
 ### Quản Trị Tác Vụ Dịch Thuật & Checkpoint, Task Dashboard Chuyên Sâu, Thao Tác Hàng Loạt Theo Dự Án & Reconcile Heartbeat Tự Động
 

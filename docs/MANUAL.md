@@ -215,7 +215,44 @@ Thay thế trên toàn bộ tập tin dự án là thao tác không thể hoàn 
 - **Lỗi Encoding:** File đầu vào phải UTF-8.
 - **Port bị chiếm:** Dùng `python main.py --port 8080`.
 
-### Lỗi Phân mảnh Module OCR (v6.9.0+)
+### A. Tác vụ Dịch File Nhiều Chunk Bị Treo hoặc Kẹt Giữa Chừng (Stalled/Hang Chunk)
+
+#### 1. Nguyên nhân & Bản chất hiện tượng
+- **Thời gian xử lý chunk lớn**: Khi dịch file văn bản dài được chia thành các chunk lớn (15.000 – 20.000 ký tự/chunk), các mô hình AI có cơ chế suy luận chuyên sâu (*Thinking / Reasoning* như Gemini 2.5/3.0, Step-3.7-flash, DeepSeek R1, v.v.) thường mất từ **5 đến 10 phút** cho mỗi chunk.
+- **Nguyên tắc Ghép File (Verification Gate)**: Để bảo đảm bản dịch hoàn chỉnh và không bị thiếu sót nội dung, hệ thống **bắt buộc phải nhận đủ 100% tất cả các chunk** mới tiến hành ghép file (assemble) và ghi ra thư mục `translated/`. Nếu một file có 3 chunk và mới hoàn thành 2/3 chunk thì hệ thống sẽ **chưa ghép file**.
+- **Kẹt mạng hoặc nghẽn Socket từ nhà cung cấp API**: Trong một số trường hợp, máy chủ AI của nhà cung cấp (Stepfun, OpenAI proxy, v.v.) bị quá tải hoặc treo kết nối HTTP giữa chừng (đã nhận request nhưng không phản hồi cũng không ngắt kết nối), khiến tiến trình dịch bị đứng chờ.
+
+#### 2. Dữ liệu luôn an toàn 100% (Zero Data Loss)
+Mọi chunk sau khi nhận về thành công đều được ghi tức thì vào cơ sở dữ liệu SQLite Checkpoint (`workspace/checkpoints/*.db`). **Dữ liệu các chunk đã dịch trước đó không bao giờ bị mất.**
+
+#### 3. Các bước xử lý nhanh trên giao diện WebUI
+
+```
+[Tác vụ đang kẹt/treo]
+       │
+       ├─► Bấm nút "Dừng" (Stop)
+       │         │
+       │         ├─► Lựa chọn 1: Bấm "Tiếp tục" (Resume)
+       │         │   └── Tự động bỏ qua các chunk đã hoàn thành, chỉ dịch lại duy nhất chunk bị kẹt.
+       │         │
+       │         └─► Lựa chọn 2: Bấm "Chỉ xuất phần đã dịch" (Export Partial)
+       │             └── Xuất ngay file chứa các chunk đã dịch xong thành công ra đĩa.
+```
+
+* **Cách 1: Khôi phục và dịch tiếp (Khuyên dùng)**:
+  1. Trên modal tiến trình hoặc danh sách tác vụ, bấm nút **"Dừng"** (Stop).
+  2. Bấm nút **"Tiếp tục"** (Resume).
+  3. Hệ thống đọc checkpoint trên đĩa, tự động nhận diện các chunk đã `done` và chỉ gửi yêu cầu dịch đối với các chunk còn `pending`.
+* **Cách 2: Xuất ngay kết quả phần đã dịch (Partial Export)**:
+  - Nếu không muốn tiếp tục chờ AI dịch nốt các chunk còn lại, bấm nút **"Chỉ xuất phần đã dịch"** hoặc **"Chia tách phần đã dịch"**. Hệ thống sẽ tự động ghép các chunk đã dịch xong thành file `*_partial.txt` lưu vào thư mục `translated/`.
+
+#### 4. Cơ chế phòng hộ tự động của hệ thống
+- **Live Timer (`⏱️ MM:SS`)**: Modal tiến trình hiển thị đồng hồ đếm thời gian thực theo từng giây để người dùng theo dõi AI đã xử lý chunk hiện tại được bao lâu.
+- **Hard Socket Timeout (600s / 10 phút)**: Hệ thống tự động ngắt kết nối với mã lỗi `408 Timeout` nếu socket máy chủ AI bị treo quá 10 phút, kích hoạt cơ chế chuyển key hoặc retry tự động thay vì chờ vô hạn.
+
+---
+
+### B. Lỗi Phân mảnh Module OCR (v6.9.0+)
 - Lỗi `ImportError` liên quan `plugins.ocr.modules`: chạy từ thư mục gốc dự án.
 - Module báo thiếu thư viện: hệ thống tự động cài qua `lazy_import_and_install`. Nếu thất bại, chạy `pip install <package>`.
 

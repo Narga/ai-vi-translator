@@ -116,6 +116,7 @@ class OpenAIClient:
                 "model": model_name,
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": temperature,
+                "timeout": kwargs.get("timeout", 600.0),
             }
             # Gemini-only options must never leak into the OpenAI-compatible adapter.
             for key in ("max_tokens", "top_p", "response_format"):

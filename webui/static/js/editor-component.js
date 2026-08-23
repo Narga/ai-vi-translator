@@ -28,6 +28,13 @@ const EditorComponent = {
         DirtyState.clean(prefix + 'spell-result-text');
         const slug = window.currentProject.slug;
 
+        // Gán đồng bộ để tránh race condition khi người dùng click file rồi bấm tác vụ ngay.
+        // Trade-off đã biết: nếu fetch thất bại, currentProjectFile trỏ file mới nhưng editor giữ nội dung cũ (chấp nhận được vì ứng dụng chạy localhost).
+        window.currentProjectFile = { name: filename, section };
+        if (window.ConverterToolPlugin && window.ConverterToolPlugin.syncSelectionSummary) {
+            window.ConverterToolPlugin.syncSelectionSummary();
+        }
+
         const statusEl = document.getElementById(prefix + 'opened-file-status');
         if (statusEl) {
             statusEl.innerHTML = `<strong>Tập tin:</strong> <em>${filename}</em> | `;
@@ -41,7 +48,6 @@ const EditorComponent = {
                 })
                 .then(data => {
                     document.getElementById(prefix + 'source-text').value = data.content || '';
-                    window.currentProjectFile = { name: filename, section };
                     if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
                         ProjectManager.highlightActiveFile(filename);
                     }
@@ -72,7 +78,6 @@ const EditorComponent = {
                 })
                 .then(data => {
                 document.getElementById(prefix + 'result-text').value = data.content || '';
-                window.currentProjectFile = { name: filename, section };
                 if (typeof ProjectManager !== 'undefined' && ProjectManager.highlightActiveFile) {
                     ProjectManager.highlightActiveFile(filename);
                 }

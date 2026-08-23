@@ -77,8 +77,8 @@ def split_files(
         chunks = process_text_for_chunking(text, min_chars, max_chars)
 
         if len(chunks) <= 1:
-            skipped_files.append({"filename": filename, "reason": "Quá nhỏ, không cần chia"})
-            log(f"⚠️ {filename}: quá nhỏ, không cần chia")
+            skipped_files.append({"filename": filename, "reason": f"Quá nhỏ ({len(text):,} ký tự < {max_chars:,} ký tự)"})
+            log(f"⚠️ {filename}: quá nhỏ ({len(text):,} ký tự < giới hạn {max_chars:,} ký tự), bỏ qua chia nhỏ")
             continue
 
         stem = safe_path.stem

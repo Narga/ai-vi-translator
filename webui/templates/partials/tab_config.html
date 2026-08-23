@@ -199,6 +199,15 @@
                                         </div>
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
+                                                Chu kỳ quét tác vụ (giây)
+                                                <span class="nt-tooltip-container">
+                                                    <span class="nt-help-icon" data-tooltip="Khoảng thời gian (giây) giữa các lần kiểm tra tiến trình tác vụ chạy nền (mặc định: 15s).">ⓘ</span>
+                                                </span>
+                                            </label>
+                                            <input type="number" id="cfg-poll-interval" name="PROCESSING.TASK_POLL_INTERVAL" min="5" max="300" class="ba b--black-10 br2 pa2 w-100 f7 outline-0" value="{{ (app_config.get('PROCESSING', {}) if app_config else {}).get('TASK_POLL_INTERVAL', 15) }}">
+                                        </div>
+                                        <div class="w-100 w-50-ns ph2 mb3">
+                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
                                                 Độ trễ bù trừ (Antilag)
                                                 <span class="nt-tooltip-container">
                                                     <span class="nt-help-icon" data-tooltip="Bù trừ độ trễ mạng để tối ưu hóa tốc độ gửi yêu cầu.">ⓘ</span>

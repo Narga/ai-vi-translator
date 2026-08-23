@@ -33,7 +33,10 @@
             <!-- Progress Bar Section -->
             <div id="progress-container" class="mb4">
                 <div class="flex justify-between items-end mb2">
-                    <span id="progress-text" class="f7 gray fw6 uppercase tracked">Đang chuẩn bị...</span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="progress-text" class="f7 gray fw6 uppercase tracked">Đang chuẩn bị...</span>
+                        <span id="progress-timer" class="dn f7 gray ph2 pv1 br2 bg-near-white code">⏱️ <span id="progress-timer-val">00:00</span></span>
+                    </div>
                     <span id="progress-percent" class="f5 fw6 blue">0%</span>
                 </div>
                 <div class="h1 w-100 bg-near-white br-pill overflow-hidden ba b--black-05">

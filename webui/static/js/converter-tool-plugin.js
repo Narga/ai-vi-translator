@@ -1,4 +1,7 @@
 window.ConverterToolPlugin = {
+    // Cờ chống ghi đè summary khi refresh file list tự động sau tác vụ (one-shot reset)
+    _suppressSyncSummary: false,
+
     getSelectionFromWorkspace() {
         if (!window.currentProject) {
             return { slug: null, section: 'sources', filenames: [] };
@@ -8,27 +11,49 @@ window.ConverterToolPlugin = {
         const translatedBtn = document.getElementById('pm-tab-translated');
         const spellingBtn = document.getElementById('pm-tab-spelling');
 
+        let section = 'sources';
+        let selectedSet = window.selectedFiles;
+
         if (translatedBtn && translatedBtn.classList.contains('active')) {
-            return {
-                slug: window.currentProject.slug,
-                section: 'translated',
-                filenames: Array.from(window.selectedTranslatedFiles || []),
-            };
+            section = 'translated';
+            selectedSet = window.selectedTranslatedFiles;
+        } else if (spellingBtn && spellingBtn.classList.contains('active')) {
+            section = 'spelling';
+            selectedSet = window.selectedFiles;
         }
 
-        if (spellingBtn && spellingBtn.classList.contains('active')) {
-            return {
-                slug: window.currentProject.slug,
-                section: 'spelling',
-                filenames: Array.from(window.selectedFiles || []),
-            };
+        let filenames = Array.from(selectedSet || []);
+
+        // Smart Fallback: Nếu không tick checkbox nào, fallback sang file đang active trong editor/panel
+        if (filenames.length === 0 && window.currentProjectFile && window.currentProjectFile.name) {
+            if (window.currentProjectFile.section === section) {
+                filenames = [window.currentProjectFile.name];
+            }
         }
 
         return {
             slug: window.currentProject.slug,
-            section: (sourcesBtn && sourcesBtn.classList.contains('active')) ? 'sources' : 'sources',
-            filenames: Array.from(window.selectedFiles || []),
+            section: section,
+            filenames: filenames,
         };
+    },
+
+    syncSelectionSummary() {
+        if (this._suppressSyncSummary) {
+            this._suppressSyncSummary = false;
+            return;
+        }
+        const selection = this.getSelectionFromWorkspace();
+        if (!selection.slug) return;
+
+        const count = selection.filenames.length;
+        if (count === 0) {
+            this.setSelectionSummary('Chọn một hoặc nhiều tập tin ở panel bên trái, sau đó bấm nút tác vụ tương ứng.', 'info');
+        } else {
+            const sectionName = selection.section === 'translated' ? 'Bản dịch' : (selection.section === 'spelling' ? 'Soát lỗi' : 'Bản gốc');
+            const displayNames = count <= 2 ? selection.filenames.join(', ') : `${selection.filenames[0]} và ${count - 1} tập tin khác`;
+            this.setSelectionSummary(`Đang chọn: ${displayNames} (${count} tập tin từ tab ${sectionName})`, 'info');
+        }
     },
 
     setSelectionSummary(message, type = 'info') {
@@ -210,22 +235,36 @@ window.ConverterToolPlugin = {
                             const processedCount = data.result?.processed_count || 0;
                             const failedFiles = data.result?.failed_files || [];
                             const failedCount = failedFiles.length;
-                            const summaryLabel = data.status === 'partial'
-                                ? `Hoàn tất một phần: ${processedCount} OK, ${failedCount} lỗi`
-                                : 'Đã hoàn tất chuyển đổi';
+                            const skippedFiles = data.result?.skipped_files || [];
+                            const skippedCount = skippedFiles.length;
+
+                            let summaryLabel = 'Đã hoàn tất chuyển đổi';
+                            let summaryType = 'success';
+
+                            if (data.status === 'partial') {
+                                summaryLabel = `Hoàn tất một phần: ${processedCount} OK, ${failedCount} lỗi`;
+                                summaryType = 'error';
+                            } else if (processedCount === 0 && skippedCount > 0) {
+                                const skippedReason = skippedFiles[0]?.reason || 'không hợp lệ hoặc quá nhỏ';
+                                summaryLabel = `Bỏ qua ${skippedCount} tập tin (${skippedReason})`;
+                                summaryType = 'info';
+                            }
+
                             if (outputPath) {
                                 const name = outputPath.split('/').pop();
                                 const url = `/api/projects/${encodeURIComponent(slug)}/download/${encodeURIComponent(outputPath)}`;
                                 this.setSelectionSummaryHtml(
                                     `<span>${summaryLabel} →</span>` +
                                     `<a href="${url}" download class="ml-auto underline">${name}</a>`,
-                                    data.status === 'partial' ? 'error' : 'success');
+                                    summaryType);
                             } else {
-                                this.setSelectionSummary(summaryLabel, data.status === 'partial' ? 'error' : 'success');
+                                this.setSelectionSummary(summaryLabel, summaryType);
                             }
+
                             // Làm mới sidebar tại chỗ: giữ nguyên tab 'ebook-kit',
-                            // không gọi openProject (vì openProject ép wsTab='editor').
+                            // sử dụng one-shot suppress để không xóa đè summary vừa render
                             if (ProjectManager.refreshProjectFiles) {
+                                this._suppressSyncSummary = true;
                                 ProjectManager.refreshProjectFiles();
                             }
                         } else {

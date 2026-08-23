@@ -2,6 +2,15 @@
 
 ## Hoàn thành
 
+### v8.28.0 (2026-08-23)
+- [x] ⏱️ **Live SSE Stream Heartbeat & Auto-Reconnect**: Tích hợp SSE heartbeat ping (`: ping\n\n`) mỗi 10 giây trong `/api/tasks/<job_id>/events`, ngăn ngắt kết nối khi LLM xử lý chunk lớn (5-10 phút); Frontend tự động reconnect stream sau 2s khi xảy ra gián đoạn mạng.
+- [x] 🏷️ **Tối ưu hóa Fencing CAS khi Resume Task chéo**: Sửa logic CAS trong `CheckpointService.save_chunk()`: chấp nhận ghi kết quả dịch và cập nhật lease token mới khi `lease_validator` xác nhận worker hợp lệ từ `tasks.db`, loại bỏ lỗi `CHECKPOINT_FENCING_REJECT`.
+- [x] 🛡️ **Hard Socket Timeout 600s**: Bổ sung `timeout=600.0` (10 phút) vào `OpenAIClient.chat.completions.create` chống treo socket vô hạn khi upstream API quá tải.
+- [x] 🔇 **Triệt tiêu Log Flood & Cấu hình Chu kỳ Quét Tác vụ**: Chuyển log khởi tạo `CheckpointService` sang `DEBUG`, cache service instance theo workspace path, bổ sung cấu hình `TASK_POLL_INTERVAL = 15` tùy chỉnh linh hoạt trên WebUI.
+- [x] ✂️ **Sửa Lỗi Chọn & Chia Tập Tin Liên Tiếp trong Converter Tool (eBook Kit)**: Smart Selection Fallback tự động nhận diện file đang active khi click dòng, sửa bug ternary L29 dead-code, cơ chế One-shot Suppress bảo vệ link download không bị xóa đè, hiển thị chính xác dynamic reason khi bỏ qua file.
+- [x] 📚 **Tài liệu Hướng dẫn Xử lý Sự cố Kẹt Chunk (`docs/MANUAL.md`)**: Bổ sung Mục 7.A hướng dẫn chi tiết nguyên nhân, tính toàn vẹn dữ liệu SQLite và quy trình khôi phục nhanh qua Dừng $\rightarrow$ Resume hoặc Xuất phần đã dịch.
+- [x] 🧪 **Bộ Kiểm thử Tự động 411 Tests Passed 100%**: Mở rộng unit tests `test_cross_task_resume_checkpoint_save_chunk_success` và `test_small_file_skipped`.
+
 ### v8.27.0 (2026-08-23)
 - [x] ⚡ **Quản trị Tác vụ Dịch thuật & Checkpoint (Task Dashboard)**: Tự động lưu checkpoint SQLite, phân loại trạng thái thông minh (*running, resumable, interrupted, paused, failed, archived*), khôi phục tác vụ gián đoạn và trung tâm điều phối tác vụ tập trung (`#task-dashboard-modal`).
 - [x] 📁 **Thao tác Hàng loạt Phân tách theo Từng Dự án (Project-Scoped Actions)**: Bổ sung các nút **`▶ Tiếp tục (N)`** và **`✕ Bỏ (N)`** ở từng header nhóm dự án, chỉ tác động đúng các task của dự án tương ứng mà không làm ảnh hưởng đến các dự án khác.

@@ -397,10 +397,14 @@ def estimate_tokens():
 @handle_route_errors
 def get_config():
     """Lấy cấu hình mặc định."""
+    from backend.infrastructure.config.app_config_service import AppConfigService
+    config_service = AppConfigService()
+    poll_interval = config_service.get("PROCESSING", "TASK_POLL_INTERVAL", 15, int)
     return jsonify({
         "default_chunk_size": get_default_chunk_size(),
         "default_model": get_default_model(),
         "available_models": get_available_models(),
+        "task_poll_interval": poll_interval,
     })
 
 

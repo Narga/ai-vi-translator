@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.26.0)
+# 📚 Content Translator (v8.28.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.26.0):** Sửa lỗi cú pháp tê liệt Frontend trong `api-client.js`, phục hồi dữ liệu hiển thị toàn hệ thống (Lưu trữ, Nhật ký, Quản lý dự án), tái cấu trúc Project Card và thanh tiến độ, dọn dẹp CSS xung đột & overlay modal, tối ưu hóa dọn dẹp kết nối SSE stream, nâng `z-index` Toast notification và bổ sung route Favicon 204.
+**Tính năng mới (v8.28.0):** Live SSE Stream Heartbeat & Auto-Reconnect chống đóng băng giao diện khi dịch file lớn, khắc phục lỗi Checkpoint Fencing CAS Mismatch khi khôi phục tác vụ chéo, bổ sung Hard Socket Timeout 600s, triệt tiêu Log flood & tùy chỉnh chu kỳ quét tác vụ, và cải tiến Smart Selection Fallback cho Công cụ chuyển đổi (eBook Kit).
 
 
 ---
@@ -20,7 +20,7 @@
 - 🖥️ **So sánh bản dịch (Diff View)**: Xem Dọc/Ngang — so sánh bản gốc và bản dịch trực quan.
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
-- 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers (410 tests).
+- 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers (411 tests).
 - 🔌 **Plugin Management**: Quản lý plugin tập trung trong tab Cấu hình. eBook Kit và OCR Toolbox tích hợp vào workspace dự án.
 
 ---
@@ -86,5 +86,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga
-**Phiên bản:** 8.25.0
-**Ngày:** 20/08/2026
+**Phiên bản:** 8.28.0
+**Ngày:** 23/08/2026

@@ -63,10 +63,14 @@ class TestSplitFiles:
     def test_small_file_skipped(self, tmp_path):
         p = _make_project(tmp_path)
         (p / "sources" / "small.md").write_text("Short text.")
-        result = split_files(p, "sources", ["small.md"], False, 100000, lambda m: None)
+        logs = []
+        result = split_files(p, "sources", ["small.md"], False, 100000, logs.append)
         assert result["status"] == "done"
         assert result["processed_count"] == 0
-        assert result["skipped_files"][0]["reason"] == "Quá nhỏ, không cần chia"
+        assert len(result["skipped_files"]) == 1
+        assert "Quá nhỏ" in result["skipped_files"][0]["reason"]
+        assert "100,000" in result["skipped_files"][0]["reason"]
+        assert any("quá nhỏ" in log and "100,000" in log for log in logs)
 
     def test_unsupported_suffix_skipped(self, tmp_path):
         p = _make_project(tmp_path)

@@ -198,9 +198,25 @@ const UiHelpers = {
         const progressBar = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
         const progressText = document.getElementById('progress-text');
+        const timerEl = document.getElementById('progress-timer');
+        const timerValEl = document.getElementById('progress-timer-val');
+
         if (progressBar) progressBar.style.width = (state.percent || 0) + '%';
         if (progressPercent) progressPercent.textContent = (state.percent || 0) + '%';
         if (progressText) progressText.textContent = state.message || '';
+
+        if (timerEl && timerValEl) {
+            if (state.status === 'running') {
+                timerEl.classList.remove('dn');
+                if (!state.startTime) state.startTime = Date.now();
+                const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+                const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+                const ss = String(elapsed % 60).padStart(2, '0');
+                timerValEl.textContent = `${mm}:${ss}`;
+            } else {
+                timerEl.classList.add('dn');
+            }
+        }
 
         // 2. Cập nhật tiêu đề & Ngữ cảnh File / Dự án
         const titleEl = document.getElementById('progress-modal-title');

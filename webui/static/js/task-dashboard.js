@@ -17,13 +17,14 @@ const TaskDashboard = {
         ModalManager.show('task-dashboard-modal');
 
         if (!TaskDashboard._refreshTimer) {
+            const intervalMs = (window.ApiClient && ApiClient.pollIntervalSeconds ? ApiClient.pollIntervalSeconds * 1000 : 15000);
             TaskDashboard._refreshTimer = setInterval(() => {
                 if (ModalManager.isOpen('task-dashboard-modal')) {
                     TaskDashboard.refresh(true);
                 } else {
                     TaskDashboard.stopTimer();
                 }
-            }, 5000);
+            }, intervalMs);
         }
     },
 

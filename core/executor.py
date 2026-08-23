@@ -251,7 +251,7 @@ class TranslationExecutor:
                     current=i + 1,
                     total=len(chunks),
                     percent=base_percent + 5,
-                    message=f"Đang gửi chunk {i + 1} đến AI...",
+                    message=f"Đang dịch Chunk {i + 1}/{len(chunks)} ({len(chunk):,} ký tự)...",
                 )
 
                 result = self._translate_single_chunk(

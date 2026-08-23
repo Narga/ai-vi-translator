@@ -455,6 +455,19 @@ const TranslationWorker = {
             window._autoReturnTimer = null;
         }
 
+        if (window._liveProgressTimer) {
+            clearInterval(window._liveProgressTimer);
+            window._liveProgressTimer = null;
+        }
+        window._liveProgressTimer = setInterval(() => {
+            if (ModalManager.isOpen('translation-progress-modal') && taskState.status === 'running') {
+                UiHelpers.renderProgressModal(taskState);
+            } else if (!ModalManager.isOpen('translation-progress-modal')) {
+                clearInterval(window._liveProgressTimer);
+                window._liveProgressTimer = null;
+            }
+        }, 1000);
+
         evtSource.onmessage = function (event) {
             const data = JSON.parse(event.data);
             if (data.type === 'stream_end') {
@@ -643,10 +656,8 @@ const TranslationWorker = {
         evtSource.onerror = function () {
             evtSource.close();
             TranslationWorker._evtSource = null;
-            TranslationWorker.resetButton(btn, isBatch);
-            if (btnStop) btnStop.classList.add('dn');
 
-            // Lấy state từ DB vì stream bị lỗi (ví dụ 404 do task không nằm trong RAM registry)
+            // Lấy state từ DB vì stream bị ngắt kết nối
             fetch(`/api/tasks/${job_id}`)
                 .then(r => r.ok ? r.json() : null)
                 .then(snapshot => {
@@ -658,23 +669,40 @@ const TranslationWorker = {
                         if (snapshot.total_chunks > 0) {
                             taskState.percent = Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100);
                         }
-                        taskState.message = snapshot.last_error || (snapshot.status === 'resumable' ? 'Đã tạm dừng' : 'Đã kết thúc');
+                        taskState.message = snapshot.last_error || (snapshot.status === 'running' ? 'Đang kết nối lại tiến trình...' : (snapshot.status === 'resumable' ? 'Đã tạm dừng' : 'Đã kết thúc'));
                         TranslationWorker.updateProgress(taskState.percent, taskState.message);
                         if (ModalManager.isOpen('translation-progress-modal')) {
                             UiHelpers.renderProgressModal(taskState);
                         }
-                        TranslationWorker._updateResumeButton(snapshot.status)
+                        TranslationWorker._updateResumeButton(snapshot.status);
+
+                        if (snapshot.status === 'running') {
+                            // Tự động reconnect stream sau 2s nếu task vẫn đang chạy thực tế
+                            setTimeout(() => {
+                                if (ModalManager.isOpen('translation-progress-modal') && !TranslationWorker._evtSource) {
+                                    TranslationWorker.connectToProgress(job_id, btn, isBatch, onComplete, totalFiles);
+                                }
+                            }, 2000);
+                            return;
+                        }
+
+                        TranslationWorker.resetButton(btn, isBatch);
+                        if (btnStop) btnStop.classList.add('dn');
 
                         if (snapshot.status === 'failed') {
                             taskState.recoveryAvailable = snapshot.recovery_available !== false;
                             TranslationWorker._showRecoveryActions(taskState);
                         }
                     } else {
+                        TranslationWorker.resetButton(btn, isBatch);
+                        if (btnStop) btnStop.classList.add('dn');
                         TranslationWorker.updateProgress(taskState.percent, 'Không thể kết nối đến máy chủ.');
                         TranslationWorker._updateResumeButton('interrupted');
                     }
                 })
                 .catch(() => {
+                    TranslationWorker.resetButton(btn, isBatch);
+                    if (btnStop) btnStop.classList.add('dn');
                     TranslationWorker.updateProgress(taskState.percent, 'Không thể kết nối đến máy chủ.');
                     TranslationWorker._updateResumeButton('interrupted');
                 });

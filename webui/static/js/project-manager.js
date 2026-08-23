@@ -599,6 +599,11 @@ const ProjectManager = {
 
         // Cập nhật lại layout cho các cột sau khi chuyển tab
         ProjectManager.updateColumnLayout();
+
+        // Đồng bộ summary của Converter Tool nếu đang mở
+        if (window.ConverterToolPlugin && window.ConverterToolPlugin.syncSelectionSummary) {
+            window.ConverterToolPlugin.syncSelectionSummary();
+        }
     },
     
     renderPmTranslatedList(translated) {
@@ -861,6 +866,10 @@ const ProjectManager = {
         
         ProjectManager.lastCheckedFileIndex = currentIndex;
         ProjectManager.updateSelectAllButton();
+
+        if (window.ConverterToolPlugin && window.ConverterToolPlugin.syncSelectionSummary) {
+            window.ConverterToolPlugin.syncSelectionSummary();
+        }
     },
 
     toggleTranslatedFile(filename, checked, event = null) {
@@ -898,6 +907,10 @@ const ProjectManager = {
         
         ProjectManager.lastCheckedTranslatedIndex = currentIndex;
         ProjectManager.updateSelectAllTranslatedButton();
+
+        if (window.ConverterToolPlugin && window.ConverterToolPlugin.syncSelectionSummary) {
+            window.ConverterToolPlugin.syncSelectionSummary();
+        }
     },
 
     highlightActiveFile(filename) {

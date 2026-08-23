@@ -14,23 +14,25 @@ _task_store: TaskStore | None = None
 
 def _get_task_store() -> TaskStore:
     global _task_store
-    if _task_store is None:
-        workspace = os.environ.get("WORKSPACE_DIR", os.path.join(os.getcwd(), "workspace"))
+    workspace = os.environ.get("WORKSPACE_DIR", os.path.join(os.getcwd(), "workspace"))
+    if _task_store is None or str(Path(_task_store.db_path).parent) != str(Path(workspace)):
         _task_store = TaskStore(workspace)
     return _task_store
 
 
-def _get_checkpoint_service():
-    """CheckpointService trỏ đúng workspace đang chạy.
+_checkpoint_service_cache = {}
+_last_reconcile_time = 0.0
 
-    L9: `list_tasks` đã tự dựng đường dẫn từ `store.db_path` (dòng 50-52) nhưng `get_task`
-    lại gọi `CheckpointService()` không tham số → dùng mặc định `workspace/checkpoints`
-    theo CWD. Khi test set WORKSPACE_DIR sang tmp_path, hai hàm đọc HAI thư mục khác nhau:
-    `list_tasks` archive task còn `get_task` vẫn thấy checkpoint (hoặc ngược lại).
-    """
-    from services.checkpoint_service import CheckpointService
+
+def _get_checkpoint_service():
+    """CheckpointService trỏ đúng workspace đang chạy (cached theo workspace path)."""
+    global _checkpoint_service_cache
     store = _get_task_store()
-    return CheckpointService(str(Path(store.db_path).parent / "checkpoints"))
+    ck_dir = str(Path(store.db_path).parent / "checkpoints")
+    if ck_dir not in _checkpoint_service_cache:
+        from services.checkpoint_service import CheckpointService
+        _checkpoint_service_cache[ck_dir] = CheckpointService(ck_dir)
+    return _checkpoint_service_cache[ck_dir]
 
 
 registry = TaskRegistry(store=_get_task_store())
@@ -52,9 +54,15 @@ def _is_valid_resumable_task(task: dict, checkpoint_service) -> bool:
 
 @tasks_bp.route("/api/tasks", methods=["GET"])
 def list_tasks():
+    global _last_reconcile_time
     store = _get_task_store()
-    # Tự động thu hồi lease và đánh dấu interrupted cho các task running đã mất heartbeat (>30s)
-    store.reconcile_lease_expired(lease_timeout_seconds=30.0)
+    # Tự động thu hồi lease và đánh dấu interrupted cho các task running đã mất heartbeat (>60s)
+    # Throttle để tránh ghi đĩa liên tục trên mỗi poll request
+    now = time.time()
+    if now - _last_reconcile_time > 60.0:
+        store.reconcile_lease_expired(lease_timeout_seconds=60.0)
+        _last_reconcile_time = now
+
     tasks = store.list_tasks()
     checkpoint_service = _get_checkpoint_service()
 
@@ -147,8 +155,23 @@ def task_events(job_id):
 
     def generate():
         cursor = 0
-        for evt, cursor in task.iter_events(cursor):
-            yield f"data: {json.dumps(evt)}\n\n"
+        last_ping = time.time()
+        with task._cond:
+            while True:
+                if cursor < len(task.events):
+                    event = task.events[cursor]
+                    cursor += 1
+                    yield f"data: {json.dumps(event)}\n\n"
+                    last_ping = time.time()
+                else:
+                    if task.status in ("completed", "failed", "cancelled", "resumable", "paused",
+                                       "closed_partial", "interrupted"):
+                        break
+                    task._cond.wait(timeout=1.0)
+                    now = time.time()
+                    if now - last_ping >= 10.0:
+                        yield ": ping\n\n"
+                        last_ping = now
         yield f"data: {json.dumps({'type': 'stream_end'})}\n\n"
 
     return Response(generate(), mimetype="text/event-stream")
