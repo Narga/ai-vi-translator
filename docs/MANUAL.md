@@ -265,4 +265,39 @@ Khi biên soạn prompt hệ thống hoặc prompt dự án, bạn có thể s�
 
 ---
 
-*Phiên bản tài liệu: 2.6 — Ngày cập nhật: 12/07/2026*
+## 9. Quản Lý Tác Vụ Dịch Thuật & Bảng Giải Thích Trạng Thái (Task Lifecycle & Status Reference)
+
+Hệ thống cung cấp cơ chế lưu vết và khôi phục tiến trình dịch thuật tự động qua `TaskStore` (SQLite) và Checkpoint Engine (`.db` files).
+
+### A. Bảng Chi Tiết Trạng Thái Tác Vụ (Task Status Reference)
+
+| Trạng thái (Status) | Tên hiển thị WebUI | Nguyên nhân & Bối cảnh phát sinh | Dữ liệu Checkpoint | Khả năng Tiếp tục (Resume) & Thao tác |
+| :--- | :--- | :--- | :--- | :--- |
+| **`running`** / **`started`** | 🟢 **Đang chạy** | Tác vụ đang được worker xử lý thực tế, gửi request tới LLM Provider và phát heartbeat định kỳ về SQLite. | Đang được cập nhật liên tục theo từng chunk hoàn thành. | ❌ Không thể bỏ/xóa nếu chưa bấm **Dừng**. Bấm *"🔍 Chi tiết"* để xem tiến độ streaming trực tiếp. |
+| **`resumable`** | 🔵 **Có thể Resume** | Tác vụ bị gián đoạn nhưng checkpoint hợp lệ (`.db`) còn nguyên vẹn trên đĩa, có các chunk chưa dịch xong. | Còn đầy đủ dữ liệu chunk đã dịch. | ✅ **Sẵn sàng tiếp tục** — Bấm *"▶ Tiếp tục"* (đơn lẻ hoặc theo dự án) để nạp checkpoint và dịch tiếp. |
+| **`interrupted`** | 🔵 **Bị gián đoạn** | Worker bị ngắt ngoài ý muốn (mất điện, đóng tab, reload trình duyệt, hoặc heartbeat quá hạn >30s). | Checkpoint nguyên vẹn 100%. | ✅ **Sẵn sàng tiếp tục** — Hệ thống tự động phân loại đây là tác vụ an toàn để tiếp tục. |
+| **`paused`** | 🟠 **Đã tạm dừng** | Người dùng chủ động bấm nút *"Dừng"* trên modal tiến trình. Worker thread đã kết thúc an toàn. | Checkpoint nguyên vẹn, giữ đúng chunk đã dịch cuối cùng. | ✅ **Sẵn sàng tiếp tục** bất cứ lúc nào. |
+| **`failed`** | 🔴 **Thất bại / Lỗi** | Gặp sự cố nghiệp vụ hoặc lỗi API (Sai key, hết quota, HTTP 429/500/503, proxy lỗi, hoặc chunk độc hại `poison_job`). | Checkpoint lưu giữ các chunk dịch thành công trước thời điểm lỗi. | ⚠️ **Cần kiểm tra lỗi** — Xem `last_error` trong chi tiết. Có thể đổi API Key/Model rồi bấm *"Tiếp tục"* hoặc *"✕ Bỏ"*. |
+| **`cancelled`** | ⚪ **Đã hủy** | Người dùng bấm hủy tác vụ qua endpoint cancel hoặc dừng hẳn. | Checkpoint giữ ở trạng thái đóng. | 🗑️ Có thể bấm *"✕ Bỏ"* để dọn sạch. |
+| **`closed_partial`** | 🟣 **Đã chia tách** | Người dùng đã bấm *"✂ Chia tách"* để xuất phần chunk đã dịch ra file riêng (`*_partial.txt`). | Checkpoint đã đóng và xuất file. | 🏁 Tác vụ đã hoàn tất một phần, có thể bỏ để giải phóng. |
+| **`completed`** | 🟢 **Hoàn thành** | Toàn bộ các chunk của file đã được dịch xong và ghi vào thư mục `translated/`. | Checkpoint đã hoàn thành hoặc tự động dọn dẹp. | 🏁 Không cần thao tác, tự động biến mất khỏi danh sách chờ. |
+| **`archived`** | ⚪ **Đã lưu trữ / Bỏ** | Người dùng đã bấm *"✕ Bỏ"* (hoặc Bỏ tất cả của dự án). Checkpoint đổi đuôi `.archived` và `lease_token = NULL`. | File checkpoint đổi đuôi `.db.archived`. | 🗑️ Không còn hiển thị trên Header Pill hoặc danh sách chờ. |
+
+---
+
+### B. Hướng Dẫn Thao Tác Quản Lý Tiến Trình
+
+1. **Header Pill ("Có thể resume: N")**:
+   - Khi có **1 tác vụ dở**: Bấm vào pill sẽ mở thẳng Modal Tiến trình với đầy đủ tên file và tên dự án.
+   - Khi có **nhiều tác vụ dở ($N > 1$)**: Bấm vào pill sẽ mở **Task Manager Modal** gom nhóm các file theo từng Dự án.
+2. **Thao tác Hàng loạt theo từng Dự án (Project-Scoped Actions)**:
+   - **`▶ Tiếp tục (N)`**: Tự động khôi phục toàn bộ $N$ tác vụ dở của **riêng dự án đó**.
+   - **`✕ Bỏ (N)`**: Tự động hủy và lưu trữ $N$ tác vụ dở của **riêng dự án đó** mà không ảnh hưởng đến các dự án khác.
+3. **Trung tâm Quản trị Tác vụ (Task Dashboard)**:
+   - Bấm nút **`⚡ Dashboard`** trên góc phải Task Manager để mở giao diện toàn màn hình.
+   - Hỗ trợ các Tab bộ lọc (*Tất cả, Đang chạy, Chờ Resume, Lỗi*), tìm kiếm file/dự án, chọn nhiều checkbox và nút *"🧹 Dọn checkpoint mồ côi"*.
+
+---
+
+*Phiên bản tài liệu: 2.7 — Ngày cập nhật: 23/08/2026*
+

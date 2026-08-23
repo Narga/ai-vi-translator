@@ -523,12 +523,21 @@ const ApiClient = {
                 }
 
                 const taskSummaryEl = document.getElementById('task-summary');
-                if (!taskSummaryEl) return;
+                if (taskSummaryEl) {
+                    const parts = [];
+                    if (data.running_count > 0) parts.push(`Đang chạy: ${data.running_count}`);
+                    if (data.resumable_count > 0) parts.push(`Có thể resume: ${data.resumable_count}`);
+                    taskSummaryEl.textContent = parts.length ? ' — ' + parts.join(', ') : '';
+                }
 
-                const parts = [];
-                if (data.running_count > 0) parts.push(`Đang chạy: ${data.running_count}`);
-                if (data.resumable_count > 0) parts.push(`Có thể resume: ${data.resumable_count}`);
-                taskSummaryEl.textContent = parts.length ? ' — ' + parts.join(', ') : '';
+                if (window.ModalManager && ModalManager.isOpen('task-manager-modal') && window.TranslationWorker) {
+                    const activeTasks = (data.tasks || []).filter(t => !['completed', 'archived'].includes(t.status));
+                    TranslationWorker.renderTaskManagerList(activeTasks);
+                }
+
+                if (window.ModalManager && ModalManager.isOpen('task-dashboard-modal') && window.TaskDashboard) {
+                    TaskDashboard.refresh(true);
+                }
             })
             .catch(e => console.error('Failed to load tasks', e));
     },

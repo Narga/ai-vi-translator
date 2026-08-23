@@ -193,31 +193,84 @@ const UiHelpers = {
 
     renderProgressModal(state) {
         if (!state) return;
+
+        // 1. Cập nhật thanh tiến độ và số liệu %
         const progressBar = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
         const progressText = document.getElementById('progress-text');
         if (progressBar) progressBar.style.width = (state.percent || 0) + '%';
         if (progressPercent) progressPercent.textContent = (state.percent || 0) + '%';
         if (progressText) progressText.textContent = state.message || '';
-        // Render logs from state
+
+        // 2. Cập nhật tiêu đề & Ngữ cảnh File / Dự án
+        const titleEl = document.getElementById('progress-modal-title');
+        const filenameEl = document.getElementById('progress-modal-filename');
+        const projectEl = document.getElementById('progress-modal-project');
+        const dividerEl = document.getElementById('progress-modal-project-divider');
+        const statusBadgeEl = document.getElementById('progress-modal-status-badge');
+
+        if (filenameEl) {
+            filenameEl.textContent = state.filename ? `📄 ${state.filename}` : '';
+        }
+        if (projectEl) {
+            projectEl.textContent = state.projectSlug ? `📁 Dự án: ${state.projectSlug}` : '';
+        }
+        if (dividerEl) {
+            dividerEl.classList.toggle('dn', !(state.filename && state.projectSlug));
+        }
+        if (titleEl) {
+            titleEl.textContent = state.filename ? 'Chi tiết tiến trình' : 'Tiến trình dịch thuật';
+        }
+        if (statusBadgeEl) {
+            if (state.status) {
+                statusBadgeEl.classList.remove('dn');
+                statusBadgeEl.textContent = state.status.toUpperCase();
+                statusBadgeEl.className = 'f7 pv1 ph2 br-pill fw6 ' + (
+                    state.status === 'running' ? 'bg-washed-green green' :
+                    state.status === 'resumable' ? 'bg-washed-blue blue' :
+                    state.status === 'failed' ? 'bg-washed-red red' : 'bg-light-gray gray'
+                );
+            } else {
+                statusBadgeEl.classList.add('dn');
+            }
+        }
+
+        // 3. Render Logs
         const logEl = document.getElementById('log-container');
         if (logEl) {
             if (state.logs && state.logs.length > 0) {
-                logEl.innerHTML = state.logs.map(l => `<div class="nt-log-entry mb1 ${l.type === 'error' ? 'red fw6' : (l.type === 'success' ? 'green' : 'blue')}">[${l.time}] ${l.message}</div>`).join('');
+                logEl.innerHTML = state.logs.map(l =>
+                    `<div class="nt-log-entry mb1 ${l.type === 'error' ? 'red fw6' : (l.type === 'success' ? 'green' : 'blue')}">[${l.time}] ${l.message}</div>`
+                ).join('');
                 logEl.scrollTop = logEl.scrollHeight;
             } else {
                 logEl.innerHTML = '';
             }
         }
-        // Show/hide done button based on status
+
+        // 4. Logic điều khiển nút Dừng, Xong, Bỏ task
         const btnDone = document.getElementById('btn-progress-done');
         const btnStop = document.getElementById('btn-progress-stop');
-        if (state.status === 'completed' || state.status === 'failed' || state.status === 'cancelled') {
-            if (btnDone) btnDone.classList.remove('dn');
-            if (btnStop) btnStop.classList.add('dn');
-        } else {
-            if (btnDone) btnDone.classList.add('dn');
-            if (btnStop) btnStop.classList.remove('dn');
+        const btnDiscard = document.getElementById('btn-progress-discard');
+
+        const RUNNING_STATUSES = ['running', 'started'];
+        const RESUMABLE_STATUSES = ['resumable', 'interrupted', 'paused'];
+
+        const isRunning = RUNNING_STATUSES.includes(state.status);
+        const isResumable = RESUMABLE_STATUSES.includes(state.status);
+
+        // Nút Dừng: CHỈ hiện khi task đang chạy thực tế
+        if (btnStop) {
+            btnStop.classList.toggle('dn', !isRunning);
+        }
+        // Nút Xong: Hiện khi task không còn chạy
+        if (btnDone) {
+            btnDone.classList.toggle('dn', isRunning);
+        }
+        // Nút Bỏ task: Hiện khi task ở trạng thái có thể hủy (resumable, paused, interrupted, failed)
+        if (btnDiscard) {
+            const canDiscard = isResumable || state.status === 'failed';
+            btnDiscard.classList.toggle('dn', !canDiscard);
         }
     },
 

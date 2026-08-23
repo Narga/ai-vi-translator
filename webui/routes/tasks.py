@@ -53,6 +53,8 @@ def _is_valid_resumable_task(task: dict, checkpoint_service) -> bool:
 @tasks_bp.route("/api/tasks", methods=["GET"])
 def list_tasks():
     store = _get_task_store()
+    # Tự động thu hồi lease và đánh dấu interrupted cho các task running đã mất heartbeat (>30s)
+    store.reconcile_lease_expired(lease_timeout_seconds=30.0)
     tasks = store.list_tasks()
     checkpoint_service = _get_checkpoint_service()
 
@@ -157,6 +159,153 @@ def cancel_task(job_id):
     registry.update_status(job_id, "cancelled")
     RuntimeState().request_cancel(job_id)
     return jsonify({"success": True})
+
+
+@tasks_bp.route("/api/tasks/<job_id>/discard", methods=["POST"])
+def discard_task(job_id: str):
+    """
+    Hủy bỏ và lưu trữ một task dang dở (resumable/interrupted/failed/paused).
+    Chuyển trạng thái sang 'archived' để không còn hiển thị trên Header Pill.
+    Tùy chọn xóa hoặc đóng băng file checkpoint.
+    """
+    store = _get_task_store()
+    task = store.get_task_by_job_id(job_id)
+    if not task:
+        # Fallback tìm theo task_id nếu job_id truyền vào là task_id
+        task = store.get_task(job_id)
+
+    if not task:
+        return jsonify({"error": "Không tìm thấy thông tin task."}), 404
+
+    # Bảo vệ: Không cho phép discard task đang trong quá trình thực thi thực tế
+    if task.get("status") in ("running", "started"):
+        return jsonify({
+            "error": "Task đang chạy. Vui lòng nhấn 'Dừng' trước khi bỏ task."
+        }), 409
+
+    # Đọc tùy chọn từ request body (nếu muốn xóa triệt để checkpoint vật lý)
+    data = request.get_json(silent=True) or {}
+    delete_physical_checkpoint = data.get("delete_checkpoint", False)
+
+    deleted_checkpoint = False
+    ck_key = task.get("checkpoint_key")
+    if ck_key:
+        ck_service = _get_checkpoint_service()
+        if delete_physical_checkpoint:
+            deleted_checkpoint = ck_service.delete_by_key(ck_key)
+        else:
+            # Mặc định: Resolve và đổi tên file sang .archived để an toàn dữ liệu
+            resolved = ck_service.resolve_checkpoint_key(ck_key)
+            if resolved and resolved.get("path"):
+                db_path = Path(resolved["path"])
+                if db_path.exists():
+                    archived_path = db_path.with_suffix(db_path.suffix + ".archived")
+                    try:
+                        db_path.rename(archived_path)
+                        deleted_checkpoint = True
+                    except Exception:
+                        pass
+
+    # Cập nhật trạng thái sang 'archived' (sẽ tự động clear lease_token)
+    target_id = task.get("task_id") or task.get("job_id")
+    store.update_status(
+        task_id=target_id,
+        status="archived",
+        last_error="Task đã bị người dùng hủy bỏ (Discarded)"
+    )
+
+    return jsonify({
+        "success": True,
+        "job_id": job_id,
+        "task_id": target_id,
+        "status": "archived",
+        "deleted_checkpoint": deleted_checkpoint,
+        "message": "Đã loại bỏ task thành công."
+    })
+
+
+@tasks_bp.route("/api/tasks/bulk-discard", methods=["POST"])
+def bulk_discard_tasks():
+    """
+    Hủy bỏ hàng loạt task theo danh sách job_ids, theo project_slug hoặc discard tất cả các task không running.
+    """
+    data = request.get_json(silent=True) or {}
+    job_ids = data.get("job_ids")
+    project_slug = data.get("project_slug")
+    all_resumable = data.get("all_resumable", False)
+    delete_checkpoint = data.get("delete_checkpoint", False)
+
+    store = _get_task_store()
+    ck_service = _get_checkpoint_service()
+
+    # Reconcile lease để chuyển các task running chết heartbeat thành interrupted
+    store.reconcile_lease_expired(lease_timeout_seconds=30.0)
+    tasks = store.list_tasks()
+
+    def _is_discardable(t: dict) -> bool:
+        return t.get("status") not in ("running", "started", "completed", "archived")
+
+    if project_slug:
+        target_tasks = [
+            t for t in tasks
+            if (t.get("project_slug") or "uncategorized") == project_slug
+            and _is_discardable(t)
+        ]
+    elif all_resumable or not job_ids:
+        target_tasks = [t for t in tasks if _is_discardable(t)]
+    else:
+        target_tasks = []
+        for jid in job_ids:
+            t = store.get_task_by_job_id(jid) or store.get_task(jid)
+            if t and _is_discardable(t):
+                target_tasks.append(t)
+
+    if not target_tasks:
+        return jsonify({"success": True, "count": 0, "message": "Không có task nào để bỏ."})
+
+    success_count = 0
+    for task in target_tasks:
+        jid = task.get("job_id")
+        tid = task.get("task_id") or jid
+        ck_key = task.get("checkpoint_key")
+        if ck_key:
+            if delete_checkpoint:
+                ck_service.delete_by_key(ck_key)
+            else:
+                resolved = ck_service.resolve_checkpoint_key(ck_key)
+                if resolved and resolved.get("path"):
+                    db_path = Path(resolved["path"])
+                    if db_path.exists():
+                        try:
+                            db_path.rename(db_path.with_suffix(db_path.suffix + ".archived"))
+                        except Exception:
+                            pass
+        store.update_status(task_id=tid, status="archived", last_error="Task đã bị người dùng hủy bỏ (Bulk Discard)")
+        success_count += 1
+
+    return jsonify({
+        "success": True,
+        "count": success_count,
+        "message": f"Đã bỏ thành công {success_count} tác vụ."
+    })
+
+
+@tasks_bp.route("/api/tasks/cleanup-stale", methods=["POST"])
+def cleanup_stale_tasks():
+    """Tự động quét dọn các bản ghi task mồ côi hoặc checkpoint đã mất file vật lý."""
+    store = _get_task_store()
+    ck_service = _get_checkpoint_service()
+    cleaned_count = 0
+
+    tasks = store.list_tasks()
+    for t in tasks:
+        if t.get("status") == "resumable" and not _is_valid_resumable_task(t, ck_service):
+            tid = t.get("task_id") or t["job_id"]
+            store.update_status(tid, "archived", last_error="Tự động dọn dẹp checkpoint mồ côi")
+            cleaned_count += 1
+
+    return jsonify({"success": True, "cleaned_count": cleaned_count})
+
 
 
 _TERMINAL_TASK_STATUSES = ("completed", "cancelled", "closed_partial", "archived")

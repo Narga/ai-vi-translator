@@ -5,16 +5,26 @@
     <div class="bg-white br3 shadow-5 w-100 mw7 overflow-hidden relative animate-pop">
         <!-- Modal Header -->
         <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center relative">
-            <div class="flex items-center">
-                <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
+            <div class="flex flex-column">
+                <div class="flex items-center gap-2">
+                    <h3 class="f5 ma0 dark-gray fw6" id="progress-modal-title">Tiến trình dịch thuật</h3>
+                    <span id="progress-modal-status-badge" class="dn f7 pv1 ph2 br-pill bg-light-gray gray fw6"></span>
+                </div>
+                <!-- Subtitle hiển thị file và dự án -->
+                <p class="f7 gray ma0 mt1 flex items-center gap-1" id="progress-modal-context">
+                    <span id="progress-modal-filename" class="fw6 dark-gray"></span>
+                    <span id="progress-modal-project-divider" class="dn silver">•</span>
+                    <span id="progress-modal-project" class="silver"></span>
+                </p>
             </div>
             <div class="flex items-center gap-2">
-                <button id="btn-progress-resume" class="dn pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 transition-all">Tiếp tục</button>
-                <button id="btn-progress-recovery" class="dn pointer ph3 pv1 f7 bn white bg-orange br2 shadow-1 hover-bg-dark-orange fw6 transition-all">Giữ phần đã dịch + tạo task mới</button>
-                <button id="btn-export-partial" class="dn pointer ph3 pv1 f7 bn white bg-gray br2 shadow-1 hover-bg-dark-gray fw6 transition-all">Chỉ xuất phần đã dịch</button>
-                <button id="btn-progress-close-partial" class="dn pointer ph3 pv1 f7 bn white bg-purple br2 shadow-1 hover-bg-dark-purple fw6 transition-all">Chia tách phần đã dịch</button>
-                <button id="btn-progress-stop" class="pointer ph3 pv1 f7 bn white bg-red br2 shadow-1 hover-bg-dark-red fw6" onclick="TranslationWorker.stopTranslation()">Dừng</button>
-                <button id="btn-progress-done" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="TranslationWorker.closeProgress()">Xong</button>
+                <button id="btn-progress-discard" type="button" class="dn pointer ph3 pv1 f7 bn white bg-dark-red br2 shadow-1 hover-bg-red fw6 transition-all">Bỏ task này</button>
+                <button id="btn-progress-resume" type="button" class="dn pointer ph3 pv1 f7 bn white bg-blue br2 shadow-1 hover-bg-dark-blue fw6 transition-all">Tiếp tục</button>
+                <button id="btn-progress-recovery" type="button" class="dn pointer ph3 pv1 f7 bn white bg-orange br2 shadow-1 hover-bg-dark-orange fw6 transition-all">Giữ phần đã dịch + tạo task mới</button>
+                <button id="btn-export-partial" type="button" class="dn pointer ph3 pv1 f7 bn white bg-gray br2 shadow-1 hover-bg-dark-gray fw6 transition-all">Chỉ xuất phần đã dịch</button>
+                <button id="btn-progress-close-partial" type="button" class="dn pointer ph3 pv1 f7 bn white bg-purple br2 shadow-1 hover-bg-dark-purple fw6 transition-all">Chia tách phần đã dịch</button>
+                <button id="btn-progress-stop" type="button" class="pointer ph3 pv1 f7 bn white bg-red br2 shadow-1 hover-bg-dark-red fw6">Dừng</button>
+                <button id="btn-progress-done" type="button" class="dn pointer ph3 pv1 f7 bn white bg-green br2 shadow-1 hover-bg-dark-green fw6 transition-all" onclick="TranslationWorker.closeProgress()">Xong</button>
             </div>
         </div>
 
@@ -222,6 +232,102 @@
         </div>
         <div class="flex justify-end pt3 bt b--black-10">
             <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('resume-action-modal')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Task Manager Mini Modal (Phase B2) -->
+<div id="task-manager-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+    <div class="bg-white br3 shadow-5 w-100 mw7 overflow-hidden relative animate-pop flex flex-column" style="height: 80vh; max-height: 80vh;">
+        <!-- Header -->
+        <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <span class="f4">📋</span>
+                <div>
+                    <h3 class="f5 ma0 dark-gray fw6">Danh sách Tác vụ Đang xử lý</h3>
+                    <p class="f7 gray ma0 mt1">Quản lý các bản dịch đang chạy hoặc có thể tiếp tục (Resume)</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f7" onclick="ModalManager.hide('task-manager-modal'); TaskDashboard.open();" title="Mở Dashboard quản trị tác vụ chi tiết">
+                    ⚡ Dashboard
+                </button>
+                <button type="button" class="pointer bg-transparent bn f4 gray hover-dark-gray" onclick="ModalManager.hide('task-manager-modal')" title="Đóng">&times;</button>
+            </div>
+        </div>
+        <!-- Filter / Quick Action Bar -->
+        <div class="ph3 pv2 bg-washed-yellow flex justify-between items-center bt bb b--black-05 f7 flex-shrink-0">
+            <span class="gray"><span id="tm-total-count" class="fw6 dark-gray">0</span> tác vụ được tìm thấy</span>
+            <div class="flex items-center gap-2">
+                <button type="button" class="pointer bn bg-transparent blue hover-dark-blue fw6" onclick="TranslationWorker.refreshTaskManager()">
+                    ↻ Làm mới
+                </button>
+            </div>
+        </div>
+        <!-- Task List Container (Scrollable) -->
+        <div id="task-manager-list" class="pa3 overflow-y-auto flex-auto flex flex-column gap-3" style="overflow-y: auto; flex: 1 1 0; min-height: 0;">
+            <!-- Render danh sách card nhóm theo dự án bằng JS -->
+        </div>
+        <!-- Footer -->
+        <div class="pa3 bt b--black-10 bg-near-white flex justify-between items-center flex-shrink-0">
+            <div class="f7 gray i">
+                Mẹo: Có thể tiếp tục hoặc bỏ các tác vụ theo từng dự án hoặc bấm "Dashboard" để quản lý tập trung.
+            </div>
+            <button type="button" class="nt-btn nt-btn-outline" onclick="ModalManager.hide('task-manager-modal')">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Task Dashboard Fullscreen Modal (Phase C) -->
+<div id="task-dashboard-modal" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: var(--z-modal);">
+    <div class="bg-white br3 shadow-5 w-100 mw8 overflow-hidden relative animate-pop flex flex-column" style="height: 88vh; max-height: 88vh;">
+        <!-- Top Navigation & Header -->
+        <div class="pa3 bb b--black-10 bg-near-white flex justify-between items-center flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w2 h2 bg-blue white br2 flex items-center justify-center fw7 f5">⚡</div>
+                <div>
+                    <h3 class="f4 ma0 dark-gray fw6">Trung tâm Quản trị Tác vụ (Task Dashboard)</h3>
+                    <p class="f7 gray ma0 mt1">Theo dõi tiến trình thời gian thực, quản lý checkpoint và khôi phục sự cố theo từng dự án</p>
+                </div>
+            </div>
+            <button type="button" class="pointer bg-transparent bn f3 gray hover-dark-gray" onclick="TaskDashboard.close()" title="Đóng">&times;</button>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="pa3 bb b--black-10 bg-washed-yellow flex flex-wrap justify-between items-center gap-2 flex-shrink-0">
+            <!-- Status Tabs -->
+            <div class="flex gap-1" id="td-status-tabs">
+                <button type="button" class="nt-btn nt-btn-primary pv1 ph3 f7 br-pill" data-tab="all">Tất cả (<span id="td-count-all">0</span>)</button>
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph3 f7 br-pill" data-tab="running">Đang chạy (<span id="td-count-running">0</span>)</button>
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph3 f7 br-pill" data-tab="resumable">Chờ Resume (<span id="td-count-resumable">0</span>)</button>
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph3 f7 br-pill" data-tab="failed">Lỗi (<span id="td-count-failed">0</span>)</button>
+            </div>
+            <!-- Search & Bulk Action Tools -->
+            <div class="flex items-center gap-2">
+                <input type="text" id="td-search-input" class="nt-input f7 pv1 ph2 br2" placeholder="Tìm theo tên file / dự án..." style="width: 240px;">
+                <button type="button" id="td-btn-bulk-discard" class="nt-btn nt-btn-danger pv1 ph2 f7 dn" onclick="TaskDashboard.executeBulkDiscard()">
+                    ✕ Bỏ các mục đã chọn (<span id="td-selected-count">0</span>)
+                </button>
+                <button type="button" class="pointer bn bg-transparent blue hover-dark-blue fw6 f7" onclick="TaskDashboard.refresh()">
+                    ↻ Làm mới
+                </button>
+            </div>
+        </div>
+
+        <!-- Task Content Area (Scrollable Container) -->
+        <div id="td-task-container" class="pa3 bg-near-white flex flex-column gap-3" style="overflow-y: auto; flex: 1 1 0; min-height: 0;">
+            <!-- Render danh sách card nhóm theo dự án bằng JS TaskDashboard -->
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <div class="pa2 ph3 bt b--black-10 bg-white flex justify-between items-center f7 gray flex-shrink-0">
+            <span id="td-sync-status">⚡ Đồng bộ tự động mỗi 5 giây</span>
+            <div class="flex gap-2">
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f7" onclick="TaskDashboard.cleanupStale()" title="Quét dọn các checkpoint mồ côi">
+                    🧹 Dọn checkpoint mồ côi
+                </button>
+                <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f7" onclick="TaskDashboard.close()">Đóng</button>
+            </div>
         </div>
     </div>
 </div>

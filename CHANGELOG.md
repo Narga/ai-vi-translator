@@ -2,7 +2,33 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
-## [8.26.0] - 2026-08-22
+## [8.27.0] - 2026-08-23
+### Quản Trị Tác Vụ Dịch Thuật & Checkpoint, Task Dashboard Chuyên Sâu, Thao Tác Hàng Loạt Theo Dự Án & Reconcile Heartbeat Tự Động
+
+**Phục hồi Ngữ cảnh Tác vụ & Khắc phục Lỗi Điều khiển Tiến trình (`webui/static/js/translation-worker.js`, `webui/static/js/ui-helpers.js`, `webui/templates/partials/modals.html`):**
+- **Hiển thị Rõ Ngữ cảnh File & Dự án**: Header Modal Tiến trình (`#translation-progress-modal`) hiển thị chính xác tên tập tin (`filename`) và tên dự án (`project_name` / `project_slug`) thay cho chuỗi mặc định chung chung.
+- **Sửa Lỗi Nút Dừng & Scoped Job ID**: Nút *"Dừng"* chỉ hiển thị khi tác vụ đang ở trạng thái `running`/`started`, loại bỏ phụ thuộc biến toàn cục rỗng `_activeJobId`, chuyển sang gọi hủy theo `jobId` scoped trực tiếp.
+- **Bổ sung Nút "✕ Bỏ task"**: Cho phép người dùng hủy bỏ tác vụ gián đoạn, tự động lưu trữ và dọn sạch khỏi Header Pill.
+
+**Giao diện Chọn Tác vụ & Khôi phục Ngữ cảnh Đa Dự án (`webui/static/js/translation-worker.js`, `webui/routes/projects.py`):**
+- **Task Manager Mini Modal (`#task-manager-modal`)**: Tự động mở khi có nhiều hơn 1 tác vụ dở dang ($N > 1$), hiển thị danh sách các card tác vụ được gom nhóm trực quan theo từng Dự án.
+- **Sửa Payload 409 Resume Modal**: Nhận diện đúng key `book_title` -> `name` -> `slug` của dự án và inject metadata `project_slug`, `project_name` vào từng checkpoint item trong modal xác nhận.
+- **Khắc phục Lỗi Cuộn Danh sách**: Sửa layout flexbox của container `#task-manager-list` với `overflow-y: auto; flex: 1 1 0; min-height: 0;` đảm bảo danh sách luôn cuộn mượt mà kể cả khi có hàng chục file.
+- **Bảo mật XSS & JavaScript Boundary**: Sử dụng 100% `data-*` attributes và Event Delegation cho mọi nút bấm trong danh sách tác vụ.
+
+**Trung tâm Quản trị Tác vụ Chuyên sâu & Thao tác Hàng loạt Phân tách theo Dự án (`webui/static/js/task-dashboard.js`, `webui/templates/partials/modals.html`, `webui/routes/tasks.py`):**
+- **Thao tác Hàng loạt Phân tách theo Từng Dự án (Project-Scoped Actions)**: Bổ sung các nút **`▶ Tiếp tục (N)`** và **`✕ Bỏ (N)`** ở từng header nhóm dự án, chỉ tác động đúng các task của dự án tương ứng mà không làm ảnh hưởng đến các dự án khác.
+- **Dedicated Task Dashboard (`#task-dashboard-modal`)**: Modal toàn màn hình với thanh Tab trạng thái (*Tất cả, Đang chạy, Chờ Resume, Lỗi*), tìm kiếm full-text, checkbox chọn nhiều tác vụ, nút dọn checkpoint mồ côi (`POST /api/tasks/cleanup-stale`) và auto-refresh 5s an toàn.
+- **API `POST /api/tasks/bulk-discard`**: Hỗ trợ 3 chế độ hủy và lưu trữ: theo danh sách `job_ids`, theo `project_slug`, hoặc `all_resumable`.
+
+**Hardening Trạng thái & Tự động Reconcile Heartbeat (`services/task_store.py`, `webui/routes/tasks.py`, `webui/routes/projects.py`):**
+- **Tự động Reconcile Heartbeat Stale Leases**: `list_tasks` và `bulk_discard_tasks` tự động gọi `store.reconcile_lease_expired(30.0)` để thu hồi lease và chuyển các task mất heartbeat sang `interrupted`.
+- **Mở rộng Whitelist Resume**: Bổ sung trạng thái `interrupted` vào whitelist cho phép resume trong `projects.py`.
+- **Giải phóng Fencing Token khi Discard**: Tự động gán `lease_token = NULL` khi task chuyển sang trạng thái `archived`.
+
+**Bộ Kiểm thử Tự động Unit Test (410/410 Tests Passed 100%):**
+- Tạo mới test suite [`tests/unit/test_task_discard.py`](file:///Users/narga/Briefcase/Projects/Novel-Translator/tests/unit/test_task_discard.py) với 9 unit tests bao phủ toàn bộ các kịch bản discard đơn lẻ, bulk discard theo ID, bulk discard theo `project_slug`, all resumable, và cleanup stale.
+
 ### Sửa Lỗi Cú Pháp Tê Liệt Frontend, Tái Cấu Trúc Project Card, Chuẩn Hóa Modal Overlay & Tối Ưu Quản Lý SSE Stream
 
 **Khắc phục Lỗi Cú pháp Tê liệt Giao diện (`webui/static/js/api-client.js`):**

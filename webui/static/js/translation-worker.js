@@ -28,18 +28,24 @@ const TranslationWorker = {
             });
     },
 
-    stopTranslation() {
-        const jobId = TranslationWorker._activeJobId;
-        const endpoint = jobId ? `/api/tasks/${jobId}/cancel` : '/api/translate/cancel';
+    stopTranslation(jobId = null) {
+        // Ưu tiên: 1. Tham số tường minh -> 2. Job ID modal đang xem -> 3. _activeJobId toàn cục
+        const targetJobId = jobId || TranslationWorker._lastViewedJobId || TranslationWorker._activeJobId;
+        const endpoint = targetJobId ? `/api/tasks/${targetJobId}/cancel` : '/api/translate/cancel';
         fetch(endpoint, { method: 'POST' })
             .then(r => {
                 if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
                 return r.json();
             })
-            .then(data => {
-                UiHelpers.addLog('Đã gửi yêu cầu dừng...', 'info');
+            .then(() => {
+                UiHelpers.addLog('Đã gửi yêu cầu dừng tác vụ...', 'info');
+                UiHelpers.showToast('Đã gửi yêu cầu dừng', 'info');
+                ApiClient.loadTasks();
             })
-            .catch(e => UiHelpers.addLog('Lỗi gửi yêu cầu dừng: ' + e.message, 'error'));
+            .catch(e => {
+                UiHelpers.addLog('Lỗi gửi yêu cầu dừng: ' + e.message, 'error');
+                UiHelpers.showToast('Lỗi dừng task: ' + e.message, 'error');
+            });
     },
 
     startTranslation() {
@@ -209,7 +215,25 @@ const TranslationWorker = {
         const preview = document.getElementById('resume-action-files-preview');
         if (!preview) return;
         const names = Object.keys(checkpoints || {});
-        preview.innerHTML = names.map(n => `<div class="mb1 bb b--black-05 pb1"><strong>${n}</strong> <span class="gray">(Đã dịch: ${checkpoints[n].completed_chunks}/${checkpoints[n].total_chunks} chunk)</span></div>`).join('');
+
+        preview.innerHTML = names.map(n => {
+            const ck = checkpoints[n] || {};
+            const projName = ck.project_name || ck.project_slug || '';
+            const projBadge = projName ? `<span class="f8 bg-light-gray gray ph2 pv1 br2 mr2">📁 ${escapeHtml(projName)}</span>` : '';
+            return `
+            <div class="mb2 bb b--black-05 pb2 flex items-center justify-between">
+                <div>
+                    <div class="flex items-center gap-1 mb1">
+                        ${projBadge}
+                        <strong class="dark-gray">${escapeHtml(n)}</strong>
+                    </div>
+                    <div class="f7 gray">
+                        Đã dịch: <span class="blue fw6">${ck.completed_chunks || 0}</span> / <span>${ck.total_chunks || '?'}</span> chunk
+                    </div>
+                </div>
+                <span class="f8 pv1 ph2 br-pill bg-washed-blue blue fw6">Checkpoint sẵn sàng</span>
+            </div>`;
+        }).join('');
 
         const closePartialBtn = document.getElementById('btn-resume-action-close-partial');
         const continueBtn = document.getElementById('btn-resume-action-continue');
@@ -798,6 +822,8 @@ const TranslationWorker = {
                             jobId: jobId,
                             taskId: snapshot.task_id || jobId,
                             status: snapshot.status || 'resumable',
+                            projectSlug: snapshot.project_slug || '',
+                            filename: snapshot.filename || '',
                             percent: snapshot.total_chunks ? Math.round((snapshot.completed_chunks / snapshot.total_chunks) * 100) : 0,
                             message: snapshot.last_error || (snapshot.status === 'resumable' ? 'Đã tạm dừng' : ''),
                             logs: [],
@@ -811,6 +837,8 @@ const TranslationWorker = {
                     } else {
                         state.status = snapshot.status;
                         state.taskId = snapshot.task_id || state.taskId;
+                        state.projectSlug = snapshot.project_slug || state.projectSlug || '';
+                        state.filename = snapshot.filename || state.filename || '';
                         state.completedChunks = snapshot.completed_chunks || state.completedChunks || 0;
                         state.totalChunks = snapshot.total_chunks || state.totalChunks || 0;
                         if (snapshot.total_chunks > 0) {
@@ -818,21 +846,24 @@ const TranslationWorker = {
                         }
                     }
 
-                    TranslationWorker._activeJobId = jobId;
+                    TranslationWorker._activeJobId = (state.status === 'running' || state.status === 'started') ? jobId : null;
                     TranslationWorker._lastViewedJobId = jobId;
 
+                    // Wire các nút điều khiển với explicit jobId
+                    const btnDiscard = document.getElementById('btn-progress-discard');
+                    if (btnDiscard) btnDiscard.onclick = () => TranslationWorker._discardTask(state);
+
+                    const btnStop = document.getElementById('btn-progress-stop');
+                    if (btnStop) btnStop.onclick = () => TranslationWorker.stopTranslation(state.jobId);
+
                     if (state.status === 'running' || state.status === 'started') {
-                        TranslationWorker.connectToProgress(null, false, jobId)
+                        TranslationWorker.connectToProgress(null, false, jobId);
                     } else {
                         // Trạng thái đã dừng, chỉ hiển thị snapshot, KHÔNG connect SSE
-                        TranslationWorker._activeJobId = null // không khóa job active
-                        UiHelpers.resetProgressModal()
-                        UiHelpers.renderProgressModal(state)
-                        TranslationWorker.updateProgress(state.percent, state.message)
-                        TranslationWorker._updateResumeButton(state.status)
-
-                        const btnDone = document.getElementById('btn-progress-done')
-                        if (btnDone) btnDone.classList.add('dn')
+                        UiHelpers.resetProgressModal();
+                        UiHelpers.renderProgressModal(state);
+                        TranslationWorker.updateProgress(state.percent, state.message);
+                        TranslationWorker._updateResumeButton(state.status);
 
                         if (state.status === 'failed' && state.recoveryAvailable) {
                             TranslationWorker._showRecoveryActions(state);
@@ -846,33 +877,393 @@ const TranslationWorker = {
             .catch(() => TranslationWorker.connectToProgress(null, false, jobId));
     },
 
+    async _discardTask(taskState) {
+        if (!taskState || !taskState.jobId) return;
+
+        const fileLabel = taskState.filename || 'tác vụ này';
+        const chunkInfo = taskState.completedChunks
+            ? `\n\nTiến độ hiện tại: ${taskState.completedChunks}/${taskState.totalChunks || '?'} chunk đã dịch.`
+            : '';
+
+        const confirmed = await showConfirm(
+            `Bạn có chắc chắn muốn bỏ dở “${fileLabel}” không?${chunkInfo}\n\n` +
+            `Task sẽ bị xóa khỏi danh sách đang xử lý và checkpoint sẽ được lưu trữ.`,
+            { title: 'Xác nhận bỏ task', confirmText: 'Bỏ task', cancelText: 'Quay lại', danger: true }
+        );
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`/api/tasks/${taskState.jobId}/discard`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ delete_checkpoint: false })
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            UiHelpers.showToast('Đã hủy bỏ task thành công', 'success');
+            if (TranslationWorker._evtSource) {
+                TranslationWorker._evtSource.close();
+                TranslationWorker._evtSource = null;
+            }
+            TranslationWorker._taskStateByJob.delete(taskState.jobId);
+            TranslationWorker._activeJobId = null;
+            TranslationWorker._lastViewedJobId = null;
+            ModalManager.hide('translation-progress-modal');
+            ApiClient.loadTasks();
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+            UiHelpers.addLog('Lỗi khi bỏ task: ' + e.message, 'error');
+        }
+    },
+
     openLatestTaskProgress() {
-        // First try active job
-        if (TranslationWorker._activeJobId) {
-            TranslationWorker.openTaskProgress(TranslationWorker._activeJobId);
-            return;
-        }
-        // Fallback to last viewed
-        if (TranslationWorker._lastViewedJobId) {
-            TranslationWorker.openTaskProgress(TranslationWorker._lastViewedJobId);
-            return;
-        }
-        // Last resort: fetch from API
         fetch('/api/tasks')
-            .then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-                return r.json();
-            })
+            .then(r => r.ok ? r.json() : { tasks: [] })
             .then(data => {
-                const tasks = data.tasks || [];
-                if (tasks.length > 0) {
-                    const active = tasks.find(t => t.status === 'running' || t.status === 'started' || t.status === 'resumable');
-                    if (active) {
-                        TranslationWorker.openTaskProgress(active.job_id);
-                    }
+                const tasks = (data.tasks || []).filter(t => !['completed', 'archived'].includes(t.status));
+
+                if (tasks.length === 0) {
+                    // Không có task nào: thông báo
+                    UiHelpers.showToast('Không có tác vụ nào đang chạy hoặc chờ resume.', 'info');
+                    return;
                 }
+
+                if (tasks.length === 1) {
+                    // Chỉ có 1 task: Mở thẳng chi tiết tiến trình
+                    TranslationWorker.openTaskProgress(tasks[0].job_id);
+                    return;
+                }
+
+                // Nhiều hơn 1 task: Mở Task Manager Modal để người dùng chọn
+                TranslationWorker.openTaskManagerModal(tasks);
             })
             .catch(e => console.error('Failed to load tasks', e));
+    },
+
+    openTaskManagerModal(tasks = null) {
+        TranslationWorker._initTaskManagerDelegation();
+        if (tasks) {
+            TranslationWorker.renderTaskManagerList(tasks);
+            ModalManager.show('task-manager-modal');
+        } else {
+            TranslationWorker.refreshTaskManager();
+        }
+    },
+
+    refreshTaskManager() {
+        TranslationWorker._initTaskManagerDelegation();
+        fetch('/api/tasks')
+            .then(r => r.json())
+            .then(data => {
+                const tasks = (data.tasks || []).filter(t => !['completed', 'archived'].includes(t.status));
+                TranslationWorker.renderTaskManagerList(tasks);
+                const totalEl = document.getElementById('tm-total-count');
+                if (totalEl) totalEl.textContent = tasks.length;
+                ModalManager.show('task-manager-modal');
+            })
+            .catch(e => UiHelpers.showToast('Lỗi tải danh sách: ' + e.message, 'error'));
+    },
+
+    _taskManagerDelegationInitialized: false,
+    _initTaskManagerDelegation() {
+        if (TranslationWorker._taskManagerDelegationInitialized) return;
+        const listEl = document.getElementById('task-manager-list');
+        if (!listEl) return;
+
+        listEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+            const jobId = btn.dataset.jobId;
+            const taskId = btn.dataset.taskId || jobId;
+            const filename = btn.dataset.filename || '';
+            const completedChunks = parseInt(btn.dataset.completedChunks || '0', 10);
+            const projectSlug = btn.dataset.projectSlug || '';
+
+            if (action === 'view') {
+                ModalManager.hide('task-manager-modal');
+                TranslationWorker.openTaskProgress(jobId);
+            } else if (action === 'resume') {
+                TranslationWorker.resumeTaskFromList(taskId);
+            } else if (action === 'close-partial') {
+                TranslationWorker.closePartialFromList(taskId, filename, completedChunks);
+            } else if (action === 'discard') {
+                TranslationWorker.discardTaskFromList(jobId, filename);
+            } else if (action === 'project-resume') {
+                TranslationWorker.resumeProjectTasks(projectSlug);
+            } else if (action === 'project-discard') {
+                TranslationWorker.discardProjectTasks(projectSlug);
+            }
+        });
+
+        TranslationWorker._taskManagerDelegationInitialized = true;
+    },
+
+    renderTaskManagerList(tasks) {
+        const listEl = document.getElementById('task-manager-list');
+        const totalEl = document.getElementById('tm-total-count');
+
+        if (!listEl) return;
+        if (totalEl) totalEl.textContent = tasks.length;
+
+        if (tasks.length === 0) {
+            listEl.innerHTML = '<div class="tc pv4 gray f6 i">Không có tác vụ nào đang hoạt động.</div>';
+            return;
+        }
+
+        // Nhóm tasks theo project_slug
+        const groups = {};
+        tasks.forEach(t => {
+            const slug = t.project_slug || 'uncategorized';
+            if (!groups[slug]) groups[slug] = [];
+            groups[slug].push(t);
+        });
+
+        let html = '';
+        for (const [slug, groupTasks] of Object.entries(groups)) {
+            const escSlug = escapeHtml(slug);
+            const projectResumableCount = groupTasks.filter(t => ['resumable', 'interrupted', 'paused'].includes(t.status)).length;
+            const projectDiscardableCount = groupTasks.filter(t => !['running', 'started', 'completed', 'archived'].includes(t.status)).length;
+
+            html += `
+            <div class="ba b--black-10 br3 overflow-hidden bg-white shadow-sm flex-shrink-0">
+                <div class="pa2 ph3 bg-near-white bb b--black-05 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="fw6 dark-gray f6">📁 Dự án: ${escSlug}</span>
+                        <span class="f8 bg-light-gray gray ph2 pv1 br-pill">${groupTasks.length} file</span>
+                    </div>
+                    <!-- Nút thao tác hàng loạt cho riêng từng dự án -->
+                    <div class="flex items-center gap-2">
+                        ${projectResumableCount > 0 ? `
+                            <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f8 blue b--blue"
+                                data-action="project-resume"
+                                data-project-slug="${escSlug}"
+                                title="Tiếp tục tất cả tác vụ của dự án ${escSlug}">
+                                ▶ Tiếp tục (${projectResumableCount})
+                            </button>
+                        ` : ''}
+                        ${projectDiscardableCount > 0 ? `
+                            <button type="button" class="nt-btn nt-btn-danger pv1 ph2 f8"
+                                data-action="project-discard"
+                                data-project-slug="${escSlug}"
+                                title="Bỏ tất cả tác vụ dở của dự án ${escSlug}">
+                                ✕ Bỏ (${projectDiscardableCount})
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+                <div class="flex flex-column divide-y">`;
+
+            groupTasks.forEach(task => {
+                const rawFilename = task.filename || '';
+                const escFilename = escapeHtml(rawFilename);
+                const escJobId = escapeHtml(task.job_id || '');
+                const escTaskId = escapeHtml(task.task_id || task.job_id || '');
+                const pct = task.total_chunks ? Math.round((task.completed_chunks / task.total_chunks) * 100) : 0;
+
+                const statusBadge = task.status === 'running'
+                    ? '<span class="f8 bg-washed-green green ph2 pv1 br2 fw6">Đang chạy</span>'
+                    : task.status === 'resumable'
+                    ? '<span class="f8 bg-washed-blue blue ph2 pv1 br2 fw6">Có thể Resume</span>'
+                    : `<span class="f8 bg-washed-red red ph2 pv1 br2 fw6">${escapeHtml(task.status)}</span>`;
+
+                html += `
+                <div class="pa3 flex items-center justify-between hover-bg-near-white bb b--black-05">
+                    <div class="flex-auto pr3">
+                        <div class="flex items-center gap-2 mb1">
+                            <span class="fw6 dark-gray f6">📄 ${escFilename}</span>
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center gap-3 f7 gray">
+                            <span>Tiến độ: <strong>${task.completed_chunks || 0}/${task.total_chunks || '?'}</strong> chunk (${pct}%)</span>
+                            <div class="w4 bg-black-10 br-pill overflow-hidden" style="height:4px">
+                                <div class="bg-blue h-100" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                        ${task.last_error ? `<div class="f8 red mt1 truncate mw6">${escapeHtml(task.last_error)}</div>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f7"
+                            data-action="view"
+                            data-job-id="${escJobId}"
+                            title="Xem chi tiết">
+                            🔍 Chi tiết
+                        </button>
+                        ${task.status === 'resumable' || task.status === 'interrupted' ? `
+                            <button type="button" class="nt-btn nt-btn-primary pv1 ph2 f7"
+                                data-action="resume"
+                                data-task-id="${escTaskId}"
+                                data-job-id="${escJobId}">
+                                ▶ Tiếp tục
+                            </button>
+                        ` : ''}
+                        ${task.completed_chunks > 0 ? `
+                            <button type="button" class="nt-btn nt-btn-outline pv1 ph2 f7 purple b--purple"
+                                data-action="close-partial"
+                                data-task-id="${escTaskId}"
+                                data-filename="${escFilename}"
+                                data-completed-chunks="${task.completed_chunks}"
+                                title="Chia tách phần đã dịch">
+                                ✂ Chia tách
+                            </button>
+                        ` : ''}
+                        <button type="button" class="nt-btn nt-btn-danger pv1 ph2 f7"
+                            data-action="discard"
+                            data-job-id="${escJobId}"
+                            data-filename="${escFilename}"
+                            title="Hủy bỏ task này">
+                            ✕ Bỏ
+                        </button>
+                    </div>
+                </div>`;
+            });
+
+            html += `
+                </div>
+            </div>`;
+        }
+
+        listEl.innerHTML = html;
+    },
+
+    async resumeProjectTasks(projectSlug) {
+        if (!projectSlug) return;
+        try {
+            const res = await fetch('/api/tasks');
+            if (!res.ok) return;
+            const data = await res.json();
+            const projectTasks = (data.tasks || []).filter(t =>
+                (t.project_slug || 'uncategorized') === projectSlug && ['resumable', 'interrupted', 'paused', 'failed'].includes(t.status)
+            );
+
+            if (projectTasks.length === 0) {
+                UiHelpers.showToast('Không có tác vụ nào cần resume trong dự án này.', 'info');
+                return;
+            }
+
+            const confirmed = await showConfirm(
+                `Tiếp tục dịch ${projectTasks.length} tác vụ dang dở của dự án "${projectSlug}"?`,
+                { title: 'Tiếp tục dự án', confirmText: `Tiếp tục (${projectTasks.length})`, cancelText: 'Hủy' }
+            );
+            if (!confirmed) return;
+
+            ModalManager.hide('task-manager-modal');
+            UiHelpers.showToast(`Đang khôi phục ${projectTasks.length} tác vụ cho dự án ${projectSlug}...`, 'info');
+
+            let lastJobId = null;
+            for (const task of projectTasks) {
+                const targetId = task.task_id || task.job_id;
+                try {
+                    const resResume = await fetch(`/api/tasks/${encodeURIComponent(targetId)}/resume`, { method: 'POST' });
+                    const resData = await resResume.json();
+                    if (resData.job_id) lastJobId = resData.job_id;
+                } catch (e) {
+                    console.error('Lỗi resume task', targetId, e);
+                }
+            }
+
+            TranslationWorker.refreshTaskManager();
+            ApiClient.loadTasks();
+            if (lastJobId) {
+                TranslationWorker.connectToProgress(null, false, lastJobId);
+            }
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+        }
+    },
+
+    async discardProjectTasks(projectSlug) {
+        if (!projectSlug) return;
+        const confirmed = await showConfirm(
+            `Bạn có chắc chắn muốn bỏ TẤT CẢ các tác vụ dang dở của dự án "${projectSlug}"?\n\nDữ liệu checkpoint sẽ được lưu trữ.`,
+            {
+                title: 'Bỏ tác vụ dự án',
+                confirmText: `Bỏ tác vụ "${projectSlug}"`,
+                cancelText: 'Hủy bỏ',
+                danger: true
+            }
+        );
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch('/api/tasks/bulk-discard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project_slug: projectSlug })
+            });
+            const result = await res.json();
+            if (res.ok) {
+                UiHelpers.showToast(result.message || `Đã bỏ thành công các tác vụ của dự án ${projectSlug}`, 'success');
+                TranslationWorker.refreshTaskManager();
+                ApiClient.loadTasks();
+            } else {
+                throw new Error(result.error || 'Không thể bỏ tác vụ');
+            }
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+        }
+    },
+
+    async resumeTaskFromList(taskId) {
+        ModalManager.hide('task-manager-modal');
+        try {
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/resume`, { method: 'POST' });
+            const data = await res.json();
+            if (data.job_id) {
+                ApiClient.loadTasks();
+                TranslationWorker.connectToProgress(null, false, data.job_id);
+            } else {
+                UiHelpers.showToast('Không thể resume: ' + (data.error || 'Lỗi không xác định'), 'error');
+            }
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+        }
+    },
+
+    async closePartialFromList(taskId, filename, completedChunks) {
+        const confirmed = await showConfirm(`Chia tách ${completedChunks} chunk đã dịch của “${filename}” thành file riêng?`);
+        if (!confirmed) return;
+        try {
+            const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}/close-as-partial`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirm: true, export_partial: true })
+            });
+            if (res.ok) {
+                UiHelpers.showToast('Đã chia tách file thành công', 'success');
+                TranslationWorker.refreshTaskManager();
+                ApiClient.loadTasks();
+            } else {
+                const err = await res.json();
+                UiHelpers.showToast('Lỗi: ' + (err.error || 'Không thể chia tách'), 'error');
+            }
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+        }
+    },
+
+    async discardTaskFromList(jobId, filename) {
+        const confirmed = await showConfirm(
+            `Bỏ task “${filename}”? Dữ liệu chưa lưu vào file chính sẽ bị hủy.`,
+            { danger: true }
+        );
+        if (!confirmed) return;
+        try {
+            const res = await fetch(`/api/tasks/${encodeURIComponent(jobId)}/discard`, { method: 'POST' });
+            if (res.ok) {
+                UiHelpers.showToast('Đã bỏ task thành công', 'success');
+                TranslationWorker.refreshTaskManager();
+                ApiClient.loadTasks();
+            } else {
+                const err = await res.json();
+                UiHelpers.showToast('Lỗi: ' + (err.error || 'Không thể bỏ task'), 'error');
+            }
+        } catch (e) {
+            UiHelpers.showToast('Lỗi: ' + e.message, 'error');
+        }
     },
 
     _showRecoveryActions(taskState) {

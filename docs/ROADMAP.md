@@ -2,6 +2,15 @@
 
 ## Hoàn thành
 
+### v8.27.0 (2026-08-23)
+- [x] ⚡ **Quản trị Tác vụ Dịch thuật & Checkpoint (Task Dashboard)**: Tự động lưu checkpoint SQLite, phân loại trạng thái thông minh (*running, resumable, interrupted, paused, failed, archived*), khôi phục tác vụ gián đoạn và trung tâm điều phối tác vụ tập trung (`#task-dashboard-modal`).
+- [x] 📁 **Thao tác Hàng loạt Phân tách theo Từng Dự án (Project-Scoped Actions)**: Bổ sung các nút **`▶ Tiếp tục (N)`** và **`✕ Bỏ (N)`** ở từng header nhóm dự án, chỉ tác động đúng các task của dự án tương ứng mà không làm ảnh hưởng đến các dự án khác.
+- [x] 🔍 **Phục hồi Ngữ cảnh Tác vụ & Khắc phục Lỗi Điều khiển Tiến trình**: Hiển thị chính xác tên tập tin (`filename`) và tên dự án (`project_name` / `project_slug`) trên Modal Tiến trình, sửa lỗi nút Dừng (chỉ hiện khi task running, dừng theo scoped `jobId`), bổ sung nút Bỏ task an toàn.
+- [x] 📋 **Giao diện Chọn Tác vụ & Task Manager Modal**: Tự động mở khi $N > 1$ tác vụ dở, gom nhóm theo dự án, sửa lỗi không cuộn được của danh sách task bằng flex layout chuẩn, áp dụng Event Delegation chống XSS.
+- [x] ⏱️ **Tự động Reconcile Heartbeat Stale Leases & Cleanup Mồ côi**: Tự động thu hồi lease và đánh dấu `interrupted` các task chết heartbeat (>30s) trong `list_tasks` và `bulk_discard_tasks`; bổ sung endpoint `POST /api/tasks/cleanup-stale` quét dọn checkpoint mồ côi.
+- [x] 🧪 **Bộ Kiểm thử Tự động 410 Tests Passed 100%**: Tạo mới `tests/unit/test_task_discard.py` kiểm thử 9 kịch bản discard, bulk discard theo project, all resumable, và cleanup stale.
+- [x] 📚 **Bổ sung Tài liệu Hướng dẫn (docs/MANUAL.md & README.md)**: Cập nhật Mục 9 (Bảng giải thích trạng thái tác vụ & Hướng dẫn thao tác) và đồng bộ tính năng nổi bật.
+
 ### v8.26.0 (2026-08-22)
 - [x] 🐛 **Khắc phục Lỗi Cú pháp Tê liệt Frontend (`api-client.js`)**: Sửa lỗi thiếu dấu đóng khối `},` và bổ sung `.catch()` chuẩn hóa cho `loadTasks()`, sửa lại phương thức `translateFiles()`. Phục hồi toàn bộ dữ liệu hiển thị (Lưu trữ, Nhật ký, Thống kê dự án) và khôi phục hoạt động cho mọi nút chức năng (Dịch file, Dịch đã chọn, Soát lỗi AI, Nạp task).
 - [x] 🎨 **Tái cấu trúc Project Card & Sửa lỗi Tiến độ Lệch (`style.css`, `tab_projects.html`, `project-manager.js`)**: Dọn sạch các đoạn CSS thừa/trùng lặp gây đè style, tái thiết kế thanh tiến trình dạng pill track mượt mà, căn chỉnh baseline chuẩn xác, cấu hình `.projects-cards-grid` tự co giãn (`repeat(auto-fill, minmax(320px, 1fr))`) và cho phép click toàn bộ card để mở workspace.

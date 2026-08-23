@@ -15,11 +15,12 @@
 
 - 🏗️ **Hexagonal Backend**: CLI và WebUI dùng chung backend (`backend/` package với Application/Domain/Infrastructure/Facade layers).
 - 🤖 **Multi-Provider AI**: Hỗ trợ Google Gemini và OpenAI-compatible API (OpenRouter, Cloudflare AI Gateway, proxy). Quản lý nhiều provider qua `providers.json`. Tự động nhận dạng, lọc và hiển thị model đặc thù (VD: Workers AI).
+- ⚡ **Quản trị Tác vụ & Checkpoint (Task Dashboard)**: Tự động lưu checkpoint SQLite, khôi phục tác vụ gián đoạn, hỗ trợ thao tác Tiếp tục/Hủy bỏ hàng loạt theo từng dự án (Project-scoped) và trung tâm điều phối tác vụ tập trung.
 - 🎨 **Quản lý Dự án**: Tab "Quản lý dự án" độc lập với workspace 3 cột, import/export zip, trạng thái tự động.
 - 🖥️ **So sánh bản dịch (Diff View)**: Xem Dọc/Ngang — so sánh bản gốc và bản dịch trực quan.
 - 📋 **Advanced Logging**: Xem nhật ký hệ thống và dự án trực quan ngay trên WebUI.
 - 📦 **Project Archiving**: Lưu trữ dự án thông minh (Zip/Restore) tối ưu không gian.
-- 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers.
+- 🧪 **Test Suite**: Unit + smoke tests cho backend, CLI, WebUI và helpers (410 tests).
 - 🔌 **Plugin Management**: Quản lý plugin tập trung trong tab Cấu hình. eBook Kit và OCR Toolbox tích hợp vào workspace dự án.
 
 ---

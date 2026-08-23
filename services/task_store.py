@@ -333,7 +333,7 @@ class TaskStore:
     ) -> bool:
         sets = ["status = ?", "updated_at = ?"]
         vals: list = [status, datetime.now().isoformat()]
-        if status in ("completed", "failed", "cancelled", "closed_partial"):
+        if status in ("completed", "failed", "cancelled", "closed_partial", "archived"):
             sets.append("lease_token = NULL")
         for k, v in kwargs.items():
             if v is not None:

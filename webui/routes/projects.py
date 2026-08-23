@@ -1807,16 +1807,25 @@ def translate_project_file(slug):
         if resume_required:
             # REV-C C6: Nếu request nhiều file và chỉ một phần có checkpoint,
             # trả lỗi thay vì âm thầm bỏ qua file không có checkpoint.
+            project_title = meta.get("book_title") or meta.get("name") or slug
+            # Inject project_slug và project_name vào từng checkpoint entry
+            for fn, ck in resume_required.items():
+                ck["project_slug"] = slug
+                ck["project_name"] = project_title
             if files_without_checkpoint and len(filenames) > 1:
                 return jsonify({
                     "status": "multi_file_resume_requires_per_file_decision",
                     "error": "Một số file được chọn chưa có checkpoint. Vui lòng xử lý từng file hoặc chọn 'Dịch lại từ đầu' cho các file này.",
+                    "project_slug": slug,
+                    "project_name": project_title,
                     "files_with_checkpoint": list(resume_required.keys()),
                     "files_without_checkpoint": files_without_checkpoint,
                     "checkpoints": resume_required,
                 }), 409
             return jsonify({
                 "status": "resume_required",
+                "project_slug": slug,
+                "project_name": project_title,
                 "checkpoints": resume_required,
             }), 409
 
@@ -1921,7 +1930,7 @@ def resume_task(task_id):
     task = store.get_task(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
-    if task["status"] not in ("resumable", "failed", "paused"):
+    if task["status"] not in ("resumable", "failed", "paused", "interrupted"):
         return jsonify({"error": f"Cannot resume task in status {task['status']}"}), 400
 
     # A task row can outlive its SQLite checkpoint (for example after a
