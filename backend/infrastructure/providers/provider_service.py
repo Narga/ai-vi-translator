@@ -38,6 +38,36 @@ class ProviderService:
     # providers.json I/O
     # ------------------------------------------------------------------
 
+    def get_etag(self) -> str:
+        """B4: trả ETag cho providers.json hiện tại (sha256 của nội dung file).
+
+        ETag được dùng bởi route GET /api/providers để client biết version
+        cần gửi lại qua If-Match khi PUT. Khi file thay đổi, hash đổi → client
+        phát hiện stale. Dùng quote-etag format theo RFC 7232.
+        """
+        import hashlib
+        if not self._providers_file.exists():
+            return '"empty"'
+        with open(self._providers_file, "rb") as f:
+            data = f.read()
+        return f'"sha256-{hashlib.sha256(data).hexdigest()[:16]}"'
+
+    def save_providers_with_etag(self, data: Dict[str, Any], expected_etag: str) -> Dict[str, Any]:
+        """B4: save_providers có check ETag. Trả {'error', 'current_etag'} nếu stale.
+
+        Caller (route) đọc If-Match header, so với current_etag. Nếu khác → 409
+        Conflict. Nếu khớp → save như bình thường, trả etag mới.
+        """
+        current = self.get_etag()
+        if expected_etag and expected_etag != current:
+            return {
+                "error": "providers.json đã thay đổi từ lần đọc cuối (ETag mismatch)",
+                "current_etag": current,
+                "your_etag": expected_etag,
+            }
+        self.save_providers(data)
+        return {"success": True, "new_etag": self.get_etag()}
+
     def load_providers(self) -> Dict[str, Any]:
         """Đọc providers.json. Trả về dict có {version, active_id, providers[]}."""
         if not self._providers_file.exists():

@@ -272,3 +272,64 @@ class TestSaveSettingsTransaction:
         data = r.get_json()
         assert data["success"] is True
         assert data["provider"] is None
+
+    def test_etag_header_returned(self, real_config_dir):
+        """B4: GET /api/providers trả ETag header cho client dùng If-Match."""
+        from webui import create_app
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        r = client.get("/api/providers")
+        assert r.status_code == 200
+        etag = r.headers.get("ETag")
+        assert etag is not None
+        assert etag.startswith('"sha256-') and etag.endswith('"')
+
+    def test_put_with_correct_etag_succeeds(self, real_config_dir):
+        """B4: PUT /models với If-Match đúng → 200."""
+        from webui import create_app
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        etag = client.get("/api/providers").headers.get("ETag")
+        r = client.put(
+            "/api/providers/openrouter/models",
+            json={"default_model": "anthropic/claude-3.5-sonnet"},
+            headers={"If-Match": etag},
+        )
+        assert r.status_code == 200
+        # Revert
+        client.put(
+            "/api/providers/openrouter/models",
+            json={"default_model": "deepseek/deepseek-v4-flash-0731"},
+        )
+
+    def test_put_with_stale_etag_returns_409(self, real_config_dir):
+        """B4: PUT với ETag cũ (stale) → 409 Conflict."""
+        from webui import create_app
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        # Lấy ETag hiện tại
+        old_etag = client.get("/api/providers").headers.get("ETag")
+        # Tạo thay đổi để ETag cũ trở thành stale
+        client.put(
+            "/api/providers/openrouter/models",
+            json={"default_model": "anthropic/claude-3.5-sonnet"},
+        )
+        # PUT với ETag cũ
+        r = client.put(
+            "/api/providers/openrouter/models",
+            json={"default_model": "openai/gpt-4o"},
+            headers={"If-Match": old_etag},
+        )
+        assert r.status_code == 409
+        body = r.get_json()
+        assert "ETag mismatch" in body["error"]
+        assert body["current_etag"] != old_etag
+        assert body["your_etag"] == old_etag
+        # Revert
+        client.put(
+            "/api/providers/openrouter/models",
+            json={"default_model": "deepseek/deepseek-v4-flash-0731"},
+        )

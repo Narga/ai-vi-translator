@@ -626,6 +626,9 @@ def list_providers():
     R3: KHÔNG trả về plaintext API key về browser. Mỗi provider chỉ trả
     metadata an toàn: has_api_key, key_count, api_key_last4, base_url, etc.
     Caller muốn update key thì dùng endpoint PUT /api/providers/<id> riêng.
+
+    B4: trả ETag header (sha256 của providers.json) để client dùng If-Match
+    khi PUT — tránh ghi đè giữa multi-tab.
     """
     from backend.infrastructure.providers.provider_service import ProviderService
     provider_service = ProviderService()
@@ -658,10 +661,13 @@ def list_providers():
                 else ("(set)" if api_key else "")
             )
         masked_providers.append(item)
-    return jsonify({
+    response = jsonify({
         "active_id": data.get("active_id", "gemini-default"),
         "providers": masked_providers,
     })
+    # B4: trả ETag header
+    response.headers["ETag"] = provider_service.get_etag()
+    return response
 
 
 @settings_bp.route("/api/providers", methods=["POST"])
@@ -742,7 +748,28 @@ def update_provider_models(provider_id):
 
     if update_kwargs:
         from backend.infrastructure.providers.provider_service import ProviderService
-        ProviderService().update_provider(provider_id, **update_kwargs)
+        provider_service = ProviderService()
+        # B4: check If-Match header để tránh ghi đè giữa multi-tab
+        if_match = request.headers.get("If-Match", "").strip()
+        if if_match:
+            result = provider_service.save_providers_with_etag(
+                provider_service.load_providers().copy() | {
+                    "providers": [
+                        p if p["id"] != provider_id else {**p, **update_kwargs}
+                        for p in provider_service.load_providers()["providers"]
+                    ]
+                },
+                if_match,
+            )
+            if "error" in result:
+                return jsonify({
+                    "error": result["error"],
+                    "current_etag": result["current_etag"],
+                    "your_etag": result["your_etag"],
+                }), 409
+            # save_providers_with_etag đã save; trả masked
+        else:
+            provider_service.update_provider(provider_id, **update_kwargs)
 
     # Trả về masked provider mới
     from backend.infrastructure.providers.provider_service import ProviderService
@@ -754,11 +781,12 @@ def update_provider_models(provider_id):
 @settings_bp.route("/api/providers/<provider_id>/credentials", methods=["PUT"])
 @handle_route_errors
 def update_provider_credentials(provider_id):
-    """PUT credentials cho provider (B4: ETag race condition guard chưa có, sẽ thêm ở patch sau).
+    """PUT credentials cho provider (B4: ETag race condition guard có).
 
     Body: {api_key?: str, api_keys?: list, gateway_api_key?: str, base_url?: str}
     - Nếu gửi api_keys rỗng thì KHÔNG xoá (sentinel pattern theo R16)
     - Validate base_url qua EndpointPolicy nếu có
+    - Header If-Match: nếu có, check ETag; nếu stale trả 409
     """
     from backend.infrastructure.providers.provider_resolver import (
         ProviderConfigResolver,
@@ -792,10 +820,28 @@ def update_provider_credentials(provider_id):
         update_kwargs["base_url"] = data["base_url"]
 
     if update_kwargs:
-        try:
-            ProviderService().update_provider(provider_id, **update_kwargs)
-        except ValueError as e:
-            return jsonify({"error": str(e), "field": list(update_kwargs.keys())[0]}), 400
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService()
+        # B4: check If-Match header
+        if_match = request.headers.get("If-Match", "").strip()
+        if if_match:
+            current_data = provider_service.load_providers()
+            current_data["providers"] = [
+                {**p, **update_kwargs} if p["id"] == provider_id else p
+                for p in current_data["providers"]
+            ]
+            result = provider_service.save_providers_with_etag(current_data, if_match)
+            if "error" in result:
+                return jsonify({
+                    "error": result["error"],
+                    "current_etag": result["current_etag"],
+                    "your_etag": result["your_etag"],
+                }), 409
+        else:
+            try:
+                ProviderService().update_provider(provider_id, **update_kwargs)
+            except ValueError as e:
+                return jsonify({"error": str(e), "field": list(update_kwargs.keys())[0]}), 400
 
     # Trả về masked
     from backend.infrastructure.providers.provider_service import ProviderService

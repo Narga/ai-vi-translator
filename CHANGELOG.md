@@ -177,6 +177,34 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - Frontend giờ dùng `key_count`/`api_key_last4`/`has_api_key` thay vì đọc `api_key` plaintext (R3). UI sẽ hiển thị masked key (4 ký tự cuối) khi xem/sửa provider.
 - 417/417 unit test pass (backend); frontend tests 1/6 pass, 5 skip có giải thích.
 
+### Bổ sung B4: ETag If-Match cho race condition multi-tab
+
+**`ProviderService.get_etag()`** — sha256 của `providers.json` hiện tại, format quote-etag RFC 7232 (`"sha256-xxxxxxxxxxxxxxxx"`). Đổi khi file đổi.
+
+**`ProviderService.save_providers_with_etag(data, expected_etag)`** — check ETag trước khi save. Nếu `expected_etag` không khớp `current_etag` → trả `{error, current_etag, your_etag}` để caller trả 409 Conflict.
+
+**Route changes (webui/routes/settings.py):**
+- `GET /api/providers` thêm `ETag` header response.
+- `PUT /api/providers/<id>/models` đọc `If-Match` header. Nếu có → check ETag; stale → **409** với error rõ ràng (`current_etag` + `your_etag`). Nếu không có → backward compat, save như cũ.
+- `PUT /api/providers/<id>/credentials` cùng pattern.
+
+**Test mới `tests/unit/test_settings_endpoints.py`:** thêm 3 case (19/19 pass):
+- `test_etag_header_returned`: GET trả header `ETag` đúng format
+- `test_put_with_correct_etag_succeeds`: PUT với If-Match đúng → 200
+- `test_put_with_stale_etag_returns_409`: PUT với ETag cũ sau khi file đã đổi → 409, body có `current_etag`/`your_etag`
+
+**Real Flask path test (5 case) verified:**
+- GET trả ETag `sha256-c01b30b0be8f16cd`
+- PUT với ETag đúng → 200
+- GET lại ETag đã đổi (file save thành công)
+- PUT với ETag cũ → **409** với error rõ ràng
+- PUT không có If-Match → 200 (backward compat cho client cũ)
+
+**Tác động tương thích:**
+- Client cũ (không gửi If-Match) vẫn hoạt động bình thường.
+- Client mới nên đọc `ETag` từ GET, lưu lại, gửi kèm `If-Match` ở PUT. Nếu 409, hiển thị cảnh báo "đã có thay đổi từ tab khác, tải lại rồi thử lại".
+- 421/421 unit test pass (thêm 3 ETag mới).
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
