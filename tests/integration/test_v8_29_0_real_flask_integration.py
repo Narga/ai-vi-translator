@@ -310,3 +310,50 @@ class TestV829Summary:
         n_commits = len([l for l in result.stdout.strip().split("\n") if l])
         # Có ít nhất 11 commit v8.29.0 + 1 R4 fix
         assert n_commits >= 11, f"chỉ có {n_commits} commit (cwd={project_root})"
+
+    def test_config_state_after_all_tests(self):
+        """Verify config thật đã đúng ở state v8.29.0 (gemini model, [RUNTIME] section).
+
+        Regression guard: nếu test nào tương lai ghi config sai (vd revert về
+        step-3.7-flash cho gemini), test này sẽ fail ngay.
+        """
+        import json
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        # providers.json
+        d = json.load(open(os.path.join(project_root, "config", "providers.json")))
+        assert d["version"] == 1
+        assert len(d["providers"]) == 11, f"providers bị mất: {len(d['providers'])}"
+        gemini = next(p for p in d["providers"] if p["id"] == "gemini-default")
+        # Gemini namespace — không phải cross-provider
+        assert gemini["default_model"] == "gemini-2.0-flash", \
+            f"gemini.default_model bị ghi sai: {gemini['default_model']!r}"
+        assert not gemini["default_model"].startswith("step-"), \
+            f"gemini.default_model vẫn còn cross-provider: {gemini['default_model']!r}"
+        # stepfun provider giữ step-3.7-flash (đúng namespace OpenAI)
+        stepfun = next(p for p in d["providers"] if p["id"] == "stepfun")
+        assert stepfun["default_model"] == "step-3.7-flash"
+
+        # app.ini
+        config_text = open(os.path.join(project_root, "config", "app.ini")).read()
+        assert "[RUNTIME]" in config_text
+        assert "THINKING_LEVEL = OFF" in config_text
+        # Không còn [MODEL] section legacy
+        assert "[MODEL]" not in config_text, "app.ini vẫn còn section [MODEL] legacy"
+
+        # providers.json.bak đồng bộ với providers.json
+        d_bak = json.load(open(os.path.join(project_root, "config", "providers.json.bak")))
+        assert d == d_bak, "providers.json.bak không đồng bộ với providers.json"
+
+    def test_get_active_provider_returns_valid_model(self):
+        """get_active_provider_config trả provider có default_model hợp lệ (không rỗng)."""
+        from backend.infrastructure.providers.provider_service import ProviderService
+        from pathlib import Path
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        # active_id = stepfun, có default_model='step-3.7-flash'
+        ps = ProviderService(Path(project_root) / "config")
+        active = ps.get_active_provider_config()
+        assert active is not None
+        assert active.get("default_model"), \
+            f"active provider {active.get('id')} không có default_model"
