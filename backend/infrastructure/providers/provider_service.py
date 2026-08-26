@@ -434,10 +434,18 @@ class ProviderService:
         if provider_type == "openai":
             # Ủy quyền cho EndpointPolicy (đã có cho từng gateway). Nếu base_url
             # không hợp lệ, classify_endpoint sẽ raise ValueError → caller xử lý.
+            #
+            # R4: OpenAI-compatible KHÔNG chấp nhận model có prefix của provider
+            # khác (gemini-*, gemma-*). EndpointPolicy.validate_model mặc định
+            # chỉ check whitespace, nên cần reject rõ cross-namespace.
             try:
                 from backend.infrastructure.providers.endpoint_policy import classify_endpoint
                 policy = classify_endpoint(base_url)
-                return policy.validate_model(clean)
+                if not policy.validate_model(clean):
+                    return False
+                if clean.startswith(("gemini-", "gemma-")):
+                    return False
+                return True
             except Exception:
                 # Không có policy hợp lệ (base_url rỗng, classify raise, ...) →
                 # fallback check whitespace only. Caller nên validate base_url

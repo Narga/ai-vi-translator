@@ -202,6 +202,13 @@ class ProviderConfigResolver:
                 f"Model '{model}' không hợp lệ với endpoint policy "
                 f"'{policy.provider_kind}'"
             )
+        # R4: chống cross-namespace. OpenAI-compatible KHÔNG chấp nhận model
+        # có prefix Gemini/Gemma. EndpointPolicy mặc định chỉ check whitespace.
+        if model.startswith(("gemini-", "gemma-")):
+            return False, (
+                f"Model '{model}' thuộc namespace Google Gemini/Gemma, "
+                f"không hợp lệ với OpenAI provider"
+            )
         return True, ""
 
     def list_models(

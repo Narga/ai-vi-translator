@@ -65,6 +65,15 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 
 ### Nhóm 4: Migration Tool An Toàn với Manifest & Rollback
 
+**R4 fix quan trọng (bổ sung Nhóm 1, phát hiện qua real public path test):**
+- **Bug**: `OpenAICompatiblePolicy.validate_model()` chỉ check whitespace, không từ chối model có prefix `gemini-*`/`gemma-*`. Một OpenAI provider có thể lưu `default_model="gemini-2.0-flash"` qua `PUT /api/providers/<id>` mà validation pass.
+- **Phát hiện**: real Flask test (qua `flask_client` fixture) thực hiện `PUT /api/providers/openrouter` với `default_model="gemini-2.0-flash"` trả 200, sai R4.
+- **Fix tại 2 nơi**:
+  1. `provider_service._is_model_valid_for_type("openai", model, base_url)` — thêm check `clean.startswith(("gemini-", "gemma-"))` sau `policy.validate_model()`.
+  2. `provider_resolver.validate_model()` — mirror logic tương tự để resolver dùng độc lập cũng chặn được.
+- **Real path test xác minh** (7 case): OpenAI nhận Gemini model → 400; Gemini nhận OpenAI model → 400; model đúng namespace → 200; API key mask → 0 leak; `[MODEL]` legacy → 400; `[RUNTIME]` đọc được. Tất cả pass.
+- **Test mới** `test_validate_openai_rejects_gemini_namespace_model` trong `test_provider_resolver.py` cover cross-namespace OpenAI→Gemini.
+
 **Script mới `scripts/migrate_providers_v2.py`:**
 - **Fail-closed ở mọi bước**: nếu bất kỳ bước nào thất bại, KHÔNG ghi file; restore từ manifest nếu đã backup.
 - **`--dry-run` là mặc định**: chỉ in output, không ghi file. `--apply` yêu cầu xác nhận 5 giây (Ctrl+C để hủy) để tránh chạy nhầm.

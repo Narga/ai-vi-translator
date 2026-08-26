@@ -143,6 +143,35 @@ class TestProviderConfigResolverValidateModel:
         valid, err = resolver.validate_model(p, "deepseek/deepseek-chat")
         assert valid is True, err
 
+    def test_validate_openai_rejects_gemini_namespace_model(self, mock_providers_env):
+        """R4 fix: OpenAI-compatible provider phải reject model có prefix Gemini/Gemma.
+
+        Note: openrouter dùng Cloudflare gateway policy có validate_model riêng
+        (reject :free suffix). Test với openai-compatible đơn thuần để check
+        logic cross-namespace ở _is_model_valid_for_type.
+        """
+        from backend.infrastructure.providers.provider_resolver import (
+            ProviderConfigResolver,
+            ResolvedProvider,
+        )
+        resolver = ProviderConfigResolver(mock_providers_env)
+        # Tạo provider openai-compatible (không phải gateway đặc biệt)
+        compat_provider = ResolvedProvider(
+            id="custom-openai",
+            type="openai",
+            name="Custom OpenAI",
+            api_key="k",
+            base_url="https://api.example.com/v1",
+            default_model="some-model",
+            qa_model="",
+            credential_mode="default",
+            raw={"id": "custom-openai", "type": "openai"},
+        )
+        for bad in ("gemini-2.0-flash", "gemini-1.5-pro", "gemma-2-9b"):
+            valid, err = resolver.validate_model(compat_provider, bad)
+            assert valid is False, f"OpenAI provider should reject {bad}, got valid=True"
+            assert "namespace" in err.lower() or "gemini" in err.lower() or "gemma" in err.lower()
+
 
 class TestProviderConfigResolverMaskedInfo:
 
