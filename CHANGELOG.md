@@ -63,6 +63,40 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - Module này là mới, chưa được route nào gọi. Sẽ được tích hợp trong Nhóm tiếp theo (transaction endpoint + frontend) sau khi user chốt phạm vi.
 - Có thể dùng song song với `ProviderService` hiện tại cho use case mới (chẳng hạn `/api/models` mới), trong khi code cũ vẫn hoạt động.
 
+### Nhóm 4: Migration Tool An Toàn với Manifest & Rollback
+
+**Script mới `scripts/migrate_providers_v2.py`:**
+- **Fail-closed ở mọi bước**: nếu bất kỳ bước nào thất bại, KHÔNG ghi file; restore từ manifest nếu đã backup.
+- **`--dry-run` là mặc định**: chỉ in output, không ghi file. `--apply` yêu cầu xác nhận 5 giây (Ctrl+C để hủy) để tránh chạy nhầm.
+- **Tạo `manifest-<timestamp>.json`** chứa cặp backup, SHA-256 trước/sau, schema version (R10): rollback LUÔN dùng cùng manifest cho cả 2 file, không ghép timestamp khác nhau.
+- **Sửa cross-provider model ở Gemini**: nếu `default_model` sai namespace, log warning và đặt lại `gemini-2.0-flash` (R1). KHÔNG fail-closed ở đây vì schema v1 cũ có thể chứa legacy data cần sửa.
+- **Validate chống provider type lạ/id trùng/active_id không tồn tại**: raise `ValueError`, dừng migration trước khi ghi file (R6).
+- **Giữ field mở rộng**: chỉ thay đổi field migration sở hữu (id/type/name/default_model/qa_model), giữ nguyên `extra_field` chưa được migration hiểu (R6).
+- **`atomic_write(path, content)` helper (R18)**: bọc try/except riêng cho cả `open()` và `os.replace()`, dọn `tmp` cả khi fail. Tránh sót `tmp_*.json` khi replace raise.
+- **`load_app_ini` dùng `read_text` + `read_string`** (R19): phát hiện encoding lỗi thay vì `configparser.read()` âm thầm bỏ qua.
+- **`transform_app_ini` thứ tự đúng** (R17): chuyển THINKING_LEVEL sang [RUNTIME] TRƯỚC, xoá field legacy, xoá section rỗng. Comment giải thích vì sao thứ tự quan trọng.
+
+**Script mới `scripts/rollback_providers.py`:**
+- **Manifest-based** (R10): LUÔN yêu cầu `--manifest` cụ thể, không tự chọn backup gần nhất.
+- **`verify_manifest()`**: kiểm tra path traversal (backup phải nằm trong `config_dir/backups/`), file backup tồn tại, SHA-256 khớp.
+- **Restore providers.json + app.ini theo thứ tự cố định** từ manifest; rollback fail-closed nếu checksum sai hoặc path traversal.
+
+**Module mới `tests/unit/test_migrate_providers_v2.py`:** 22/22 pass. Cover:
+- `is_valid_gemini_model` accept/reject matrix
+- `transform_providers` set default_model khi invalid, giữ field mở rộng, reject type lạ, reject trùng id, reject active_id không tồn tại, version 2
+- `transform_app_ini` chuyển THINKING_LEVEL sang [RUNTIME], giữ [PROCESSING], no-op khi không có [MODEL]
+- `run_migration(dry_run=True)` không ghi file, không tạo backup
+- Idempotent: chạy 2 lần không mất data, default_model vẫn đúng, extra_field vẫn còn
+- Cleans app.ini: section [MODEL] cũ bị xoá, [RUNTIME] mới có THINKING_LEVEL
+- Tạo manifest với sha256_before
+- Rollback qua manifest thành công
+- Rollback reject manifest không tồn tại
+- Rollback reject manifest bị tamper (checksum sai)
+
+**Tác động:**
+- Script KHÔNG được tự động chạy; user phải chạy thủ công với `--apply` sau khi review dry-run.
+- Khuyến nghị: chạy `--dry-run` trước, review log "KẾT QUẢ CHUYỂN ĐỔI SCHEMA V2", sau đó `--apply` nếu đồng ý.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
