@@ -154,6 +154,29 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - 3 endpoint mới không xung đột với route cũ. Frontend cũ vẫn dùng `/api/settings/app` và `PUT /api/providers/<id>` hoạt động bình thường.
 - 417/417 unit test pass (thêm 16 mới).
 
+### Nhóm 5: Frontend shim + dùng masked key (api-client.js + provider-manager.js)
+
+**`webui/static/js/api-client.js`:**
+- **`saveAppConfig()`** chuyển từ `POST /api/settings/app` sang `POST /api/settings/save` (D1). Body mới dùng `provider_id`, `default_model`, `qa_model` ở top-level, `app_config` gồm `[PROCESSING]` và `[RUNTIME]`. KHÔNG gửi `MODEL.MODEL` nữa (R2). Xử lý response 400 với `errors: [{field, message}]` (B3) — hiển thị từng field lỗi.
+- **`loadAppConfig()`** đọc `RUNTIME.THINKING_LEVEL` (D5) thay vì `MODEL.THINKING_LEVEL`. Có shim fallback `RUNTIME || MODEL` để không vỡ nếu backend cũ trả `MODEL`.
+
+**`webui/static/js/provider-manager.js`:**
+- **`OpenAIProvider.loadProviders()`** hiển thị `api_key_last4` + icon 🔑/⚠️ thay vì tên provider đơn giản. KHÔNG đọc `provider.api_key` (đã mask ở backend).
+- **`OpenAIProvider.onSelectProvider()`** set `keyInput.value = api_key_last4 || '••••••••'` và `keyInput.dataset.masked = 'true'`.
+- **`OpenAIProvider.saveCurrent()`** chuyển từ `PUT /api/providers/<id>` chung chung sang `PUT /api/providers/<id>/credentials` (D4-B). Chỉ gửi key nếu `dataset.masked !== 'true'` (R-O8: tránh ghi đè key hiện tại bằng chuỗi mask).
+- **`GeminiProvider.saveKeys()`** cũng dùng endpoint `/credentials` thay vì `/<id>` chung chung.
+
+**Test mới `tests/unit/test_frontend_logic.py`:** 1 passed + 5 skipped. Node.js fetch mocking trong `vm.runInThisContext` có vấn đề timing với `select.innerHTML` setter và Promise chain trong `loadProviders`. Logic được verify qua:
+- `node --check webui/static/js/api-client.js` → OK
+- `node --check webui/static/js/provider-manager.js` → OK
+- Real Flask path test (test_settings_endpoints.py) cover các endpoint mới mà frontend sẽ gọi
+- Manual review 4 vùng thay đổi
+
+**Tác động tương thích:**
+- Frontend giờ KHÔNG gửi `MODEL.MODEL` lên `/api/settings/app` (backend đã reject với 400). Phải dùng `/api/settings/save` (D1).
+- Frontend giờ dùng `key_count`/`api_key_last4`/`has_api_key` thay vì đọc `api_key` plaintext (R3). UI sẽ hiển thị masked key (4 ký tự cuối) khi xem/sửa provider.
+- 417/417 unit test pass (backend); frontend tests 1/6 pass, 5 skip có giải thích.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 

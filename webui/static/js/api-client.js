@@ -295,51 +295,13 @@ const ApiClient = {
             .then(data => {
                 if (data.success && data.config) {
                     const conf = data.config;
-                    if (conf.MODEL) {
-                        const m = conf.MODEL;
-                        if (m.MODEL) {
-                            const sel = document.getElementById('model');
-                            if (sel) {
-                                const hasSavedModel = Array.from(sel.options).some(opt => opt.value === m.MODEL);
-                                if (hasSavedModel) {
-                                    sel.value = m.MODEL;
-                                } else if (m.MODEL) {
-                                    const opt = document.createElement('option');
-                                    opt.value = m.MODEL;
-                                    opt.textContent = m.MODEL;
-                                    opt.selected = true;
-                                    sel.appendChild(opt);
-                                    sel.value = m.MODEL;
-                                }
-                                ApiClient.fetchModelInfo(m.MODEL, provider || window.activeProvider);
-                            }
-                            // Update header info
-                            const headerModel = document.getElementById('header-active-model');
-                            if (headerModel) {
-                                headerModel.textContent = m.MODEL;
-                            }
-                        }
-                        if (m.QA_MODEL) {
-                            const qaSel = document.getElementById('cfg-qa-model');
-                            if (qaSel) {
-                                const hasSavedQa = Array.from(qaSel.options).some(opt => opt.value === m.QA_MODEL);
-                                if (hasSavedQa) {
-                                    qaSel.value = m.QA_MODEL;
-                                } else if (m.QA_MODEL) {
-                                    const opt = document.createElement('option');
-                                    opt.value = m.QA_MODEL;
-                                    opt.textContent = m.QA_MODEL;
-                                    opt.selected = true;
-                                    qaSel.appendChild(opt);
-                                    qaSel.value = m.QA_MODEL;
-                                }
-                            }
-                        }
-                        if (m.THINKING_LEVEL) {
-                            const thinkSel = document.getElementById('cfg-thinking');
-                            if (thinkSel) thinkSel.value = m.THINKING_LEVEL;
-                        }
-                    }
+                    // v8.29.0: section [RUNTIME] thay cho [MODEL] cũ (D5).
+                    // Shim fallback: nếu backend cũ vẫn trả MODEL, dùng tạm.
+                    const thinking = (conf.RUNTIME && conf.RUNTIME.THINKING_LEVEL)
+                        || (conf.MODEL && conf.MODEL.THINKING_LEVEL)
+                        || 'OFF';
+                    const thinkSel = document.getElementById('cfg-thinking');
+                    if (thinkSel) thinkSel.value = thinking;
                     if (conf.PROCESSING) {
                         const p = conf.PROCESSING;
                         const chunkSizeEl = document.getElementById('chunk-size');
@@ -368,36 +330,53 @@ const ApiClient = {
         const pollIntervalEl = document.getElementById('cfg-poll-interval');
         const pollSec = pollIntervalEl ? parseInt(pollIntervalEl.value, 10) || 15 : 15;
 
-        const data = {
-            MODEL: {
-                MODEL: document.getElementById('model').value,
-                QA_MODEL: document.getElementById('cfg-qa-model').value,
-                THINKING_LEVEL: document.getElementById('cfg-thinking').value
+        // v8.29.0 (Nhóm 7): dùng POST /api/settings/save (D1 transaction) thay vì
+        // /api/settings/app. Body mới KHÔNG gửi MODEL.MODEL/QA_MODEL nữa; thay
+        // vào đó dùng default_model + qa_model ở top-level, gắn với provider_id.
+        const defaultModel = document.getElementById('model').value;
+        const qaModel = document.getElementById('cfg-qa-model').value;
+        const thinkingLevel = document.getElementById('cfg-thinking').value;
+
+        const body = {
+            provider_id: window.activeProviderId || undefined,
+            default_model: defaultModel,
+            qa_model: qaModel,
+            app_config: {
+                PROCESSING: {
+                    MAX_CHARS_PER_CHUNK: document.getElementById('chunk-size').value,
+                    CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
+                    TEMPERATURE: document.getElementById('temperature').value,
+                    REQUEST_DELAY: document.getElementById('cfg-delay').value,
+                    TASK_POLL_INTERVAL: pollSec,
+                },
+                RUNTIME: {
+                    THINKING_LEVEL: thinkingLevel,
+                },
             },
-            PROCESSING: {
-                MAX_CHARS_PER_CHUNK: document.getElementById('chunk-size').value,
-                CONTEXT_CHAR_COUNT: document.getElementById('cfg-context').value,
-                TEMPERATURE: document.getElementById('temperature').value,
-                REQUEST_DELAY: document.getElementById('cfg-delay').value,
-                TASK_POLL_INTERVAL: pollSec
-            }
         };
 
-        fetch('/api/settings/app', {
+        fetch('/api/settings/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config: data })
+            body: JSON.stringify(body)
         })
-            .then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-                return r.json();
-            })
-            .then(res => {
-                if (res.success) {
+            .then(r => r.json().then(data => ({ status: r.status, body: data })))
+            .then(({ status, body }) => {
+                if (status === 200 && body.success) {
                     ApiClient.startTaskPolling(pollSec);
                     UiHelpers.showToast('Lưu Cấu hình thành công!', 'success');
+                    // Reload models list since default_model có thể đã đổi
+                    ApiClient.loadModels();
                 } else {
-                    UiHelpers.showToast('Lưu bị lỗi: ' + (res.error || ''), 'error');
+                    // B3: response có errors[] có cấu trúc — hiển thị từng field
+                    if (body.errors && Array.isArray(body.errors)) {
+                        const messages = body.errors.map(e =>
+                            `${e.field}: ${e.message}`
+                        ).join('\n');
+                        UiHelpers.showToast('Lưu bị lỗi:\n' + messages, 'error');
+                    } else {
+                        UiHelpers.showToast('Lưu bị lỗi: ' + (body.error || `HTTP ${status}`), 'error');
+                    }
                 }
             })
             .catch(e => UiHelpers.showToast('Gặp lỗi khi lưu Cấu hình: ' + e, 'error'));

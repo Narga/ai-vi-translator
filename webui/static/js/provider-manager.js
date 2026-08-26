@@ -1,5 +1,6 @@
 // ============================================================
 // provider-manager.js — Gemini + OpenAI Provider management (v7.3.0)
+// v8.29.0: dùng masked provider (R3) — KHÔNG đọc provider.api_key plaintext.
 // ============================================================
 
 // ---- Gemini Provider ----
@@ -19,7 +20,9 @@ const GeminiProvider = {
                 if (!gemini) { UiHelpers.showToast('Không tìm thấy Gemini provider', 'error'); return; }
 
                 const keys = keysText.split('\n').map(k => k.trim()).filter(Boolean);
-                return fetch('/api/providers/' + encodeURIComponent(gemini.id), {
+                // v8.29.0: dùng PUT /api/providers/<id>/credentials thay vì PUT /<id>
+                // chung chung; endpoint này chỉ nhận credential fields, không lẫn model.
+                return fetch('/api/providers/' + encodeURIComponent(gemini.id) + '/credentials', {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ api_keys: keys })
@@ -27,7 +30,8 @@ const GeminiProvider = {
             })
             .then(r => r && r.json())
             .then(data => {
-                if (data && !data.error) UiHelpers.showToast('Đã lưu Gemini keys', 'success');
+                if (data && data.error) { UiHelpers.showToast(data.error, 'error'); return; }
+                if (data && data.success) UiHelpers.showToast('Đã lưu Gemini keys', 'success');
             })
             .catch(e => UiHelpers.showToast(e.message, 'error'));
     }
@@ -54,7 +58,11 @@ const OpenAIProvider = {
                 this._providers.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p.id;
-                    opt.textContent = p.name;
+                    // v8.29.0 (R3): hiển thị masked key, KHÔNG đọc provider.api_key
+                    // (đã bị backend mask thành api_key_last4)
+                    const hasKey = p.has_api_key ? '🔑' : '⚠️';
+                    const last4 = p.api_key_last4 || '';
+                    opt.textContent = `${p.name} ${hasKey}${last4 ? ' ' + last4 : ''}`;
                     select.appendChild(opt);
                 });
 
@@ -83,7 +91,13 @@ const OpenAIProvider = {
         const keyInput = document.getElementById('openai-api-key');
         const urlInput = document.getElementById('openai-base-url');
         if (nameInput) nameInput.value = provider.name || '';
-        if (keyInput) keyInput.value = provider.api_key || '';
+        if (keyInput) {
+            // v8.29.0 (R3 + R-O8): backend mask thành api_key_last4, hiển thị
+            // 4 ký tự cuối. dataset.masked đánh dấu để saveCurrent biết
+            // đây là chuỗi mask chứ không phải key user nhập mới.
+            keyInput.value = provider.api_key_last4 || (provider.has_api_key ? '••••••••' : '');
+            keyInput.dataset.masked = provider.has_api_key ? 'true' : 'false';
+        }
         if (urlInput) urlInput.value = provider.base_url || '';
     },
 
@@ -212,24 +226,32 @@ const OpenAIProvider = {
         const id = select.value;
         if (!id) { UiHelpers.showToast('Chưa chọn provider', 'error'); return; }
 
-        const apiKey = document.getElementById('openai-api-key').value.trim();
-        const baseUrl = document.getElementById('openai-base-url').value.trim();
+        const nameInput = document.getElementById('openai-provider-name');
+        const keyInput = document.getElementById('openai-api-key');
+        const urlInput = document.getElementById('openai-base-url');
+        const apiKey = keyInput ? keyInput.value.trim() : '';
+        const baseUrl = urlInput ? urlInput.value.trim() : '';
 
+        // v8.29.0 (D4-B + R-O8): dùng PUT /api/providers/<id>/credentials.
+        // Chỉ gửi key nếu user nhập mới (không phải chuỗi mask).
         const body = {};
-        if (apiKey) body.api_key = apiKey;
+        if (nameInput && nameInput.value.trim()) body.name = nameInput.value.trim();
         if (baseUrl) body.base_url = baseUrl;
+        if (keyInput && apiKey && keyInput.dataset.masked !== 'true') {
+            body.api_key = apiKey;
+        }
 
-        fetch('/api/providers/' + encodeURIComponent(id), {
+        fetch('/api/providers/' + encodeURIComponent(id) + '/credentials', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         })
-        .then(r => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}: ${r.statusText}`);
-            return r.json();
-        })
-        .then(data => {
-            if (data.error) { UiHelpers.showToast(data.error, 'error'); return; }
+        .then(r => r.json().then(data => ({ status: r.status, body: data })))
+        .then(({ status, body }) => {
+            if (status !== 200 || !body.success) {
+                UiHelpers.showToast('Lỗi: ' + (body.error || `HTTP ${status}`), 'error');
+                return;
+            }
             return fetch('/api/providers/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -244,7 +266,7 @@ const OpenAIProvider = {
                     const sel = document.getElementById('openai-provider-select');
                     if (sel) {
                         sel.value = id;
-                        this.onSelectProvider(id);  // Fill lại name + key + url
+                        this.onSelectProvider(id);  // Fill lại name + key (mask) + url
                     }
                 });
                 UiHelpers.showToast('Đã lưu & kích hoạt ' + select.options[select.selectedIndex].text, 'success');
