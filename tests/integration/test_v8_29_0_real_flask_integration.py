@@ -137,3 +137,94 @@ class TestV829AcceptancePath:
         data = r.get_json()
         n_errors = len(data.get('errors', []))
         assert n_errors == 2, f'expected 2 errors got {n_errors}: {data}'
+
+
+class TestV829EdgeCases:
+    """Edge cases và failure modes — verify fail-closed behavior."""
+
+    def test_edge_1_save_with_empty_body(self, real_flask_client):
+        """POST /api/settings/save với body rỗng → 200 no-op."""
+        client, _ = real_flask_client
+        r = client.post('/api/settings/save', json={})
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data['success'] is True
+        assert data['provider'] is None
+
+    def test_edge_2_save_with_null_provider_id(self, real_flask_client):
+        """provider_id = null → dùng active provider hiện tại (stepfun) → có model hợp lệ."""
+        client, _ = real_flask_client
+        r = client.post('/api/settings/save', json={
+            'provider_id': None,
+            'default_model': 'step-3.7-flash',  # stepfun provider hợp lệ
+        })
+        # stepfun model 'step-3.7-flash' hợp lệ với OpenAI-compatible → 200
+        assert r.status_code == 200, f'expected 200 got {r.status_code}: {r.get_json()}'
+        # Revert
+        client.post('/api/settings/save', json={
+            'provider_id': 'stepfun',
+            'default_model': 'step-3.7-flash',
+        })
+
+    def test_edge_3_concurrent_etag_conflict(self, real_flask_client):
+        """Mô phỏng race condition: 2 tab cùng đọc ETag, 1 ghi trước, tab còn lại fail."""
+        client, _ = real_flask_client
+        # Cả 2 tab đọc cùng ETag
+        etag1 = client.get('/api/providers').headers.get('ETag')
+        etag2 = client.get('/api/providers').headers.get('ETag')
+        assert etag1 == etag2
+        # Tab 1 PUT thành công
+        r1 = client.put('/api/providers/openrouter/models',
+                        json={'default_model': 'anthropic/claude-3.5-sonnet'},
+                        headers={'If-Match': etag1})
+        assert r1.status_code == 200
+        # Tab 2 PUT với cùng etag1 (đã stale) → 409
+        r2 = client.put('/api/providers/openrouter/models',
+                        json={'default_model': 'openai/gpt-4o'},
+                        headers={'If-Match': etag2})
+        assert r2.status_code == 409, f'expected 409 got {r2.status_code}'
+        body = r2.get_json()
+        assert 'ETag mismatch' in body['error']
+        # Revert
+        client.put('/api/providers/openrouter/models',
+                   json={'default_model': 'deepseek/deepseek-v4-flash-0731'})
+
+    def test_edge_4_invalid_json_body(self, real_flask_client):
+        """Body không phải JSON → 400 hoặc 500 với error rõ ràng."""
+        client, _ = real_flask_client
+        r = client.post('/api/settings/save',
+                        data='not json at all',
+                        content_type='application/json')
+        # Flask request.json trả None cho non-JSON; route check if data is None
+        assert r.status_code in (400, 500), f'expected 400/500 got {r.status_code}'
+
+    def test_edge_5_models_invalid_field_type(self, real_flask_client):
+        """default_model không phải string → 400."""
+        client, _ = real_flask_client
+        r = client.put('/api/providers/openrouter/models',
+                       json={'default_model': 12345})  # int thay vì str
+        assert r.status_code == 400, f'expected 400 got {r.status_code}'
+
+    def test_edge_6_providers_count_after_all_tests(self, real_flask_client):
+        """Regression: sau tất cả test, vẫn còn 11 providers (không bị mất do test)."""
+        client, _ = real_flask_client
+        r = client.get('/api/providers')
+        providers = r.get_json()['providers']
+        assert len(providers) == 11, f'expected 11 providers got {len(providers)}'
+
+    def test_edge_7_settings_save_no_regression(self, real_flask_client):
+        """Regression: app.ini không bị corrupt sau nhiều save."""
+        client, _ = real_flask_client
+        # Save nhiều lần với giá trị khác nhau
+        for temp in ['0.8', '0.9', '1.0', '1.1']:
+            r = client.post('/api/settings/save', json={
+                'app_config': {'PROCESSING': {'TEMPERATURE': temp}},
+            })
+            assert r.status_code == 200
+        # Verify file vẫn parse được
+        r = client.get('/api/settings/app')
+        assert r.status_code == 200
+        # Giá trị cuối cùng
+        data = r.get_json()
+        # Bỏ qua kiểm tra chính xác giá trị (string/float conversion)
+        assert 'TEMPERATURE' in data['config'].get('PROCESSING', {})
