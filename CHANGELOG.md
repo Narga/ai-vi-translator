@@ -106,6 +106,29 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - Script KHÔNG được tự động chạy; user phải chạy thủ công với `--apply` sau khi review dry-run.
 - Khuyến nghị: chạy `--dry-run` trước, review log "KẾT QUẢ CHUYỂN ĐỔI SCHEMA V2", sau đó `--apply` nếu đồng ý.
 
+### Bổ sung B1 + B2: AppConfigService Optional + Double-Buffering
+
+**B1: `get_qa_model_or_none()` trả `Optional[str]`** (`backend/infrastructure/config/app_config_service.py`):
+- Phân biệt 3 trạng thái: `None` (không có active provider), `""` (active provider không cấu hình model), `"<model>"` (có cấu hình).
+- Caller mới (transaction endpoint) dùng method này để trả 400 có cấu trúc.
+- `get_qa_model()` giữ signature `str` (không None) để 3 caller hiện tại (`translate_text_use_case.py:143`, `webui/helpers.py`, `core/executor.py:114`) không cần đổi.
+
+**B2: `apply_values()` + `save()` atomic với `_pending` buffer** (R25 double-buffering):
+- `__init__` khởi tạo `self._pending = None`.
+- `apply_values(pending_values)`: `copy.deepcopy(_config) → _pending`, mutate _pending theo dict `{(section, key): value}`.
+- `save()`: nếu có `_pending`, ghi `_pending` ra file atomic (`.tmp` + `os.replace` + fallback `shutil.move` cho cross-filesystem), swap `_config ← _pending`. Nếu không có `_pending`, ghi `_config` như cũ (backward compat).
+- **R12**: atomic write với try/except riêng cho `open()` và `os.replace`, dọn `tmp` nếu fail.
+- **`get_pending_snapshot()`**: trả text INI của `_pending` (test/rollback).
+- **Tác động**: nếu `save()` fail (disk full, permission denied), `_config` không bị thay đổi → caller retry được. Route `/api/settings/app` cũ vẫn dùng được vì `save()` backward compat.
+
+**Test mới `tests/unit/test_app_config_b1_b2.py`:** 13/13 pass. Cover:
+- B1: trả model khi cả qa + default; fallback default khi qa rỗng; trả `""` khi cả hai rỗng; raise khi validation fail-closed; backward compat `get_qa_model()` vẫn trả str.
+- B2: `apply_values` stage vào `_pending`; `_config` không đổi cho đến khi `save()`; `save()` ghi ra file và clear `_pending`; `save()` không có `_pending` dùng `_config` (cách cũ); thêm section mới; không leak `.tmp`; `_config` là object khác sau `apply_values` (deep copy).
+
+**Tác động tương thích:**
+- 401/401 unit test pass (thêm 13 mới).
+- Real Flask route test: `GET /api/providers`, `GET /api/settings/app`, `POST /api/settings/app [PROCESSING]` đều 200, không vỡ.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
