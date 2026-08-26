@@ -225,6 +225,31 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - `services/ai_provider.create_provider` đã có sẵn (sau Nhóm 1 bỏ fallback cứng), giờ là factory duy nhất cho client instantiation.
 - Các file `ai_provider.py` (services), `translation.py` (webui/routes) đã import resolver tương ứng; `translation.py` không gọi `create_provider` trực tiếp nên không cần patch thêm.
 
+### Bổ sung: Comprehensive real Flask integration test + migration dry-run verification
+
+**Test mới `tests/integration/test_v8_29_0_real_flask_integration.py`:** 11/11 pass. Đây là **acceptance test thật** qua `webui.create_app()` + `flask_client`, không mock, không unit test — verify 11 endpoint mới v8.29.0 bằng public path:
+- 1. GET /api/providers — masked (0 leaked keys)
+- 2. GET /api/providers — ETag header đúng format
+- 3. POST /api/settings/app `[MODEL]` — rejected 400
+- 4. GET /api/settings/app — có `[RUNTIME]` section
+- 5. POST /api/settings/save — cross-namespace rejected 400
+- 6. POST /api/settings/save — valid persists
+- 7. PUT /api/providers/<id>/models — cross-namespace rejected 400
+- 8. PUT /api/providers/<id>/models — stale ETag → 409
+- 9. PUT /api/providers/<id>/credentials — response masked (api_key_last4=...7890)
+- 10. PUT /api/providers/<id>/models — provider not found → 400
+- 11. POST /api/settings/save — validation errors[] có cấu trúc (B3)
+
+**Migration script verification:** `python3 scripts/migrate_providers_v2.py --dry-run` chạy thật trên `config/providers.json` thật — parse 11/11 provider, không lỗi. Output: "Version: 1 -> 2 | Active ID: stepfun" + danh sách từng provider. App.ini không cần thay đổi (đã ở dạng `[RUNTIME]` sau Nhóm 1).
+
+**Tổng kết cuối cùng:**
+- 12 commit v8.29.0
+- 421/421 unit test pass + 5 frontend test skip có giải thích + 11/11 integration test pass
+- Migration script dry-run OK
+- Config thật đã sửa (`providers.json` + `app.ini`)
+- 3 bug nghiêm trọng phát hiện + sửa qua test thật
+- Tất cả 10 nhóm kế hoạch đã hoàn thành (Nhóm 1-5, B1+B2, B4, D1+D4-B, D3, R4 fix)
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
