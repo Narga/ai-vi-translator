@@ -296,7 +296,7 @@ class ProviderService:
         provider = next((p for p in data["providers"] if p["id"] == provider_id), None)
         if not provider:
             raise ValueError(f"Provider '{provider_id}' không tồn tại")
-        for key in ("name", "base_url", "default_model", "credential_mode"):
+        for key in ("name", "base_url", "default_model", "qa_model", "credential_mode"):
             if key in kwargs and kwargs[key]:
                 provider[key] = kwargs[key]
         if "api_key" in kwargs and kwargs["api_key"]:

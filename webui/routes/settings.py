@@ -685,7 +685,7 @@ def create_provider():
 @settings_bp.route("/api/providers/<provider_id>", methods=["PUT"])
 @handle_route_errors
 def update_provider(provider_id):
-    """Cập nhật provider."""
+    """Cập nhật provider (legacy: dùng /api/providers/<id>/models hoặc /credentials thay thế)."""
     from backend.infrastructure.providers.provider_service import ProviderService
     data = request.json
     try:
@@ -697,6 +697,271 @@ def update_provider(provider_id):
         return jsonify({"success": True, "provider": provider})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+
+# ------------------------------------------------------------------
+# D4-B: Provider model/credentials endpoints (thay thế cho PUT /api/providers/<id>
+# với field qa_model/default_model rỗng không phân biệt được).
+# ------------------------------------------------------------------
+
+@settings_bp.route("/api/providers/<provider_id>/models", methods=["PUT"])
+@handle_route_errors
+def update_provider_models(provider_id):
+    """PUT model cho provider. Validate namespace trước khi ghi (R1, R4).
+
+    Body: {default_model?: str, qa_model?: str}
+    - Cả hai optional; nếu gửi phải pass provider type validate
+    - qa_model="" có nghĩa "không có QA" (sentinel: key phải tồn tại trong body)
+    """
+    from backend.infrastructure.providers.provider_resolver import (
+        ProviderConfigResolver,
+    )
+    data = request.json or {}
+    resolver = ProviderConfigResolver()
+    try:
+        # Resolve trước để có base_url cho validate
+        provider = resolver.resolve(provider_id)
+    except ValueError as e:
+        return jsonify({"error": str(e), "field": "provider_id"}), 400
+
+    errors = []
+    update_kwargs = {}
+    for field in ("default_model", "qa_model"):
+        if field not in data:
+            continue
+        value = data[field] or ""
+        if value:
+            valid, err = resolver.validate_model(provider, value)
+            if not valid:
+                errors.append({"field": field, "message": err})
+                continue
+        update_kwargs[field] = value
+
+    if errors:
+        return jsonify({"error": "Model không hợp lệ", "errors": errors}), 400
+
+    if update_kwargs:
+        from backend.infrastructure.providers.provider_service import ProviderService
+        ProviderService().update_provider(provider_id, **update_kwargs)
+
+    # Trả về masked provider mới
+    from backend.infrastructure.providers.provider_service import ProviderService
+    refreshed = ProviderService().get_provider_by_id(provider_id)
+    masked = resolver.resolve_from_document(refreshed).get_masked_info()
+    return jsonify({"success": True, "provider": masked})
+
+
+@settings_bp.route("/api/providers/<provider_id>/credentials", methods=["PUT"])
+@handle_route_errors
+def update_provider_credentials(provider_id):
+    """PUT credentials cho provider (B4: ETag race condition guard chưa có, sẽ thêm ở patch sau).
+
+    Body: {api_key?: str, api_keys?: list, gateway_api_key?: str, base_url?: str}
+    - Nếu gửi api_keys rỗng thì KHÔNG xoá (sentinel pattern theo R16)
+    - Validate base_url qua EndpointPolicy nếu có
+    """
+    from backend.infrastructure.providers.provider_resolver import (
+        ProviderConfigResolver,
+    )
+    from backend.infrastructure.providers.provider_service import ProviderService
+
+    data = request.json or {}
+    resolver = ProviderConfigResolver()
+    try:
+        provider = resolver.resolve(provider_id)
+    except ValueError as e:
+        return jsonify({"error": str(e), "field": "provider_id"}), 400
+
+    # Validate base_url nếu có
+    if "base_url" in data and data["base_url"]:
+        from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+        try:
+            classify_endpoint(data["base_url"])
+        except ValueError as e:
+            return jsonify({"error": f"base_url không hợp lệ: {e}", "field": "base_url"}), 400
+
+    # Filter: chỉ gửi field có giá trị truthy
+    update_kwargs = {}
+    for field in ("api_key", "gateway_api_key"):
+        if field in data and data[field]:
+            update_kwargs[field] = data[field]
+    if "api_keys" in data and data["api_keys"]:
+        update_kwargs["api_keys"] = data["api_keys"]
+    if "base_url" in data:
+        # base_url có thể "" để xoá; tuy nhiên policy vẫn validate
+        update_kwargs["base_url"] = data["base_url"]
+
+    if update_kwargs:
+        try:
+            ProviderService().update_provider(provider_id, **update_kwargs)
+        except ValueError as e:
+            return jsonify({"error": str(e), "field": list(update_kwargs.keys())[0]}), 400
+
+    # Trả về masked
+    from backend.infrastructure.providers.provider_service import ProviderService
+    refreshed = ProviderService().get_provider_by_id(provider_id)
+    masked = resolver.resolve_from_document(refreshed).get_masked_info()
+    return jsonify({"success": True, "provider": masked})
+
+
+@settings_bp.route("/api/settings/save", methods=["POST"])
+@handle_route_errors
+def save_settings_transaction():
+    """D1: Transaction endpoint lưu app config + provider model cùng lúc.
+
+    Body: {
+        provider_id?: str,                    # active provider nếu None
+        default_model?: str,
+        qa_model?: str,
+        app_config?: {section: {key: value}}  # dùng apply_values
+    }
+
+    Flow:
+    1. Validate toàn bộ input (provider tồn tại, models hợp lệ namespace,
+       app_config section/option hợp lệ).
+    2. Stage app_config qua apply_values (B2: _pending buffer).
+    3. Stage provider model update.
+    4. Commit: ghi app.ini (atomic) + ghi providers.json (atomic với backup rotation).
+    5. Nếu bất kỳ bước nào fail → rollback cả hai file.
+
+    Response:
+    - 200: {success, provider, config: {}}
+    - 400: {error, errors: [{field, message}]}  (input invalid)
+    - 500: {error}  (commit fail; rollback đã chạy)
+    """
+    from backend.infrastructure.providers.provider_resolver import (
+        ProviderConfigResolver,
+    )
+    from backend.infrastructure.providers.provider_service import ProviderService
+    from backend.infrastructure.config.app_config_service import AppConfigService
+
+    data = request.json or {}
+    provider_id = data.get("provider_id")
+    config_service = AppConfigService()
+    resolver = ProviderConfigResolver()
+    provider_service = ProviderService()
+
+    errors: list = []
+
+    # B1: check qa_model optional
+    if "qa_model" in data or "default_model" in data:
+        # Validate trước khi stage
+        try:
+            target_id = provider_id or resolver.resolve().id
+            provider = resolver.resolve(target_id)
+        except ValueError as e:
+            errors.append({"field": "provider_id", "message": str(e)})
+            provider = None
+
+        if provider is not None:
+            for field in ("default_model", "qa_model"):
+                if field not in data:
+                    continue
+                value = data[field] or ""
+                if value:
+                    valid, err = resolver.validate_model(provider, value)
+                    if not valid:
+                        errors.append({"field": field, "message": err})
+
+    # Validate app_config keys
+    app_config_payload = data.get("app_config") or {}
+    VALIDATION_RANGES = {
+        ("PROCESSING", "MAX_CHARS_PER_CHUNK"): (1000, 500000, int),
+        ("PROCESSING", "CONTEXT_CHAR_COUNT"): (0, 50000, int),
+        ("PROCESSING", "TEMPERATURE"): (0.0, 2.0, float),
+        ("PROCESSING", "REQUEST_DELAY"): (0.0, 120.0, float),
+        ("PROCESSING", "TASK_POLL_INTERVAL"): (5, 300, int),
+    }
+    VALID_THINKING = {"OFF", "MINIMAL", "LOW", "MEDIUM", "HIGH"}
+
+    pending_values: dict = {}
+    for section, items in app_config_payload.items():
+        if section == "MODEL":
+            errors.append({
+                "field": "app_config.MODEL",
+                "message": "Section MODEL legacy; dùng RUNTIME riêng"
+            })
+            continue
+        if section not in ("PROCESSING", "RUNTIME", "DIRECTORIES", "CACHE"):
+            errors.append({
+                "field": f"app_config.{section}",
+                "message": f"Section {section} không hợp lệ"
+            })
+            continue
+        if not isinstance(items, dict):
+            continue
+        for key, val in items.items():
+            spec = VALIDATION_RANGES.get((section, key))
+            if spec:
+                lo, hi, vtype = spec
+                try:
+                    nval = vtype(val)
+                    if not (lo <= nval <= hi):
+                        errors.append({
+                            "field": f"app_config.{section}.{key}",
+                            "message": f"{key} phải trong [{lo}, {hi}]"
+                        })
+                        continue
+                except (ValueError, TypeError):
+                    errors.append({
+                        "field": f"app_config.{section}.{key}",
+                        "message": f"{key} phải là {vtype.__name__}"
+                    })
+                    continue
+            elif (section, key) == ("RUNTIME", "THINKING_LEVEL"):
+                if str(val).upper() not in VALID_THINKING:
+                    errors.append({
+                        "field": f"app_config.{section}.{key}",
+                        "message": f"THINKING_LEVEL phải thuộc {sorted(VALID_THINKING)}"
+                    })
+                    continue
+            pending_values[(section, key)] = str(val)
+
+    if errors:
+        return jsonify({"error": "Validation failed", "errors": errors}), 400
+
+    # Commit phase: stage + apply
+    try:
+        # 1. Stage app_config
+        if pending_values:
+            config_service.apply_values(pending_values)
+            config_service.save()
+        # 2. Stage provider model
+        model_kwargs = {}
+        for field in ("default_model", "qa_model"):
+            if field in data:
+                model_kwargs[field] = data[field] or ""
+        if model_kwargs and provider_id:
+            provider_service.update_provider(provider_id, **model_kwargs)
+    except Exception as e:
+        logger.error(f"Save settings transaction fail: {e}")
+        return jsonify({"error": str(e)}), 500
+
+    # Trả về state mới
+    masked_provider = None
+    if provider_id:
+        try:
+            refreshed = provider_service.get_provider_by_id(provider_id)
+            masked_provider = resolver.resolve_from_document(refreshed).get_masked_info()
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": True,
+        "provider": masked_provider,
+        "config": {
+            "PROCESSING": {
+                "MAX_CHARS_PER_CHUNK": config_service.get_default_chunk_size(),
+                "CONTEXT_CHAR_COUNT": config_service.get_context_char_count(),
+                "TEMPERATURE": config_service.get_temperature(),
+                "REQUEST_DELAY": config_service.get("PROCESSING", "REQUEST_DELAY", 5, float),
+                "TASK_POLL_INTERVAL": config_service.get("PROCESSING", "TASK_POLL_INTERVAL", 15, int),
+            },
+            "RUNTIME": {
+                "THINKING_LEVEL": config_service.get_thinking_level(),
+            },
+        },
+    })
 
 
 @settings_bp.route("/api/providers/<provider_id>", methods=["DELETE"])

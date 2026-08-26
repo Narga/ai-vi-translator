@@ -129,6 +129,31 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - 401/401 unit test pass (thêm 13 mới).
 - Real Flask route test: `GET /api/providers`, `GET /api/settings/app`, `POST /api/settings/app [PROCESSING]` đều 200, không vỡ.
 
+### Bổ sung D1 + D4-B: 3 Endpoint Mới (settings.py)
+
+**`PUT /api/providers/<id>/models`** — thay thế cho việc ghi model qua `PUT /api/providers/<id>` chung chung. Validate namespace trước khi ghi (R1, R4). Body `{default_model?, qa_model?}`; trả 400 với `errors: [{field, message}]` nếu model sai namespace.
+
+**`PUT /api/providers/<id>/credentials`** — cập nhật API key, gateway key, base_url riêng. Validate `base_url` qua `EndpointPolicy` trước khi ghi. Sentinel pattern: `api_keys=[]` KHÔNG xoá (giữ nguyên theo R16); cần gửi field rỗng với cờ riêng để xoá (chưa implement, để dành cho B4 ETag).
+
+**`POST /api/settings/save`** — D1 transaction endpoint lưu app config + provider model cùng lúc:
+- Body: `{provider_id?, default_model?, qa_model?, app_config?}`
+- Validate toàn bộ input (provider tồn tại, model namespace, app_config section/option, range cho PROCESSING.*, whitelist THINKING_LEVEL). Trả 400 với `errors: [{field, message}]`.
+- Reject section `MODEL` legacy (chỉ `RUNTIME` cho THINKING_LEVEL).
+- Commit: `apply_values()` + `save()` cho app.ini (B2 atomic), `update_provider()` cho providers.json (ProviderService atomic).
+- Response 200: `{success, provider (masked), config: {PROCESSING, RUNTIME}}`.
+
+**Bug fix Nhóm 1 phát hiện qua test mới:**
+- `ProviderService.update_provider` whitelist THIẾU `qa_model` — qa_model update bị silently dropped. Đã thêm `qa_model` vào whitelist (line 299).
+
+**Test mới `tests/unit/test_settings_endpoints.py`:** 16/16 pass. Cover:
+- `PUT /api/providers/<id>/models`: default_model hợp lệ, reject cross-namespace Gemini→step, reject OpenAI→gemini, update qa_model, clear qa với `""`, provider không tồn tại
+- `PUT /api/providers/<id>/credentials`: update api_key openai (mask), reject base_url sai, update api_keys gemini
+- `POST /api/settings/save`: chỉ app_config, có provider model, kết hợp cả hai, validation error 400, reject legacy MODEL section, unknown provider, no-op khi body rỗng
+
+**Tác động tương thích:**
+- 3 endpoint mới không xung đột với route cũ. Frontend cũ vẫn dùng `/api/settings/app` và `PUT /api/providers/<id>` hoạt động bình thường.
+- 417/417 unit test pass (thêm 16 mới).
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
