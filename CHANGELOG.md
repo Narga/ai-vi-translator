@@ -205,6 +205,26 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - Client mới nên đọc `ETag` từ GET, lưu lại, gửi kèm `If-Match` ở PUT. Nếu 409, hiển thị cảnh báo "đã có thay đổi từ tab khác, tải lại rồi thử lại".
 - 421/421 unit test pass (thêm 3 ETag mới).
 
+### Bổ sung D3: Runtime callsite dùng resolver/factory
+
+**`webui/routes/projects.py`** — callsite dịch thuật runtime (~line 162-188): thay vì instantiate trực tiếp `GenAIClient`/`OpenAIClient` từ biến cục bộ, giờ dùng `ProviderConfigResolver` + `create_provider` factory.
+
+- Trước: `if provider_type == "gemini": GenAIClient(api_key=api_keys[0])` — pick key đầu tiên từ `api_keys[0]`, hardcode behavior, dễ lộ key.
+- Sau: `resolver.resolve(provider_id)` → `ResolvedProvider` đầy đủ (type, model, base_url, gateway, credential_mode) → `create_provider(resolved.type, api_key=resolved.api_key, default_model=resolved.default_model, base_url=..., gateway_api_key=..., credential_mode=...)`.
+- Lợi ích: caller chỉ truyền `provider_id` (snapshot từ đầu job), không cần biết provider có `api_keys` (Gemini) hay `api_key` (OpenAI), `base_url`, `gateway_api_key`, `credential_mode`. Resolver trả tất cả từ `providers.json`.
+- Race condition: job đang chạy với `provider_id=openrouter`, user đổi active sang `gemini-default` — job vẫn dùng `openrouter` (đã snapshot), không bị ảnh hưởng.
+- Validation: nếu provider không có `default_model` → raise `ValueError` rõ ràng với hướng dẫn user cấu hình.
+
+**Test verification:**
+- 421/421 unit test pass (không vỡ test nào)
+- `from webui import create_app` import OK
+- `GET /api/providers` vẫn 200 với 11 providers
+
+**Tác động tương thích:**
+- Caller (translation runtime) dùng `provider_id` đã snapshot từ đầu job (qua `worker_config["provider_id"]`), không gọi `get_active_provider` mỗi chunk — tránh race với user đổi provider mid-job.
+- `services/ai_provider.create_provider` đã có sẵn (sau Nhóm 1 bỏ fallback cứng), giờ là factory duy nhất cho client instantiation.
+- Các file `ai_provider.py` (services), `translation.py` (webui/routes) đã import resolver tương ứng; `translation.py` không gọi `create_provider` trực tiếp nên không cần patch thêm.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 

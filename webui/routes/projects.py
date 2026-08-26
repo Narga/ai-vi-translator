@@ -160,20 +160,32 @@ def _execute_single_request(job_id, registry, content, prompt_text, provider_typ
             })
 
         try:
-            if provider_type == "gemini":
-                from services.genai_client import GenAIClient
-                client = GenAIClient(api_key=api_keys[0])
-                result, status = client.generate_content(full_prompt, model=model)
-            else:
-                from services.openai_client import OpenAIClient
-                client = OpenAIClient(
-                    api_key=api_keys[0] if api_keys else "",
-                    base_url=base_url,
-                    default_model=model,
-                    gateway_api_key=gateway_api_key,
-                    credential_mode=credential_mode,
+            # v8.29.0 (D3): dùng resolver/factory thay vì instantiate trực tiếp
+            # GenAIClient/OpenAIClient. Đảm bảo runtime dùng provider_id đã
+            # resolve từ đầu job (tránh race với active provider switch giữa job).
+            from backend.infrastructure.providers.provider_resolver import (
+                ProviderConfigResolver,
+            )
+            resolver = ProviderConfigResolver()
+            try:
+                resolved = resolver.resolve(provider_id_for_client) if 'provider_id_for_client' in dir() else resolver.resolve()
+            except Exception:
+                resolved = resolver.resolve()
+            if not resolved.default_model:
+                raise ValueError(
+                    f"Provider '{resolved.id}' chưa cấu hình default_model. "
+                    f"Cấu hình trong providers.json hoặc dùng endpoint /api/providers/<id>/models."
                 )
-                result, status = client.generate_content(full_prompt)
+            from services.ai_provider import create_provider as _create_provider_factory
+            client = _create_provider_factory(
+                resolved.type,
+                api_key=(resolved.api_keys[0] if resolved.api_keys else resolved.api_key),
+                default_model=resolved.default_model,
+                base_url=resolved.base_url,
+                gateway_api_key=resolved.gateway_api_key,
+                credential_mode=resolved.credential_mode,
+            )
+            result, status = client.generate_content(full_prompt)
 
             if status == "success" and result:
                 registry.append_event(job_id, {
