@@ -46,6 +46,23 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - Sau: route build `masked_providers` với `has_api_key` (bool), `key_count` (int), `api_key_last4` (string `...xxxx`). Giữ nguyên `id`/`type`/`name`/`base_url`/`credential_mode`/`default_model`/`qa_model` để UI vẫn hiển thị đầy đủ metadata. Caller muốn update key thì gọi PUT riêng.
 - Tác động: frontend `provider-manager.js` hiện đang đọc `provider.api_keys`/`provider.api_key` để hiển thị/manage key — sẽ cần cập nhật để dùng `key_count`/`api_key_last4` cho hiển thị và giữ secret qua PUT. Cập nhật frontend sẽ là Nhóm 5 (kế hoạch), tạm thời frontend sẽ hiển thị trống thay vì secret.
 
+### Nhóm 3: ProviderConfigResolver — Lớp Phân Giải Tập Trung với Cache
+
+**Module mới `backend/infrastructure/providers/provider_resolver.py`:**
+- **`ResolvedProvider` dataclass** — provider đã được phân giải & validate, an toàn để truyền cho adapter. Có `get_masked_info()` trả metadata public không chứa secret (R3).
+- **`ProviderConfigResolver.resolve(provider_id=None)`** — phân giải cấu hình. Nếu `provider_id` chỉ định mà không tồn tại: raise `ValueError` (R1 fail-closed, không fallback active).
+- **`resolve_from_document(provider_data)`** — resolve từ document đã load, không đọc file lặp lại (R7).
+- **`validate_model(provider, model_name)`** — trả `(is_valid, error_message)` tuple, KHÔNG raise. Validate theo EndpointPolicy cho OpenAI-compatible.
+- **`list_models(provider_id, full=False)`** — trả dict có `provider_id`/`models`/`default`/`qa_model`/`source`/`errors[]` (B3: errors có cấu trúc). KHÔNG raise khi default_model invalid (R20), trả `errors` để UI highlight field.
+- **Cache TTL 5 phút (B5)**: cache key = `(provider_id, sha256(credentials)[:16])` → tự expire khi credentials đổi. Method `invalidate(provider_id=None)` cho ProviderService gọi khi save.
+- **R20 đã sửa lần 2**: Khi `default_model` invalid, `chosen_default = ""` (KHÔNG fallback sang model đầu tiên trong list). Ngăn chặn cross-provider model lọt vào runtime.
+
+**Module mới `tests/unit/test_provider_resolver.py`:** 16/16 pass. Cover resolve, resolve_from_document, validate_model (gemini + openai), get_masked_info, list_models, R20 errors[], cache TTL, invalidate, no-recursion.
+
+**Tác động tương thích:**
+- Module này là mới, chưa được route nào gọi. Sẽ được tích hợp trong Nhóm tiếp theo (transaction endpoint + frontend) sau khi user chốt phạm vi.
+- Có thể dùng song song với `ProviderService` hiện tại cho use case mới (chẳng hạn `/api/models` mới), trong khi code cũ vẫn hoạt động.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
