@@ -546,24 +546,21 @@ def manage_app_settings():
         for section, items in new_config_data.items():
             if not isinstance(items, dict):
                 continue
+            # R2: section [MODEL] cũ đã deprecated, không chấp nhận ghi vào
+            # providers.json từ app-config endpoint. Model/QA model phải được
+            # lưu qua endpoint provider (PUT /api/providers/<id>/models).
+            if section == "MODEL":
+                return jsonify({
+                    "error": "Section MODEL đã legacy; dùng endpoint provider riêng để lưu model"
+                }), 400
             if not config.has_section(section):
                 config.add_section(section)
             for key, val in items.items():
                 config.set(section, key, str(val))
-                
+
         with open(config_path, "w", encoding="utf-8") as f:
             config.write(f)
-            
-        # Cập nhật default_model trong providers.json để tránh desync
-        if "MODEL" in new_config_data and "MODEL" in new_config_data["MODEL"]:
-            new_model = new_config_data["MODEL"]["MODEL"]
-            if new_model:
-                from backend.infrastructure.providers.provider_service import ProviderService
-                provider_service = ProviderService()
-                active = provider_service.get_active_provider_config()
-                if active:
-                    provider_service.update_provider(active["id"], default_model=new_model)
-            
+
         return jsonify({"success": True})
     except Exception as e:
         logger.error(f"Error writing app.ini: {e}")
@@ -624,14 +621,46 @@ def manage_sys_log(filename):
 @settings_bp.route("/api/providers", methods=["GET"])
 @handle_route_errors
 def list_providers():
-    """Danh sách tất cả providers."""
+    """Danh sách tất cả providers với API key đã mask.
+
+    R3: KHÔNG trả về plaintext API key về browser. Mỗi provider chỉ trả
+    metadata an toàn: has_api_key, key_count, api_key_last4, base_url, etc.
+    Caller muốn update key thì dùng endpoint PUT /api/providers/<id> riêng.
+    """
     from backend.infrastructure.providers.provider_service import ProviderService
     provider_service = ProviderService()
     data = provider_service.load_providers()
-    # Trả full api_key cho UI cấu hình nội bộ
+    masked_providers = []
+    for p in data.get("providers", []):
+        item = {
+            "id": p.get("id"),
+            "type": p.get("type"),
+            "name": p.get("name"),
+            "default_model": p.get("default_model", ""),
+            "qa_model": p.get("qa_model", ""),
+        }
+        if p.get("type") == "gemini":
+            keys = p.get("api_keys") or []
+            item["has_api_key"] = bool(keys)
+            item["key_count"] = len(keys)
+            item["api_key_last4"] = [
+                f"...{k[-4:]}" if len(k) >= 8 else "(set)" for k in keys
+            ]
+        else:
+            api_key = p.get("api_key", "")
+            gateway_key = p.get("gateway_api_key", "")
+            item["base_url"] = p.get("base_url", "")
+            item["credential_mode"] = p.get("credential_mode", "default")
+            item["has_api_key"] = bool(api_key)
+            item["has_gateway_api_key"] = bool(gateway_key)
+            item["api_key_last4"] = (
+                f"...{api_key[-4:]}" if len(api_key) >= 8
+                else ("(set)" if api_key else "")
+            )
+        masked_providers.append(item)
     return jsonify({
         "active_id": data.get("active_id", "gemini-default"),
-        "providers": data.get("providers", []),
+        "providers": masked_providers,
     })
 
 

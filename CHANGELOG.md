@@ -34,6 +34,18 @@ Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-mo
 - 3 caller hiện tại dùng `get_qa_model()` (`translate_text_use_case.py:143`, `app_config_service.get_qa_model`, `webui/helpers.py`) đều gán giá trị vào `config["qa_model"]` không check None — vẫn pass khi trả `""`, không crash.
 - Test suite `test_provider_services.py::TestProviderServiceMethods`: 6/6 pass; `test_config_services.py`: pass; `test_endpoint_policy.py`: pass; `test_api_service.py`: pass.
 
+### Nhóm 2: API Endpoint Bảo Mật & Loại Bỏ Sync Legacy (webui/routes/settings.py)
+
+**R2: Bỏ sync `MODEL.MODEL` → `providers.json` trong `/api/settings/app` POST:**
+- Trước: route này vừa ghi `app.ini` vừa gọi `update_provider(default_model=...)` để "tránh desync", tạo hai nguồn sự thật.
+- Sau: route reject section `[MODEL]` legacy với 400, yêu cầu caller dùng endpoint provider riêng (`PUT /api/providers/<id>/models` theo D4). Ngăn chặn truyền `MODEL` và `QA_MODEL` qua app-config endpoint.
+- Tác động: frontend `saveAppConfig()` cũ (nếu còn gửi `[MODEL]`) sẽ nhận 400 rõ ràng thay vì âm thầm ghi sai chỗ.
+
+**R3: Mask API key trong `/api/providers` GET:**
+- Trước: route trả `data.get("providers", [])` nguyên xi — bao gồm `api_keys` (list plaintext) cho Gemini và `api_key`/`gateway_api_key` cho OpenAI. Bất kỳ extension/XSS nào đọc được response đều lộ full secret.
+- Sau: route build `masked_providers` với `has_api_key` (bool), `key_count` (int), `api_key_last4` (string `...xxxx`). Giữ nguyên `id`/`type`/`name`/`base_url`/`credential_mode`/`default_model`/`qa_model` để UI vẫn hiển thị đầy đủ metadata. Caller muốn update key thì gọi PUT riêng.
+- Tác động: frontend `provider-manager.js` hiện đang đọc `provider.api_keys`/`provider.api_key` để hiển thị/manage key — sẽ cần cập nhật để dùng `key_count`/`api_key_last4` cho hiển thị và giữ secret qua PUT. Cập nhật frontend sẽ là Nhóm 5 (kế hoạch), tạm thời frontend sẽ hiển thị trống thay vì secret.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 
