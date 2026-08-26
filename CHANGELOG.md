@@ -2,6 +2,38 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.29.0] - 2026-08-26
+### Khắc Phục Hardcode Láo trong Provider/Model/Config & Chuẩn Hóa Validate (Nhóm 1)
+
+Phục hồi toàn bộ tính năng theo [kế hoạch configuration-provider-model-remediation-plan.md](docs/wip/configuration-provider-model-remediation-plan.md). Code base bị hardcode láo ở 3 tầng: model namespace, fallback cứng, legacy field — khiến runtime trả về model sai provider hoặc âm thầm fallback sang model mặc định không tồn tại.
+
+**Validate chống cross-provider model (`backend/infrastructure/providers/provider_service.py`):**
+- **`_is_model_valid_for_type(provider_type, model, base_url)`** — helper mới reject model sai namespace. Gemini chỉ chấp nhận `gemini-*/gemma-*` (reject rõ `step-*`, `workers-ai/`, `deepseek/*`, `:free`). OpenAI ủy quyền cho `EndpointPolicy.validate_model` để không hardcode prefix cụ thể từng gateway.
+- **`_validate_providers_data`** — gọi `_is_model_valid_for_type` cho cả `default_model` và `qa_model` của mọi provider, raise `ValueError` với thông điệp rõ ràng. Fail-closed từ tầng load/save, runtime không bao giờ nhận config bị lệch namespace.
+- **Sửa đệ quy vô hạn** — phiên bản đầu `_is_model_valid_for_type` gọi `get_active_provider_config()` (gây `validate → load → validate → ∞`); refactor thành nhận `base_url` từ caller, có comment cảnh báo trong docstring.
+
+**Bỏ fallback cứng trong accessor (`backend/infrastructure/providers/provider_service.py`):**
+- **`get_active_default_model()`** — trả `""` thay vì `"gemini-3-flash-preview"` khi provider không cấu hình. R14: caller (factory, route) phải validate trước khi dùng; không ngầm định model.
+- **`get_active_qa_model()`** — accessor mới đọc `qa_model` từ provider, trả `""` khi chưa cấu hình. R-O2 + B1: provider là nguồn sự thật, không fallback về app.ini legacy.
+
+**Bỏ fallback cứng trong factory (`services/ai_provider.py`):**
+- **`create_provider("gemini", ...)`** — raise `ValueError` thay vì trả `GenAIClient(default_model="gemini-3-flash-preview")` khi caller không truyền `default_model`. Trước đây AI chạy với model sai namespace, runtime SDK mới raise ở request đầu tiên.
+- **`create_provider("openai", ...)`** — raise `ValueError` thay vì fallback `gpt-4o-mini` (model không tồn tại ở OpenRouter/Stepfun/Mistral). R4: OpenAI-compatible mỗi endpoint có model khác nhau, không thể hardcode.
+
+**Đọc QA model từ provider thay vì app.ini legacy (`backend/infrastructure/config/app_config_service.py`):**
+- **`get_qa_model()`** — delegate sang `ProviderService.get_active_qa_model()`, fallback `get_active_default_model()` nếu `qa_model` rỗng. Trước đây đọc `app.ini [MODEL] QA_MODEL` (legacy), fallback cứng `"gemini-3-flash-preview"` cho mọi provider.
+- **`get_default_chunk_size()`** — fallback mặc định đổi `100000 → 20000` (khớp bảng default kế hoạch mục 1.2).
+- **`get_temperature()`** — fallback mặc định đổi `0.75 → 1.0` (khớp bảng default kế hoạch mục 1.2).
+- **`get_thinking_level()`** — đọc từ section `[RUNTIME]` thay vì `[MODEL]` (D5: đổi tên section), fallback `MEDIUM → OFF` (khớp bảng default kế hoạch mục 1.2).
+
+**Sửa config thật đang lẫn lộn model sai namespace:**
+- **`config/providers.json`** — `gemini-default.default_model` đổi từ `"step-3.7-flash"` (láo, Gemini không có model Step) về `"gemini-2.0-flash"`. Đồng thời cập nhật `providers.json.bak` cho khớp.
+- **`config/app.ini`** — xoá section `[MODEL]` cũ với field `MODEL = step-3.7-flash` và `QA_MODEL = step-3.5-flash` (legacy, không tồn tại trong schema v2). Tạo section `[RUNTIME]` mới chứa `THINKING_LEVEL = OFF`.
+
+**Tác động tương thích:**
+- 3 caller hiện tại dùng `get_qa_model()` (`translate_text_use_case.py:143`, `app_config_service.get_qa_model`, `webui/helpers.py`) đều gán giá trị vào `config["qa_model"]` không check None — vẫn pass khi trả `""`, không crash.
+- Test suite `test_provider_services.py::TestProviderServiceMethods`: 6/6 pass; `test_config_services.py`: pass; `test_endpoint_policy.py`: pass; `test_api_service.py`: pass.
+
 ## [8.28.0] - 2026-08-23
 ### Live SSE Stream Heartbeat, Khắc phục Fencing CAS Mismatch, Trình Chia Tập Tin Liên Tiếp & Triệt Tiêu Log Flood
 

@@ -96,14 +96,35 @@ class ProviderService:
                 keys = provider.get("api_keys", [])
                 if not isinstance(keys, list) or any(not isinstance(key, str) for key in keys):
                     raise ValueError(f"api_keys không hợp lệ cho provider {provider_id}")
+                # R1/R4: chống cross-provider model ở tầng validate. Khi provider Gemini
+                # chứa model của OpenAI-compatible (vd step-*, deepseek/*) sẽ raise
+                # ngay khi load/save, không để lọt xuống runtime.
+                for field in ("default_model", "qa_model"):
+                    if field in provider and provider[field] not in (None, ""):
+                        if not isinstance(provider[field], str):
+                            raise ValueError(f"{field} phải là chuỗi cho provider {provider_id}")
+                        if not self._is_model_valid_for_type("gemini", provider[field]):
+                            raise ValueError(
+                                f"{field}={provider[field]!r} không thuộc namespace Gemini/Gemma "
+                                f"cho provider {provider_id} (chống cross-provider model)"
+                            )
             else:
-                for field in ("api_key", "base_url", "gateway_api_key", "credential_mode", "default_model"):
+                for field in ("api_key", "base_url", "gateway_api_key", "credential_mode", "default_model", "qa_model"):
                     if field in provider and not isinstance(provider[field], str):
                         raise ValueError(f"{field} phải là chuỗi cho provider {provider_id}")
                 base_url = provider.get("base_url", "")
                 if base_url:
                     from backend.infrastructure.providers.endpoint_policy import classify_endpoint
                     classify_endpoint(base_url)
+                # R4: OpenAI provider default_model/qa_model phải pass EndpointPolicy.
+                provider_base_url = provider.get("base_url") or ""
+                for field in ("default_model", "qa_model"):
+                    if field in provider and provider[field] not in (None, ""):
+                        if not self._is_model_valid_for_type("openai", provider[field], provider_base_url):
+                            raise ValueError(
+                                f"{field}={provider[field]!r} không hợp lệ với endpoint policy "
+                                f"cho provider {provider_id}"
+                            )
 
         if active_id not in ids:
             raise ValueError(f"active_id không tồn tại: {active_id}")
@@ -364,11 +385,65 @@ class ProviderService:
         return url if url else None
 
     def get_active_default_model(self) -> str:
-        """Lấy default_model của active provider."""
+        """Lấy default_model của active provider. Không fallback cứng cross-provider.
+
+        R14: trả về chuỗi rỗng khi provider không cấu hình model — caller (factory,
+        route) có trách nhiệm validate và báo lỗi cấu hình. Không được ngầm
+        định model lạ (vd "gemini-3-flash-preview" cho OpenAI provider).
+        """
         config = self.get_active_provider_config()
         if not config:
-            return "gemini-3-flash-preview"
-        return config.get("default_model", "") or "gemini-3-flash-preview"
+            return ""
+        return str(config.get("default_model", "") or "").strip()
+
+    def get_active_qa_model(self) -> str:
+        """Lấy qa_model của active provider từ providers.json. Trả '' khi không cấu hình.
+
+        R-O2 + B1: đọc từ provider làm nguồn sự thật, không fallback về app.ini
+        legacy hoặc hardcode. Caller (TranslationService, route) check '' và xử lý
+        như cấu hình thiếu.
+        """
+        config = self.get_active_provider_config()
+        if not config:
+            return ""
+        return str(config.get("qa_model", "") or "").strip()
+
+    def _is_model_valid_for_type(
+        self, provider_type: str, model: str, base_url: Optional[str] = None
+    ) -> bool:
+        """Kiểm tra model có thuộc namespace hợp lệ của provider type.
+
+        R1/R4: chống cross-provider model. Gemini chỉ chấp nhận gemini-*/gemma-*;
+        OpenAI-compatible dùng EndpointPolicy.validate_model để tránh hardcode.
+        Trả False khi model rỗng để caller raise lỗi cấu hình thay vì âm thầm
+        chấp nhận.
+
+        Lưu ý: KHÔNG gọi get_active_provider_config() trong method này — sẽ gây
+        đệ quy vô hạn (validate → load → validate → ...). Caller phải truyền
+        base_url rõ ràng khi gọi cho provider openai.
+        """
+        if not model or not isinstance(model, str) or not model.strip():
+            return False
+        clean = model.strip()
+        if provider_type == "gemini":
+            # Reject rõ ràng các pattern cross-provider: namespace OpenRouter ("/"),
+            # Step ("step-"), OpenAI Cloudflare worker ("workers-ai/"), OpenAI ":free" suffix.
+            if "/" in clean or ":" in clean or clean.startswith("step-"):
+                return False
+            return clean.startswith("gemini-") or clean.startswith("gemma-")
+        if provider_type == "openai":
+            # Ủy quyền cho EndpointPolicy (đã có cho từng gateway). Nếu base_url
+            # không hợp lệ, classify_endpoint sẽ raise ValueError → caller xử lý.
+            try:
+                from backend.infrastructure.providers.endpoint_policy import classify_endpoint
+                policy = classify_endpoint(base_url)
+                return policy.validate_model(clean)
+            except Exception:
+                # Không có policy hợp lệ (base_url rỗng, classify raise, ...) →
+                # fallback check whitespace only. Caller nên validate base_url
+                # riêng trước khi tạo provider.
+                return bool(clean) and not any(c.isspace() for c in clean)
+        return False
 
     # ------------------------------------------------------------------
     # Legacy accessors (backward compat — delegate to new methods)

@@ -131,19 +131,30 @@ class AppConfigService:
         return provider_service.get_active_default_model()
 
     def get_qa_model(self) -> str:
-        """Lấy QA model."""
-        return self.get("MODEL", "QA_MODEL", fallback="gemini-3-flash-preview")
+        """Lấy QA model từ active provider (providers.json là nguồn sự thật).
+
+        R-O2 + B1: đọc từ ProviderService thay vì app.ini legacy field [MODEL] QA_MODEL.
+        Fallback về default_model nếu qa_model chưa cấu hình. Trả '' nếu cả hai đều
+        rỗng — caller (TranslationService, route) phải check '' và xử lý cấu hình
+        thiếu. KHÔNG fallback cứng về "gemini-3-flash-preview" cho mọi provider type.
+        """
+        from backend.infrastructure.providers.provider_service import ProviderService
+        provider_service = ProviderService(self._config_dir)
+        qa = provider_service.get_active_qa_model()
+        if qa:
+            return qa
+        return provider_service.get_active_default_model()
 
     def get_default_chunk_size(self) -> int:
-        """Lấy chunk size mặc định."""
+        """Lấy chunk size mặc định. Bảng default kế hoạch mục 1.2: 20000."""
         return self.get(
-            "PROCESSING", "MAX_CHARS_PER_CHUNK", fallback=100000, value_type=int
+            "PROCESSING", "MAX_CHARS_PER_CHUNK", fallback=20000, value_type=int
         )
 
     def get_temperature(self) -> float:
-        """Lấy temperature mặc định."""
+        """Lấy temperature mặc định. Bảng default kế hoạch mục 1.2: 1.0."""
         return self.get(
-            "PROCESSING", "TEMPERATURE", fallback=0.75, value_type=float
+            "PROCESSING", "TEMPERATURE", fallback=1.0, value_type=float
         )
 
     def get_context_char_count(self) -> int:
@@ -153,8 +164,13 @@ class AppConfigService:
         )
 
     def get_thinking_level(self) -> str:
-        """Lấy thinking level cho Gemini API (OFF/MINIMAL/LOW/MEDIUM/HIGH)."""
-        return self.get("MODEL", "THINKING_LEVEL", fallback="MEDIUM")
+        """Lấy thinking level cho Gemini API (OFF/MINIMAL/LOW/MEDIUM/HIGH).
+
+        Bảng default kế hoạch mục 1.2: OFF (section [RUNTIME] sau khi đổi tên từ
+        [MODEL] cũ). Chỉ truyền vào adapter hỗ trợ thinking; các provider không hỗ
+        trợ sẽ bị adapter bỏ qua.
+        """
+        return self.get("RUNTIME", "THINKING_LEVEL", fallback="OFF")
 
     def get_active_provider(self) -> str:
         """Lấy active AI provider (gemini hoặc openai). Delegate sang ProviderService."""
