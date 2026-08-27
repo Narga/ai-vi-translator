@@ -65,6 +65,7 @@ const ApiClient = {
             .then(data => {
                 if (sel) sel.disabled = false;
                 window.activeProvider = data.provider || 'gemini';
+                window.activeProviderId = data.active_id || window.activeProviderId || '';
 
                 // Handle cloudflare models UI
                 let hasCloudflare = false;

@@ -129,10 +129,21 @@ def get_models():
             model_ids = [m["id"] if isinstance(m, dict) else m for m in models]
             if default_model not in model_ids:
                 default_model = model_ids[0] if model_ids else "gemini-2.0-flash-exp"
-        return jsonify({"models": models, "default": default_model, "provider": provider})
+        return jsonify({
+            "models": models,
+            "default": default_model,
+            "provider": provider,
+            "active_id": active_provider.get("id", ""),
+        })
     except Exception as e:
         logger.error(f"get_models error: {e}")
-        return jsonify({"models": [], "default": "", "provider": provider if 'provider' in locals() else 'gemini', "error": str(e)}), 200
+        return jsonify({
+            "models": [],
+            "default": "",
+            "provider": provider if 'provider' in locals() else 'gemini',
+            "active_id": active_provider.get("id", "") if 'active_provider' in locals() else "",
+            "error": str(e),
+        }), 200
 
 
 
@@ -752,15 +763,12 @@ def update_provider_models(provider_id):
         # B4: check If-Match header để tránh ghi đè giữa multi-tab
         if_match = request.headers.get("If-Match", "").strip()
         if if_match:
-            result = provider_service.save_providers_with_etag(
-                provider_service.load_providers().copy() | {
-                    "providers": [
-                        p if p["id"] != provider_id else {**p, **update_kwargs}
-                        for p in provider_service.load_providers()["providers"]
-                    ]
-                },
-                if_match,
-            )
+            current_data = provider_service.load_providers()
+            current_data["providers"] = [
+                p if p["id"] != provider_id else {**p, **update_kwargs}
+                for p in current_data["providers"]
+            ]
+            result = provider_service.save_providers_with_etag(current_data, if_match)
             if "error" in result:
                 return jsonify({
                     "error": result["error"],
@@ -769,7 +777,19 @@ def update_provider_models(provider_id):
                 }), 409
             # save_providers_with_etag đã save; trả masked
         else:
-            provider_service.update_provider(provider_id, **update_kwargs)
+            # Không dùng update_provider ở đây vì method đó intentionally bỏ qua
+            # giá trị rỗng để tránh xoá credential. Model endpoint cần sentinel
+            # khác: qa_model="" là clear hợp lệ.
+            current_data = provider_service.load_providers()
+            found = False
+            current_data["providers"] = [
+                ({**p, **update_kwargs} if p["id"] == provider_id else p)
+                for p in current_data["providers"]
+            ]
+            found = any(p.get("id") == provider_id for p in current_data["providers"])
+            if not found:
+                return jsonify({"error": f"Provider '{provider_id}' không tồn tại"}), 400
+            provider_service.save_providers(current_data)
 
     # Trả về masked provider mới
     from backend.infrastructure.providers.provider_service import ProviderService
@@ -977,8 +997,23 @@ def save_settings_transaction():
         for field in ("default_model", "qa_model"):
             if field in data:
                 model_kwargs[field] = data[field] or ""
-        if model_kwargs and provider_id:
-            provider_service.update_provider(provider_id, **model_kwargs)
+        if model_kwargs:
+            target_provider_id = provider_id or (provider.id if provider is not None else None)
+            if not target_provider_id:
+                raise ValueError("Không xác định được provider cần lưu model")
+            # Ghi trực tiếp document để hỗ trợ clear qa_model="". Không dùng
+            # update_provider vì method đó bỏ qua falsy value để bảo vệ credential.
+            current_data = provider_service.load_providers()
+            found = False
+            current_data["providers"] = [
+                ({**p, **model_kwargs} if p["id"] == target_provider_id else p)
+                for p in current_data["providers"]
+            ]
+            found = any(p.get("id") == target_provider_id for p in current_data["providers"])
+            if not found:
+                raise ValueError(f"Provider '{target_provider_id}' không tồn tại")
+            provider_service.save_providers(current_data)
+            provider_id = target_provider_id
     except Exception as e:
         logger.error(f"Save settings transaction fail: {e}")
         return jsonify({"error": str(e)}), 500

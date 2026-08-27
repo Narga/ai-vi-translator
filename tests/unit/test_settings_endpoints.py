@@ -196,6 +196,92 @@ class TestSaveSettingsTransaction:
             "default_model": "gemini-2.0-flash",
         })
 
+    def test_save_model_without_provider_id_updates_active_provider(self, real_config_dir):
+        """Regression: frontend từng gửi provider_id undefined vì activeProviderId không set.
+
+        Backend phải lưu vào active provider thay vì trả success giả nhưng không ghi gì.
+        """
+        from webui import create_app
+        from backend.infrastructure.providers.provider_service import ProviderService
+
+        ps = ProviderService(real_config_dir)
+        active = ps.get_active_provider_config()
+        assert active is not None
+        if active["type"] == "gemini":
+            new_default = "gemini-2.5-pro"
+            old_default = active.get("default_model", "gemini-2.0-flash")
+        else:
+            new_default = active.get("default_model") or "gpt-4o-mini"
+            old_default = active.get("default_model", "")
+            # Ensure the test actually changes something for common OpenAI-compatible active providers.
+            if new_default == old_default:
+                new_default = old_default + "-regression-test"
+
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        try:
+            r = client.post("/api/settings/save", json={
+                "default_model": new_default,
+            })
+            assert r.status_code == 200, r.get_json()
+            data = r.get_json()
+            assert data["success"] is True
+            assert data["provider"]["id"] == active["id"]
+            assert data["provider"]["default_model"] == new_default
+            saved = ProviderService(real_config_dir).get_provider_by_id(active["id"])
+            assert saved["default_model"] == new_default
+        finally:
+            client.post("/api/settings/save", json={
+                "provider_id": active["id"],
+                "default_model": old_default,
+            })
+
+    def test_save_clears_qa_model_without_etag(self, real_config_dir):
+        """Regression: qa_model='' là sentinel clear và phải hoạt động không cần If-Match."""
+        from webui import create_app
+        from backend.infrastructure.providers.provider_service import ProviderService
+
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        ps = ProviderService(real_config_dir)
+        provider = ps.get_provider_by_id("gemini-default")
+        old_qa = provider.get("qa_model", "gemini-1.5-pro")
+        try:
+            client.post("/api/settings/save", json={
+                "provider_id": "gemini-default",
+                "qa_model": "gemini-1.5-flash",
+            })
+            r = client.post("/api/settings/save", json={
+                "provider_id": "gemini-default",
+                "qa_model": "",
+            })
+            assert r.status_code == 200, r.get_json()
+            data = r.get_json()
+            assert data["provider"]["qa_model"] == ""
+            saved = ProviderService(real_config_dir).get_provider_by_id("gemini-default")
+            assert saved.get("qa_model", "") == ""
+        finally:
+            client.post("/api/settings/save", json={
+                "provider_id": "gemini-default",
+                "qa_model": old_qa,
+            })
+
+    def test_get_models_returns_active_provider_id(self, real_config_dir):
+        """Frontend cần active_id để gửi provider_id khi lưu model đã chọn."""
+        from webui import create_app
+        from backend.infrastructure.providers.provider_service import ProviderService
+
+        active = ProviderService(real_config_dir).get_active_provider_config()
+        app = create_app()
+        app.config["TESTING"] = True
+        client = app.test_client()
+        r = client.get("/api/models?full=true")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["active_id"] == active["id"]
+
     def test_save_combined(self, real_config_dir):
         from webui import create_app
         app = create_app()
