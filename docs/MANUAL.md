@@ -336,5 +336,5 @@ Hệ thống cung cấp cơ chế lưu vết và khôi phục tiến trình dị
 
 ---
 
-*Phiên bản tài liệu: 2.7 — Ngày cập nhật: 23/08/2026*
+*Phiên bản tài liệu: 2.8 — Ngày cập nhật: 26/08/2026*
 

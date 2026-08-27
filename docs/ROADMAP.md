@@ -2,6 +2,16 @@
 
 ## Hoàn thành
 
+### v8.29.0 (2026-08-26)
+- [x] 🛡️ **Khắc phục Hardcode Provider / Model & Chuẩn Hóa Validate**: Thêm helper `_is_model_valid_for_type` chống cross-provider model, `_validate_providers_data` fail-closed, bỏ fallback model cứng (`get_active_default_model`, `get_active_qa_model` trả `""`, `create_provider` raise `ValueError`), sửa config thật (`providers.json` Gemini về `gemini-2.0-flash`, `app.ini` chuyển sang `[RUNTIME]`).
+- [x] 🔒 **Bảo Mật API Route & Loại Bỏ Sync Legacy**: Endpoint `/api/settings/app` POST reject `[MODEL]` legacy với 400 (bỏ write-back kép), endpoint `GET /api/providers` mask API keys (`has_api_key`, `key_count`, `api_key_last4`).
+- [x] 🧠 **ProviderConfigResolver với Cache TTL**: Lớp phân giải cấu hình tập trung `backend/infrastructure/providers/provider_resolver.py`, `ResolvedProvider` dataclass, validate model theo `EndpointPolicy`, `list_models` trả `errors[]` có cấu trúc, cache TTL 5 phút tự expire khi đổi credentials.
+- [x] 📦 **Migration & Rollback Tool An Toàn với Manifest**: `scripts/migrate_providers_v2.py` (`--dry-run` mặc định, `--apply` delay 5s, backup manifest SHA-256 trước/sau, fail-closed atomic write) và `scripts/rollback_providers.py` (rollback nguyên tử theo manifest, verify checksum và chống path traversal).
+- [x] ⚡ **Transaction Endpoint & Double-Buffering Atomic Save**: `AppConfigService.get_qa_model_or_none()` trả `Optional[str]`, `apply_values()` + `save()` atomic dùng buffer `_pending`; thêm 3 endpoint mới: `PUT /api/providers/<id>/models`, `PUT /api/providers/<id>/credentials`, và `POST /api/settings/save`.
+- [x] 🎨 **Frontend Shim & ETag Concurrency Guard**: `api-client.js` chuyển sang `POST /api/settings/save`, `provider-manager.js` hiển thị masked key; hỗ trợ header `ETag` + `If-Match` trên `GET /api/providers`, `PUT /models`, `PUT /credentials` trả 409 Conflict chống ghi đè multi-tab race.
+- [x] 🔄 **Runtime Callsite Resolver Integration**: `webui/routes/projects.py` chuyển toàn bộ luồng tạo client dịch sang dùng `ProviderConfigResolver` + `create_provider` factory dựa trên snapshot `provider_id`.
+- [x] 🧪 **Bộ Kiểm Thử Toàn Diện 421 Unit Tests + 11 Integration Tests Passed 100%**: Xây dựng acceptance test thật qua Flask Client `tests/integration/test_v8_29_0_real_flask_integration.py` bao phủ 11 endpoint và regression guard config.
+
 ### v8.28.0 (2026-08-23)
 - [x] ⏱️ **Live SSE Stream Heartbeat & Auto-Reconnect**: Tích hợp SSE heartbeat ping (`: ping\n\n`) mỗi 10 giây trong `/api/tasks/<job_id>/events`, ngăn ngắt kết nối khi LLM xử lý chunk lớn (5-10 phút); Frontend tự động reconnect stream sau 2s khi xảy ra gián đoạn mạng.
 - [x] 🏷️ **Tối ưu hóa Fencing CAS khi Resume Task chéo**: Sửa logic CAS trong `CheckpointService.save_chunk()`: chấp nhận ghi kết quả dịch và cập nhật lease token mới khi `lease_validator` xác nhận worker hợp lệ từ `tasks.db`, loại bỏ lỗi `CHECKPOINT_FENCING_REJECT`.
@@ -259,8 +269,11 @@
 - [ ] 👥 **Multi-Process Worker Pool**: Chuẩn hóa quy trình điều phối đa tiến trình worker an toàn trên môi trường production server (Gunicorn / uWSGI).
 
 ### Việc cần làm tiếp theo (Refactoring & Code Cleanup)
+- [ ] 🔑 **Tối ưu hóa Luân chuyển Gemini API Key & Rate Limiter**: Triển khai cooldown động theo từng model (Flash 60s vs Pro/Preview 120-300s), cơ chế Key Health Tracking & Persistence lưu trữ quota/RPD per key qua các lần restart, mở rộng Multi-key Gemini cho AI Task chạy nền.
+- [ ] 🛑 **Triệt tiêu Fallback Ngầm định Model ở Lớp Dưới Cùng**: Loại bỏ fallback ngầm định model trong `plugins/translation/translator.py::_call_api` và `services/genai_client.py`, áp dụng 100% fail-closed bắt buộc caller chỉ định model rõ ràng.
+- [ ] 📋 **Tối giản Hóa & Dọn Dẹp Trường Review Model (QA Model)**: Tinh giản UI Tab Cấu hình (ẩn hoặc đưa Review Model vào cài đặt nâng cao) và dọn dẹp tham số `qa_model` thụ động trong DTO/checkpoint do hệ thống đã vận hành ổn định trên Single-pass pipeline.
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
-- [ ] ⚙️ Dọn sạch các key cấu hình chết (`THINKING_LEVEL`, `REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
+- [ ] ⚙️ Dọn sạch các key cấu hình chết (`REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)
 - [ ] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py`
 - [ ] 🧹 Thu gọn mã nguồn (Shrink) bằng cách xóa bỏ các hàm/phương thức chết trong `checkpoint_service.py`, `emergency_stop.py`, `translation_memory.py` và `webui_progress_bridge.py`
