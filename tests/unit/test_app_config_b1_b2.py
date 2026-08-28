@@ -1,8 +1,7 @@
 # tests/unit/test_app_config_b1_b2.py
-# B1 + B2: get_qa_model_or_none + apply_values + save atomic với _pending buffer.
+# B2: apply_values + save atomic với _pending buffer.
+# (B1: get_qa_model_or_none đã bị xóa cùng với qa_model — v8.29.2 zero-residue.)
 
-import configparser
-import shutil
 import sys
 from pathlib import Path
 
@@ -27,7 +26,6 @@ def config_dir(tmp_path):
                 "name": "Google Gemini",
                 "api_keys": ["AIzaTest12345"],
                 "default_model": "gemini-2.0-flash",
-                "qa_model": "gemini-1.5-pro",
             },
         ],
     }, ensure_ascii=False), encoding="utf-8")
@@ -38,72 +36,6 @@ def config_dir(tmp_path):
         encoding="utf-8",
     )
     return d
-
-
-class TestB1GetQaModelOrNone:
-
-    def test_returns_model_when_both_qa_and_default_set(self, config_dir):
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        svc = AppConfigService(config_dir)
-        result = svc.get_qa_model_or_none()
-        assert result == "gemini-1.5-pro"  # qa_model ưu tiên
-
-    def test_returns_default_when_qa_empty(self, config_dir):
-        import json
-        data = json.loads((config_dir / "providers.json").read_text())
-        data["providers"][0]["qa_model"] = ""
-        (config_dir / "providers.json").write_text(
-            json.dumps(data, ensure_ascii=False), encoding="utf-8"
-        )
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        svc = AppConfigService(config_dir)
-        result = svc.get_qa_model_or_none()
-        assert result == "gemini-2.0-flash"  # fallback default_model
-
-    def test_returns_empty_string_when_both_empty(self, config_dir):
-        import json
-        data = json.loads((config_dir / "providers.json").read_text())
-        data["providers"][0]["qa_model"] = ""
-        data["providers"][0]["default_model"] = ""
-        (config_dir / "providers.json").write_text(
-            json.dumps(data, ensure_ascii=False), encoding="utf-8"
-        )
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        svc = AppConfigService(config_dir)
-        result = svc.get_qa_model_or_none()
-        assert result == ""  # không fallback cứng
-
-    def test_returns_none_when_no_active_provider(self, tmp_path):
-        # Config dir rỗng; ProviderService sẽ migrate legacy tạo default gemini-default,
-        # nên get_active_provider_config không trả None. Test thực tế:
-        # Tạo providers.json với providers rỗng (sau khi validation, không có
-        # active provider nào).
-        d = tmp_path / "empty_providers"
-        d.mkdir()
-        import json
-        # Tạo providers.json với 1 provider không tồn tại active_id
-        (d / "providers.json").write_text(json.dumps({
-            "version": 1,
-            "active_id": "nonexistent",
-            "providers": [
-                {"id": "p1", "type": "openai", "name": "P1",
-                 "api_key": "k", "base_url": "https://x", "default_model": "m"},
-            ],
-        }, ensure_ascii=False), encoding="utf-8")
-        (d / "providers.json.bak").write_text((d / "providers.json").read_text(), encoding="utf-8")
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        svc = AppConfigService(d)
-        # load_providers sẽ raise (validation fail-closed) → exception chứ không phải None
-        with pytest.raises(Exception):
-            svc.get_qa_model_or_none()
-
-    def test_backward_compat_get_qa_model_still_returns_str(self, config_dir):
-        from backend.infrastructure.config.app_config_service import AppConfigService
-        svc = AppConfigService(config_dir)
-        # Caller cũ expect str, không phải Optional
-        result = svc.get_qa_model()
-        assert isinstance(result, str)
-        assert result == "gemini-1.5-pro"
 
 
 class TestB2ApplyValuesAndSave:

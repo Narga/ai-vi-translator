@@ -1643,7 +1643,6 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
             worker_config["provider_api_key"] = active_provider.get("api_key", "")
             worker_config["provider_id"] = active_provider.get("id", "")
             worker_config["model_name"] = model_from_req
-            worker_config["qa_model"] = model_from_req
 
             project_tm = TranslationMemory(
                 tm_dir=str(pdir / "assets" / "translation_memory"),
@@ -1792,7 +1791,6 @@ def translate_project_file(slug):
         "provider_type": "", # Sẽ được điền bên trong worker
         "base_url": "", # Sẽ được điền bên trong worker
         "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
-        "qa_model": data.get("model", ""),
         "temperature": float(data.get("temperature", config_service.get_temperature())),
         "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
         "force_retranslate": force_retranslate,
@@ -1907,7 +1905,6 @@ def confirm_resume_translate(slug):
         "provider_type": "",
         "base_url": "",
         "model_name": data.get("model", ""),
-        "qa_model": data.get("model", ""),
         "temperature": float(data.get("temperature", config_service.get_temperature())),
         "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
         "force_retranslate": False,
@@ -1997,7 +1994,6 @@ def resume_task(task_id):
         "provider_type": "",
         "base_url": "",
         "model_name": saved_identity.get("model", ""),
-        "qa_model": saved_identity.get("qa_model", ""),
         "temperature": config_service.get_temperature(),
         "chunk_size": int(saved_identity.get("chunk_size", config_service.get_default_chunk_size())),
         "force_retranslate": False,
@@ -2225,7 +2221,6 @@ def recover_from_checkpoint(task_id: str):
             "provider_kind": active_provider.get("type", provider_type),
             "base_url": base_url or "",
             "model_name": model or saved_identity.get("model", "") or active_provider.get("default_model", ""),
-            "qa_model": saved_identity.get("qa_model", ""),
             "temperature": 1.0,
             "chunk_size": int(saved_identity.get("chunk_size", 22000)),
             "force_retranslate": False,
@@ -2597,7 +2592,6 @@ def spellcheck_project_file(slug):
         "provider_type": "", # Sẽ được điền bên trong worker
         "base_url": "", # Sẽ được điền bên trong worker
         "model_name": data.get("model", ""), # Sẽ fallback về default_model nếu rỗng
-        "qa_model": data.get("model", ""),
         "temperature": float(data.get("temperature", config_service.get_temperature())),
         "chunk_size": int(data.get("chunk_size", config_service.get_default_chunk_size())),
         "prompts": {"main": sp_prompt, "chinh_ta": sp_prompt},
@@ -2667,7 +2661,6 @@ def spellcheck_project_file(slug):
             worker_config["provider_api_key"] = active_provider.get("api_key", "")
             worker_config["provider_id"] = active_provider.get("id", "")
             worker_config["model_name"] = model_from_req
-            worker_config["qa_model"] = model_from_req
 
             def emit_event(event):
                 event_type = event.get("type", "info")

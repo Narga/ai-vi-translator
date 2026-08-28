@@ -129,7 +129,7 @@ class ProviderService:
                 # R1/R4: chống cross-provider model ở tầng validate. Khi provider Gemini
                 # chứa model của OpenAI-compatible (vd step-*, deepseek/*) sẽ raise
                 # ngay khi load/save, không để lọt xuống runtime.
-                for field in ("default_model", "qa_model"):
+                for field in ("default_model",):
                     if field in provider and provider[field] not in (None, ""):
                         if not isinstance(provider[field], str):
                             raise ValueError(f"{field} phải là chuỗi cho provider {provider_id}")
@@ -139,16 +139,16 @@ class ProviderService:
                                 f"cho provider {provider_id} (chống cross-provider model)"
                             )
             else:
-                for field in ("api_key", "base_url", "gateway_api_key", "credential_mode", "default_model", "qa_model"):
+                for field in ("api_key", "base_url", "gateway_api_key", "credential_mode", "default_model"):
                     if field in provider and not isinstance(provider[field], str):
                         raise ValueError(f"{field} phải là chuỗi cho provider {provider_id}")
                 base_url = provider.get("base_url", "")
                 if base_url:
                     from backend.infrastructure.providers.endpoint_policy import classify_endpoint
                     classify_endpoint(base_url)
-                # R4: OpenAI provider default_model/qa_model phải pass EndpointPolicy.
+                # R4: OpenAI provider default_model phải pass EndpointPolicy.
                 provider_base_url = provider.get("base_url") or ""
-                for field in ("default_model", "qa_model"):
+                for field in ("default_model",):
                     if field in provider and provider[field] not in (None, ""):
                         if not self._is_model_valid_for_type("openai", provider[field], provider_base_url):
                             raise ValueError(
@@ -161,6 +161,13 @@ class ProviderService:
 
     def save_providers(self, data: Dict[str, Any]) -> None:
         """Ghi providers.json bằng atomic write + validate."""
+        # v8.29.2 (zero-residue): chuẩn hóa tập trung — xóa field legacy 'qa_model'
+        # khỏi mọi provider trước khi validate/ghi. Đây là single source of
+        # truth; route layer chỉ cần reject ở HTTP boundary, không cần
+        # normalize lặp lại. Áp dụng cho cả nhánh có/không ETag vì
+        # save_providers_with_etag() gọi save_providers() bên trong.
+        for p in data.get("providers", []):
+            p.pop("qa_model", None)
         import shutil
         self._providers_file.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = self._providers_file.with_suffix(".json.tmp")
@@ -326,7 +333,7 @@ class ProviderService:
         provider = next((p for p in data["providers"] if p["id"] == provider_id), None)
         if not provider:
             raise ValueError(f"Provider '{provider_id}' không tồn tại")
-        for key in ("name", "base_url", "default_model", "qa_model", "credential_mode"):
+        for key in ("name", "base_url", "default_model", "credential_mode"):
             if key in kwargs and kwargs[key]:
                 provider[key] = kwargs[key]
         if "api_key" in kwargs and kwargs["api_key"]:
@@ -424,18 +431,6 @@ class ProviderService:
         if not config:
             return ""
         return str(config.get("default_model", "") or "").strip()
-
-    def get_active_qa_model(self) -> str:
-        """Lấy qa_model của active provider từ providers.json. Trả '' khi không cấu hình.
-
-        R-O2 + B1: đọc từ provider làm nguồn sự thật, không fallback về app.ini
-        legacy hoặc hardcode. Caller (TranslationService, route) check '' và xử lý
-        như cấu hình thiếu.
-        """
-        config = self.get_active_provider_config()
-        if not config:
-            return ""
-        return str(config.get("qa_model", "") or "").strip()
 
     def _is_model_valid_for_type(
         self, provider_type: str, model: str, base_url: Optional[str] = None

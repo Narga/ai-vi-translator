@@ -14,7 +14,7 @@ def _ident(**over):
         "prompt_hash": "p" * 8, "schema_version": "1.0",
         "provider_kind": "native_openai", "provider_id": "openai-test",
         "base_url": "https://api.openai.com/v1", "model": "gpt-test",
-        "qa_model": "gpt-test", "credential_mode": "default",
+        "credential_mode": "default",
     }
     base.update({k: str(v) for k, v in over.items()})
     return base

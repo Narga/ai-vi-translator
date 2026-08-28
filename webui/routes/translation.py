@@ -90,7 +90,6 @@ def translate_worker(text, config, output_filename="translated", input_file_path
             return
 
         worker_config["model_name"] = model_from_req
-        worker_config["qa_model"] = model_from_req
 
         bridge = WebUIProgressBridge(progress_queue)
 
@@ -300,7 +299,6 @@ def translate_text():
 
         config_params = {
             "model_name": model,
-            "qa_model": model,
             "temperature": temperature,
             "chunk_size": 22000,
             "provider_type": provider_type,

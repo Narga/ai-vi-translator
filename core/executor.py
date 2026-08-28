@@ -111,7 +111,6 @@ class TranslationExecutor:
             "provider_id": self.config.get("provider_id", "unknown"),
             "base_url": self.config.get("base_url", "unknown"),
             "model": self.config.get("model_name", ""),
-            "qa_model": self.config.get("qa_model", ""),
             "credential_mode": self.config.get("credential_mode", "default"),
             "prompt_hash": prompt_hash,
             "schema_version": "1.0",

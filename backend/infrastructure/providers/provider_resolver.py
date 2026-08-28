@@ -41,7 +41,6 @@ class ResolvedProvider:
     type: str
     name: str
     default_model: str
-    qa_model: str
     api_key: str = ""
     api_keys: List[str] = field(default_factory=list)
     base_url: Optional[str] = None
@@ -64,7 +63,6 @@ class ResolvedProvider:
             "type": self.type,
             "name": self.name,
             "default_model": self.default_model,
-            "qa_model": self.qa_model,
         }
         if self.is_gemini:
             info["has_api_key"] = bool(self.api_keys)
@@ -164,7 +162,6 @@ class ProviderConfigResolver:
             type=provider_type,
             name=provider_data.get("name", provider_id),
             default_model=str(provider_data.get("default_model", "") or "").strip(),
-            qa_model=str(provider_data.get("qa_model", "") or "").strip(),
             api_key=api_key,
             api_keys=list(provider_data.get("api_keys") or []),
             base_url=base_url,
@@ -249,17 +246,11 @@ class ProviderConfigResolver:
         # trong list (R1: không fallback chéo); trả "" để caller biết thiếu config.
         errors: List[Dict[str, str]] = []
         default_invalid = False
-        qa_invalid = False
         if provider.default_model:
             valid, err = self.validate_model(provider, provider.default_model)
             if not valid:
                 errors.append({"field": "default_model", "message": err})
                 default_invalid = True
-        if provider.qa_model:
-            valid, err = self.validate_model(provider, provider.qa_model)
-            if not valid:
-                errors.append({"field": "qa_model", "message": err})
-                qa_invalid = True
 
         chosen_default = provider.default_model if not default_invalid else ""
 
@@ -269,7 +260,6 @@ class ProviderConfigResolver:
             "provider_name": provider.name,
             "models": models,
             "default": chosen_default,
-            "qa_model": "" if qa_invalid else provider.qa_model,
             "source": source,
             "errors": errors,
         }

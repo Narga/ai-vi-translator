@@ -55,7 +55,7 @@ SOURCE_IDENTITY_FIELDS = (
     "chunker_version", "chunk_size", "prompt_hash", "schema_version",
 )
 EXECUTION_IDENTITY_FIELDS = (
-    "provider_kind", "provider_id", "base_url", "model", "qa_model", "credential_mode",
+    "provider_kind", "provider_id", "base_url", "model", "credential_mode",
 )
 
 

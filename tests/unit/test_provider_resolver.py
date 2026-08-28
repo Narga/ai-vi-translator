@@ -27,7 +27,6 @@ def mock_providers_env(tmp_path):
                 "name": "Google Gemini",
                 "api_keys": ["AIzaTest12345"],
                 "default_model": "gemini-2.0-flash",
-                "qa_model": "gemini-1.5-pro",
             },
             {
                 "id": "openrouter",
@@ -60,7 +59,7 @@ class TestProviderConfigResolverResolve:
         assert p.is_gemini is True
         assert p.api_keys == ["AIzaTest12345"]
         assert p.default_model == "gemini-2.0-flash"
-        assert p.qa_model == "gemini-1.5-pro"
+        assert not hasattr(p, "qa_model")
 
     def test_resolve_by_provider_id(self, mock_providers_env):
         from backend.infrastructure.providers.provider_resolver import (
@@ -163,7 +162,6 @@ class TestProviderConfigResolverValidateModel:
             api_key="k",
             base_url="https://api.example.com/v1",
             default_model="some-model",
-            qa_model="",
             credential_mode="default",
             raw={"id": "custom-openai", "type": "openai"},
         )
@@ -220,7 +218,7 @@ class TestProviderConfigResolverListModels:
         # Models có thể rỗng nếu API lỗi, không có fallback
         assert isinstance(result["models"], list)
         assert result["default"] == "gemini-2.0-flash"
-        assert result["qa_model"] == "gemini-1.5-pro"
+        assert "qa_model" not in result
 
     def test_list_models_with_invalid_default_returns_error_not_raise(
         self, mock_providers_env
@@ -243,7 +241,6 @@ class TestProviderConfigResolverListModels:
             type="gemini",
             name="Google Gemini",
             default_model="step-3.7-flash",  # sai namespace
-            qa_model="step-3.5-flash",      # sai namespace
             api_keys=["AIzaTest12345"],
             raw={"id": "gemini-default", "type": "gemini"},
         )
@@ -255,7 +252,7 @@ class TestProviderConfigResolverListModels:
         assert "errors" in result
         fields = {e["field"] for e in result["errors"]}
         assert "default_model" in fields
-        assert "qa_model" in fields
+        assert "qa_model" not in fields
         # default phải rỗng vì default_model invalid
         assert result["default"] == ""
 

@@ -138,7 +138,6 @@ class TestSaveAppConfigBody:
             globalThis.__elements = {
                 'cfg-poll-interval': { value: '20' },
                 'model': { value: 'gemini-2.5-pro' },
-                'cfg-qa-model': { value: 'gemini-1.5-pro' },
                 'cfg-thinking': { value: 'OFF' },
                 'chunk-size': { value: '20000' },
                 'cfg-context': { value: '500' },
@@ -168,9 +167,9 @@ class TestSaveAppConfigBody:
         assert result["url"] == "/api/settings/save"
         assert result["method"] == "POST"
         body = result["body"]
-        # v8.29.0: top-level default_model/qa_model, không còn MODEL.MODEL
+        # v8.29.2: chỉ default_model, không còn qa_model hay MODEL
         assert "default_model" in body
-        assert "qa_model" in body
+        assert "qa_model" not in body
         assert "MODEL" not in body
         assert "RUNTIME" in body["app_config"]
         assert "THINKING_LEVEL" in body["app_config"]["RUNTIME"]
@@ -182,7 +181,6 @@ class TestSaveAppConfigBody:
             globalThis.__elements = {
                 'cfg-poll-interval': { value: '15' },
                 'model': { value: 'step-3.7-flash' },
-                'cfg-qa-model': { value: '' },
                 'cfg-thinking': { value: 'INVALID' },
                 'chunk-size': { value: '20000' },
                 'cfg-context': { value: '500' },

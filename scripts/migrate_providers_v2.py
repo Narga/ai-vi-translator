@@ -9,7 +9,7 @@ Tác vụ (chỉ chạy khi --apply, mặc định --dry-run):
 2. Tạo manifest `migration-<timestamp>.json` chứa cặp backup, checksum, schema version.
 3. Validate & sanitize model cho từng provider (loại bỏ step-* khỏi gemini).
 4. Nâng cấp schema providers.json lên version 2.
-5. Loại bỏ [MODEL] MODEL và QA_MODEL khỏi config/app.ini; chuyển THINKING_LEVEL
+5. Loại bỏ [MODEL] MODEL khỏi config/app.ini; chuyển THINKING_LEVEL
    sang section [RUNTIME] mới.
 6. Hỗ trợ --dry-run (mặc định) và rollback qua scripts/rollback_providers.py
    theo manifest.
@@ -156,7 +156,7 @@ def transform_providers(v1_data: Dict[str, Any]) -> Dict[str, Any]:
         # R6: giữ field mở rộng chưa được migration hiểu
         new_provider: Dict[str, Any] = {
             k: v for k, v in p.items()
-            if k not in ("model", "MODEL", "MODEL.MODEL", "MODEL.QA_MODEL")
+            if k not in ("model", "MODEL", "MODEL.MODEL")
         }
         new_provider.update({"id": p_id, "type": p_type, "name": p_name})
 
@@ -177,14 +177,12 @@ def transform_providers(v1_data: Dict[str, Any]) -> Dict[str, Any]:
                 new_provider["default_model"] = DEFAULT_GEMINI_MODEL
             else:
                 new_provider["default_model"] = default_model
-            new_provider.setdefault("qa_model", "")
         else:
             new_provider["api_key"] = p.get("api_key", "")
             new_provider["base_url"] = p.get("base_url", "")
             new_provider["gateway_api_key"] = p.get("gateway_api_key", "")
             new_provider["credential_mode"] = p.get("credential_mode", "default")
             new_provider["default_model"] = str(p.get("default_model", "") or "").strip()
-            new_provider.setdefault("qa_model", "")
 
         v2_providers.append(new_provider)
 
@@ -220,7 +218,7 @@ def transform_app_ini(app_config: configparser.ConfigParser) -> Tuple[configpars
         changed = True
 
     # Bước 2: xoá field legacy
-    for opt in ("MODEL", "QA_MODEL"):
+    for opt in ("MODEL",):
         if app_config.has_option("MODEL", opt):
             app_config.remove_option("MODEL", opt)
             changed = True
@@ -284,9 +282,9 @@ def run_migration(config_dir: Path, dry_run: bool = True) -> bool:
     logger.info("Version: 1 -> 2 | Active ID: %s", v2_data["active_id"])
     for p in v2_data["providers"]:
         logger.info(
-            " - Provider: id=%s type=%s name=%s default_model=%r qa_model=%r",
+            " - Provider: id=%s type=%s name=%s default_model=%r",
             p["id"], p["type"], p["name"],
-            p.get("default_model", ""), p.get("qa_model", ""),
+            p.get("default_model", ""),
         )
     if app_changed:
         logger.info("App.ini sẽ được dọn: section [MODEL] cũ, [RUNTIME] mới")
