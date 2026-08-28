@@ -39,19 +39,23 @@ class TestTranslationRequestNoDefault:
         from backend.application.dto.translation_request import TranslationRequest
         req = TranslationRequest(text="hello")
         assert req.model_name == ""
-        assert req.qa_model == ""
 
     def test_from_dict_without_model(self):
         from backend.application.dto.translation_request import TranslationRequest
         req = TranslationRequest.from_dict({"text": "x"})
         assert req.model_name == ""
-        assert req.qa_model == ""
 
     def test_from_dict_with_explicit_model(self):
         from backend.application.dto.translation_request import TranslationRequest
         req = TranslationRequest.from_dict({"text": "x", "model": "gemini-3-flash"})
         assert req.model_name == "gemini-3-flash"
-        assert req.qa_model == "gemini-3-flash"
+
+    def test_from_dict_drops_qa_model(self):
+        """v8.29.2: DTO bỏ qua qa_model (không phải HTTP boundary), to_config() không có key."""
+        from backend.application.dto.translation_request import TranslationRequest
+        req = TranslationRequest.from_dict({"text": "x", "qa_model": "should-be-ignored"})
+        assert not hasattr(req, "qa_model")
+        assert "qa_model" not in req.to_config()
 
 
 class TestCallApiMissingModel:
@@ -184,33 +188,6 @@ class TestGetOpenaiModelNoFallback:
         assert result == "test-model"
 
 
-class TestQaModelEmptyMeansNoQA:
-    """qa_model rỗng → không tự sinh model mặc định."""
-
-    def test_qa_model_returns_empty_when_not_configured(self, tmp_path, monkeypatch):
-        import json
-        providers_file = tmp_path / "providers.json"
-        providers_file.write_text(json.dumps({
-            "version": 1,
-            "active_id": "gemini-default",
-            "providers": [{
-                "id": "gemini-default",
-                "type": "gemini",
-                "name": "Test",
-                "api_keys": ["test-key"],
-                "default_model": "",
-                "qa_model": "",
-            }],
-        }))
-
-        monkeypatch.setenv("CONFIG_DIR", str(tmp_path))
-
-        from backend.infrastructure.providers.provider_service import ProviderService
-        ps = ProviderService(tmp_path)
-        assert ps.get_active_qa_model() == ""
-        assert ps.get_active_default_model() == ""
-
-
 class TestProviderConfigResolverValidatesEmpty:
     """ProviderConfigResolver.validate_model rejects empty string."""
 
@@ -224,7 +201,6 @@ class TestProviderConfigResolverValidatesEmpty:
             type="gemini",
             name="Test",
             default_model="",
-            qa_model="",
         )
         valid, err = resolver.validate_model(provider, "")
         assert valid is False

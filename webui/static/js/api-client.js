@@ -89,7 +89,7 @@ const ApiClient = {
                     window.availableModels = [];
                     const emptyHtml = ApiClient.renderModelOptions([], '');
                     if (sel) sel.innerHTML = emptyHtml;
-                    ['cfg-qa-model', 'summarize-model', 'style-guide-model', 'relationship-model',
+                    ['summarize-model', 'style-guide-model', 'relationship-model',
                      'glossary-model', 'summary-model', 'pm-style-guide-model'].forEach(sid => {
                         const e = document.getElementById(sid);
                         if (e) e.innerHTML = sid === 'summarize-model'
@@ -179,12 +179,6 @@ const ApiClient = {
                 mainSel.selectedIndex = 0;
             }
             ApiClient.onModelChange(mainSel.value);
-        }
-
-        const qaSel = document.getElementById('cfg-qa-model');
-        if (qaSel) {
-            let currentVal = qaSel.value;
-            qaSel.innerHTML = ApiClient.renderModelOptions(models, currentVal);
         }
 
         const sumSel = document.getElementById('summarize-model');
@@ -332,16 +326,13 @@ const ApiClient = {
         const pollSec = pollIntervalEl ? parseInt(pollIntervalEl.value, 10) || 15 : 15;
 
         // v8.29.0 (Nhóm 7): dùng POST /api/settings/save (D1 transaction) thay vì
-        // /api/settings/app. Body mới KHÔNG gửi MODEL.MODEL/QA_MODEL nữa; thay
-        // vào đó dùng default_model + qa_model ở top-level, gắn với provider_id.
+        // /api/settings/app. Body gửi default_model ở top-level, gắn với provider_id.
         const defaultModel = document.getElementById('model').value;
-        const qaModel = document.getElementById('cfg-qa-model').value;
         const thinkingLevel = document.getElementById('cfg-thinking').value;
 
         const body = {
             provider_id: window.activeProviderId || undefined,
             default_model: defaultModel,
-            qa_model: qaModel,
             app_config: {
                 PROCESSING: {
                     MAX_CHARS_PER_CHUNK: document.getElementById('chunk-size').value,

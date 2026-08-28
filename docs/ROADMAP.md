@@ -274,7 +274,7 @@
 ### Việc cần làm tiếp theo (Refactoring & Code Cleanup)
 - [ ] 🔑 **Tối ưu hóa Luân chuyển Gemini API Key & Rate Limiter**: Triển khai cooldown động theo từng model (Flash 60s vs Pro/Preview 120-300s), cơ chế Key Health Tracking & Persistence lưu trữ quota/RPD per key qua các lần restart, mở rộng Multi-key Gemini cho AI Task chạy nền.
 - [ ] 🛑 **Triệt tiêu Fallback Ngầm định Model ở Lớp Dưới Cùng**: Loại bỏ fallback ngầm định model trong `plugins/translation/translator.py::_call_api` và `services/genai_client.py`, áp dụng 100% fail-closed bắt buộc caller chỉ định model rõ ràng.
-- [ ] 📋 **Tối giản Hóa & Dọn Dẹp Trường Review Model (QA Model)**: Tinh giản UI Tab Cấu hình (ẩn hoặc đưa Review Model vào cài đặt nâng cao) và dọn dẹp tham số `qa_model` thụ động trong DTO/checkpoint do hệ thống đã vận hành ổn định trên Single-pass pipeline.
+- [x] 📋 **Tối giản Hóa & Dọn Dẹp Trường Review Model (QA Model)**: Đã loại bỏ triệt để v8.29.2 — `qa_model` zero-residue trên UI, backend, DTO, checkpoint, schema, config, test, docs; `model_override` dead param cũng đã xóa; `ProviderService.save_providers()` normalize tập trung đảm bảo cả nhánh ETag lẫn non-ETag đều dọn sạch.
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
 - [ ] ⚙️ Dọn sạch các key cấu hình chết (`REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)

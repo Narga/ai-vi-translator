@@ -157,20 +157,6 @@
                                     <div class="flex flex-wrap mhn2">
                                         <div class="w-100 w-50-ns ph2 mb3">
                                             <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
-                                                Review Model
-                                                <span class="nt-tooltip-container">
-                                                    <span class="nt-help-icon" data-tooltip="Dùng để rà soát & sửa lỗi bản dịch sau khi hoàn tất.">ⓘ</span>
-                                                </span>
-                                            </label>
-                                            {% set qa_model_val = (app_config.get('MODEL', {}) if app_config else {}).get('QA_MODEL', '') %}
-                                            <select id="cfg-qa-model" name="MODEL.QA_MODEL" class="ba b--black-10 br2 pa2 w-100 f7 outline-0">
-                                                {% if qa_model_val %}
-                                                <option value="{{ qa_model_val }}" selected>{{ qa_model_val }}</option>
-                                                {% endif %}
-                                            </select>
-                                        </div>
-                                        <div class="w-100 w-50-ns ph2 mb3">
-                                            <label class="db fw6 lh-copy f7 mb2 gray uppercase tracked">
                                                 Context Radius
                                                 <span class="nt-tooltip-container">
                                                     <span class="nt-help-icon" data-tooltip="Số ký tự bao quanh đoạn đang dịch để AI hiểu ngữ cảnh (trước/sau).">ⓘ</span>

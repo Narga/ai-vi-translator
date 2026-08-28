@@ -69,7 +69,6 @@ def _call_api(
     prompt: str,
     api_manager: ApiManager,
     config: Dict[str, Any],
-    model_override: Optional[str] = None,
 ) -> Tuple[Optional[str], str, str]:
     """
     Hàm gọi API chung: lấy key khả dụng, cấu hình model/temperature, gọi API và xử lý lỗi.
@@ -81,7 +80,6 @@ def _call_api(
         prompt (str): Prompt chỉ thị cho AI
         api_manager (ApiManager): Quản lý API keys
         config (Dict[str, Any]): Cấu hình (model, temperature, delay, sdk, thinking_level,...)
-        model_override (Optional[str]): Model ghi đè (dùng cho QA/correction)
 
     Returns:
         Tuple[Optional[str], str, str]: (kết_quả_text, status, api_key_dùng)
@@ -93,7 +91,7 @@ def _call_api(
 
     # Xác định model một lần trước vòng retry. Model phải được cấu hình rõ ràng;
     # thiếu model là lỗi cấu hình, không phải lỗi API — không retry, không tạo client.
-    model_name = model_override or config.get("model_name", "")
+    model_name = config.get("model_name", "")
     if not model_name:
         logging.error("model_name rỗng; dừng trước khi lấy API key hoặc tạo client.")
         return None, "missing_model", "unknown"

@@ -24,7 +24,6 @@ class TranslationRequest:
         output_file_path: Đường dẫn file output đầy đủ
         project_slug: Slug của project (optional)
         model_name: Tên model AI
-        qa_model: Tên QA model
         temperature: Temperature cho model
         chunk_size: Kích thước chunk tối đa
         prompts: Dict chứa prompts
@@ -39,7 +38,6 @@ class TranslationRequest:
     output_file_path: Optional[Path] = None
     project_slug: Optional[str] = None
     model_name: str = ""
-    qa_model: str = ""
     temperature: float = 1.0
     chunk_size: int = 22000
     prompts: Dict[str, str] = field(default_factory=dict)
@@ -57,7 +55,6 @@ class TranslationRequest:
         """
         return {
             "model_name": self.model_name,
-            "qa_model": self.qa_model,
             "temperature": self.temperature,
             "chunk_size": self.chunk_size,
             "prompts": self.prompts,
@@ -84,7 +81,6 @@ class TranslationRequest:
             output_file_path=data.get("output_file_path"),
             project_slug=data.get("project_slug"),
             model_name=data.get("model_name", data.get("model", "")),
-            qa_model=data.get("qa_model", data.get("model", "")),
             temperature=float(data.get("temperature", 1.0)),
             chunk_size=int(data.get("chunk_size", 22000)),
             prompts=data.get("prompts", {}),

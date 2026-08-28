@@ -185,44 +185,6 @@ class AppConfigService:
         provider_service = ProviderService(self._config_dir)
         return provider_service.get_active_default_model()
 
-    def get_qa_model(self) -> str:
-        """Lấy QA model từ active provider (providers.json là nguồn sự thật).
-
-        Đọc từ ProviderService thay vì app.ini legacy field [MODEL] QA_MODEL.
-        Fallback về default_model nếu qa_model chưa cấu hình. Trả '' nếu cả hai đều
-        rỗng — caller (TranslationService, route) phải check '' và xử lý cấu hình thiếu.
-
-        Backward compat: giữ signature trả str (không None) để caller hiện tại không
-        cần đổi. Caller nào cần phân biệt 'rỗng' với 'không có' thì dùng
-        `get_qa_model_or_none()`.
-        """
-        from backend.infrastructure.providers.provider_service import ProviderService
-        provider_service = ProviderService(self._config_dir)
-        qa = provider_service.get_active_qa_model()
-        if qa:
-            return qa
-        return provider_service.get_active_default_model()
-
-    def get_qa_model_or_none(self) -> Optional[str]:
-        """B1: trả Optional[str] để phân biệt 'rỗng' với 'không có config'.
-
-        None = providers.json không tồn tại hoặc providers rỗng (không có active provider).
-        "" = active provider không cấu hình qa_model và default_model.
-        "<model>" = cả hai đều cấu hình, trả về qa_model (ưu tiên) hoặc default_model.
-
-        Caller mới (route /api/translate, /api/providers/<id>/models) nên dùng method
-        này để trả 400 có cấu trúc khi provider thiếu model.
-        """
-        from backend.infrastructure.providers.provider_service import ProviderService
-        provider_service = ProviderService(self._config_dir)
-        if not provider_service.get_active_provider_config():
-            return None
-        qa = provider_service.get_active_qa_model()
-        if qa:
-            return qa
-        default = provider_service.get_active_default_model()
-        return default if default else ""
-
     def get_default_chunk_size(self) -> int:
         """Lấy chunk size mặc định. Bảng default kế hoạch mục 1.2: 20000."""
         return self.get(

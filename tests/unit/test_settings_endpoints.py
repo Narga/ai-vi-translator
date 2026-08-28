@@ -62,33 +62,35 @@ class TestUpdateProviderModels:
                        json={"default_model": "gemini-2.0-flash"})
         assert r.status_code == 400
 
-    def test_update_qa_model(self, real_config_dir):
+    def test_update_qa_model_rejected_400(self, real_config_dir):
+        """v8.29.2: qa_model là unknown field → 400 reject (không silently ignore)."""
         from webui import create_app
         app = create_app()
         app.config["TESTING"] = True
         client = app.test_client()
         r = client.put("/api/providers/gemini-default/models",
                        json={"qa_model": "gemini-1.5-flash"})
-        assert r.status_code == 200
+        assert r.status_code == 400
         data = r.get_json()
-        assert data["provider"]["qa_model"] == "gemini-1.5-flash"
-        # Revert
-        client.put("/api/providers/gemini-default/models",
-                   json={"qa_model": "gemini-1.5-pro"})
+        assert "qa_model" in data.get("error", "")
 
-    def test_clear_qa_with_empty_string(self, real_config_dir):
+    def test_update_qa_model_rejected_400_with_etag(self, real_config_dir):
+        """v8.29.2: nhánh ETag cũng reject qa_model 400."""
         from webui import create_app
+        from backend.infrastructure.providers.provider_service import ProviderService
         app = create_app()
         app.config["TESTING"] = True
         client = app.test_client()
-        r = client.put("/api/providers/gemini-default/models",
-                       json={"qa_model": ""})
-        assert r.status_code == 200
+        ps = ProviderService(real_config_dir)
+        etag = ps.get_etag()
+        r = client.put(
+            "/api/providers/gemini-default/models",
+            json={"qa_model": "x"},
+            headers={"If-Match": etag},
+        )
+        assert r.status_code == 400
         data = r.get_json()
-        assert data["provider"]["qa_model"] == ""
-        # Revert
-        client.put("/api/providers/gemini-default/models",
-                   json={"qa_model": "gemini-1.5-pro"})
+        assert "qa_model" in data.get("error", "")
 
     def test_provider_not_found(self, real_config_dir):
         from webui import create_app
@@ -238,36 +240,19 @@ class TestSaveSettingsTransaction:
                 "default_model": old_default,
             })
 
-    def test_save_clears_qa_model_without_etag(self, real_config_dir):
-        """Regression: qa_model='' là sentinel clear và phải hoạt động không cần If-Match."""
+    def test_save_rejects_qa_model_400(self, real_config_dir):
+        """v8.29.2: POST /api/settings/save reject qa_model 400."""
         from webui import create_app
-        from backend.infrastructure.providers.provider_service import ProviderService
-
         app = create_app()
         app.config["TESTING"] = True
         client = app.test_client()
-        ps = ProviderService(real_config_dir)
-        provider = ps.get_provider_by_id("gemini-default")
-        old_qa = provider.get("qa_model", "gemini-1.5-pro")
-        try:
-            client.post("/api/settings/save", json={
-                "provider_id": "gemini-default",
-                "qa_model": "gemini-1.5-flash",
-            })
-            r = client.post("/api/settings/save", json={
-                "provider_id": "gemini-default",
-                "qa_model": "",
-            })
-            assert r.status_code == 200, r.get_json()
-            data = r.get_json()
-            assert data["provider"]["qa_model"] == ""
-            saved = ProviderService(real_config_dir).get_provider_by_id("gemini-default")
-            assert saved.get("qa_model", "") == ""
-        finally:
-            client.post("/api/settings/save", json={
-                "provider_id": "gemini-default",
-                "qa_model": old_qa,
-            })
+        r = client.post("/api/settings/save", json={
+            "provider_id": "gemini-default",
+            "qa_model": "x",
+        })
+        assert r.status_code == 400
+        data = r.get_json()
+        assert "qa_model" in data.get("error", "")
 
     def test_get_models_returns_active_provider_id(self, real_config_dir):
         """Frontend cần active_id để gửi provider_id khi lưu model đã chọn."""
@@ -293,20 +278,18 @@ class TestSaveSettingsTransaction:
             r = client.post("/api/settings/save", json={
                 "provider_id": "openrouter",
                 "default_model": "anthropic/claude-3.5-sonnet",
-                "qa_model": "anthropic/claude-3-haiku",
                 "app_config": {"PROCESSING": {"TEMPERATURE": "0.7"}},
             })
             assert r.status_code == 200
             data = r.get_json()
             assert data["provider"]["default_model"] == "anthropic/claude-3.5-sonnet"
-            assert data["provider"]["qa_model"] == "anthropic/claude-3-haiku"
+            assert "qa_model" not in data["provider"]
             assert abs(data["config"]["PROCESSING"]["TEMPERATURE"] - 0.7) < 0.001
         finally:
             (real_config_dir / "app.ini").write_text(original_temp)
             client.post("/api/settings/save", json={
                 "provider_id": "openrouter",
                 "default_model": "deepseek/deepseek-v4-flash-0731",
-                "qa_model": "",
             })
 
     def test_validation_error_returns_400_with_errors(self, real_config_dir):

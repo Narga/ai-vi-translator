@@ -14,7 +14,6 @@ def _config(tmp_path, model="gpt-test"):
         "provider_id": "openai-test",
         "base_url": "https://api.openai.com/v1",
         "model_name": model,
-        "qa_model": model,
         "credential_mode": "default",
         "project_slug": "p",
         "prompts": {"main": "dịch đi"},

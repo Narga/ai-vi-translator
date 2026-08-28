@@ -53,7 +53,6 @@ def mock_config_v1(tmp_path):
     )
     app_ini_content = """[MODEL]
 MODEL = step-3.7-flash
-QA_MODEL = step-3.5-flash
 THINKING_LEVEL = OFF
 
 [PROCESSING]
@@ -96,7 +95,7 @@ class TestTransformProviders:
         result = transform_providers(providers_data)
         gemini = next(p for p in result["providers"] if p["id"] == "gemini-default")
         assert gemini["default_model"] == "gemini-2.0-flash"
-        assert "qa_model" in gemini
+        assert "qa_model" not in gemini
 
     def test_preserves_extension_fields(self, mock_config_v1):
         providers_data = json.loads(
@@ -147,7 +146,7 @@ class TestTransformAppIni:
         config = configparser.ConfigParser()
         config.optionxform = str
         config.read_string(
-            "[MODEL]\nMODEL = x\nQA_MODEL = y\nTHINKING_LEVEL = OFF\n[PROCESSING]\nK = 1\n"
+            "[MODEL]\nMODEL = x\nTHINKING_LEVEL = OFF\n[PROCESSING]\nK = 1\n"
         )
         new, changed = transform_app_ini(config)
         assert changed is True
@@ -216,7 +215,6 @@ class TestMigrationCleansAppIni:
         app_ini_text = (mock_config_v1 / "app.ini").read_text(encoding="utf-8")
         assert "[MODEL]" not in app_ini_text
         assert "MODEL = step" not in app_ini_text
-        assert "QA_MODEL" not in app_ini_text
         assert "[RUNTIME]" in app_ini_text
         assert "THINKING_LEVEL = OFF" in app_ini_text
         # Process section giữ nguyên

@@ -616,7 +616,6 @@ def list_providers():
             "type": p.get("type"),
             "name": p.get("name"),
             "default_model": p.get("default_model", ""),
-            "qa_model": p.get("qa_model", ""),
         }
         if p.get("type") == "gemini":
             keys = p.get("api_keys") or []
@@ -683,7 +682,7 @@ def update_provider(provider_id):
 
 # ------------------------------------------------------------------
 # D4-B: Provider model/credentials endpoints (thay thế cho PUT /api/providers/<id>
-# với field qa_model/default_model rỗng không phân biệt được).
+# với field default_model rỗng không phân biệt được).
 # ------------------------------------------------------------------
 
 @settings_bp.route("/api/providers/<provider_id>/models", methods=["PUT"])
@@ -691,14 +690,18 @@ def update_provider(provider_id):
 def update_provider_models(provider_id):
     """PUT model cho provider. Validate namespace trước khi ghi (R1, R4).
 
-    Body: {default_model?: str, qa_model?: str}
+    Body: {default_model?: str}
     - Cả hai optional; nếu gửi phải pass provider type validate
-    - qa_model="" có nghĩa "không có QA" (sentinel: key phải tồn tại trong body)
+    - default_model="" có nghĩa "không có model" (sentinel: key phải tồn tại trong body)
     """
     from backend.infrastructure.providers.provider_resolver import (
         ProviderConfigResolver,
     )
     data = request.json or {}
+    # v8.29.2 (zero-residue): reject qa_model ngay đầu hàm, trước cả resolve
+    # và cả 2 nhánh ETag/non-ETag. Defense-in-depth cùng save_providers().
+    if "qa_model" in data:
+        return jsonify({"error": "unknown field: qa_model"}), 400
     resolver = ProviderConfigResolver()
     try:
         # Resolve trước để có base_url cho validate
@@ -708,7 +711,7 @@ def update_provider_models(provider_id):
 
     errors = []
     update_kwargs = {}
-    for field in ("default_model", "qa_model"):
+    for field in ("default_model",):
         if field not in data:
             continue
         value = data[field] or ""
@@ -744,7 +747,7 @@ def update_provider_models(provider_id):
         else:
             # Không dùng update_provider ở đây vì method đó intentionally bỏ qua
             # giá trị rỗng để tránh xoá credential. Model endpoint cần sentinel
-            # khác: qa_model="" là clear hợp lệ.
+            # khác: default_model="" là clear hợp lệ.
             current_data = provider_service.load_providers()
             found = False
             current_data["providers"] = [
@@ -843,7 +846,6 @@ def save_settings_transaction():
     Body: {
         provider_id?: str,                    # active provider nếu None
         default_model?: str,
-        qa_model?: str,
         app_config?: {section: {key: value}}  # dùng apply_values
     }
 
@@ -867,6 +869,9 @@ def save_settings_transaction():
     from backend.infrastructure.config.app_config_service import AppConfigService
 
     data = request.json or {}
+    # v8.29.2 (zero-residue): reject qa_model ngay đầu hàm.
+    if "qa_model" in data:
+        return jsonify({"error": "unknown field: qa_model"}), 400
     provider_id = data.get("provider_id")
     config_service = AppConfigService()
     resolver = ProviderConfigResolver()
@@ -874,8 +879,8 @@ def save_settings_transaction():
 
     errors: list = []
 
-    # B1: check qa_model optional
-    if "qa_model" in data or "default_model" in data:
+    # B1: check default_model optional
+    if "default_model" in data:
         # Validate trước khi stage
         try:
             target_id = provider_id or resolver.resolve().id
@@ -885,7 +890,7 @@ def save_settings_transaction():
             provider = None
 
         if provider is not None:
-            for field in ("default_model", "qa_model"):
+            for field in ("default_model",):
                 if field not in data:
                     continue
                 value = data[field] or ""
@@ -959,14 +964,13 @@ def save_settings_transaction():
             config_service.save()
         # 2. Stage provider model
         model_kwargs = {}
-        for field in ("default_model", "qa_model"):
-            if field in data:
-                model_kwargs[field] = data[field] or ""
+        if "default_model" in data:
+            model_kwargs["default_model"] = data["default_model"] or ""
         if model_kwargs:
             target_provider_id = provider_id or (provider.id if provider is not None else None)
             if not target_provider_id:
                 raise ValueError("Không xác định được provider cần lưu model")
-            # Ghi trực tiếp document để hỗ trợ clear qa_model="". Không dùng
+            # Ghi trực tiếp document để hỗ trợ clear default_model="". Không dùng
             # update_provider vì method đó bỏ qua falsy value để bảo vệ credential.
             current_data = provider_service.load_providers()
             found = False
