@@ -298,15 +298,6 @@ class ProviderConfigResolver:
         except Exception as e:
             logger.warning("Không thể list models từ Gemini API: %s", e)
             error_msg = f"Không thể kết nối Gemini API: {e}"
-        if not models:
-            # Fallback danh sách cục bộ
-            models = [
-                "gemini-2.0-flash",
-                "gemini-2.0-flash-exp",
-                "gemini-1.5-pro",
-                "gemini-1.5-flash",
-                "gemini-1.5-flash-8b",
-            ]
         return models, error_msg, source
 
     def _list_openai_models(

@@ -72,10 +72,15 @@ def translate_worker(text, config, output_filename="translated", input_file_path
         worker_config["provider_id"] = active_provider.get("id", "")
 
         # Model validation
-        model_from_req = worker_config.get("model_name")
+        model_from_req = worker_config.get("model_name") or active_provider.get("default_model") or ""
+
         if not model_from_req:
-            model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
-            
+            progress_queue.put({
+                "type": "error",
+                "message": "Chưa cấu hình model. Vui lòng chọn model trong Settings.",
+            })
+            return
+
         model_from_req = policy.normalize_model(model_from_req)
         if not policy.validate_model(model_from_req):
             progress_queue.put({
@@ -268,9 +273,12 @@ def translate_text():
         provider_kind = policy.provider_kind
 
         if not model:
-            model = active_provider.get("default_model") or (
-                "gemini-3-flash-preview" if provider_type == "gemini" else "gpt-4o-mini"
-            )
+            model = active_provider.get("default_model") or ""
+        if not model:
+            return jsonify({
+                "error": "Chưa cấu hình model. Vui lòng chọn model trong Settings.",
+                "code": "missing_model",
+            }), 400
         
         if provider_type == "gemini":
             api_keys = active_provider.get("api_keys", [])

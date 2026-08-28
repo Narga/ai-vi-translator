@@ -150,8 +150,8 @@ Ví dụ sử dụng:
         translate_parser.add_argument(
             "--model",
             "-m",
-            default="gemini-3-flash-preview",
-            help="Model AI (mặc định: gemini-3-flash-preview)",
+            default=None,
+            help="Model AI (mặc định lấy từ providers.json)",
         )
 
         # Temperature

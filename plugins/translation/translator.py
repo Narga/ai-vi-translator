@@ -5,7 +5,7 @@
 # Nâng cấp v4.0.0:
 # - Tích hợp GenAIClient wrapper hỗ trợ cả google-genai SDK mới và google-generativeai SDK cũ
 # - Tích hợp emergency_stop module thực sự (thay vì placeholder)
-# - Support gemini-3-flash-preview với thinking_level parameter
+# - Support gemini-3-flash với thinking_level parameter
 # - Tối ưu cho 20 RPD/key với AdaptiveRateLimiter
 
 import time
@@ -33,7 +33,7 @@ def _get_client(api_key: str, config: Dict[str, Any]) -> Any:
     provider_type = config.get("provider_type", "gemini")
     provider_kind = config.get("provider_kind", provider_type)
     base_url = config.get("base_url") or ""
-    default_model = config.get("model_name", "gemini-3-flash-preview")
+    default_model = config.get("model_name", "")
     thinking_level = config.get("thinking_level", "MEDIUM")
     gateway_api_key = config.get("gateway_api_key", "")
     credential_mode = config.get("credential_mode", "default")
@@ -85,11 +85,18 @@ def _call_api(
 
     Returns:
         Tuple[Optional[str], str, str]: (kết_quả_text, status, api_key_dùng)
-            status ∈ {'success', 'all_keys_exhausted', 'api_error', 'stopped'}
+            status ∈ {'success', 'all_keys_exhausted', 'api_error', 'stopped', 'missing_model', 'upstream_empty'}
     """
     max_attempts_total = max(3, len(api_manager._key_list) * 3)
     last_error_msg = "api_error"
     empty_streak = 0  # Số lần liên tiếp nhận empty response (không phải lỗi API thật sự)
+
+    # Xác định model một lần trước vòng retry. Model phải được cấu hình rõ ràng;
+    # thiếu model là lỗi cấu hình, không phải lỗi API — không retry, không tạo client.
+    model_name = model_override or config.get("model_name", "")
+    if not model_name:
+        logging.error("model_name rỗng; dừng trước khi lấy API key hoặc tạo client.")
+        return None, "missing_model", "unknown"
 
     for attempt in range(max_attempts_total):
         # Kiểm tra emergency stop
@@ -124,10 +131,7 @@ def _call_api(
             # Build prompt đầy đủ (Không thêm header ẩn theo yêu cầu người dùng)
             full_prompt = f"{prompt}\n\n{text_to_process}"
 
-            # Gọi API
-            model_name = model_override or config.get(
-                "model_name", "gemini-3-flash-preview"
-            )
+            # Gọi API — model_name đã validate ở đầu hàm, không đổi qua các attempt
             temperature = float(
                 config.get("temperature", 1.0)
             )  # Gemini 3 khuyến nghị 1.0

@@ -117,9 +117,6 @@ def get_models():
                 )
 
             models = [m for m in get_available_gemini_models() if is_gemini_model_id(m)]
-            if not models:
-                from webui.helpers import AVAILABLE_GEMINI_MODELS
-                models = AVAILABLE_GEMINI_MODELS.copy()
             if full:
                 # Wrap Gemini names in objects for consistency
                 models = [{"id": m, "name": m} for m in models]
@@ -127,8 +124,8 @@ def get_models():
         default_model = get_default_model()
         if provider == "gemini":
             model_ids = [m["id"] if isinstance(m, dict) else m for m in models]
-            if default_model not in model_ids:
-                default_model = model_ids[0] if model_ids else "gemini-2.0-flash-exp"
+            if default_model not in model_ids and model_ids:
+                default_model = ""
         return jsonify({
             "models": models,
             "default": default_model,
@@ -249,40 +246,8 @@ def get_model_info(model_name):
             ):
                 return jsonify({"error": f"Model không thuộc Gemini: {model_name}"}), 400
 
-            gemini_fallback_info = {
-                "gemini-2.0-flash-exp": (1048576, 8192),
-                "gemini-2.0-flash": (1048576, 8192),
-                "gemini-1.5-pro": (2097152, 8192),
-                "gemini-1.5-flash": (1048576, 8192),
-                "gemini-1.5-flash-8b": (1048576, 8192),
-                "gemini-3-pro": (1048576, 8192),
-                "gemini-3-flash": (1048576, 8192),
-            }
-
-            def fallback_gemini_info(detail=""):
-                limits = gemini_fallback_info.get(model_name)
-                if not limits:
-                    return None
-                input_limit, output_limit = limits
-                return {
-                    "provider": "gemini",
-                    "name": model_name,
-                    "display_name": model_name,
-                    "description": "Thông tin fallback cục bộ; dùng khi Gemini API không trả metadata live.",
-                    "input_token_limit": input_limit,
-                    "output_token_limit": output_limit,
-                    "input_token_display": f"{input_limit:,}",
-                    "output_token_display": f"{output_limit:,}",
-                    "rate_limits": {},
-                    "fallback": True,
-                    "detail": detail,
-                }
-
             api_keys = load_api_keys()
             if not api_keys:
-                fallback = fallback_gemini_info("Không tìm thấy API key Gemini")
-                if fallback:
-                    return jsonify(fallback)
                 return jsonify({"error": "Không tìm thấy API key Gemini"}), 400
 
             from google import genai

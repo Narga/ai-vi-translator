@@ -9,17 +9,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Available Gemini models (fallback list)
-AVAILABLE_GEMINI_MODELS = [
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-flash",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-    "gemini-3-pro",
-    "gemini-3-flash",
-]
-
 
 def get_app_version():
     """Tự động nhận diện phiên bản từ CHANGELOG.md."""
@@ -37,15 +26,6 @@ def get_app_version():
 
     # Fallback
     return "6.8.0"
-
-
-# Available OpenAI-compatible models (fallback list)
-AVAILABLE_OPENAI_MODELS = [
-    "gpt-4o-mini",
-    "gpt-4o",
-    "gpt-4-turbo",
-    "gpt-3.5-turbo",
-]
 
 
 def load_config():
@@ -74,19 +54,11 @@ def get_default_model():
         active_config = provider_service.get_active_provider_config()
         if active_config and active_config.get("default_model"):
             return active_config["default_model"]
-        # Fallback to gemini default model
-        gemini_providers = provider_service.get_providers_by_type("gemini")
-        if gemini_providers:
-            return gemini_providers[0].get("default_model", "gemini-2.0-flash-exp")
-        return "gemini-2.0-flash-exp"
+        # Không có default_model cấu hình → trả rỗng, caller xử lý
+        return ""
     except Exception as e:
         logger.debug(f"get_default_model fallback: {e}")
-        # Fallback to legacy app.ini
-        config = load_config()
-        try:
-            return config.get("MODEL", "MODEL", fallback="gemini-2.0-flash-exp")
-        except Exception:
-            return "gemini-2.0-flash-exp"
+        return ""
 
 
 def get_active_provider():
@@ -140,19 +112,23 @@ def get_openai_base_url():
 
 
 def get_openai_model():
-    """Get default OpenAI model. Ưu tiên active provider, fallback sang provider openai đầu tiên."""
+    """Get default OpenAI model. Ưu tiên active provider, fallback sang provider openai đầu tiên.
+
+    Trả chuỗi rỗng nếu không cấu hình. KHÔNG hardcode model mặc định
+    (fail-closed; caller phải validate và báo lỗi cấu hình).
+    """
     try:
         from backend.infrastructure.providers.provider_service import ProviderService
         ps = ProviderService()
         active = ps.get_active_provider_config()
         if active and active.get("type") == "openai":
-            return active.get("default_model", "") or "gpt-4o-mini"
+            return active.get("default_model", "")
         openai_providers = ps.get_providers_by_type("openai")
         if openai_providers:
-            return openai_providers[0].get("default_model", "") or "gpt-4o-mini"
+            return openai_providers[0].get("default_model", "")
     except Exception:
         pass
-    return "gpt-4o-mini"
+    return ""
 
 
 def get_available_models():
@@ -166,40 +142,39 @@ def get_available_models():
 
 
 def get_available_gemini_models():
-    """Get list of available Gemini models."""
-    models = AVAILABLE_GEMINI_MODELS.copy()
+    """Get list of available Gemini models từ API live.
+
+    Không có catalog fallback cục bộ — nếu API lỗi, trả danh sách rỗng.
+    """
+    models = []
 
     try:
         api_keys = load_api_keys("GEMINI")
         if api_keys:
             first_key = api_keys[0]
-            try:
-                from google import genai
-
-                client = genai.Client(api_key=first_key)
-                try:
-                    for model in client.models.list():
-                        if model and model.name:
-                            model_name = model.name.replace("models/", "")
-                            if "gemini" in model_name and model_name not in models:
-                                models.insert(0, model_name)
-                except Exception:
-                    pass
-            except Exception:
-                pass
+            from google import genai
+            client = genai.Client(api_key=first_key)
+            for model in client.models.list():
+                if model and model.name:
+                    model_name = model.name.replace("models/", "")
+                    if "gemini" in model_name and model_name not in models:
+                        models.insert(0, model_name)
     except Exception:
         pass
 
     default_model = get_default_model()
-    if default_model not in models:
+    if default_model and default_model not in models:
         models.insert(0, default_model)
 
     return list(dict.fromkeys(models))
 
 
 def get_available_openai_models():
-    """Get list of available OpenAI-compatible models."""
-    models = AVAILABLE_OPENAI_MODELS.copy()
+    """Get list of available OpenAI-compatible models từ API live.
+
+    Không có catalog fallback cục bộ — nếu API lỗi, trả danh sách rỗng.
+    """
+    models = []
 
     try:
         api_key = load_openai_key()
@@ -213,7 +188,7 @@ def get_available_openai_models():
         logger.debug(f"Could not fetch OpenAI models: {e}")
 
     openai_model = get_openai_model()
-    if openai_model not in models:
+    if openai_model and openai_model not in models:
         models.insert(0, openai_model)
 
     return list(dict.fromkeys(models))

@@ -2,6 +2,9 @@
 
 ## Hoàn thành
 
+### v8.29.1 (2026-08-28)
+- [x] 🧹 **Dọn dẹp Fallback Runtime Còn Sót**: Xóa `AVAILABLE_OPENAI_MODELS` catalog khỏi `helpers.py` và `model_catalog_service.py`, xóa `gemini_fallback_info` metadata dict khỏi `settings.py`, xóa `gemini-2.0-flash-exp` fallback khỏi `provider_resolver.py`. Không còn hardcoded model name nào trong source code hay test fixtures. Runtime chỉ trả về model từ API live.
+
 ### v8.29.0 (2026-08-26)
 - [x] 🛡️ **Khắc phục Hardcode Provider / Model & Chuẩn Hóa Validate**: Thêm helper `_is_model_valid_for_type` chống cross-provider model, `_validate_providers_data` fail-closed, bỏ fallback model cứng (`get_active_default_model`, `get_active_qa_model` trả `""`, `create_provider` raise `ValueError`), sửa config thật (`providers.json` Gemini về `gemini-2.0-flash`, `app.ini` chuyển sang `[RUNTIME]`).
 - [x] 🔒 **Bảo Mật API Route & Loại Bỏ Sync Legacy**: Endpoint `/api/settings/app` POST reject `[MODEL]` legacy với 400 (bỏ write-back kép), endpoint `GET /api/providers` mask API keys (`has_api_key`, `key_count`, `api_key_last4`).
@@ -275,7 +278,7 @@
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
 - [ ] ⚙️ Dọn sạch các key cấu hình chết (`REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)
-- [ ] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py`
+- [x] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py` (v8.29.1 — đã xóa toàn bộ `AVAILABLE_OPENAI_MODELS` catalog, không còn fallback runtime)
 - [ ] 🧹 Thu gọn mã nguồn (Shrink) bằng cách xóa bỏ các hàm/phương thức chết trong `checkpoint_service.py`, `emergency_stop.py`, `translation_memory.py` và `webui_progress_bridge.py`
 - [ ] 🧠 Gom logic `_get_client()` trùng lặp trong hệ thống thành một OpenAI-compatible shared helper chung
 

@@ -211,11 +211,12 @@ class TestSaveSettingsTransaction:
             new_default = "gemini-2.5-pro"
             old_default = active.get("default_model", "gemini-2.0-flash")
         else:
-            new_default = active.get("default_model") or "gpt-4o-mini"
             old_default = active.get("default_model", "")
-            # Ensure the test actually changes something for common OpenAI-compatible active providers.
-            if new_default == old_default:
+            # Generate a unique new value; do not hardcode a real model name.
+            if old_default:
                 new_default = old_default + "-regression-test"
+            else:
+                new_default = "openai-regression-test-model"
 
         app = create_app()
         app.config["TESTING"] = True
@@ -406,7 +407,7 @@ class TestSaveSettingsTransaction:
         # PUT với ETag cũ
         r = client.put(
             "/api/providers/openrouter/models",
-            json={"default_model": "openai/gpt-4o"},
+            json={"default_model": "openai/test-model"},
             headers={"If-Match": old_etag},
         )
         assert r.status_code == 409

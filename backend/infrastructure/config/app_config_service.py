@@ -188,15 +188,13 @@ class AppConfigService:
     def get_qa_model(self) -> str:
         """Lấy QA model từ active provider (providers.json là nguồn sự thật).
 
-        R-O2 + B1: đọc từ ProviderService thay vì app.ini legacy field [MODEL] QA_MODEL.
+        Đọc từ ProviderService thay vì app.ini legacy field [MODEL] QA_MODEL.
         Fallback về default_model nếu qa_model chưa cấu hình. Trả '' nếu cả hai đều
-        rỗng — caller (TranslationService, route) phải check '' và xử lý cấu hình
-        thiếu. KHÔNG fallback cứng về "gemini-3-flash-preview" cho mọi provider type.
+        rỗng — caller (TranslationService, route) phải check '' và xử lý cấu hình thiếu.
 
-        Backward compat: giữ signature trả str (không None) để 3 caller hiện tại
-        (`translate_text_use_case.py:143`, `webui/helpers.py`,
-        `core/executor.py:114`) không cần đổi. Caller nào cần phân biệt
-        'rỗng' với 'không có' thì dùng `get_qa_model_or_none()`.
+        Backward compat: giữ signature trả str (không None) để caller hiện tại không
+        cần đổi. Caller nào cần phân biệt 'rỗng' với 'không có' thì dùng
+        `get_qa_model_or_none()`.
         """
         from backend.infrastructure.providers.provider_service import ProviderService
         provider_service = ProviderService(self._config_dir)

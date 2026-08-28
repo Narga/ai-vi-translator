@@ -5,13 +5,11 @@
 """
 GenAI Client - Lớp trừu tượng hóa cho Gemini API.
 
-Hỗ trợ:
-- google-genai SDK (mặc định, khuyến nghị)
-- google-generativeai SDK (fallback, legacy)
+Hỗ trợ google-genai SDK.
 
 Sử dụng:
     client = GenAIClient(api_key, sdk="google-genai")
-    response = client.generate_content(prompt, model="gemini-3-flash-preview")
+    response = client.generate_content(prompt, model="<model-do-người-dùng-cấu-hình>")
 """
 
 import logging
@@ -35,7 +33,7 @@ class GenAIClient:
     def __init__(
         self,
         api_key: str,
-        default_model: str = "gemini-3-flash-preview",
+        default_model: str = "",
         thinking_level: str = "MEDIUM",
     ):
         """

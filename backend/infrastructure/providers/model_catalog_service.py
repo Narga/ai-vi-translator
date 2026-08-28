@@ -14,25 +14,6 @@ from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Fallback models cho Gemini
-AVAILABLE_GEMINI_MODELS = [
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-flash",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
-    "gemini-3-pro",
-    "gemini-3-flash",
-]
-
-# Fallback models cho OpenAI
-AVAILABLE_OPENAI_MODELS = [
-    "gpt-4o-mini",
-    "gpt-4o",
-    "gpt-4-turbo",
-    "gpt-3.5-turbo",
-]
-
 
 class ModelCatalogService:
     """
@@ -87,12 +68,12 @@ class ModelCatalogService:
 
     def get_gemini_models(self) -> List[str]:
         """
-        Lấy danh sách Gemini models.
+        Lấy danh sách Gemini models từ API live. Không có catalog fallback.
 
         Returns:
-            List of model names
+            List of model names (rỗng nếu API lỗi)
         """
-        models = AVAILABLE_GEMINI_MODELS.copy()
+        models = []
 
         try:
             from backend.infrastructure.config.api_key_service import ApiKeyService
@@ -120,22 +101,24 @@ class ModelCatalogService:
 
         # Đảm bảo default model có trong list
         default_model = self.get_default_model()
-        if default_model not in models:
+        if default_model and default_model not in models:
             models.insert(0, default_model)
 
         return list(dict.fromkeys(models))  # Remove duplicates, preserve order
 
     def get_openai_models(self, full: bool = False) -> List:
         """
-        Lấy danh sách OpenAI-compatible models.
+        Lấy danh sách OpenAI-compatible models từ API live.
+
+        Không có catalog fallback cục bộ — nếu API lỗi, trả danh sách rỗng.
 
         Args:
             full: Nếu True, trả về full model objects
 
         Returns:
-            List of model names hoặc model objects
+            List of model names hoặc model objects (rỗng nếu API lỗi)
         """
-        models = AVAILABLE_OPENAI_MODELS.copy()
+        models = []
 
         try:
             from backend.infrastructure.providers.provider_service import ProviderService

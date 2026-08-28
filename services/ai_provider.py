@@ -68,7 +68,6 @@ def create_provider(
     if provider_type == "gemini":
         from services.genai_client import GenAIClient
 
-        # R4: không fallback cứng "gemini-3-flash-preview" cho mọi trường hợp.
         # Caller (factory/runtime) phải truyền default_model rõ ràng; thiếu thì raise.
         model = default_model or kwargs.pop("model", None)
         if not model:
@@ -86,9 +85,8 @@ def create_provider(
     elif provider_type == "openai":
         from services.openai_client import OpenAIClient
 
-        # R4: không fallback cứng "gpt-4o-mini" cho OpenAI-compatible. Caller phải
-        # truyền default_model rõ ràng; model mặc định sai endpoint sẽ gây lỗi 404
-        # ở runtime mà trước đó không phát hiện được.
+        # Caller phải truyền default_model rõ ràng; model mặc định sai endpoint
+        # sẽ gây lỗi 404 ở runtime mà trước đó không phát hiện được.
         model = default_model or kwargs.pop("model", None)
         if not model:
             raise ValueError(

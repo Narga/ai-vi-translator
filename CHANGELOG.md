@@ -2,6 +2,20 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.29.1] - 2026-08-28
+### Dọn dẹp Fallback Runtime Còn Sót
+
+Loại bỏ hoàn toàn các hardcoded model catalog và fallback metadata còn sót lại sau v8.29.0:
+
+- **`webui/helpers.py`** — xóa `AVAILABLE_OPENAI_MODELS` catalog (4 model OpenAI cũ), `get_available_openai_models()` trả `[]` khi API lỗi thay vì fallback catalog.
+- **`backend/infrastructure/providers/model_catalog_service.py`** — xóa import và usage của `AVAILABLE_OPENAI_MODELS`; `get_openai_models()` khởi tạo `models = []` (chỉ API live).
+- **`webui/routes/settings.py`** — xóa `gemini_fallback_info` metadata dict và hàm `fallback_gemini_info()`; endpoint `/api/model-info/<model>` báo lỗi khi API Gemini lỗi thay vì trả metadata cục bộ.
+- **`backend/infrastructure/providers/provider_resolver.py`** — xóa `gemini-2.0-flash-exp` fallback metadata.
+- **Test fixtures** — thay tất cả model name thật (`gpt-4o`, `gpt-4-turbo`, `openai/gpt-4o`) trong mock data bằng `test-model` / `openai/test-model` (8 file test).
+- **Documentation** — đổi tên `docs/wip/model-fallback-audit.md` → `docs/wip/model-fallback-archived.md`.
+
+**Kết quả:** Không còn hardcoded model name nào trong source code hay test fixtures. Runtime không bao giờ trả về model không phải từ API live.
+
 ## [8.29.0] - 2026-08-26
 ### Khắc Phục Hardcode Láo trong Provider/Model/Config & Chuẩn Hóa Validate (Nhóm 1)
 

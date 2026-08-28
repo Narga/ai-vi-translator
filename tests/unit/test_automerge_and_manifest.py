@@ -87,7 +87,7 @@ def test_standard_manifest_contract_v1(tmp_path):
         source_task_id="source-task-123",
         recovery_task_id="rec-task-456",
         provider_id="openai-test",
-        model="gpt-4o",
+        model="test-model",
         output_text=output_text,
     )
 
@@ -99,7 +99,7 @@ def test_standard_manifest_contract_v1(tmp_path):
     assert manifest["pending_indices"] == []
     assert manifest["output_hash"] == expected_hash
     assert manifest["provider_id"] == "openai-test"
-    assert manifest["model"] == "gpt-4o"
+    assert manifest["model"] == "test-model"
     assert manifest["is_complete"] is True
     assert "timestamp" in manifest
 

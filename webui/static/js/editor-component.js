@@ -252,13 +252,8 @@ const EditorComponent = {
     },
 
     openSearchReplaceModal(textareaId) {
-        const el = document.querySelector('[x-data*="searchReplace"]');
-        if (el && el._x_dataStack) {
-            const component = Alpine.$data(el);
-            if (component && component.open) {
-                component.open(textareaId);
-            }
-        }
+        // Dùng findInText() đơn giản thay vì Alpine modal không hoạt động ổn định
+        this.findInText(textareaId);
     },
 
     saveSourceFile() {

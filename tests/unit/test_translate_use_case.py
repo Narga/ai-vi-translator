@@ -22,19 +22,19 @@ class TestTranslationRequest:
         req = TranslationRequest(text="hello")
         assert req.text == "hello"
         assert req.output_filename == "translated"
-        assert req.model_name == "gemini-3-flash-preview"
+        assert req.model_name == ""
 
     def test_to_config(self):
         """Test to_config trả về dict đúng format."""
         from backend.application.dto.translation_request import TranslationRequest
         req = TranslationRequest(
             text="test",
-            model_name="gemini-3-flash-preview",
+            model_name="gemini-3-flash",
             temperature=1.0,
             chunk_size=22000,
         )
         config = req.to_config()
-        assert config["model_name"] == "gemini-3-flash-preview"
+        assert config["model_name"] == "gemini-3-flash"
         assert config["temperature"] == 1.0
         assert config["chunk_size"] == 22000
         assert "prompts" in config
@@ -44,12 +44,12 @@ class TestTranslationRequest:
         from backend.application.dto.translation_request import TranslationRequest
         d = {
             "text": "test",
-            "model": "gemini-3-flash-preview",
+            "model": "gemini-3-flash",
             "temperature": 0.5,
         }
         req = TranslationRequest.from_dict(d)
         assert req.text == "test"
-        assert req.model_name == "gemini-3-flash-preview"
+        assert req.model_name == "gemini-3-flash"
         assert req.temperature == 0.5
 
 

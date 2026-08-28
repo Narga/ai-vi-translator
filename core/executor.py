@@ -110,8 +110,8 @@ class TranslationExecutor:
             "provider_kind": self.config.get("provider_kind", "unknown"),
             "provider_id": self.config.get("provider_id", "unknown"),
             "base_url": self.config.get("base_url", "unknown"),
-            "model": self.config.get("model_name", "unknown"),
-            "qa_model": self.config.get("qa_model", "unknown"),
+            "model": self.config.get("model_name", ""),
+            "qa_model": self.config.get("qa_model", ""),
             "credential_mode": self.config.get("credential_mode", "default"),
             "prompt_hash": prompt_hash,
             "schema_version": "1.0",
@@ -125,7 +125,7 @@ class TranslationExecutor:
         prompt_hash = hashlib.sha256(prompt_data.encode()).hexdigest()[:16]
         return ":".join((
             self.config.get("provider_kind", "default"),
-            self.config.get("model_name", "default"),
+            self.config.get("model_name", ""),
             prompt_hash,
         ))
 

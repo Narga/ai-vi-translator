@@ -1315,7 +1315,12 @@ def summarize_project(slug):
     active_provider = provider_service.get_active_provider_config() or {}
     base_url = active_provider.get("base_url")
     policy = classify_endpoint(base_url)
-    requested_model = data.get("model", "") or active_provider.get("default_model", "") or "gpt-4o-mini"
+    requested_model = data.get("model", "") or active_provider.get("default_model", "")
+    if not requested_model:
+        return jsonify({
+            "error": "Chưa cấu hình model. Vui lòng chọn model trong Settings.",
+            "code": "missing_model",
+        }), 400
     requested_model = policy.normalize_model(requested_model)
     if not policy.validate_model(requested_model):
         return jsonify({"error": f"Model {requested_model} không hợp lệ với provider {policy.provider_kind}"}), 400
@@ -1604,9 +1609,12 @@ def _build_translate_worker(slug, pdir, meta, config, filenames, glossary_paths,
             policy = classify_endpoint(base_url)
             provider_kind = policy.provider_kind
 
-            model_from_req = config.get("model_name")
+            model_from_req = config.get("model_name") or active_provider.get("default_model") or ""
+
             if not model_from_req:
-                model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
+                registry.append_event(job_id, {"type": "error", "message": "Chưa cấu hình model. Vui lòng chọn model trong Settings."})
+                registry.update_status(job_id, "failed")
+                return
 
             model_from_req = policy.normalize_model(model_from_req)
             if not policy.validate_model(model_from_req):
@@ -2149,8 +2157,12 @@ def recover_from_checkpoint(task_id: str):
                 model
                 or (source_task.get("identity") or {}).get("model", "")
                 or active_provider.get("default_model", "")
-                or "gpt-4o-mini"
             )
+            if not selected_model:
+                return jsonify({
+                    "error": "Chưa cấu hình model (request, checkpoint identity, và provider đều rỗng). Vui lòng chọn model trong Settings.",
+                    "code": "missing_model",
+                }), 400
             selected_model = policy.normalize_model(selected_model)
             if not policy.validate_model(selected_model):
                 return jsonify({
@@ -2622,10 +2634,13 @@ def spellcheck_project_file(slug):
             policy = classify_endpoint(base_url)
             provider_kind = policy.provider_kind
             
-            model_from_req = config.get("model_name")
+            model_from_req = config.get("model_name") or active_provider.get("default_model") or ""
+
             if not model_from_req:
-                model_from_req = active_provider.get("default_model") or "gpt-4o-mini"
-                
+                registry.append_event(job_id, {"type": "error", "message": "Chưa cấu hình model. Vui lòng chọn model trong Settings."})
+                registry.update_status(job_id, "failed")
+                return
+
             model_from_req = policy.normalize_model(model_from_req)
             if not policy.validate_model(model_from_req):
                 registry.append_event(job_id, {"type": "error", "message": f"Model '{model_from_req}' không hợp lệ với provider '{provider_kind}'"})

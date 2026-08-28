@@ -62,11 +62,13 @@ class TestWebUIRoutesBasic:
         Hermetic: Mock cả Gemini helper và OpenAIClient để KHÔNG bao giờ gọi mạng thật,
         bảo vệ test suite khỏi flakiness và timeout.
         """
-        from webui.helpers import AVAILABLE_GEMINI_MODELS
+        gemini_models = [
+            "gemini-2.0-flash", "gemini-3-flash", "gemini-3-pro",
+        ]
 
-        with patch("webui.helpers.get_available_gemini_models", return_value=list(AVAILABLE_GEMINI_MODELS)), \
-             patch("services.openai_client.OpenAIClient.list_models", return_value=["gpt-4o", "gpt-4o-mini"]), \
-             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "gpt-4o", "is_free": False}]):
+        with patch("webui.helpers.get_available_gemini_models", return_value=list(gemini_models)), \
+             patch("services.openai_client.OpenAIClient.list_models", return_value=["test-model-a", "test-model-b"]), \
+             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "test-model-a", "is_free": False}]):
             response = flask_client.get("/api/models")
         assert response.status_code == 200
         data = response.get_json()
@@ -76,9 +78,11 @@ class TestWebUIRoutesBasic:
 
     def test_api_models_route_gemini_explicit(self, flask_client):
         """Test /api/models với ?provider=gemini."""
-        from webui.helpers import AVAILABLE_GEMINI_MODELS
+        gemini_models = [
+            "gemini-2.0-flash", "gemini-3-flash", "gemini-3-pro",
+        ]
 
-        with patch("webui.helpers.get_available_gemini_models", return_value=list(AVAILABLE_GEMINI_MODELS)):
+        with patch("webui.helpers.get_available_gemini_models", return_value=list(gemini_models)):
             response = flask_client.get("/api/models?provider=gemini")
         assert response.status_code == 200
         data = response.get_json()
@@ -87,14 +91,14 @@ class TestWebUIRoutesBasic:
 
     def test_api_models_route_openai_explicit(self, flask_client):
         """Test /api/models với ?provider=openai (Hermetic mock)."""
-        with patch("services.openai_client.OpenAIClient.list_models", return_value=["gpt-4o", "gpt-4o-mini"]), \
-             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "gpt-4o"}]):
+        with patch("services.openai_client.OpenAIClient.list_models", return_value=["test-model-a", "test-model-b"]), \
+             patch("services.openai_client.OpenAIClient.list_models_full", return_value=[{"id": "test-model-a"}]):
             response = flask_client.get("/api/models?provider=openai")
         assert response.status_code == 200
         data = response.get_json()
         assert "models" in data
         assert data.get("provider") == "openai"
-        assert "gpt-4o" in data["models"]
+        assert "test-model-a" in data["models"]
 
 
     def test_api_models_route_error_handling(self, flask_client):

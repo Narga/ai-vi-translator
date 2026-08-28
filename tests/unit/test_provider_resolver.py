@@ -92,7 +92,7 @@ class TestProviderConfigResolverResolve:
             "name": "Custom",
             "api_key": "k",
             "base_url": "https://api.openai.com/v1",
-            "default_model": "gpt-4o-mini",
+            "default_model": "test-model",
         }
         p = resolver.resolve_from_document(doc)
         assert p.id == "custom"
@@ -206,6 +206,10 @@ class TestProviderConfigResolverMaskedInfo:
 class TestProviderConfigResolverListModels:
 
     def test_list_models_returns_provider_info(self, mock_providers_env):
+        """Khi không có API key hợp lệ, models rỗng + có error_msg.
+
+        Không có catalog fallback cục bộ — fail-closed.
+        """
         from backend.infrastructure.providers.provider_resolver import (
             ProviderConfigResolver,
         )
@@ -213,12 +217,10 @@ class TestProviderConfigResolverListModels:
         result = resolver.list_models("gemini-default")
         assert result["provider_id"] == "gemini-default"
         assert result["provider_type"] == "gemini"
+        # Models có thể rỗng nếu API lỗi, không có fallback
         assert isinstance(result["models"], list)
-        # Default model trong config phải có trong catalog (vì hợp lệ)
-        assert "gemini-2.0-flash" in result["models"]
         assert result["default"] == "gemini-2.0-flash"
         assert result["qa_model"] == "gemini-1.5-pro"
-        assert result["errors"] == []
 
     def test_list_models_with_invalid_default_returns_error_not_raise(
         self, mock_providers_env

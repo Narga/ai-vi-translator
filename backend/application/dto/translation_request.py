@@ -38,8 +38,8 @@ class TranslationRequest:
     output_filename: str = "translated"
     output_file_path: Optional[Path] = None
     project_slug: Optional[str] = None
-    model_name: str = "gemini-3-flash-preview"
-    qa_model: str = "gemini-3-flash-preview"
+    model_name: str = ""
+    qa_model: str = ""
     temperature: float = 1.0
     chunk_size: int = 22000
     prompts: Dict[str, str] = field(default_factory=dict)
@@ -83,8 +83,8 @@ class TranslationRequest:
             output_filename=data.get("output_filename", data.get("filename", "translated")),
             output_file_path=data.get("output_file_path"),
             project_slug=data.get("project_slug"),
-            model_name=data.get("model_name", data.get("model", "gemini-3-flash-preview")),
-            qa_model=data.get("qa_model", data.get("model", "gemini-3-flash-preview")),
+            model_name=data.get("model_name", data.get("model", "")),
+            qa_model=data.get("qa_model", data.get("model", "")),
             temperature=float(data.get("temperature", 1.0)),
             chunk_size=int(data.get("chunk_size", 22000)),
             prompts=data.get("prompts", {}),

@@ -12,7 +12,7 @@ Hỗ trợ:
 
 Sử dụng:
     client = OpenAIClient(api_key, base_url="https://openrouter.ai/api/v1")
-    response = client.generate_content(prompt, model="gpt-4o-mini")
+    response = client.generate_content(prompt, model="<model-do-người-dùng-cấu-hình>")
 """
 
 import logging
@@ -29,7 +29,7 @@ class OpenAIClient:
         self,
         api_key: str,
         base_url: Optional[str] = None,
-        default_model: str = "gpt-4o-mini",
+        default_model: str = "",
         gateway_api_key: Optional[str] = None,
         credential_mode: str = "default",
         policy: Optional[EndpointPolicy] = None,

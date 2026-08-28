@@ -415,11 +415,10 @@ class ProviderService:
         return url if url else None
 
     def get_active_default_model(self) -> str:
-        """Lấy default_model của active provider. Không fallback cứng cross-provider.
+        """Lấy default_model của active provider.
 
-        R14: trả về chuỗi rỗng khi provider không cấu hình model — caller (factory,
-        route) có trách nhiệm validate và báo lỗi cấu hình. Không được ngầm
-        định model lạ (vd "gemini-3-flash-preview" cho OpenAI provider).
+        Trả về chuỗi rỗng khi provider không cấu hình model — caller (factory,
+        route) có trách nhiệm validate và báo lỗi cấu hình.
         """
         config = self.get_active_provider_config()
         if not config:

@@ -97,7 +97,7 @@ class TestV829AcceptancePath:
                    json={'default_model': 'anthropic/claude-3.5-sonnet'})
         # Try with stale etag
         r = client.put('/api/providers/openrouter/models',
-                       json={'default_model': 'openai/gpt-4o'},
+                       json={'default_model': 'openai/test-model'},
                        headers={'If-Match': old_etag})
         assert r.status_code == 409, f'expected 409 got {r.status_code}'
         body = r.get_json()
@@ -180,7 +180,7 @@ class TestV829EdgeCases:
         assert r1.status_code == 200
         # Tab 2 PUT với cùng etag1 (đã stale) → 409
         r2 = client.put('/api/providers/openrouter/models',
-                        json={'default_model': 'openai/gpt-4o'},
+                        json={'default_model': 'openai/test-model'},
                         headers={'If-Match': etag2})
         assert r2.status_code == 409, f'expected 409 got {r2.status_code}'
         body = r2.get_json()
@@ -325,9 +325,10 @@ class TestV829Summary:
         assert d["version"] == 1
         assert len(d["providers"]) == 11, f"providers bị mất: {len(d['providers'])}"
         gemini = next(p for p in d["providers"] if p["id"] == "gemini-default")
-        # Gemini namespace — không phải cross-provider
-        assert gemini["default_model"] == "gemini-2.0-flash", \
-            f"gemini.default_model bị ghi sai: {gemini['default_model']!r}"
+        # Gemini namespace — không phải cross-provider. Chỉ check prefix, không
+        # hardcode giá trị cụ thể vì user có thể cấu hình model khác.
+        assert gemini["default_model"].startswith(("gemini-", "gemma-")), \
+            f"gemini.default_model không đúng namespace: {gemini['default_model']!r}"
         assert not gemini["default_model"].startswith("step-"), \
             f"gemini.default_model vẫn còn cross-provider: {gemini['default_model']!r}"
         # stepfun provider giữ step-3.7-flash (đúng namespace OpenAI)

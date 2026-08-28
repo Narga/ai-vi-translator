@@ -24,14 +24,14 @@ def test_named_row_mapping_robustness(tmp_path):
         project_slug="p",
         filename="novel.txt",
         total_chunks=10,
-        identity={"model": "gpt-4o", "chunk_size": 2000},
+        identity={"model": "test-model", "chunk_size": 2000},
     )
 
     # 1. get_task trả về dict hoàn chỉnh qua named mapping
     task = store.get_task(task_id)
     assert task["task_id"] == task_id
     assert task["filename"] == "novel.txt"
-    assert task["identity"]["model"] == "gpt-4o"
+    assert task["identity"]["model"] == "test-model"
     assert isinstance(task["pending_chunks"], list)
 
     # 2. Test trực tiếp _row_to_task với sqlite3.Row
