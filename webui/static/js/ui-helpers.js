@@ -150,12 +150,15 @@ const UiHelpers = {
 
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
+        toast.title = 'Click để đóng';
 
         let icon = 'ℹ️';
         if (type === 'success') icon = '✅';
         if (type === 'error') icon = '❌';
+        if (type === 'warning') icon = '⚠️';
 
         toast.innerHTML = `<span>${icon}</span><span class="ml2">${message}</span>`;
+        toast.addEventListener('click', () => toast.remove());
         container.appendChild(toast);
         setTimeout(() => toast.remove(), 4000);
     },

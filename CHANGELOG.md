@@ -2,10 +2,23 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
-## [8.29.1] - 2026-08-28
-### Dọn dẹp Fallback Runtime Còn Sót
+## [8.29.2] - 2026-08-29
+### Sửa lỗi Modal Tìm kiếm & Thay thế & Bổ sung Line Numbers cho Editor
 
-Loại bỏ hoàn toàn các hardcoded model catalog và fallback metadata còn sót lại sau v8.29.0:
+**Root cause**: Commit `2846e65` (v8.29.1) đã stub hàm `openSearchReplaceModal` thành `findInText()` đơn giản, cắt đứt hoàn toàn cầu nối tới modal Alpine `searchReplace()` đầy đủ tính năng.
+
+**Sửa đổi**:
+- **`webui/static/js/editor-component.js`**: Khôi phục `openSearchReplaceModal` phát `CustomEvent('open-search-replace', { detail: { textareaId } })` lên `window`. Xóa hàm `findInText` (fallback tạm).
+- **`webui/templates/partials/tab_projects.html`**: Bỏ class `dn` khỏi modal, thêm `@open-search-replace.window="open($event.detail.textareaId)"` để lắng nghe event trên `window`. Thêm class `flex` để flex centering hoạt động.
+- **`webui/static/css/style.css`**: Di chuyển `#toast-container` từ `top: 1.5rem` xuống `top: 20px`, thêm `pointer-events: none` vào container + `pointer-events: auto` + `cursor: pointer` + animation vào `.toast` cho click-through và dismiss sớm.
+- **`webui/static/js/ui-helpers.js`**: Thêm `click-to-close` handler vào `showToast`, thêm icon `⚠️` cho type warning.
+
+**Phát triển thêm (chưa hoàn thiện)**:
+- **Pha 4**: Bổ sung Line Numbers (gutter) cho 4 editor (`pm-source-text`, `pm-result-text`, `pm-spell-source-text`, `pm-spell-result-text)` — tận dụng `syncScroll` pattern có sẵn, render số dòng trong wrapper `<div>`, virtualization cho file >10.000 dòng.
+- **Pha 5**: Bổ sung Line Numbers đồng bộ cho Modal Diff (side-by-side) — 3 cột: gutter | nguồn | dịch, sync scroll 3 cột cùng lúc.
+- **Acceptance Criteria**: Đã thêm 3 nhóm A/B/C cho checkbox nghiệm thu.
+
+> *Nhật ký này tiếp tục từ [kế hoạchregex_editor_sigil_dryrun.md](docs/wip/plan_regex_editor_sigil_dryrun.md) — tài liệu kế hoạch và báo cáo phân tích.*
 
 - **`webui/helpers.py`** — xóa `AVAILABLE_OPENAI_MODELS` catalog (4 model OpenAI cũ), `get_available_openai_models()` trả `[]` khi API lỗi thay vì fallback catalog.
 - **`backend/infrastructure/providers/model_catalog_service.py`** — xóa import và usage của `AVAILABLE_OPENAI_MODELS`; `get_openai_models()` khởi tạo `models = []` (chỉ API live).

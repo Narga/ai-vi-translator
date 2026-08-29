@@ -378,7 +378,7 @@
     </template>
 
     <!-- Search & Replace Modal -->
-    <div x-data="searchReplace()" x-show="isOpen" class="dn fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 99999;" x-cloak @keydown.escape.window="closeModal()">
+    <div x-data="searchReplace()" x-show="isOpen" class="flex fixed absolute--fill bg-black-70 items-center justify-center z-max" style="z-index: 99999; display: none;" x-cloak @open-search-replace.window="open($event.detail.textareaId)" @keydown.escape.window="closeModal()">
         <div class="bg-white br3 shadow-5 w-100 mw6 pa3" @click.outside="closeModal()">
             <h3 class="f5 ma0 fw6 dark-gray mb3 flex items-center gap1">🔍 Tìm kiếm & Thay thế</h3>
             

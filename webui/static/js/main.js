@@ -281,7 +281,6 @@ function downloadResult() { EditorComponent.downloadResult(); }
 function copySpellcheckResult() { EditorComponent.copySpellcheckResult(); }
 function downloadSpellCheckResult() { EditorComponent.downloadSpellCheckResult(); }
 function toggleWordWrap(id) { EditorComponent.toggleWordWrap(id); }
-function findInText(id) { EditorComponent.findInText(id); }
 function showDiffView(s, t) { EditorComponent.showDiffView(s, t); }
 function aiGenerateContent(key) { PromptManager.aiGenerateContent(key); }
 function saveGuidelineField(key) { PromptManager.saveGuidelineField(key); }

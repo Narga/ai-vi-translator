@@ -252,8 +252,9 @@ const EditorComponent = {
     },
 
     openSearchReplaceModal(textareaId) {
-        // Dùng findInText() đơn giản thay vì Alpine modal không hoạt động ổn định
-        this.findInText(textareaId);
+        window.dispatchEvent(new CustomEvent('open-search-replace', {
+            detail: { textareaId: textareaId }
+        }));
     },
 
     saveSourceFile() {
@@ -282,23 +283,6 @@ const EditorComponent = {
                 UiHelpers.showToast('Lỗi: ' + (res.error || 'Unknown'), 'error');
             }
         });
-    },
-
-    async findInText(textareaId) {
-        var ta = document.getElementById(textareaId);
-        if (!ta || !ta.value) return;
-        var term = await showPrompt('Tìm kiếm trong văn bản:');
-        if (!term) return;
-        var idx = ta.value.toLowerCase().indexOf(term.toLowerCase());
-        if (idx === -1) {
-            UiHelpers.showToast('Không tìm thấy: ' + term, 'warning');
-            return;
-        }
-        ta.focus();
-        ta.setSelectionRange(idx, idx + term.length);
-        var linesBefore = ta.value.substring(0, idx).split('\n').length;
-        ta.scrollTop = Math.max(0, (linesBefore - 5) * 20);
-        UiHelpers.showToast('Tìm thấy ở dòng ' + linesBefore, 'success');
     },
 
     showDiffView(sourceId, targetId) {
