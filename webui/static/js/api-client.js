@@ -102,6 +102,7 @@ const ApiClient = {
                 }
 
                 window.defaultModelVal = data.default || '';
+                UiHelpers.renderHeaderModel(data.default);
                 ApiClient.applyModelFilters();
 
                 ApiClient.loadAppConfig(data.provider || 'gemini');
@@ -357,6 +358,7 @@ const ApiClient = {
                 if (status === 200 && body.success) {
                     ApiClient.startTaskPolling(pollSec);
                     UiHelpers.showToast('Lưu Cấu hình thành công!', 'success');
+                    UiHelpers.renderHeaderModel(defaultModel);
                     // Reload models list since default_model có thể đã đổi
                     ApiClient.loadModels();
                 } else {
@@ -386,6 +388,7 @@ const ApiClient = {
 
             if (projCountEl) projCountEl.textContent = data.project_count || 0;
             if (archiveCountEl) archiveCountEl.textContent = data.archive_count || 0;
+            UiHelpers.renderHeaderModel(data.default_model);
         });
     },
 

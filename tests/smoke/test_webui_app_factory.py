@@ -163,3 +163,34 @@ class TestWebUIRoutesBasic:
         """Test rằng route /api/tm/stats trả về 200."""
         response = flask_client.get("/api/tm/stats")
         assert response.status_code == 200
+
+    def test_header_active_model_ssr_falls_back_to_default(self, flask_client, monkeypatch):
+        """Regression: header #header-active-model phải chứa default_model từ active provider.
+
+        Trước v8.29.0, ``loadAppConfig()`` cập nhật DOM sau khi gọi ``/api/settings/app``;
+        commit 4a2fc7c xóa đoạn đó. Trang render giờ chỉ có chuỗi "--" tĩnh. Test này
+        chốt lại hợp đồng SSR: nếu active provider có ``default_model`` thì header
+        pill phải hiển thị giá trị đó ngay khi F5 (không cần JS chạy).
+        """
+        import re
+
+        # Route / import webui.helpers.get_default_model trực tiếp trong hàm,
+        # nên mock tại webui.routes.translation (điểm lookup thực tế).
+        with patch(
+            "webui.routes.translation.get_default_model",
+            return_value="gemini-3.6-flash",
+        ):
+            response = flask_client.get("/")
+
+        assert response.status_code == 200
+        body = response.get_data(as_text=True)
+        match = re.search(
+            r'id="header-active-model"[^>]*>([^<]+)<',
+            body,
+        )
+        assert match, "Thiếu element #header-active-model trong response"
+        rendered = match.group(1).strip()
+        assert rendered == "gemini-3.6-flash", (
+            f"Header phải chứa default_model khi provider đang cấu hình, "
+            f"hiện tại: {rendered!r}"
+        )

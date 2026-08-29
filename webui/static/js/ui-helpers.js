@@ -650,6 +650,12 @@ const UiHelpers = {
     
     showPluginSettings(pluginId) {
         UiHelpers.showToast(`Tính năng cài đặt cho plugin ${pluginId} đang được phát triển`, 'info');
+    },
+
+    renderHeaderModel(model) {
+        const el = document.getElementById('header-active-model');
+        if (!el) return;
+        el.textContent = model || '—';
     }
 };
 
