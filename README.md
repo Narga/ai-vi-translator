@@ -1,4 +1,4 @@
-# 📚 Content Translator (v8.29.0)
+# 📚 Content Translator (v8.30.0)
 
 **Công cụ cá nhân dịch tiểu thuyết từ ngoại ngữ sang tiếng Việt — chất lượng dịch thuật là trên hết.**
 
@@ -6,7 +6,7 @@
 
 > **Mục đích**: Biên dịch nội dung **text** của sách điện tử từ ngôn ngữ khác sang tiếng Việt, dùng một mình, nguồn đóng. EPUB xuất ra ở mức tối thiểu để biên tập sau bằng phần mềm chuyên dụng (Sigil/Calibre) — ảnh, font, stylesheet sẽ được đưa vào thủ công trong quá trình biên tập.
 
-**Tính năng mới (v8.29.0):** Khắc phục triệt để hardcode Provider/Model/Config, thêm `ProviderConfigResolver` với cache TTL và validation chống cross-provider namespace, bảo mật mask API key (`...xxxx`), cơ chế chống race condition multi-tab qua HTTP ETag (`If-Match` 409), endpoint lưu cấu hình nguyên tử `POST /api/settings/save` (double-buffering `_pending`), và script migration/rollback schema v2 an toàn với manifest (`scripts/migrate_providers_v2.py`).
+**Tính năng mới (v8.30.0):** Đặc tả toàn diện kiến trúc xoay vòng API Key 2 tầng (`docs/API_KEY_ROTATION.md`) tối ưu thông lượng và chống khóa IP cho Google Gemini & OpenAI Providers; dọn dẹp triệt để trường Review Model (`qa_model`) zero-residue khỏi toàn bộ UI, Backend, Checkpoint Identity và schema `providers.json`.
 
 ---
 
@@ -53,6 +53,7 @@ python cli.py translate -i input/novel.txt  # CLI mode
 | Tài liệu | Mô tả |
 |-----------|--------|
 | [📗 Hướng dẫn sử dụng](docs/MANUAL.md) | Hướng dẫn sử dụng chi tiết (Web UI, CLI, cấu hình) |
+| [🔑 Cơ chế xoay vòng API Key](docs/API_KEY_ROTATION.md) | Kiến trúc & giải thuật điều phối, xoay vòng API Key đa tầng |
 | [🗺️ Lộ trình (Roadmap)](docs/ROADMAP.md) | Lộ trình phát triển và kế hoạch tương lai |
 | [🛠️ Hướng dẫn phát triển](docs/DEVELOPMENT.md) | Hướng dẫn lập trình, coding convention, kiến trúc |
 | [📋 Lịch sử thay đổi](CHANGELOG.md) | Lịch sử thay đổi các phiên bản |
@@ -85,5 +86,5 @@ Mọi đóng góp (Pull Request, Issue) đều được hoan nghênh. Xem [CHANG
 
 ---
 **Tác giả:** Narga  
-**Phiên bản:** 8.29.0  
-**Ngày:** 26/08/2026  
+**Phiên bản:** 8.30.0  
+**Ngày:** 29/08/2026  

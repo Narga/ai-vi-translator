@@ -2,6 +2,23 @@
 
 Tất cả các thay đổi quan trọng của dự án Content Translator sẽ được ghi nhận tại đây.
 
+## [8.30.0] - 2026-08-29
+### Đặc Tả Kiến Trúc Xoay Vòng API Key Đa Tầng & Dọn Dẹp Zero-Residue Review Model
+
+**Tài liệu Kiến trúc & Đặc tả Kỹ thuật:**
+- **`docs/API_KEY_ROTATION.md`**: Chuẩn hóa toàn bộ tài liệu kiến trúc về hệ thống xoay vòng API Key 2 tầng:
+  - **Tầng Toàn cục IP (`GlobalRPMRateLimiter`)**: Cơ chế Sliding Window Log (60 giây) bảo vệ uy tín IP, giữ tổng RPM $\le 15$ cho Gemini Free Tier.
+  - **Tầng Từng Key (`AdaptiveRateLimiter`)**: Quản lý RPD (1500), TPD, số lần lỗi liên tiếp và thời gian cách ly thích ứng.
+  - **Thuật toán Chọn Key**: Chiến lược `least_used` kết hợp **Round-Robin Offset Tie-Break** giúp dàn đều tải 100%, không bị lệch vào key đầu tiên.
+  - **Ma trận Phân loại Lỗi**: Phân loại rõ Quota Exhausted (cooldown 30m, delay 0s chuyển key ngay), Rate Limit tạm thời (Exponential Backoff 30s $\rightarrow$ 300s), Key chết vĩnh viễn (loại bỏ 24h, delay 0s).
+  - **Sơ đồ Mermaid**: Minh họa toàn bộ chu trình request và lưu đồ thuật toán chọn key.
+- **`README.md` & `docs/DEVELOPMENT.md`**: Bổ sung tham chiếu liên kết đến `docs/API_KEY_ROTATION.md` trong bảng tài liệu, phần kiến trúc phân tầng, giải thuật cốt lõi và cây thư mục dự án.
+
+**Dọn dẹp & Tối ưu Mã nguồn:**
+- **Zero-Residue Review Model (`qa_model`)**: Xóa bỏ hoàn toàn trường `qa_model` và dead parameter `model_override` khỏi toàn bộ hệ thống (UI template, Alpine JS, backend routes, AppConfigService, ProviderService, ProviderResolver, TranslationRequest DTO, Checkpoint Identity và schema `providers.json`).
+- **`ProviderService.save_providers()`**: Tự động normalize tập trung làm sạch dữ liệu provider.
+- **Tổng hợp & Dọn dẹp Tài liệu `docs/wip/`**: Đổi tên các báo cáo phân tích đã hoàn thành sang prefix `del_`, cập nhật `del_DONE_TASKS.md` và `del_PENDING_TASKS.md`.
+
 ## [8.29.2] - 2026-08-29
 ### Sửa lỗi Modal Tìm kiếm & Thay thế & Bổ sung Line Numbers cho Editor
 

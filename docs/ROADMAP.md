@@ -2,6 +2,13 @@
 
 ## Hoàn thành
 
+### v8.30.0 (2026-08-29)
+- [x] 🔑 **Đặc Tả Kiến Trúc Xoay Vòng API Key Đa Tầng (`docs/API_KEY_ROTATION.md`)**: Chuẩn hóa toàn bộ tài liệu kiến trúc, giải thuật điều phối 2 tầng (Sliding Window RPM Limiter 60s cho IP + Adaptive Rate Limiter per key với `least_used` tie-breaking khử thiên lệch 100%, ma trận phân loại lỗi và exponential backoff 30s-300s, cooldown 30m / 24h). Tích hợp tham chiếu vào `README.md` và `docs/DEVELOPMENT.md`.
+- [x] 📋 **Loại Bỏ Hoàn Toàn Review Model (QA Model) Zero-Residue**: Dọn dẹp triệt để `qa_model` và dead param `model_override` trên toàn bộ UI (`tab_config.html`, `api-client.js`), Backend routes (`settings.py`, `translation.py`), Services (`AppConfigService`, `ProviderService`, `ProviderResolver`), DTO (`TranslationRequest`), Checkpoint Identity và schema `providers.json`. `ProviderService.save_providers()` tự động normalize tập trung.
+
+### v8.29.2 (2026-08-29)
+- [x] 🔍 **Sửa Lỗi Modal Tìm Kiếm & Thay Thế**: Khôi phục `openSearchReplaceModal` phát event lên `window`, đưa toast container và click-to-close handler vào UI helpers.
+
 ### v8.29.1 (2026-08-28)
 - [x] 🧹 **Dọn dẹp Fallback Runtime Còn Sót**: Xóa `AVAILABLE_OPENAI_MODELS` catalog khỏi `helpers.py` và `model_catalog_service.py`, xóa `gemini_fallback_info` metadata dict khỏi `settings.py`, xóa `gemini-2.0-flash-exp` fallback khỏi `provider_resolver.py`. Không còn hardcoded model name nào trong source code hay test fixtures. Runtime chỉ trả về model từ API live.
 
@@ -265,20 +272,26 @@
 
 ## Đang phát triển / Sắp tới
 
-### Việc cần làm tiếp theo: Mở rộng Phân tán & Tối ưu Lưu trữ (Post-P1.7 & P2)
+### Nhóm 1: Nâng Cấp Hệ Thống API Key & Rate Limiting (Kế hoạch từ `docs/API_KEY_ROTATION.md`)
+- [ ] 💾 **Key Pool State Persistence (P0)**: Lưu trữ trạng thái hạn ngạch (`daily_usage`, `daily_tokens`, `cool_down_until`, `failure_count`) vào file JSON/SQLite để không bị mất khi ứng dụng khởi động lại.
+- [ ] 🌐 **Chuẩn hóa Múi giờ Reset Quota theo Pacific Time (P0)**: Chuyển chu kỳ reset ngày từ UTC sang Pacific Time (`America/Los_Angeles`) để đồng bộ tuyệt đối với máy chủ Google Gemini.
+- [ ] 🩺 **Active Key Health Check & Benchmark Suite (P1)**: Xây dựng API và CLI kiểm tra nhanh tính hợp lệ, đo latency (ms), phân loại trạng thái key (🟢 Healthy, 🟡 Rate Limited, 🟠 Quota Exhausted, 🔴 Dead) trước khi dịch.
+- [ ] ⏱️ **Enforce Token Limiting (TPD & TPM Sliding Window) (P1)**: Kiểm tra `daily_tokens` trong `get_available_keys()` và bổ sung `GlobalTPMRateLimiter` chống tràn Token Per Minute.
+- [ ] 🔀 **Hybrid Tier & Weighted Routing (P2)**: Hỗ trợ trộn Free Keys và Paid Keys (Chế độ Tiết kiệm: dùng hết Free mới kích hoạt Paid; Chế độ Tốc độ: chia tải theo trọng số).
+- [ ] ⏳ **Dynamic Retry-After Parsing (P2)**: Trích xuất thời gian chờ trực tiếp từ header HTTP / Exception Metadata của Google.
+- [ ] 📊 **Visual Key Pool Dashboard (P3)**: Giao diện trực quan trên WebUI theo dõi % quota từng key, đếm ngược thời gian hồi phục cooldown thời gian thực.
+
+### Nhóm 2: Mở rộng Phân tán & Tối ưu Lưu trữ (Post-P1.7 & P2)
 - [ ] 🔒 **DB-Level Cross-Process Idempotency**: Bổ sung Unique Index trên database và transaction atomic claim (`UPDATE ... WHERE status = 'QUEUED'`) cho triển khai phân tán đa tiến trình (multi-process).
 - [ ] 🧹 **Auto-Merge & Retention Cleanup**: Thu gom rác định kỳ cho các checkpoint cũ và log task đã hoàn tất lâu ngày.
 - [ ] 🔌 **SSE Reconnection**: Hoàn thiện cơ chế client tự động khôi phục stream SSE từ `last_event_id` khi mất kết nối mạng.
 - [ ] 👥 **Multi-Process Worker Pool**: Chuẩn hóa quy trình điều phối đa tiến trình worker an toàn trên môi trường production server (Gunicorn / uWSGI).
 
-### Việc cần làm tiếp theo (Refactoring & Code Cleanup)
-- [ ] 🔑 **Tối ưu hóa Luân chuyển Gemini API Key & Rate Limiter**: Triển khai cooldown động theo từng model (Flash 60s vs Pro/Preview 120-300s), cơ chế Key Health Tracking & Persistence lưu trữ quota/RPD per key qua các lần restart, mở rộng Multi-key Gemini cho AI Task chạy nền.
+### Nhóm 3: Refactoring, Ponytail Audit & Dọn Dẹp Mã Nguồn
 - [ ] 🛑 **Triệt tiêu Fallback Ngầm định Model ở Lớp Dưới Cùng**: Loại bỏ fallback ngầm định model trong `plugins/translation/translator.py::_call_api` và `services/genai_client.py`, áp dụng 100% fail-closed bắt buộc caller chỉ định model rõ ràng.
-- [x] 📋 **Tối giản Hóa & Dọn Dẹp Trường Review Model (QA Model)**: Đã loại bỏ triệt để v8.29.2 — `qa_model` zero-residue trên UI, backend, DTO, checkpoint, schema, config, test, docs; `model_override` dead param cũng đã xóa; `ProviderService.save_providers()` normalize tập trung đảm bảo cả nhánh ETag lẫn non-ETag đều dọn sạch.
 - [ ] 🗑️ Gỡ bỏ các dependencies thừa (`python-dotenv`, `flask-sock`, `ebooklib`, `lxml`) trong `pyproject.toml`
 - [ ] ⚙️ Dọn sạch các key cấu hình chết (`REQUEST_DELAY`, `ARCHIVE_DIR_NAME`, `CACHE_DIR`, `ENABLE_CACHE`) và loại bỏ `config/API.txt.example` đã lỗi thời
 - [ ] 🔗 Inline các hàm trong `file_utils.py` trực tiếp vào call site (thay thế bằng `Path` API chuẩn của Python)
-- [x] 📂 Tích hợp `ModelCatalogService` thay thế danh sách model hardcoded trong `webui/helpers.py` (v8.29.1 — đã xóa toàn bộ `AVAILABLE_OPENAI_MODELS` catalog, không còn fallback runtime)
 - [ ] 🧹 Thu gọn mã nguồn (Shrink) bằng cách xóa bỏ các hàm/phương thức chết trong `checkpoint_service.py`, `emergency_stop.py`, `translation_memory.py` và `webui_progress_bridge.py`
 - [ ] 🧠 Gom logic `_get_client()` trùng lặp trong hệ thống thành một OpenAI-compatible shared helper chung
 

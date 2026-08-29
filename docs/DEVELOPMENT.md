@@ -20,7 +20,7 @@ Khi thêm tính năng, hỏi: *"Một người dùng cá nhân biên tập sách
 Hệ thống được cấu trúc thành ba lớp chức năng chính:
 
 1.  **Lớp Chiến lược (`ExecutionManager`)**: Quản lý toàn bộ nhiệm vụ dịch thuật, quyết định số lượng worker tối ưu dựa trên sức khỏe hệ thống và giám sát tiến độ toàn cục.
-2.  **Lớp Điều phối (`SmartKeyDistributor` / `ApiManager`)**: Quản lý vòng đời của API key, phân loại lỗi và thực hiện logic phân phối key cho từng worker.
+2.  **Lớp Điều phối (`ApiManager` / `AdaptiveRateLimiter`)**: Quản lý vòng đời của API key, phân loại lỗi (quota, rate limit, invalid key), điều tiết RPM toàn cục và thực hiện logic xoay vòng key thông minh (`least_used` / `round_robin`). Xem đặc tả chi tiết tại [🔑 Kiến Trúc & Cơ Chế Xoay Vòng API Key](API_KEY_ROTATION.md).
 3.  **Lớp Thực thi (`Worker`)**: Các tác vụ asyncio/threading độc lập thực hiện dịch các chunk và phản hồi trạng thái.
 
 ---
@@ -35,8 +35,10 @@ Hệ thống sử dụng cơ chế **Tự thích nghi (Adaptive Scaling)**:
 - Theo dõi tỷ lệ thành công (success_rate) và lỗi 429 (quota_error).
 - Tự động giảm số lượng worker nếu phát hiện lỗi Quota hàng loạt và vào chế độ **Khởi động chậm (Slow-Start)**.
 
-### C. Bộ giới hạn Tốc độ Toàn cục (Global Rate Limiter)
-Sử dụng cơ chế **Cửa sổ trượt 60 giây (Sliding Window)** để theo dõi RPM tổng. Nếu vượt ngưỡng IP cho phép, hệ thống kích hoạt **Global Pause** để bảo vệ uy tín IP.
+### C. Bộ giới hạn Tốc độ Toàn cục & Xoay vòng Key (Global Rate Limiter & Key Rotation)
+- Sử dụng cơ chế **Cửa sổ trượt 60 giây (Sliding Window Log)** để theo dõi RPM tổng, ngăn chặn vượt ngưỡng IP cho phép.
+- Điều phối key thích ứng dựa trên **Least-Used + Round-Robin Offset** và xử lý lỗi phân tầng (Exponential Backoff, Quota Cooldown 30m, Invalid Key Cooldown 24h).
+- Chi tiết giải thuật và mã nguồn: [API_KEY_ROTATION.md](API_KEY_ROTATION.md).
 
 ### D. Sentence Aggregation (Chunking)
 Thuật toán dồn câu để đảm bảo ranh giới chunk không cắt ngang ý nghĩa.
@@ -84,10 +86,12 @@ novel-translator/
 │   ├── epub_converter/    # Chuyển đổi EPUB
 │   └── ocr/               # Nhận diện ảnh/PDF
 ├── core/interfaces/        # PluginBase, ConverterPlugin (v7.8.0)
-├── config/                 # Cấu hình app.ini và API keys
-    └── docs/                   # Tài liệu
-        ├── DEVELOPMENT.md     # Hướng dẫn phát triển
-        └── MANUAL.md          # Hướng dẫn sử dụng
+├── config/                 # Cấu hình app.ini và API keys (providers.json)
+└── docs/                   # Tài liệu
+    ├── API_KEY_ROTATION.md # Kiến trúc & giải thuật xoay vòng API Key
+    ├── DEVELOPMENT.md      # Hướng dẫn phát triển
+    ├── MANUAL.md           # Hướng dẫn sử dụng
+    └── ROADMAP.md          # Lộ trình phát triển
 ```
 
 ---

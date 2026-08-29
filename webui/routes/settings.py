@@ -101,6 +101,7 @@ def get_models():
                     "models": fallback_models,
                     "default": def_m,
                     "provider": "openai",
+                    "active_id": active_provider.get("id", ""),
                     "error": f"Không thể lấy danh sách models từ provider: {e}"
                 }), 200
         else:
