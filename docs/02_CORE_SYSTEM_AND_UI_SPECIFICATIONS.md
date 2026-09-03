@@ -1,187 +1,158 @@
-# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & THIẾT KẾ GIAO DIỆN ĐA TRANG
-> **Tài liệu**: Đặc tả kiến trúc kỹ thuật, luồng dữ liệu, hệ thống trang riêng biệt và thiết kế thanh điều hướng thu gọn (Collapsible Sidebar).  
-> **Định hướng**: Minimalist, tập trung vào quản lý tập tin nguồn và bản dịch, không dồn tất cả vào một trang thao tác.
+# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & GIAO DIỆN (MINIMALIST SPECIFICATION)
+> **Mục tiêu**: Định nghĩa cấu trúc hệ thống gửi–nhận tối giản, cơ chế xoay key đơn giản, cấu trúc dự án tệp tin và giao diện phục vụ duy nhất một phiên dịch tại một thời điểm.
 
 ---
 
-## 1. KIẾN TRÚC HỆ THỐNG KỸ THUẬT (TECHNICAL ARCHITECTURE)
+## 1. CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT DIRECTORY STRUCTURE)
 
+Mọi dự án dịch được tổ chức hoàn toàn dưới dạng thư mục tệp tin trực quan, không phụ thuộc vào cơ sở dữ liệu phức tạp:
+
+```text
+workspace/projects/Truyen_Tien_Hiep/
+├── sources/            # Chứa các file chương gốc (ch01.md, ch02.txt, chap03.html...)
+├── translated/         # Chứa các file bản dịch tiếng Việt hoàn chỉnh sau khi ghép chunk
+└── assets/             # Chứa tài nguyên riêng của dự án:
+    ├── glossary.txt    # Bảng thuật ngữ / nhân vật riêng của truyện này
+    └── custom_prompt.txt # (Tùy chọn) Các file prompt riêng của dự án để dễ sao lưu, làm lại
 ```
-┌───────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 FRONTEND: REACT SPA (VITE)                                │
-│  • React 19 + TypeScript + TailwindCSS + Shadcn UI + Lucide Icons                         │
-│  • Navigation: React Router (8 Dedicated Pages) + Collapsible Sidebar                     │
-│  • State: Zustand Store (Workspace, Projects, Key Pools, Prompts)                         │
-└─────────────────────────────────────────────▲─────────────────────────────────────────────┘
-                                              │ HTTP REST & Server-Sent Events (SSE)
-┌─────────────────────────────────────────────▼─────────────────────────────────────────────┐
-│                                 BACKEND: FASTAPI (PYTHON 3.12+)                           │
-├───────────────────┬───────────────────┬───────────────────┬───────────────────────────────┤
-│ 1. API ROUTERS    │ 2. CORE TRANSLATE │ 3. KEY POOL ENGINE│ 4. TOOLS & STORAGE            │
-├───────────────────┼───────────────────┼───────────────────┼───────────────────────────────┤
-│ • /api/projects   │ • Format Chunker  │ • Gemini Key Pool │ • EPUB Text Converter         │
-│ • /api/workspace  │ • Prompt Engine   │ • OpenAI Adapter  │ • Single SQLite DB (State/CP) │
-│ • /api/prompts    │ • Dynamic Filter  │ • Cooldown 429    │ • File System Project Storage │
-│ • /api/providers  │ • Stream Emitter  │ • Round-Robin     │ • Glossary Extractor          │
-└───────────────────┴───────────────────┴───────────────────┴───────────────────────────────┘
-```
+
+* **Lợi ích**: Toàn bộ dự án gói gọn trong 1 thư mục. Muốn sao lưu hay chuyển sang máy khác/VPS, chỉ cần copy thư mục `Truyen_Tien_Hiep` là xong 100%.
 
 ---
 
-## 2. ĐẶC TẢ TÍNH NĂNG CỐT LÕI & CƠ CHẾ GỬI PROMPT
+## 2. QUẢN LÝ CẤU HÌNH & BẢO VỆ DỮ LIỆU NHẠY CẢM
 
-### 2.1. Bản chất Hoạt động Cốt lõi
-* Hệ thống hoạt động dựa trên cơ chế: **Chia nhỏ tệp nguồn thành các Chunk $\to$ Gửi kèm Prompt lên AI $\to$ Nhận về bản dịch $\to$ Ghép lại giữ nguyên định dạng ban đầu**.
-* **Thư viện Prompt dạng file `.txt`**:
-  * Mỗi mẫu prompt là một tệp `.txt` độc lập lưu trong thư mục `prompts/`.
-  * Có thể mở và chỉnh sửa trực tiếp bằng bất kỳ công cụ nào (Notepad, VSCode) hoặc sửa qua WebUI.
-  * Cấu trúc biến động hỗ trợ:
-    * `{{source_text}}`: Nội dung của chunk hiện tại (bắt buộc).
-    * `{{glossary_terms}}`: Danh sách từ khóa/nhân vật xuất hiện trong chunk.
-    * `{{previous_summary}}`: Tóm tắt bối cảnh từ chương trước (học tập từ silaBook).
-    * `{{additional_instructions}}`: Khu vực ghép các prompt bổ sung.
+Hệ thống sử dụng **một lớp lưu cấu hình cực mỏng**, đọc/ghi file JSON cục bộ, tách biệt hoàn toàn giữa cấu hình chung và dữ liệu nhạy cảm:
 
-### 2.2. Cơ chế Ghép Prompt Đa Tầng (Prompt Stacking)
-* **Mặc định**: Hệ thống chạy: `Chunk + Prompt Chính (default_translation.txt)`.
-* **Linh hoạt chọn thêm Prompt Bổ Sung**:
-  * Người dùng có thể chọn kèm 1 hoặc nhiều prompt bổ sung từ danh sách file `.txt` để điều chỉnh kết quả theo ý muốn.
-  * *Ví dụ*:
-    * File chọn: `Hoi_01.md`, `Hoi_02.md`
-    * Prompt chính: `default_translation.txt` (Dịch chuẩn, ép giữ nguyên cấu trúc Markdown/thụt dòng).
-    * Prompt bổ sung 1: `style_co_trang.txt` (Dặn dò dùng từ Hán-Việt, xưng hô phụ mẫu, đạo hữu).
-    * Prompt bổ sung 2: `vietnamese_literary_polish.txt` (Dặn dò trau chuốt câu từ uyển chuyển).
-  * Backend tự động hợp nhất các prompt bổ sung vào phần chỉ thị phụ trước khi gửi cho AI.
+```
+config/
+├── config.json         # Cấu hình chung (model, timeout, max_chars...) - Đưa vào Git
+└── keys.json           # DỮ LIỆU NHẠY CẢM (API keys, provider secrets) - BẮT BUỘC TRONG .gitignore
+```
 
-### 2.3. Quản lý Cụm Key Pool & Tối Ưu Token Miễn Phí
-* **Google Gemini Pool**:
-  * Cho phép dán hàng loạt API key miễn phí (mỗi dòng 1 key).
-  * Cân bằng tải vòng tròn (Round-Robin).
-  * **Tự động Cooldown khi gặp HTTP 429**: Tạm khóa key bị 429 trong 60 giây (`cooldown_until = time.time() + 60`), chuyển ngay sang key tiếp theo trong pool để luồng dịch không bao giờ bị dừng.
-* **OpenAI-Compatible Providers**:
-  * Cấu hình linh hoạt: `Base URL`, `API Key`, `Model Name`.
-  * Tương thích với các nguồn token miễn phí hoặc cực rẻ: **OpenRouter (Free models: Qwen 2.5, Llama 3)**, **Groq Cloud (Free tier tốc độ cao)**, **DeepSeek API**, **Local Ollama**.
+### 2.1. File `config/config.json` (Cấu hình chung)
+```json
+{
+  "default_provider": "gemini",
+  "gemini_model": "gemini-2.5-flash",
+  "openai_base_url": "https://openrouter.ai/api/v1",
+  "openai_model": "qwen/qwen-2.5-72b-instruct",
+  "max_chunk_chars": 12000,
+  "timeout_seconds": 90
+}
+```
 
-### 2.4. Mô Hình Đơn Người Dùng & Không Cần Lớp Bảo Mật Ứng Dụng (Zero Auth)
-* Ứng dụng phục vụ **duy nhất một người dùng** (Local hoặc Private VPS).
-* **Không xây dựng**: Hệ thống User, Login, Register, JWT token, mã hóa Web Crypto API rườm rà hay phân quyền RBAC.
-* Mở ứng dụng là vào thẳng làm việc ngay lập tức, người dùng tự bảo vệ hệ thống của mình ở tầng mạng (Firewall, SSH Tunnel, VPN).
+### 2.2. File `config/keys.json` (Dữ liệu nhạy cảm - `.gitignore`)
+```json
+{
+  "gemini_keys": [
+    "AIzaSyD-KEY_1",
+    "AIzaSyD-KEY_2",
+    "AIzaSyD-KEY_3"
+  ],
+  "openai_api_key": "sk-or-v1-..."
+}
+```
+
+### 2.3. SQLite (Dự trữ cho tương lai, KHÔNG dùng làm Storage trạng thái)
+* Một file SQLite rỗng `workspace/app.db` được khởi tạo sẵn sàng cho các tính năng tìm kiếm, đánh chỉ mục trong tương lai.
+* **Quy tắc bất biến**: Trong Phase 1 và Phase 2, **tuyệt đối KHÔNG sử dụng SQLite để lưu trạng thái dịch hay checkpoint**.
 
 ---
 
-## 3. TRIẾT LÝ GIAO DIỆN: THỰC DỤNG, SIÊU NHẸ (UTILITARIAN LEAN UI)
+## 3. CƠ CHẾ XOAY VÒNG API KEY TỐI GIẢN (MINIMAL KEY ROTATION)
 
-* **Tôn chỉ thiết kế**: **Nhanh — Nhẹ — Rõ ràng — Tập trung vào con chữ**, **KHÔNG hào nhoáng bóng bẩy**:
-  * ❌ **Không dùng**: Glassmorphism (làm mờ kính), gradient màu mè, animation chuyển cảnh phức tạp gây giật lag.
-  * ✅ **Tập trung vào**: Tốc độ tải trang tức thì (< 0.2s), độ tương phản cao, phông chữ tối ưu cho việc đọc text dài, phản hồi mượt mà không có độ trễ.
-  * ✅ **Tối đa hóa diện tích đọc**: Mọi thành phần thừa thãi đều bị lược bỏ để nhường chỗ cho văn bản.
+Được thiết kế thành một module độc lập (`core/key_rotator.py`), áp dụng trước tiên cho Google Gemini nhưng có thể tái sử dụng ngay lập tức cho các Provider khác.
 
-### Thanh Điều Hướng Sidebar Thu Gọn (Collapsible Sidebar)
-Để giải quyết bài toán không gian hiển thị cho việc dịch văn bản song ngữ, thanh điều hướng Sidebar hỗ trợ **2 trạng thái**:
-
+### 3.1. Logic Luân Chuyển Tối Giản
 ```
-TRẠNG THÁI MỞ RỘNG (EXPANDED - 260px):           TRẠNG THÁI THU GỌN (COLLAPSED - 64px):
-┌───────────────────────────┐                    ┌──────────┐
-│ [LOGO] NOVEL TRANSLATOR   │ [◀ Thu gọn]        │ [LOGO]   │ [▶ Mở]
-├───────────────────────────┤                    ├──────────┤
-│ 📁  Quản Lý Dự Án         │                    │ 📁       │ (Tooltip: Dự Án)
-│ ✍️   Biên Dịch & Nội Dung   │                    │ ✍️        │ (Tooltip: Biên Dịch)
-│ 📜  Thư Viện Prompt       │                    │ 📜       │ (Tooltip: Prompt)
-│ 📖  Công Cụ EPUB          │                    │ 📖       │ (Tooltip: EPUB)
-│ ⚙️   Cấu Hình AI & Keys    │                    │ ⚙️        │ (Tooltip: Cấu Hình)
-│ ⚡  Nhật Ký & Giám Sát    │                    │ ⚡       │ (Tooltip: Nhật Ký)
-│ 💾  Lưu Trữ & Checkpoint  │                    │ 💾       │ (Tooltip: Lưu Trữ)
-│ 📚  Tài Liệu & Chỉ Dẫn    │                    │ 📚       │ (Tooltip: Tài Liệu)
-└───────────────────────────┘                    └──────────┘
+Gửi request bằng Key hiện tại
+  │
+  ├── Thành công ────────► Nhận kết quả bản dịch, hoàn tất chunk
+  │
+  └── Gặp lỗi HTTP 429 (Rate Limit)
+        │
+        ├── Còn key khác trong danh sách?
+        │     ├── CÓ ──► Thử key kế tiếp một lần duy nhất
+        │     └── KHÔNG (Tất cả key đều thất bại)
+        │           │
+        │           └── Báo lỗi rõ ràng: "Toàn bộ API Key đã hết lượt gọi tạm thời!"
+        │               Dừng tiến trình và hiển thị nút [Gửi lại] cho người dùng
 ```
 
-* **Cơ chế hoạt động**:
-  * Nút bấm thu gọn đặt ở đầu hoặc cuối thanh Sidebar.
-  * Khi bấm thu gọn: Chiều rộng Sidebar thu hẹp từ **260px xuống 64px**, chỉ hiển thị icon với tooltip nổi khi di chuột qua.
-  * Toàn bộ không gian được giải phóng (hơn 190px) được cộng trực tiếp vào màn hình làm việc trung tâm (**Dual-Pane Editor**), giúp hiển thị được nhiều từ trên 1 dòng hơn, hạn chế tối đa tình trạng quấn dòng (line-wrap).
-  * Trạng thái thu gọn được lưu tự động vào `localStorage` để duy trì qua các phiên làm việc.
+### 3.2. Nguyên Tắc Xử Lý Lỗi Tối Thiểu
+* **Lỗi tạm thời của key (HTTP 429)**: Thử key kế tiếp trong danh sách một lần duy nhất.
+* **Lỗi nội dung / prompt / model (HTTP 400, Invalid Argument)**: Dừng ngay lập tức, **tuyệt đối không retry vô hạn**.
+* **Lỗi mạng (Connection Error) hoặc Timeout**: Báo lỗi mạng rõ ràng cho người dùng, dừng tiến trình và hiển thị nút **[Gửi lại]** để người dùng chủ động bấm khi mạng ổn định.
+* **Không có cơ chế tự động cố gắng phục hồi toàn bộ quá trình**: Người dùng là người kiểm soát tối cao và quyết định khi nào gửi lại.
 
 ---
 
-## 4. ĐẶC TẢ CHI TIẾT 8 TRANG GIAO DIỆN RIÊNG BIỆT (DEDICATED PAGES)
+## 4. QUY TRÌNH CHIA CHUNK NHIỀU FILE & GHÉP NỐI CHÍNH XÁC
 
-### Trang 1: Quản Lý Dự Án & Tập Tin (`/projects`)
-* **Mục đích**: Điểm bắt đầu quản lý các đầu sách / tài liệu.
-* **Các thành phần UI**:
-  * Nút bấm: `[+ Tạo Dự Án Mới]`, `[Nhập Dự Án]`.
-  * Danh sách Card dự án: Tên dự án, ảnh bìa (nếu có), số chương, % hoàn thành, nút `[Mở Dự Án]`.
-  * Khung kéo thả Upload: Cho phép nạp hàng loạt file `.txt`, `.md`, `.html` vào dự án.
-  * Bảng danh sách file trong dự án: Tên file, dung lượng, trạng thái (`Chưa dịch`, `Đang dịch`, `Hoàn thành`).
+Hệ thống cho phép người dùng chọn cùng lúc nhiều file nguồn trong `sources/` (ví dụ: `ch01.md`, `ch02.txt`).
 
-### Trang 2: Xử Lý Nội Dung & Biên Dịch Song Ngữ (`/workspace`) — *TRỌNG TÂM CỐT LÕI*
-* **Mục đích**: Nơi người dùng thực hiện toàn bộ thao tác dịch và duyệt văn bản.
-* **Bố cục 2 cột chính**:
-  * **Cột trái (Điều phối File & Prompt - 30% bề ngang)**:
-    * Bảng chọn file với checkbox (Chọn tất cả, Chọn file chưa dịch).
-    * **Bộ chọn Prompt**:
-      * Dropdown chọn *Prompt Chính* từ thư viện `.txt`.
-      * Danh sách checkbox chọn *Prompt Bổ Sung* (ví dụ: `+ Tiên Hiệp`, `+ Trau Chuốt`).
-      * Checkbox `[Đính kèm Glossary dự án]`.
-    * Dropdown chọn Cụm Key / Model (Gemini Pool, OpenAI Pool, Ollama).
-    * Nút hành động: `[▶ Bắt Đầu Chạy]`, `[⏸ Tạm Dừng]`, `[🔄 Chạy Lại File Lỗi]`.
-    * Thanh tiến độ tổng thể và thời gian ước tính.
-  * **Cột phải (Dual-Pane Translation Editor - 70% bề ngang)**:
-    * Chia đôi màn hình song song:
-      * Bên trái: Văn bản gốc (nguyên vẹn khoảng cách dòng và cấu trúc thụt lề).
-      * Bên phải: Văn bản dịch tiếng Việt (stream token theo thời gian thực).
-    * Thanh công cụ editor: Nút bật/tắt **Cuộn Đồng Bộ (Sync-Scroll)**, Nút **Lưu Thủ Công**, Nút **Xuất File Nhanh**.
-    * Khung bản dịch cho phép sửa trực tiếp văn bản (Inline Editing).
+### 4.1. Cắt Chunk Kèm Metadata Đánh Số
+Trước khi gửi đi, mỗi đoạn văn bản được gán thông tin nhận diện:
+```python
+{
+    "file_index": 0,
+    "filename": "ch01.md",
+    "chunk_index": 1,          # Đánh số 0, 1, 2...
+    "total_chunks": 4,         # Tổng số chunk của file này
+    "char_count": 11450,       # Số ký tự thực tế
+    "estimated_tokens": 2860,  # Token ước lượng (char_count // 4)
+    "source_text": "..."
+}
+```
 
-### Trang 3: Thư Viện Prompt (`/prompts`)
-* **Mục đích**: Quản lý kho prompt `.txt` phong phú và linh hoạt.
-* **Các thành phần UI**:
-  * Danh sách các file prompt `.txt` có trong thư mục `prompts/`.
-  * Bộ lọc phân loại: `Dịch thuật`, `Phong cách văn học`, `Soát lỗi/Trau chuốt`, `Tóm tắt`.
-  * Trình soạn thảo văn bản tích hợp (Textarea / CodeMirror nhẹ) để chỉnh sửa nội dung file prompt.
-  * Bảng tra cứu các biến hệ thống sẵn có: `{{source_text}}`, `{{glossary_terms}}`, `{{previous_summary}}`.
-  * Nút bấm: `[+ Tạo Prompt Mới]`, `[Nhân Bản]`, `[Lưu File .txt]`.
+### 4.2. Ghép Nối Hoàn Chỉnh Khi Nhận Về
+* Sau khi AI dịch xong lần lượt các chunk của một file, hệ thống sắp xếp các chunk theo đúng `chunk_index` (từ $0$ đến $N-1$).
+* Nối lại bằng 2 dấu xuống dòng `\n\n` để giữ nguyên khoảng cách đoạn văn.
+* Ghi trực tiếp ra file kết quả: `workspace/projects/{slug}/translated/{filename}`.
 
-### Trang 4: Công Cụ EPUB & Chuyển Đổi Định Dạng Văn Bản (`/tools/epub`)
-* **Mục đích**: Trang chuyên biệt dành cho công cụ EPUB tối giản.
-* **Các thành phần UI**:
-  * Bộ lọc chọn file từ thư mục `sources/` (nguồn) hoặc `translated/` (bản dịch).
-  * **Phân vùng 1: Đóng Gói EPUB**:
-    * Chọn các file text/md/html muốn gom thành sách.
-    * Nhập metadata: Tên sách, Tác giả, Chọn ảnh bìa (Cover Image).
-    * Nút bấm: `[Đóng gói thành file EPUB]`.
-  * **Phân vùng 2: Chuyển Đổi Định Dạng Văn Bản (Bidirectional Converter)**:
-    * Chọn các file cần chuyển đổi.
-    * Chọn chiều chuyển đổi: `MD sang TXT`, `HTML sang MD`, `TXT sang MD`.
-    * Nút bấm: `[Thực hiện chuyển đổi]` (Lưu trực tiếp vào thư mục tương ứng).
+---
 
-### Trang 5: Cấu Hình AI & Quản Lý Cụm Key Tối Ưu Token Miễn Phí (`/settings`)
-* **Mục đích**: Cấu hình các kết nối AI và tối ưu hóa chi phí.
-* **Các thành phần UI**:
-  * **Google Gemini Pool**:
-    * Textarea nhập danh sách API key miễn phí (mỗi dòng 1 key).
-    * Bảng trạng thái trực quan: Trạng thái từng key (🟢 `Ready`, 🟡 `Cooldown 60s`, 🔴 `Error`), số lượt gọi thành công, thời gian mở lại.
-  * **OpenAI-Compatible Endpoints**:
-    * Cấu hình Base URL, API Key, Model cho OpenRouter, Groq, DeepSeek, Local Ollama.
-  * **Cấu hình Chunker**:
-    * Độ dài tối đa mỗi chunk (mặc định: 18.000 ký tự cho Gemini, 6.000 ký tự cho GPT).
+## 5. THƯ VIỆN PROMPT NHẸ (LIGHTWEIGHT PROMPT LIBRARY)
 
-### Trang 6: Nhật Ký & Giám Sát Tiến Trình (`/logs`)
-* **Mục đích**: Đọc log hệ thống trực tiếp.
-* **Các thành phần UI**:
-  * Cửa sổ dòng lệnh Terminal giả lập stream log thời gian thực qua SSE.
-  * Bộ lọc log: `Tất cả`, `Lỗi (ERROR)`, `Xoay Key (KEY_ROTATION)`, `AI Output`.
-  * Widget đo lường: Tốc độ xử lý (Tokens/s), số request/phút (RPM).
+Cho phép người dùng toàn quyền kiểm soát chỉ thị AI:
+1. **Nguồn Prompt đa dạng**:
+   * Chọn prompt từ thư mục dùng chung của ứng dụng (`prompts/*.txt`).
+   * Hoặc chọn prompt riêng của chính dự án (`workspace/projects/{slug}/assets/*.txt`). Giúp dự án mang theo toàn bộ chỉ thị khi copy/backup.
+2. **Thao tác nhanh**: Xem nội dung, sửa trực tiếp, lưu prompt mới ngay trên giao diện.
+3. **Prompt Stacking**: Chọn 1 Prompt Chính (ép chuẩn dịch thuật & bảo toàn Markdown) + Tick chọn thêm các Prompt Bổ Sung (xưng hô cổ trang, trau chuốt câu từ).
 
-### Trang 7: Quản Lý Lưu Trữ & Checkpoint (`/storage`)
-* **Mục đích**: Quản trị dữ liệu, sao lưu và dọn dẹp.
-* **Các thành phần UI**:
-  * Danh sách các phiên checkpoint đang lưu trong SQLite.
-  * Nút `[Khôi phục phiên]` cho các tác vụ bị ngắt quãng do mất điện/mất mạng.
-  * Nút `[Xuất file ZIP toàn bộ dự án]` để tải bản dịch sạch về máy tính.
-  * Nút `[Xóa Cache / Dọn dẹp Checkpoint cũ]`.
+---
 
-### Trang 8: Tài Liệu Dự Án & Hướng Dẫn Sử Dụng (`/docs`)
-* **Mục đích**: Cung cấp cẩm nang sử dụng tích hợp sẵn trong ứng dụng.
-* **Các thành phần UI**:
-  * Bài hướng dẫn chi tiết cách tạo hàng loạt API key Gemini miễn phí qua Google AI Studio.
-  * Hướng dẫn kết nối OpenRouter, Groq và Ollama.
-  * Hướng dẫn viết prompt và tạo các prompt bổ sung hiệu quả.
+## 6. THIẾT KẾ GIAO DIỆN: 1 PHIÊN DỊCH TẠI 1 THỜI ĐIỂM (SINGLE-SESSION UI)
+
+Giao diện tập trung 100% vào sự rõ ràng, phản hồi nhanh và loại bỏ hoàn toàn các bảng biểu quản lý rườm rà.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│ [LOGO] CONTENT TRANSLATOR                                    [Gemini: 3 Keys Ready]  [⚙️]   │
+├─────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 📁 Dự Án: [Truyen_Tien_Hiep ▼]   📜 Prompt: [default.txt ▼]   [+ Prompt bổ sung]            │
+├──────────────────────────────────┬──────────────────────────────────────────────────────────┤
+│ DANH SÁCH FILE NGUỒN             │ MÀN HÌNH SO SÁNH SONG NGỮ (DUAL-PANE EDITOR)            │
+│ [X] ch01.md (12.4k ký tự)        ├────────────────────────────┬─────────────────────────────┤
+│ [ ] ch02.md (15.1k ký tự)        │ VĂN BẢN GỐC (ch01.md)      │ BẢN DỊCH TIẾNG VIỆT         │
+│                                  │                            │                             │
+│ ℹ️ THÔNG TIN CHUNK ĐANG XỬ LÝ:   │ # Chương 1: Khởi đầu       │ # Chương 1: Khởi đầu        │
+│ • Chunk: 1/3 (ch01.md)           │ Đêm đã về khuya...         │ Đêm đã về khuya...          │
+│ • Số ký tự: 11,450 ký tự         │                            │                             │
+│ • Token ước lượng: ~2,860 tokens │                            │                             │
+├──────────────────────────────────┴────────────────────────────┴─────────────────────────────┤
+│ BỘ NÚT ĐIỀU KHIỂN THAO TÁC TRỰC TIẾP:                                                       │
+│ [▶ Bắt Đầu Dịch]   [📋 Sao Chép Kết Quả]   [💾 Lưu Vào File]   [❌ Xóa & Gửi Lại]   [🔄 Gửi Lại]│
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Các Tính Năng & Nút Thao Tác Trực Tiếp Trên UI:
+1. **Đếm ký tự & Ước lượng Token**: Hiển thị rõ ràng số ký tự và số token ước tính của từng chunk và toàn bộ file.
+2. **So sánh Song ngữ (Dual-Pane Sync-Scroll)**: Khung trái văn bản gốc, khung phải văn bản dịch tiếng Việt hiển thị streaming trực tiếp.
+3. **Nút [Sao chép kết quả] (Copy)**: Copy nhanh toàn bộ bản dịch vào Clipboard.
+4. **Nút [Lưu vào file] (Save)**: Lưu ngay bản dịch vào thư mục `translated/`.
+5. **Nút [Xóa & Gửi lại] (Clear & Resend)**: Xóa trắng kết quả hiện tại và kích hoạt lại luồng gửi.
+6. **Nút [Gửi lại] (Retry)**: Khi gặp lỗi mạng hoặc lỗi 429 hết key, nút này sáng lên để người dùng bấm thử lại khi đã sẵn sàng.
+7. **Các nút xử lý nâng cao** (so sánh diff chi tiết, tìm kiếm & thay thế...): Được xếp lịch làm sau ở Phase 3 trở đi.
