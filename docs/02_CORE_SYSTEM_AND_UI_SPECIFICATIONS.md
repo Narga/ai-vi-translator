@@ -1,131 +1,119 @@
-# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & GIAO DIỆN (ĐÃ TINH GIẢN)
-> **Mục tiêu**: Định nghĩa chuẩn xác cấu trúc hệ thống gửi–nhận, cơ chế xoay key đơn giản, các kiểm tra an toàn đường dẫn và giao diện phục vụ duy nhất một phiên dịch tại một thời điểm.
+# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & CHỈ DẪN CẤU HÌNH
+> **Mục tiêu**: Định nghĩa chuẩn xác cấu trúc hệ thống gửi–nhận, định vị đường dẫn độc lập CWD, kiểm tra an toàn đường dẫn và hướng dẫn nhập cấu hình, API key.
 
 ---
 
-## 1. CẤU TRÚC DỰ ÁN & CHÍNH SÁCH BẢO VỆ DỮ LIỆU CÁ NHÂN
+## 1. CẤU HÌNH DỰ ÁN & API KEY NHẬP VÀO ĐÂU?
 
-### 1.1. Cấu Trúc Thư Mục Dự Án
-```text
-workspace/projects/Truyen_Tien_Hiep/
-├── sources/            # Chứa các file chương gốc (ch01.md, ch02.txt...)
-├── translated/         # Chứa các file bản dịch tiếng Việt hoàn chỉnh
-└── assets/             # (Mở rộng ở Phase 3) glossary.txt, prompt riêng của dự án
+Hệ thống cung cấp 3 cách nạp API Key rõ ràng, linh hoạt, tự động fallback:
+
+### 1.1. Nạp API Key (3 Cách)
+* **Cách 1 (Chuẩn nhất cho người dùng cá nhân)**:
+  * Mở file `config/keys.json` (hệ thống tự tạo file mẫu nếu chưa có) và dán các key vào:
+    ```json
+    {
+      "gemini_keys": [
+        "AIzaSyD-KEY_1",
+        "AIzaSyD-KEY_2"
+      ]
+    }
+    ```
+  * File này đã được đưa vào `.gitignore`, không bao giờ bị lộ lên Git.
+* **Cách 2 (Biến môi trường - Phù hợp khi chạy VPS)**:
+  * Khai báo trong terminal hoặc file `.env`:
+    ```bash
+    export GEMINI_API_KEYS="AIzaSyD-KEY_1,AIzaSyD-KEY_2"
+    ```
+* **Cách 3 (Nhập tương tác CLI)**:
+  * Nếu cả 2 cách trên đều chưa có key, khi chạy lệnh `python run.py`, màn hình sẽ hỏi trực tiếp:
+    ```text
+    👉 Chưa tìm thấy API Key! Nhập Gemini API Key của bạn: AIzaSy...
+    ```
+    và tự động ghi nhớ vào `config/keys.json`.
+
+### 1.2. Nạp Cấu Hình Chung (`config/config.json`)
+Chứa các tham số vận hành, có kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`):
+```json
+{
+  "provider": "gemini",
+  "gemini_model": "gemini-2.5-flash",
+  "max_chunk_chars": 16000,
+  "timeout_seconds": 90
+}
 ```
 
-### 1.2. Chính Sách Gitignore (Bảo Đảm Riêng Tư Tuyệt Đối)
-Toàn bộ thư mục `workspace/` và các file bí mật **BẮT BUỘC KHÔNG TRACK VỚI GIT**:
-```text
-# .gitignore
-__pycache__/
-.venv/
-workspace/             # Toàn bộ nội dung sách, file nguồn, bản dịch được giữ riêng tư
-config/keys.json       # Chứa API key nhạy cảm
+### 1.3. Nạp Nội Dung Cần Dịch
+* **Chế độ trực tiếp**: Để file ở bất kỳ đâu trên máy tính và chạy:
+  `python run.py /duong/dan/input.txt /duong/dan/output.txt`
+* **Chế độ dự án**: Tạo thư mục dự án trong `workspace/projects/{ten_du_an}/sources/` và đặt file nguồn vào đó.
+
+---
+
+## 2. ĐỊNH VỊ ĐƯỜNG DẪN ĐỘC LẬP THƯ MỤC CHẠY LỆNH (PROJECT_ROOT)
+
+Để tránh lỗi khi người dùng đứng ở bất kỳ thư mục nào chạy lệnh (`cd /tmp && python /path/to/content-translator/run.py`), toàn bộ đường dẫn của ứng dụng được tính dựa trên vị trí của file mã nguồn:
+
+```python
+# PROJECT_ROOT luôn là thư mục gốc của dự án content-translator
+PROJECT_ROOT = Path(__file__).resolve().parent.parent  # (nếu gọi từ core/)
+# Hoặc
+PROJECT_ROOT = Path(__file__).resolve().parent         # (nếu gọi từ run.py)
+
+CONFIG_DIR = PROJECT_ROOT / "config"
+WORKSPACE_DIR = PROJECT_ROOT / "workspace"
+PROMPTS_DIR = PROJECT_ROOT / "prompts"
 ```
 
-### 1.3. An Toàn Đường Dẫn (Chống Path Traversal Cơ Bản)
-* Trong lớp `file_handler`, mọi thao tác mở và ghi file đều phải kiểm tra:
-  * Không chứa ký tự đi lùi thư mục `..`.
-  * Không chứa đường dẫn tuyệt đối bắt đầu bằng `/` hoặc `C:\`.
-  * Đường dẫn phân giải thực tế (`resolve()`) bắt buộc phải nằm bên trong thư mục `workspace/`.
-* *Mục đích*: Đây là **tính đúng đắn cơ bản** để tránh đọc/ghi nhầm file hệ thống ngoài ý muốn, không phải cơ chế bảo mật rườm rà.
+* **Lợi ích**: Không bao giờ tạo nhầm thư mục `workspace/` hoặc `config/` ở nơi khác khi chạy lệnh ngoài thư mục dự án.
 
 ---
 
-## 2. QUẢN LÝ CẤU HÌNH CỰC MỎNG
+## 3. AN TOÀN ĐƯỜNG DẪN (CHỐNG PATH TRAVERSAL BẰNG `relative_to()`)
 
-Hệ thống dùng chuẩn JSON thuần của thư viện chuẩn Python (zero dependency, không cần Pydantic):
+Trong chế độ `--project`, cả `slug` và `filename` phải được kiểm tra chặt chẽ trước khi truy cập ổ cứng:
 
-* **`config/config.json`** (Cấu hình chung - Track Git):
-  ```json
-  {
-    "provider": "gemini",
-    "gemini_model": "gemini-2.5-flash",
-    "max_chunk_chars": 16000,
-    "timeout_seconds": 90
-  }
-  ```
-* **`config/keys.json`** (Dữ liệu nhạy cảm - Bị ignore bởi Git):
-  ```json
-  {
-    "gemini_keys": [
-      "AIzaSyD-KEY_1",
-      "AIzaSyD-KEY_2"
-    ]
-  }
-  ```
-
----
-
-## 3. CƠ CHẾ XOAY VÒNG API KEY TỐI GIẢN (CHUYÊN BIỆT CHO GEMINI TRONG PHASE 1)
-
-### 3.1. Logic Luân Chuyển Khẳng Định
-* **Mỗi chunk là một phiên gửi độc lập**.
-* Khi gửi request cho một chunk:
-  1. Gửi bằng key hiện tại.
-  2. Nếu gặp lỗi **HTTP 429 (Rate Limit)**: Chuyển sang key kế tiếp trong danh sách.
-  3. **Mỗi key chỉ được thử tối đa một lần trong một lần gửi chunk**.
-  4. Nếu tất cả các key đều gặp lỗi 429: **Dừng toàn bộ chương trình**, in thông báo lỗi rõ ràng:  
-     `"❌ TẤT CẢ API KEY ĐỀU BỊ RATE LIMIT (429)! Vui lòng bấm 'Gửi lại' sau ít phút."`
-* Nếu chunk trước thành công ở key thứ $K$, chunk sau tiếp tục bắt đầu từ key thứ $K$ để tận dụng quota khả dụng.
-
-### 3.2. Phân Loại Xử Lý Lỗi Tối Thiểu
-* **Lỗi tạm thời của key (HTTP 429)**: Thử key kế tiếp trong danh sách lần lượt.
-* **Lỗi nội dung / prompt / model (HTTP 400)**: Dừng ngay lập tức, **tuyệt đối không retry vô hạn**.
-* **Lỗi mạng (ConnectError) hoặc Timeout**: Báo lỗi mạng rõ ràng cho người dùng, dừng tiến trình và hiển thị nút **[Gửi lại]**.
-* **Quy tắc khi lỗi**: Chương trình dừng và **không lưu trạng thái dở dang**. Khi người dùng chạy lại, chương trình bắt đầu lại toàn bộ file từ chunk đầu tiên.
+1. **Quy tắc Sanitize tên file & slug**:
+   * Không được rỗng.
+   * Không chứa ký tự đi lùi thư mục `..`.
+   * Không chứa dấu phân cách thư mục `/` hoặc `\`.
+2. **Kiểm tra lồng thư mục bằng `relative_to()`**:
+   * Thay vì dùng `startswith()` (dễ bị lỗi chuỗi tương đồng như `/tmp/workspace2` với `/tmp/workspace`), hệ thống bắt buộc dùng:
+     ```python
+     resolved = target_path.resolve()
+     try:
+         resolved.relative_to(base_dir.resolve())
+     except ValueError:
+         raise ValueError(f"Đường dẫn không hợp lệ, nằm ngoài phạm vi cho phép: {target_path}")
+     ```
+3. **Quy tắc trong `run.py`**:
+   * Tuyệt đối không tự nối chuỗi `proj_dir / "sources" / fname`.
+   * Bắt buộc phải gọi qua phương thức chuyên trách: `file_handler.get_source_path(project, filename)`.
 
 ---
 
 ## 4. QUY TRÌNH CHIA CHUNK THỰC TẾ & QUY ƯỚC GHÉP NỐI
 
-### 4.1. Kích Thước Chunk Thực Tế
-* Thông thường, một chương truyện có độ dài từ 3.000 đến 10.000 từ (khoảng 15.000 - 45.000 ký tự).
-* Ngưỡng cắt lý tưởng được cấu hình từ **15.000 đến 20.000 ký tự/chunk**.
-* Do đó, **thông thường một chương chỉ chia thành 2 đến 3 chunk**, hiếm khi vượt quá 5 chunk.
+### 4.1. Kích Thước & Số Lượng Chunk
+* Cấu hình mặc định: `max_chunk_chars = 16000` ký tự.
+* Với các chương truyện có kích thước phổ biến (15.000 – 45.000 ký tự), hệ thống **thường tạo khoảng 2–3 chunk**; file dài hơn sẽ tạo nhiều chunk hơn tùy theo độ dài thực tế.
 
-### 4.2. Giải Thuật Cắt Ưu Tiên Ranh Giới Tự Nhiên
-Cắt tại vị trí gần mốc 50% nhất trong dải 20% - 80% theo thứ tự ưu tiên:
-1. Dấu xuống dòng đôi `\n\n` (ngắt đoạn văn tự nhiên).
-2. Dấu xuống dòng đơn `\n`.
-3. Dấu kết thúc câu (`. `, `! `, `? `, `。`, `！`, `？`).
-4. Dấu cách thông thường.
-5. Cắt cứng tại 50% nếu văn bản không có khoảng trắng.
-
-### 4.3. Quy Ước Ghép Nối Chunk
-* **Quy ước Phase 1**: Mỗi chunk được coi là một đơn vị đoạn văn bản lớn; các chunk dịch xong được ghép nối với nhau bằng **một dòng trống (`\n\n`)**.
-* Không tuyên bố bảo toàn 100% định dạng; cam kết bảo toàn 100% nội dung chữ và ưu tiên ranh giới đoạn văn tự nhiên.
+### 4.2. Cam Kết Nội Dung & Quy Ước Khoảng Trắng
+* **Cam kết nội dung**: Bảo toàn 100% nội dung có ý nghĩa, không bỏ sót câu/đoạn văn bản nguồn ở tầng phân chia chunk.
+* **Quy ước ghép nối**: Các chunk sau khi dịch xong được ghép nối với nhau bằng **một dòng trống (`\n\n`)**. Khoảng trắng quanh ranh giới cắt được chuẩn hóa theo quy ước này; không cam kết bảo toàn tuyệt đối từng byte khoảng trắng gốc.
+* **Kỳ vọng đối với AI**: Tiêu chuẩn nghiệm thu của mã nguồn là: Gửi đầy đủ các chunk, nhận response hợp lệ từ AI, không bỏ qua chunk nào và ghép nối chính xác theo quy ước. Người dùng luôn là người kiểm tra kết quả cuối cùng trước khi sử dụng.
 
 ---
 
-## 5. THIẾT KẾ GIAO DIỆN: 1 PHIÊN DỊCH TẠI 1 THỜI ĐIỂM (PHASE 2 WEBUI)
+## 5. CƠ CHẾ XOAY KEY TỐI GIẢN (GEMINI CLIENT)
 
-Giao diện phục vụ duy nhất 1 phiên dịch in-flight, không bảng biểu quản lý rườm rà:
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [LOGO] CONTENT TRANSLATOR                                    [Gemini: 2 Keys Sẵn Sàng]      │
-├─────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 📁 Dự Án: [Truyen_Tien_Hiep ▼]   📜 Prompt: [default_translation.txt ▼]   [+ Prompt bổ sung] │
-├──────────────────────────────────┬──────────────────────────────────────────────────────────┤
-│ DANH SÁCH FILE NGUỒN             │ MÀN HÌNH DUAL-PANE SO SÁNH SONG NGỮ                      │
-│ [X] chuong_01.md (2 chunks)      ├────────────────────────────┬─────────────────────────────┤
-│ [ ] chuong_02.md (3 chunks)      │ VĂN BẢN GỐC                │ BẢN DỊCH TIẾNG VIỆT         │
-│                                  │                            │                             │
-│ ℹ️ THÔNG TIN CHUNK ĐANG XỬ LÝ:   │ # Chương 1: Khởi đầu       │ # Chương 1: Khởi đầu        │
-│ • Chunk hiện tại: 1 / 2          │ Đêm đã về khuya...         │ Đêm đã về khuya...          │
-│ • Ký tự: 16,420 ký tự            │                            │                             │
-│ • Token ước lượng: ~4,100 tokens │                            │                             │
-├──────────────────────────────────┴────────────────────────────┴─────────────────────────────┤
-│ BỘ NÚT ĐIỀU KHIỂN:                                                                          │
-│ [▶ Bắt Đầu Dịch]   [📋 Sao Chép Bản Dịch]   [💾 Lưu Vào File]   [❌ Xóa & Gửi Lại]   [🔄 Gửi Lại]│
-└─────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-* **Thao tác tức thì**:
-  * **[▶ Bắt Đầu Dịch]**: Gửi lần lượt 2-3 chunk lên Gemini.
-  * **[📋 Sao Chép]**: 1-click copy kết quả vào Clipboard.
-  * **[💾 Lưu Vào File]**: Ghi kết quả vào `workspace/projects/{slug}/translated/{filename}`.
-  * **[❌ Xóa & Gửi Lại]**: Xóa kết quả hiện tại để gửi lại từ đầu.
-  * **[🔄 Gửi Lại (Retry)]**: Sáng lên khi gặp lỗi mạng / 429 để người dùng chủ động bấm thử lại.
-  * **Dual-Pane**: Sync-Scroll cuộn đồng bộ và Inline Edit sửa trực tiếp bản dịch.
+* **Chính sách**:
+  * Mỗi key chỉ được thử tối đa một lần trong một lần gửi chunk.
+  * Nếu gặp lỗi 429 và còn key khác trong danh sách $\to$ Chuyển lần lượt sang key kế tiếp.
+  * Với trường hợp chỉ có duy nhất 1 key trong danh sách $\to$ Gặp 429 dừng ngay lập tức.
+  * Nếu tất cả key đều gặp 429 $\to$ Dừng toàn bộ chương trình, báo lỗi rõ ràng.
+* **Chính sách giữa các chunk**:
+  * Mỗi chunk là một phiên gửi độc lập.
+  * Bắt đầu từ key đang hoạt động thành công của chunk trước để tận dụng quota.
+* **Chính sách thất bại**:
+  * Dừng toàn bộ chương trình ngay lập tức và KHÔNG lưu trạng thái dở dang.
+  * Người dùng chạy lại lệnh sẽ bắt đầu lại toàn bộ file từ chunk đầu tiên.
