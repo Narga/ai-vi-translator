@@ -18,7 +18,7 @@ Mọi thành phần trên giao diện WebUI phải vượt qua câu hỏi sát h
 
 ### Những gì TẬP TRUNG XÂY DỰNG trong Phase 2:
 * ✅ **Prompt dễ dùng hơn**: Chọn file `.txt`, xem nội dung, chỉnh sửa và lưu prompt trực tiếp trên web.
-* ✅ **Chunk dễ kiểm tra hơn**: Hiển thị rõ danh sách các chunk, số ký tự thực tế, số token ước lượng.
+* ✅ **Chunk dễ kiểm tra hơn**: Hiển thị rõ danh sách các chunk (thường 2-3 chunk), số ký tự thực tế, số token ước lượng.
 * ✅ **Kết quả dễ sao chép & lưu hơn**: Nút **[Sao chép]** (1-click copy) và **[Lưu file]** (ghi thẳng vào `translated/`).
 * ✅ **Gửi lại dễ hơn**: Nút **[Xóa & Gửi lại]** và nút **[Gửi lại]** khi gặp lỗi mạng / 429.
 * ✅ **Kế thừa các tính năng hữu ích từ UI cũ**: Màn hình song ngữ **Dual-Pane** cuộn đồng bộ (Sync-Scroll) và cho phép sửa trực tiếp văn bản dịch (Inline Edit).
@@ -41,7 +41,7 @@ Thanh Sidebar (Thu gọn được 260px -> 64px):
 
 ### 3.1. Trang 1: Quản Lý Dự Án & Nạp File (`/projects`)
 * **Thao tác nhanh**:
-  * Nhập tên dự án $\to$ Bấm `[Tạo Dự Án]` $\to$ Tự động tạo cấu trúc `sources/`, `translated/`, `assets/`.
+  * Nhập tên dự án $\to$ Bấm `[Tạo Dự Án]` $\to$ Tự động tạo cấu trúc `sources/`, `translated/`.
   * Kéo thả file `.txt`, `.md`, `.html` trực tiếp vào khung upload để nạp vào thư mục `sources/`.
   * Bảng danh sách file nguồn hiển thị: Tên file, Dung lượng, Trạng thái (Đã dịch / Chưa dịch).
   * Nút `[Chuyển Sang Biên Dịch]` để đưa các file được chọn vào màn hình Workspace.
@@ -54,12 +54,11 @@ Giao diện chia làm 2 khu vực trực quan:
 1. **Danh sách file nguồn**:
    * Hiển thị các file đã chọn.
    * Hiển thị bảng phân đoạn các chunk của file hiện tại:
-     * *Chunk 1: 11,200 ký tự (~2,800 tokens)*
-     * *Chunk 2: 10,850 ký tự (~2,710 tokens)*
+     * *Chunk 1: 16,200 ký tự (~4,050 tokens)*
+     * *Chunk 2: 15,850 ký tự (~3,960 tokens)*
 2. **Bộ chọn Prompt linh hoạt**:
-   * Dropdown chọn *Prompt Chính* (`default_translation.txt` hoặc chọn từ `assets/` của dự án).
+   * Dropdown chọn *Prompt Chính* (`default_translation.txt`).
    * Danh sách checkbox chọn thêm *Prompt Bổ Sung* (ví dụ: `+ style_co_trang.txt`, `+ qa_polish.txt`).
-   * Checkbox: `[Sử dụng glossary.txt trong assets]`.
 3. **Bộ nút điều khiển phiên gửi–nhận**:
    * `[▶ Bắt Đầu Dịch]`: Gửi tuần tự các chunk của file lên AI.
    * `[📋 Sao Chép Bản Dịch]`: Copy toàn bộ nội dung bản dịch vào clipboard.
@@ -75,13 +74,13 @@ Giao diện chia làm 2 khu vực trực quan:
   * **Chỉnh sửa trực tiếp (Inline Edit)**: Người dùng có thể click vào khung dịch sửa từ ngữ ngay lập tức trước khi bấm lưu file.
 
 ### 3.3. Trang 3: Quản Lý Thư Viện Prompt (`/prompts`)
-* Liệt kê danh sách các file prompt `.txt` từ thư mục `prompts/` chung và `assets/` của dự án.
+* Liệt kê danh sách các file prompt `.txt` từ thư mục `prompts/`.
 * Cho phép mở ra xem nội dung, chỉnh sửa câu chữ và bấm **[Lưu Prompt]**.
 * Cung cấp nút **[+ Tạo Prompt Mới]** (lưu thành file `.txt` mới).
 
 ### 3.4. Trang 4: Cấu Hình Tối Giản (`/settings`)
 * Textarea nhập danh sách API Key Gemini (mỗi dòng 1 key, tự động lưu vào `config/keys.json` nằm trong `.gitignore`).
-* Chọn Model mặc định (`gemini-2.5-flash`) và điều chỉnh `max_chunk_chars` (mặc định 12.000 ký tự).
+* Chọn Model mặc định (`gemini-2.5-flash`) và điều chỉnh `max_chunk_chars` (mặc định 16.000 ký tự).
 
 ---
 
@@ -94,3 +93,23 @@ Sau khi hoàn thành Phase 2, người dùng:
 4. Bấm `[▶ Bắt Đầu Dịch]` $\to$ Thấy văn bản tiếng Việt hiển thị song song ngay bên cạnh.
 5. Nếu gặp lỗi 429 hay lỗi mạng $\to$ UI hiển thị thông báo đỏ rõ ràng và hiện nút `[Gửi Lại]`.
 6. Dịch xong $\to$ Bấm `[Lưu Vào File]` $\to$ File xuất hiện ngay trong `translated/chuong_01.md`.
+
+---
+
+## 5. LỘ TRÌNH TRIỂN KHAI CÁC PHASE TIẾP THEO (PHASE 3, 4, 5)
+
+Nhằm giữ cho Phase 1 và Phase 2 tập trung tuyệt đối vào việc chạy ổn định, các tính năng mở rộng được phân kỳ thực hiện lần lượt:
+
+* **PHASE 3: TIỆN ÍCH FILE & MỞ RỘNG PROVIDERS**:
+  1. Hỗ trợ thêm Provider tương thích OpenAI (OpenRouter, Groq, DeepSeek, Local Ollama).
+  2. Bổ sung thư mục `assets/` riêng của từng dự án (cho phép lưu `glossary.txt` và prompt riêng đi kèm dự án).
+  3. Công cụ Tìm kiếm & Thay thế hàng loạt (Batch Search & Replace) trong thư mục `translated/`.
+  4. Trình so sánh Diff chi tiết giữa bản dịch cũ và mới.
+
+* **PHASE 4: CÔNG CỤ EPUB & NÂNG CAO (KẾ THỪA SILABOOK)**:
+  1. Công cụ EPUB: Chuyển đổi định dạng 2 chiều giữa MD $\leftrightarrow$ TXT $\leftrightarrow$ HTML và đóng gói sách `.epub` chuẩn.
+  2. Tự động sinh tóm tắt bối cảnh nối tiếp giữa các chương (`previous_chunk_handoff`).
+
+* **PHASE 5: ĐÓNG GÓI & PHÁT HÀNH**:
+  1. Kiểm thử tải dịch khối lượng lớn với 100 chương truyện.
+  2. Đóng gói script khởi động 1-click cho người dùng cá nhân (Local / Private VPS).

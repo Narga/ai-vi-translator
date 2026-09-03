@@ -1,158 +1,131 @@
-# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & GIAO DIỆN (MINIMALIST SPECIFICATION)
-> **Mục tiêu**: Định nghĩa cấu trúc hệ thống gửi–nhận tối giản, cơ chế xoay key đơn giản, cấu trúc dự án tệp tin và giao diện phục vụ duy nhất một phiên dịch tại một thời điểm.
+# 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & GIAO DIỆN (ĐÃ TINH GIẢN)
+> **Mục tiêu**: Định nghĩa chuẩn xác cấu trúc hệ thống gửi–nhận, cơ chế xoay key đơn giản, các kiểm tra an toàn đường dẫn và giao diện phục vụ duy nhất một phiên dịch tại một thời điểm.
 
 ---
 
-## 1. CẤU TRÚC THƯ MỤC DỰ ÁN (PROJECT DIRECTORY STRUCTURE)
+## 1. CẤU TRÚC DỰ ÁN & CHÍNH SÁCH BẢO VỆ DỮ LIỆU CÁ NHÂN
 
-Mọi dự án dịch được tổ chức hoàn toàn dưới dạng thư mục tệp tin trực quan, không phụ thuộc vào cơ sở dữ liệu phức tạp:
-
+### 1.1. Cấu Trúc Thư Mục Dự Án
 ```text
 workspace/projects/Truyen_Tien_Hiep/
-├── sources/            # Chứa các file chương gốc (ch01.md, ch02.txt, chap03.html...)
-├── translated/         # Chứa các file bản dịch tiếng Việt hoàn chỉnh sau khi ghép chunk
-└── assets/             # Chứa tài nguyên riêng của dự án:
-    ├── glossary.txt    # Bảng thuật ngữ / nhân vật riêng của truyện này
-    └── custom_prompt.txt # (Tùy chọn) Các file prompt riêng của dự án để dễ sao lưu, làm lại
+├── sources/            # Chứa các file chương gốc (ch01.md, ch02.txt...)
+├── translated/         # Chứa các file bản dịch tiếng Việt hoàn chỉnh
+└── assets/             # (Mở rộng ở Phase 3) glossary.txt, prompt riêng của dự án
 ```
 
-* **Lợi ích**: Toàn bộ dự án gói gọn trong 1 thư mục. Muốn sao lưu hay chuyển sang máy khác/VPS, chỉ cần copy thư mục `Truyen_Tien_Hiep` là xong 100%.
+### 1.2. Chính Sách Gitignore (Bảo Đảm Riêng Tư Tuyệt Đối)
+Toàn bộ thư mục `workspace/` và các file bí mật **BẮT BUỘC KHÔNG TRACK VỚI GIT**:
+```text
+# .gitignore
+__pycache__/
+.venv/
+workspace/             # Toàn bộ nội dung sách, file nguồn, bản dịch được giữ riêng tư
+config/keys.json       # Chứa API key nhạy cảm
+```
+
+### 1.3. An Toàn Đường Dẫn (Chống Path Traversal Cơ Bản)
+* Trong lớp `file_handler`, mọi thao tác mở và ghi file đều phải kiểm tra:
+  * Không chứa ký tự đi lùi thư mục `..`.
+  * Không chứa đường dẫn tuyệt đối bắt đầu bằng `/` hoặc `C:\`.
+  * Đường dẫn phân giải thực tế (`resolve()`) bắt buộc phải nằm bên trong thư mục `workspace/`.
+* *Mục đích*: Đây là **tính đúng đắn cơ bản** để tránh đọc/ghi nhầm file hệ thống ngoài ý muốn, không phải cơ chế bảo mật rườm rà.
 
 ---
 
-## 2. QUẢN LÝ CẤU HÌNH & BẢO VỆ DỮ LIỆU NHẠY CẢM
+## 2. QUẢN LÝ CẤU HÌNH CỰC MỎNG
 
-Hệ thống sử dụng **một lớp lưu cấu hình cực mỏng**, đọc/ghi file JSON cục bộ, tách biệt hoàn toàn giữa cấu hình chung và dữ liệu nhạy cảm:
+Hệ thống dùng chuẩn JSON thuần của thư viện chuẩn Python (zero dependency, không cần Pydantic):
 
-```
-config/
-├── config.json         # Cấu hình chung (model, timeout, max_chars...) - Đưa vào Git
-└── keys.json           # DỮ LIỆU NHẠY CẢM (API keys, provider secrets) - BẮT BUỘC TRONG .gitignore
-```
-
-### 2.1. File `config/config.json` (Cấu hình chung)
-```json
-{
-  "default_provider": "gemini",
-  "gemini_model": "gemini-2.5-flash",
-  "openai_base_url": "https://openrouter.ai/api/v1",
-  "openai_model": "qwen/qwen-2.5-72b-instruct",
-  "max_chunk_chars": 12000,
-  "timeout_seconds": 90
-}
-```
-
-### 2.2. File `config/keys.json` (Dữ liệu nhạy cảm - `.gitignore`)
-```json
-{
-  "gemini_keys": [
-    "AIzaSyD-KEY_1",
-    "AIzaSyD-KEY_2",
-    "AIzaSyD-KEY_3"
-  ],
-  "openai_api_key": "sk-or-v1-..."
-}
-```
-
-### 2.3. SQLite (Dự trữ cho tương lai, KHÔNG dùng làm Storage trạng thái)
-* Một file SQLite rỗng `workspace/app.db` được khởi tạo sẵn sàng cho các tính năng tìm kiếm, đánh chỉ mục trong tương lai.
-* **Quy tắc bất biến**: Trong Phase 1 và Phase 2, **tuyệt đối KHÔNG sử dụng SQLite để lưu trạng thái dịch hay checkpoint**.
+* **`config/config.json`** (Cấu hình chung - Track Git):
+  ```json
+  {
+    "provider": "gemini",
+    "gemini_model": "gemini-2.5-flash",
+    "max_chunk_chars": 16000,
+    "timeout_seconds": 90
+  }
+  ```
+* **`config/keys.json`** (Dữ liệu nhạy cảm - Bị ignore bởi Git):
+  ```json
+  {
+    "gemini_keys": [
+      "AIzaSyD-KEY_1",
+      "AIzaSyD-KEY_2"
+    ]
+  }
+  ```
 
 ---
 
-## 3. CƠ CHẾ XOAY VÒNG API KEY TỐI GIẢN (MINIMAL KEY ROTATION)
+## 3. CƠ CHẾ XOAY VÒNG API KEY TỐI GIẢN (CHUYÊN BIỆT CHO GEMINI TRONG PHASE 1)
 
-Được thiết kế thành một module độc lập (`core/key_rotator.py`), áp dụng trước tiên cho Google Gemini nhưng có thể tái sử dụng ngay lập tức cho các Provider khác.
+### 3.1. Logic Luân Chuyển Khẳng Định
+* **Mỗi chunk là một phiên gửi độc lập**.
+* Khi gửi request cho một chunk:
+  1. Gửi bằng key hiện tại.
+  2. Nếu gặp lỗi **HTTP 429 (Rate Limit)**: Chuyển sang key kế tiếp trong danh sách.
+  3. **Mỗi key chỉ được thử tối đa một lần trong một lần gửi chunk**.
+  4. Nếu tất cả các key đều gặp lỗi 429: **Dừng toàn bộ chương trình**, in thông báo lỗi rõ ràng:  
+     `"❌ TẤT CẢ API KEY ĐỀU BỊ RATE LIMIT (429)! Vui lòng bấm 'Gửi lại' sau ít phút."`
+* Nếu chunk trước thành công ở key thứ $K$, chunk sau tiếp tục bắt đầu từ key thứ $K$ để tận dụng quota khả dụng.
 
-### 3.1. Logic Luân Chuyển Tối Giản
-```
-Gửi request bằng Key hiện tại
-  │
-  ├── Thành công ────────► Nhận kết quả bản dịch, hoàn tất chunk
-  │
-  └── Gặp lỗi HTTP 429 (Rate Limit)
-        │
-        ├── Còn key khác trong danh sách?
-        │     ├── CÓ ──► Thử key kế tiếp một lần duy nhất
-        │     └── KHÔNG (Tất cả key đều thất bại)
-        │           │
-        │           └── Báo lỗi rõ ràng: "Toàn bộ API Key đã hết lượt gọi tạm thời!"
-        │               Dừng tiến trình và hiển thị nút [Gửi lại] cho người dùng
-```
-
-### 3.2. Nguyên Tắc Xử Lý Lỗi Tối Thiểu
-* **Lỗi tạm thời của key (HTTP 429)**: Thử key kế tiếp trong danh sách một lần duy nhất.
-* **Lỗi nội dung / prompt / model (HTTP 400, Invalid Argument)**: Dừng ngay lập tức, **tuyệt đối không retry vô hạn**.
-* **Lỗi mạng (Connection Error) hoặc Timeout**: Báo lỗi mạng rõ ràng cho người dùng, dừng tiến trình và hiển thị nút **[Gửi lại]** để người dùng chủ động bấm khi mạng ổn định.
-* **Không có cơ chế tự động cố gắng phục hồi toàn bộ quá trình**: Người dùng là người kiểm soát tối cao và quyết định khi nào gửi lại.
+### 3.2. Phân Loại Xử Lý Lỗi Tối Thiểu
+* **Lỗi tạm thời của key (HTTP 429)**: Thử key kế tiếp trong danh sách lần lượt.
+* **Lỗi nội dung / prompt / model (HTTP 400)**: Dừng ngay lập tức, **tuyệt đối không retry vô hạn**.
+* **Lỗi mạng (ConnectError) hoặc Timeout**: Báo lỗi mạng rõ ràng cho người dùng, dừng tiến trình và hiển thị nút **[Gửi lại]**.
+* **Quy tắc khi lỗi**: Chương trình dừng và **không lưu trạng thái dở dang**. Khi người dùng chạy lại, chương trình bắt đầu lại toàn bộ file từ chunk đầu tiên.
 
 ---
 
-## 4. QUY TRÌNH CHIA CHUNK NHIỀU FILE & GHÉP NỐI CHÍNH XÁC
+## 4. QUY TRÌNH CHIA CHUNK THỰC TẾ & QUY ƯỚC GHÉP NỐI
 
-Hệ thống cho phép người dùng chọn cùng lúc nhiều file nguồn trong `sources/` (ví dụ: `ch01.md`, `ch02.txt`).
+### 4.1. Kích Thước Chunk Thực Tế
+* Thông thường, một chương truyện có độ dài từ 3.000 đến 10.000 từ (khoảng 15.000 - 45.000 ký tự).
+* Ngưỡng cắt lý tưởng được cấu hình từ **15.000 đến 20.000 ký tự/chunk**.
+* Do đó, **thông thường một chương chỉ chia thành 2 đến 3 chunk**, hiếm khi vượt quá 5 chunk.
 
-### 4.1. Cắt Chunk Kèm Metadata Đánh Số
-Trước khi gửi đi, mỗi đoạn văn bản được gán thông tin nhận diện:
-```python
-{
-    "file_index": 0,
-    "filename": "ch01.md",
-    "chunk_index": 1,          # Đánh số 0, 1, 2...
-    "total_chunks": 4,         # Tổng số chunk của file này
-    "char_count": 11450,       # Số ký tự thực tế
-    "estimated_tokens": 2860,  # Token ước lượng (char_count // 4)
-    "source_text": "..."
-}
-```
+### 4.2. Giải Thuật Cắt Ưu Tiên Ranh Giới Tự Nhiên
+Cắt tại vị trí gần mốc 50% nhất trong dải 20% - 80% theo thứ tự ưu tiên:
+1. Dấu xuống dòng đôi `\n\n` (ngắt đoạn văn tự nhiên).
+2. Dấu xuống dòng đơn `\n`.
+3. Dấu kết thúc câu (`. `, `! `, `? `, `。`, `！`, `？`).
+4. Dấu cách thông thường.
+5. Cắt cứng tại 50% nếu văn bản không có khoảng trắng.
 
-### 4.2. Ghép Nối Hoàn Chỉnh Khi Nhận Về
-* Sau khi AI dịch xong lần lượt các chunk của một file, hệ thống sắp xếp các chunk theo đúng `chunk_index` (từ $0$ đến $N-1$).
-* Nối lại bằng 2 dấu xuống dòng `\n\n` để giữ nguyên khoảng cách đoạn văn.
-* Ghi trực tiếp ra file kết quả: `workspace/projects/{slug}/translated/{filename}`.
+### 4.3. Quy Ước Ghép Nối Chunk
+* **Quy ước Phase 1**: Mỗi chunk được coi là một đơn vị đoạn văn bản lớn; các chunk dịch xong được ghép nối với nhau bằng **một dòng trống (`\n\n`)**.
+* Không tuyên bố bảo toàn 100% định dạng; cam kết bảo toàn 100% nội dung chữ và ưu tiên ranh giới đoạn văn tự nhiên.
 
 ---
 
-## 5. THƯ VIỆN PROMPT NHẸ (LIGHTWEIGHT PROMPT LIBRARY)
+## 5. THIẾT KẾ GIAO DIỆN: 1 PHIÊN DỊCH TẠI 1 THỜI ĐIỂM (PHASE 2 WEBUI)
 
-Cho phép người dùng toàn quyền kiểm soát chỉ thị AI:
-1. **Nguồn Prompt đa dạng**:
-   * Chọn prompt từ thư mục dùng chung của ứng dụng (`prompts/*.txt`).
-   * Hoặc chọn prompt riêng của chính dự án (`workspace/projects/{slug}/assets/*.txt`). Giúp dự án mang theo toàn bộ chỉ thị khi copy/backup.
-2. **Thao tác nhanh**: Xem nội dung, sửa trực tiếp, lưu prompt mới ngay trên giao diện.
-3. **Prompt Stacking**: Chọn 1 Prompt Chính (ép chuẩn dịch thuật & bảo toàn Markdown) + Tick chọn thêm các Prompt Bổ Sung (xưng hô cổ trang, trau chuốt câu từ).
-
----
-
-## 6. THIẾT KẾ GIAO DIỆN: 1 PHIÊN DỊCH TẠI 1 THỜI ĐIỂM (SINGLE-SESSION UI)
-
-Giao diện tập trung 100% vào sự rõ ràng, phản hồi nhanh và loại bỏ hoàn toàn các bảng biểu quản lý rườm rà.
+Giao diện phục vụ duy nhất 1 phiên dịch in-flight, không bảng biểu quản lý rườm rà:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│ [LOGO] CONTENT TRANSLATOR                                    [Gemini: 3 Keys Ready]  [⚙️]   │
+│ [LOGO] CONTENT TRANSLATOR                                    [Gemini: 2 Keys Sẵn Sàng]      │
 ├─────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 📁 Dự Án: [Truyen_Tien_Hiep ▼]   📜 Prompt: [default.txt ▼]   [+ Prompt bổ sung]            │
+│ 📁 Dự Án: [Truyen_Tien_Hiep ▼]   📜 Prompt: [default_translation.txt ▼]   [+ Prompt bổ sung] │
 ├──────────────────────────────────┬──────────────────────────────────────────────────────────┤
-│ DANH SÁCH FILE NGUỒN             │ MÀN HÌNH SO SÁNH SONG NGỮ (DUAL-PANE EDITOR)            │
-│ [X] ch01.md (12.4k ký tự)        ├────────────────────────────┬─────────────────────────────┤
-│ [ ] ch02.md (15.1k ký tự)        │ VĂN BẢN GỐC (ch01.md)      │ BẢN DỊCH TIẾNG VIỆT         │
+│ DANH SÁCH FILE NGUỒN             │ MÀN HÌNH DUAL-PANE SO SÁNH SONG NGỮ                      │
+│ [X] chuong_01.md (2 chunks)      ├────────────────────────────┬─────────────────────────────┤
+│ [ ] chuong_02.md (3 chunks)      │ VĂN BẢN GỐC                │ BẢN DỊCH TIẾNG VIỆT         │
 │                                  │                            │                             │
 │ ℹ️ THÔNG TIN CHUNK ĐANG XỬ LÝ:   │ # Chương 1: Khởi đầu       │ # Chương 1: Khởi đầu        │
-│ • Chunk: 1/3 (ch01.md)           │ Đêm đã về khuya...         │ Đêm đã về khuya...          │
-│ • Số ký tự: 11,450 ký tự         │                            │                             │
-│ • Token ước lượng: ~2,860 tokens │                            │                             │
+│ • Chunk hiện tại: 1 / 2          │ Đêm đã về khuya...         │ Đêm đã về khuya...          │
+│ • Ký tự: 16,420 ký tự            │                            │                             │
+│ • Token ước lượng: ~4,100 tokens │                            │                             │
 ├──────────────────────────────────┴────────────────────────────┴─────────────────────────────┤
-│ BỘ NÚT ĐIỀU KHIỂN THAO TÁC TRỰC TIẾP:                                                       │
-│ [▶ Bắt Đầu Dịch]   [📋 Sao Chép Kết Quả]   [💾 Lưu Vào File]   [❌ Xóa & Gửi Lại]   [🔄 Gửi Lại]│
+│ BỘ NÚT ĐIỀU KHIỂN:                                                                          │
+│ [▶ Bắt Đầu Dịch]   [📋 Sao Chép Bản Dịch]   [💾 Lưu Vào File]   [❌ Xóa & Gửi Lại]   [🔄 Gửi Lại]│
 └─────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Các Tính Năng & Nút Thao Tác Trực Tiếp Trên UI:
-1. **Đếm ký tự & Ước lượng Token**: Hiển thị rõ ràng số ký tự và số token ước tính của từng chunk và toàn bộ file.
-2. **So sánh Song ngữ (Dual-Pane Sync-Scroll)**: Khung trái văn bản gốc, khung phải văn bản dịch tiếng Việt hiển thị streaming trực tiếp.
-3. **Nút [Sao chép kết quả] (Copy)**: Copy nhanh toàn bộ bản dịch vào Clipboard.
-4. **Nút [Lưu vào file] (Save)**: Lưu ngay bản dịch vào thư mục `translated/`.
-5. **Nút [Xóa & Gửi lại] (Clear & Resend)**: Xóa trắng kết quả hiện tại và kích hoạt lại luồng gửi.
-6. **Nút [Gửi lại] (Retry)**: Khi gặp lỗi mạng hoặc lỗi 429 hết key, nút này sáng lên để người dùng bấm thử lại khi đã sẵn sàng.
-7. **Các nút xử lý nâng cao** (so sánh diff chi tiết, tìm kiếm & thay thế...): Được xếp lịch làm sau ở Phase 3 trở đi.
+* **Thao tác tức thì**:
+  * **[▶ Bắt Đầu Dịch]**: Gửi lần lượt 2-3 chunk lên Gemini.
+  * **[📋 Sao Chép]**: 1-click copy kết quả vào Clipboard.
+  * **[💾 Lưu Vào File]**: Ghi kết quả vào `workspace/projects/{slug}/translated/{filename}`.
+  * **[❌ Xóa & Gửi Lại]**: Xóa kết quả hiện tại để gửi lại từ đầu.
+  * **[🔄 Gửi Lại (Retry)]**: Sáng lên khi gặp lỗi mạng / 429 để người dùng chủ động bấm thử lại.
+  * **Dual-Pane**: Sync-Scroll cuộn đồng bộ và Inline Edit sửa trực tiếp bản dịch.
