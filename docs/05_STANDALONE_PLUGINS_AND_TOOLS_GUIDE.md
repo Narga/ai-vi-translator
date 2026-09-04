@@ -1,5 +1,6 @@
 # 05. CHỈ DẪN CHI TIẾT CÁC CÔNG CỤ & PLUGINS ĐỘC LẬP
 > **Tài liệu**: Hướng dẫn kỹ thuật và mã nguồn chi tiết cho các công cụ chuyên biệt, đảm bảo tính tách biệt, không làm phình to lõi ứng dụng chính.
+> **Phiên bản**: v2.3 (04/09/2026) — bỏ OCR, chốt glossary path + quy ước mở rộng không framework.
 
 ---
 
@@ -29,7 +30,7 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 class SimpleEpubPacker:
-    """Đóng gói các tệp text/markdown/html thành chuẩn EPUB 3.0 tối giản."""
+    """Đóng gói các tệp text/markdown/html thành EPUB 2.0 tối giản (OPF 2.0 + NCX)."""
 
     def __init__(self, title: str, author: str = "AI Translator"):
         self.title = title
@@ -150,9 +151,10 @@ class TextFormatConverter:
 
 ---
 
-## 2. CÔNG CỤ 2: CÔNG CỤ OCR
-* **Quyết định**: **ĐỂ SAU, CHƯA CÓ NHU CẦU**.
-* **Giải thích**: Tránh việc phải cài đặt Tesseract-OCR và Poppler binary lên máy tính của người dùng. Giữ hệ thống mới hoàn toàn gọn nhẹ. Nếu sau này có nhu cầu, sẽ được phát triển dưới dạng 1 Microservice Python riêng biệt gọi qua API.
+## 2. CÔNG CỤ 2: OCR — TẠM HOÃN, CHUYỂN VÀO ROADMAP (CHỐT v2.3)
+* **Quyết định**: **Không làm trong Phase 1–4. Chi tiết hoãn xem `ROADMAP.md` §6.**
+* **Lý do**: Tesseract/Poppler nặng, chất lượng tiếng Việt + layout thua xa công cụ ngoài (Preview, Google Lens/Docs, NAPS2, Calibre). Giữ lõi Lean.
+* **Tạm thời**: Người dùng OCR bằng tool ngoài rồi nạp txt/md/html vào `sources/` như bình thường.
 
 ---
 
@@ -185,8 +187,8 @@ Theo yêu cầu, tính năng này được **tinh giản và tích hợp trực 
 ## 4. CÔNG CỤ 4: TRÍCH XUẤT THỰC THỂ, NHÂN VẬT & THUẬT NGỮ (ENTITY EXTRACTOR)
 
 ### 4.1. Cơ Chế Sinh Nội Dung Trực Tiếp Tại Thư Mục Dự Án
-* Công cụ chạy quét các file nguồn trong dự án và tự động tạo ra tệp:
-  `workspace/projects/{slug}/glossary.txt`
+* Công cụ chạy quét các file nguồn trong dự án và tự động tạo ra tệp (đường dẫn chuẩn duy nhất, chốt v2.3):
+  `workspace/projects/{slug}/assets/glossary.txt`
 * **Định dạng chuẩn của file `glossary.txt`**:
   ```text
   # BẢNG THUẬT NGỮ & NHÂN VẬT DỰ ÁN
@@ -200,9 +202,9 @@ Theo yêu cầu, tính năng này được **tinh giản và tích hợp trực 
   ```
 
 ### 4.2. Cơ Chế Đính Kèm Khi Gửi Chunk Để Có Tác Dụng
-* **Nguyên lý bắt buộc**: File `glossary.txt` chỉ phát huy tác dụng khi nội dung của nó được **đính kèm vào Prompt gửi cùng từng Chunk**.
-* **Luồng xử lý trong Backend (`core/pipeline.py`)**:
-  1. Khi bắt đầu dịch chunk $K$, hệ thống đọc nội dung file `workspace/projects/{slug}/glossary.txt`.
+* **Nguyên lý bắt buộc**: File `assets/glossary.txt` chỉ phát huy tác dụng khi nội dung của nó được **đính kèm vào Prompt gửi cùng từng Chunk**.
+* **Luồng xử lý (Phase 1 dùng `run.py`, Phase 3+ tách `core/pipeline.py` nếu cần)**:
+  1. Khi bắt đầu dịch chunk $K$, hệ thống đọc nội dung file `workspace/projects/{slug}/assets/glossary.txt`.
   2. Quét nhanh: Chỉ lấy ra những dòng thuật ngữ có từ gốc xuất hiện thực tế trong văn bản của chunk $K$ (để không làm loãng prompt).
   3. Nhúng danh sách thuật ngữ này vào biến `{{glossary_terms}}` trong template prompt chính:
      ```text
@@ -212,4 +214,18 @@ Theo yêu cầu, tính năng này được **tinh giản và tích hợp trực 
      
      *Quy tắc: Khi gặp các từ gốc trên trong văn bản, bạn BẮT BUỘC phải dịch chính xác thành từ dịch tương ứng.*
      ```
-  4. Gửi toàn bộ gói chỉ thị này cùng chunk lên AI. Nhờ đó, AI luôn dịch chuẩn xác và nhất quán 100% tên riêng của nhân vật qua hàng trăm chương truyện.
+   4. Gửi toàn bộ gói chỉ thị này cùng chunk lên AI. Nhờ đó, AI luôn dịch chuẩn xác và nhất quán 100% tên riêng của nhân vật qua hàng trăm chương truyện.
+
+---
+
+## 5. ĐÁNH GIÁ HỖ TRỢ PLUGIN (CHỐT v2.3: QUY ƯỚC, KHÔNG FRAMEWORK)
+
+**Kết luận**: Không xây hệ thống plugin động (entry-points/sandbox/marketplace) ở Phase 1/2 — quá nặng cho tool single-user. Mở rộng bằng 3 quy ước có sẵn, ai biết Python cơ bản cũng thêm được:
+
+| Loại mở rộng | Quy ước | Ví dụ |
+|---|---|---|
+| Prompt mới | Thêm file `prompts/<ten>.txt` chứa `{{source_text}}` (+ `{{glossary_terms}}` nếu cần) | `qa_polish_tien_hiep.txt` |
+| Tool độc lập | Thêm file `tools/<ten>_tool.py` chạy `python tools/<ten>_tool.py ...`, chỉ dùng stdlib | `epub_tool.py` |
+| Provider AI mới | Thêm file `core/<ten>_client.py` implement `AIClient.translate_chunk(prompt)`, tái dùng `KeyRotator` | `openai_client.py` |
+
+Khi nào mới cần framework thật: có ≥5 providers hoặc tool cần UI riêng → khi đó thêm `tools/manifest.json` + loader `importlib` ~20 dòng (Phase 5, chưa làm).

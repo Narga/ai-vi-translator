@@ -1,6 +1,7 @@
 # LỘ TRÌNH PHÁT TRIỂN TƯƠNG LAI (FUTURE ROADMAP)
 > **Tài liệu**: Lưu trữ các tính năng nâng cao được dời lại từ Phase 1 & Phase 2 nhằm giữ cho lõi gửi–nhận của dự án luôn tinh gọn, nhẹ và không phát sinh lỗi.  
 > **Địa chỉ**: `docs/ROADMAP.md`
+> **Phiên bản**: v2.3 (04/09/2026) — app.db đã có từ Phase 1, OCR đã loại bỏ, OpenAI đã làm sớm.
 
 ---
 
@@ -23,7 +24,7 @@ Trong Phase 1 và Phase 2, **loại bỏ hoàn toàn Checkpoint** giúp code gi�
 
 ## 2. KẾ HOẠCH SỬ DỤNG SQLITE CHO TƯƠNG LAI
 
-File `workspace/app.db` được tạo sẵn sàng dưới dạng SQLite database tối giản. Trong tương lai (Phase 3 trở đi), SQLite sẽ được tận dụng cho các tính năng sau:
+File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bảng `projects/files/runs` để index + log. Trong tương lai (Phase 3 trở đi), SQLite sẽ được tận dụng thêm cho:
 
 1. **Đánh chỉ mục tìm kiếm toàn văn (SQLite FTS5 Full-Text Search)**:
    * Cho phép người dùng gõ từ khóa để tìm kiếm ngay lập tức xem nhân vật hoặc thuật ngữ xuất hiện ở những chương nào trong hàng trăm chương truyện.
@@ -60,4 +61,19 @@ File `workspace/app.db` được tạo sẵn sàng dưới dạng SQLite databas
 1. **Tự động tóm tắt chương trước (`previous_chunk_handoff` - Kế thừa từ silaBook)**:
    * Sau khi dịch xong một chương, AI tự sinh tóm tắt 3 câu và tự động truyền vào biến `{{previous_summary}}` của chương kế tiếp để giữ giọng điệu liền mạch.
 2. **Công cụ Trích xuất Thực thể & Nhân vật tự động**:
-   * Quét các chương truyện nguồn và tự động trích xuất danh sách nhân vật, môn phái, địa danh vào file `workspace/projects/{slug}/assets/glossary.txt`.
+   * Quét các chương truyện nguồn và tự động trích xuất danh sách nhân vật, môn phái, địa danh vào file `workspace/projects/{slug}/assets/glossary.txt` (đường dẫn chuẩn duy nhất, chốt v2.3).
+
+---
+
+## 6. OCR — TẠM HOÃN SANG TƯƠNG LAI XA (KHÔNG LÀM PHASE 1–4)
+
+* Giữ chỗ: nếu sau này thực sự cần, triển khai dưới dạng microservice/tool độc lập `tools/ocr_tool.py` gọi qua API, KHÔNG nhúng Tesseract/Poppler vào lõi hay WebUI.
+* Tạm thời dùng công cụ ngoài (Preview, Google Lens/Docs, NAPS2, Calibre) rồi nạp txt/md/html vào `sources/`.
+
+---
+
+## 7. QUYẾT ĐỊNH ĐÃ CHỐT v2.3 (KHỎI TRANH LUẬN LẠI)
+
+* OCR: tạm hoãn vào §6 trên, dùng tool ngoài.
+* OpenAI-compatible: đã đưa vào Phase 1, chọn explicit `--provider/--model`, không fallback.
+* Plugin: quy ước file (prompts/tools/providers), không framework động.

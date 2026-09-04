@@ -1,7 +1,7 @@
 # 00. TÔN CHỈ & BẢN TUYÊN NGÔN CỐT LÕI DỰ ÁN
 > **Dự án**: Content Translator (Next-Gen)  
-> **Phiên bản tài liệu**: v2.2 (Chuẩn hóa kỹ thuật trước khi triển khai)  
-> **Cập nhật ngày**: 03/09/2026
+> **Phiên bản tài liệu**: v2.3 (Chốt: app.db từ Phase 1 + đa provider explicit + bỏ OCR)  
+> **Cập nhật ngày**: 04/09/2026
 
 ---
 
@@ -23,14 +23,16 @@ GIAO DIỆN (UI) / CLI
  └── Hiển thị kết quả / Ghi ra file (Gửi lại thủ công khi lỗi)
 
 AI CLIENT
- ├── Gemini REST adapter (sử dụng httpx thuần túy, zero SDK nặng)
- ├── Xử lý Timeout & Bắt lỗi HTTP / Lỗi mạng
- └── Xoay key đơn giản: Mỗi key thử tối đa 1 lần/chunk; 429 thì chuyển key kế tiếp; hết key thì dừng
+  ├── Gemini REST + OpenAI-compatible REST (cùng dùng httpx thuần, zero SDK)
+  ├── Provider/Model chọn explicit: làm gì chọn model đó, KHÔNG fallback ngầm
+  ├── Xử lý Timeout & Bắt lỗi HTTP / Lỗi mạng
+  └── Xoay key đơn giản: Mỗi key thử tối đa 1 lần/chunk; 429 thì chuyển key kế tiếp; hết key thì dừng
 
 FILE & CẤU HÌNH (LOCAL)
- ├── Đường dẫn tính tương đối theo thư mục chứa dự án (PROJECT_ROOT)
- ├── config.json mỏng & keys.json nhạy cảm (nằm trong .gitignore)
- └── Toàn bộ thư mục workspace/ KHÔNG track với Git (bảo đảm riêng tư tuyệt đối)
+  ├── Đường dẫn tính tương đối theo thư mục chứa dự án (PROJECT_ROOT)
+  ├── config.json mỏng (kèm danh sách models) & keys.json nhạy cảm (nằm trong .gitignore)
+  ├── workspace/app.db (SQLite stdlib): index dự án/file + log runs, KHÔNG checkpoint nội dung
+  └── Toàn bộ thư mục workspace/ KHÔNG track với Git (bảo đảm riêng tư tuyệt đối)
 ```
 
 ---
@@ -39,21 +41,22 @@ FILE & CẤU HÌNH (LOCAL)
 
 ### A. Thành Phần Lõi Bắt Buộc (Phải có để Phase 1 chạy được)
 * **`chunker`**: Chia văn bản thành các chunk tự nhiên ($\le \text{max\_chars}$), ưu tiên ranh giới đoạn/câu, xử lý file rỗng, không làm mất nội dung có ý nghĩa.
-* **`prompt_engine`**: Thay thế biến `{{source_text}}` vào template prompt `.txt` mà không làm hỏng Unicode tiếng Việt.
-* **`ai_client`**: Gọi Google Gemini API qua HTTP REST, bắt lỗi mạng, timeout, response rỗng và xoay key khi 429.
+* **`prompt_engine`**: Thay thế biến `{{source_text}}` (+ `{{glossary_terms}}` khi có) vào template prompt `.txt` mà không làm hỏng Unicode tiếng Việt.
+* **`ai_client`**: Gọi AI qua HTTP REST (Gemini + OpenAI-compatible, chung interface `AIClient`), bắt lỗi mạng, timeout, response rỗng và xoay key khi 429. Provider/model luôn chọn explicit qua `--provider/--model`, không fallback ngầm model khác.
 * **`run.py` (CLI)**: Đọc file đầu vào, chạy luồng gửi-nhận, in tiến độ và ghi file đầu ra.
 
 ### B. Thành Phần Tiện Ích Mỏng (Hỗ trợ cấu hình và an toàn cơ bản)
-* **`config`**: Đọc cấu hình JSON mỏng, kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`), tách biệt `keys.json`.
-* **`key_rotator`**: Bộ xoay key tối giản (1 key gặp 429 dừng ngay, nhiều key chuyển lần lượt, không thử lại key trong cùng 1 chunk).
+* **`config`**: Đọc cấu hình JSON mỏng, kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`), chứa danh sách `providers.{gemini,openai_compat}.models` để chọn, tách biệt `keys.json` (`gemini_keys`, `openai_compat_keys`).
+* **`key_rotator`**: Bộ xoay key tối giản (1 key gặp 429 dừng ngay, nhiều key chuyển lần lượt, không thử lại key trong cùng 1 chunk). Tái dùng y hệt cho cả Gemini và OpenAI-compatible.
 * **`file_handler`**: Lớp đọc/ghi file có kiểm tra an toàn đường dẫn (`relative_to()`, chống path traversal `..`, `/`, `\`).
+* **`app_db`**: SQLite stdlib (`workspace/app.db`, đã gitignore theo `workspace/`). Chỉ 3 bảng `projects/files/runs` để index + log, KHÔNG lưu checkpoint chunk. Tạo từ Phase 1 để dùng ngay.
 
 ### C. Tiện Ích Mở Rộng (Chuyển sang các Phase tiếp theo)
-* Hỗ trợ OpenAI-compatible $\to$ Chuyển sang **Phase 3**.
-* Quản lý `assets/` riêng của từng dự án & `glossary.txt` $\to$ Chuyển sang **Phase 3**.
+* Quản lý `assets/` riêng của từng dự án & `assets/glossary.txt` $\to$ Chuyển sang **Phase 3** (đường dẫn chuẩn duy nhất: `workspace/projects/{slug}/assets/glossary.txt`).
 * Tìm kiếm & thay thế hàng loạt, so sánh Diff chi tiết $\to$ Chuyển sang **Phase 3**.
 * Công cụ đóng gói EPUB & chuyển đổi 2 chiều $\to$ Chuyển sang **Phase 4**.
 * Checkpoint lưu tạm từng chunk $\to$ Chuyển sang **ROADMAP** (chỉ làm khi thực sự có nhu cầu).
+* OCR $\to$ **TẠM HOÃN sang ROADMAP §6** (dùng công cụ ngoài; input của tool chỉ nhận text/md/html).
 
 ---
 
@@ -83,3 +86,12 @@ FILE & CẤU HÌNH (LOCAL)
 
 > **"Tính năng này có giúp việc gửi chunk cho AI và nhận bản dịch về nhanh hơn, nhẹ hơn không?"**  
 > Nếu làm tăng trạng thái, thêm luồng ngầm, hoặc không phục vụ trực tiếp chu trình gửi-nhận: **LOẠI BỎ NGAY LẬP TỨC**.
+
+---
+
+## 6. NGUYÊN TẮC PROVIDER/MODEL & MỞ RỘNG (CHỐT v2.3)
+
+1. **Explicit, không fallback ngầm**: Mọi lượt gọi chỉ rõ `provider + model` (CLI `--provider/--model`, WebUI dropdown). Lỗi thì dừng, không tự đổi model khác. Việc khác (tóm tắt, trích thuật ngữ) cũng chọn model riêng từ danh sách trong `config.json`.
+2. **Key theo provider**: `gemini_keys` và `openai_compat_keys` độc lập, cùng dùng `KeyRotator`.
+3. **app.db từ Phase 1**: Chỉ index + log (`projects/files/runs`). Không bảng `chunks/checkpoints` cho tới khi ROADMAP kích hoạt.
+4. **Mở rộng bằng quy ước, không framework plugin**: Prompt mới = thêm file `prompts/*.txt`; tool mới = thêm file `tools/*.py` chạy độc lập; provider mới = thêm file `core/*_client.py` theo interface `AIClient`. Không hệ thống nạp plugin động, không sandbox trong Phase 1/2.

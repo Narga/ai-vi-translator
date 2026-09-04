@@ -1,5 +1,6 @@
 # 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & CHỈ DẪN CẤU HÌNH
 > **Mục tiêu**: Định nghĩa chuẩn xác cấu trúc hệ thống gửi–nhận, định vị đường dẫn độc lập CWD, kiểm tra an toàn đường dẫn và hướng dẫn nhập cấu hình, API key.
+> **Phiên bản**: v2.3 (04/09/2026) — thêm đa provider explicit + app.db từ Phase 1.
 
 ---
 
@@ -7,40 +8,41 @@
 
 Hệ thống cung cấp 3 cách nạp API Key rõ ràng, linh hoạt, tự động fallback:
 
-### 1.1. Nạp API Key (3 Cách)
+### 1.1. Nạp API Key (3 Cách, 2 Nhóm Key Độc Lập)
 * **Cách 1 (Chuẩn nhất cho người dùng cá nhân)**:
   * Mở file `config/keys.json` (hệ thống tự tạo file mẫu nếu chưa có) và dán các key vào:
     ```json
     {
-      "gemini_keys": [
-        "AIzaSyD-KEY_1",
-        "AIzaSyD-KEY_2"
-      ]
+      "gemini_keys": ["AIzaSyD-KEY_1", "AIzaSyD-KEY_2"],
+      "openai_compat_keys": ["sk-or-KEY_1"]
     }
     ```
   * File này đã được đưa vào `.gitignore`, không bao giờ bị lộ lên Git.
 * **Cách 2 (Biến môi trường - Phù hợp khi chạy VPS)**:
-  * Khai báo trong terminal hoặc file `.env`:
+  * Export trực tiếp trong terminal (KHÔNG có cơ chế tự load file `.env`, để khỏi thêm dependency):
     ```bash
     export GEMINI_API_KEYS="AIzaSyD-KEY_1,AIzaSyD-KEY_2"
+    export OPENAI_COMPAT_KEYS="sk-or-KEY_1"
+    export OPENAI_COMPAT_BASE_URL="https://openrouter.ai/api/v1"
     ```
 * **Cách 3 (Nhập tương tác CLI)**:
-  * Nếu cả 2 cách trên đều chưa có key, khi chạy lệnh `python run.py`, màn hình sẽ hỏi trực tiếp:
-    ```text
-    👉 Chưa tìm thấy API Key! Nhập Gemini API Key của bạn: AIzaSy...
-    ```
-    và tự động ghi nhớ vào `config/keys.json`.
+  * Nếu cả 2 cách trên đều chưa có key cho provider đang chọn, khi chạy lệnh `python run.py`, màn hình sẽ hỏi trực tiếp và tự động ghi nhớ vào `config/keys.json`.
 
 ### 1.2. Nạp Cấu Hình Chung (`config/config.json`)
-Chứa các tham số vận hành, có kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`):
+Chứa tham số vận hành + danh sách model được phép chọn (không hardcode model trong code). Có kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`):
 ```json
 {
-  "provider": "gemini",
-  "gemini_model": "gemini-2.5-flash",
+  "default_provider": "gemini",
+  "default_model": "gemini-2.5-flash",
   "max_chunk_chars": 16000,
-  "timeout_seconds": 90
+  "timeout_seconds": 90,
+  "providers": {
+    "gemini": {"models": ["gemini-2.5-flash", "gemini-2.5-flash-lite"]},
+    "openai_compat": {"base_url": "https://openrouter.ai/api/v1", "models": ["deepseek-chat"]}
+  }
 }
 ```
+> Nguyên tắc: mọi lượt gọi chỉ rõ `provider + model` (CLI `--provider/--model`, WebUI dropdown). **Không fallback ngầm** sang model khác khi lỗi.
 
 ### 1.3. Nạp Nội Dung Cần Dịch
 * **Chế độ trực tiếp**: Để file ở bất kỳ đâu trên máy tính và chạy:
@@ -104,16 +106,33 @@ Trong chế độ `--project`, cả `slug` và `filename` phải được kiểm
 
 ---
 
-## 5. CƠ CHẾ XOAY KEY TỐI GIẢN (GEMINI CLIENT)
+## 5. CƠ CHẾ XOAY KEY TỐI GIẢN (DÙNG CHUNG 2 PROVIDERS)
 
 * **Chính sách**:
-  * Mỗi key chỉ được thử tối đa một lần trong một lần gửi chunk.
+  * Mỗi key chỉ được thử tối đa một lần trong một lần gửi chunk (tái dùng `KeyRotator` cho cả Gemini và OpenAI-compatible).
   * Nếu gặp lỗi 429 và còn key khác trong danh sách $\to$ Chuyển lần lượt sang key kế tiếp.
   * Với trường hợp chỉ có duy nhất 1 key trong danh sách $\to$ Gặp 429 dừng ngay lập tức.
   * Nếu tất cả key đều gặp 429 $\to$ Dừng toàn bộ chương trình, báo lỗi rõ ràng.
+  * **Không fallback model**: hết key của model đang chọn thì dừng, không tự đổi sang model khác.
 * **Chính sách giữa các chunk**:
   * Mỗi chunk là một phiên gửi độc lập.
   * Bắt đầu từ key đang hoạt động thành công của chunk trước để tận dụng quota.
 * **Chính sách thất bại**:
   * Dừng toàn bộ chương trình ngay lập tức và KHÔNG lưu trạng thái dở dang.
   * Người dùng chạy lại lệnh sẽ bắt đầu lại toàn bộ file từ chunk đầu tiên.
+
+---
+
+## 6. DATABASE TỐI THIỂU TỪ PHASE 1 (`workspace/app.db`)
+
+* Tạo từ lần chạy đầu tiên bằng stdlib `sqlite3`, không thêm dependency. Nằm trong `workspace/` nên đã gitignore.
+* Chỉ 3 bảng để **index + log, không checkpoint nội dung**:
+  ```sql
+  CREATE TABLE IF NOT EXISTS projects(slug TEXT PRIMARY KEY, title TEXT, created_at TEXT);
+  CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, project_slug TEXT, filename TEXT,
+    size_bytes INT, char_count INT, chunk_count INT, status TEXT DEFAULT 'new',
+    updated_at TEXT, UNIQUE(project_slug, filename));
+  CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY, file_id INT, provider TEXT,
+    model TEXT, started_at TEXT, finished_at TEXT, status TEXT, error TEXT);
+  ```
+* Dùng ngay ở Phase 1: CLI cập nhật `files` sau mỗi lần dịch, ghi 1 dòng `runs` (provider/model/thời gian/lỗi). Bảng `chunks/checkpoints` và FTS5 để dành Phase 3+ (xem ROADMAP).

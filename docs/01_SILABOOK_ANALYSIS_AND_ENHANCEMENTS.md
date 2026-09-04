@@ -1,4 +1,7 @@
 # 01. PHÂN TÍCH GIẢI THUẬT SILABOOK & ĐỀ XUẤT TỐI ƯU VÀO DỰ ÁN MỚI
+> **⚠️ TÀI LIỆU THAM KHẢO — NON-NORMATIVE (v2.3, 04/09/2026).**
+> Chuẩn thực thi là `00_PROJECT_MANIFESTO.md` v2.3. Bảng "Định hướng Dự Án Mới" dưới đây (FastAPI/8 trang/adaptive-cooldown) đã bị thay thế: Phase 1 dùng CLI + `httpx` + 2 providers explicit, Phase 2 dùng `server.py` stdlib + 4 trang. Chỉ giữ lại giá trị của doc này là 4 giải thuật (SmartHardSplit, handoff, lọc thuật ngữ, sidebar thu gọn).
+>
 > **Tham chiếu**: Thư mục `docs/silaBooks/` (9 chuyên đề kỹ thuật)  
 > **Mục tiêu**: Phân tích sâu sắc cấu trúc, giải thuật của silaBook, so sánh với Novel-Translator hiện tại, chắt lọc các giải thuật xuất sắc và đề xuất phương án tối ưu hóa cho hệ thống mới.
 

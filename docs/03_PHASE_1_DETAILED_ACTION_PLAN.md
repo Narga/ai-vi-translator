@@ -1,6 +1,7 @@
 # 03. KẾ HOẠCH TRIỂN KHAI PHASE 1 CHI TIẾT TỈ MỈ (CLI WORKING CORE)
-> **Mục tiêu**: Xây dựng bộ mã nguồn cốt lõi tối giản, chỉ dùng `httpx`, loại bỏ hoàn toàn FastAPI/uvicorn/pydantic và storage trạng thái, **sử dụng được ngay lập tức từ dòng lệnh CLI để dịch file**.  
-> **Cam kết**: Đầy đủ mã nguồn mẫu cho toàn bộ các module, bộ test hoàn chỉnh (mock test Gemini), kiểm tra an toàn đường dẫn và chia thành 4 mốc triển khai nhỏ.
+> **Mục tiêu**: Xây dựng bộ mã nguồn cốt lõi tối giản, chỉ dùng `httpx` (+ `sqlite3` stdlib), loại bỏ hoàn toàn FastAPI/uvicorn/pydantic và storage trạng thái chunk, **sử dụng được ngay lập tức từ dòng lệnh CLI để dịch file với Gemini + OpenAI-compatible**.  
+> **Cam kết**: Đầy đủ mã nguồn mẫu cho toàn bộ các module, bộ test hoàn chỉnh (mock test cả 2 providers), kiểm tra an toàn đường dẫn và chia thành 5 mốc triển khai nhỏ.
+> **Phiên bản**: v2.3 (04/09/2026).
 
 ---
 
@@ -8,18 +9,21 @@
 
 ```text
 content-translator/
-├── pyproject.toml              # CHỈ CẦN httpx (dev: pytest, pytest-asyncio)
+├── pyproject.toml              # CHỈ CẦN httpx (dev: pytest, pytest-asyncio) + sqlite3 stdlib
 ├── .gitignore                  # Bỏ qua workspace/ và config/keys.json
 ├── config/
-│   ├── config.json             # Cấu hình chung (model, timeout, max_chars)
-│   └── keys.json               # API keys nhạy cảm (Google Gemini)
+│   ├── config.json             # Cấu hình chung (providers, models, timeout, max_chars)
+│   └── keys.json               # API keys nhạy cảm (gemini_keys + openai_compat_keys)
 ├── core/
 │   ├── __init__.py
 │   ├── config.py               # Lớp nạp cấu hình JSON mỏng (tính theo PROJECT_ROOT)
-│   ├── key_rotator.py          # Module xoay key tối giản (1 key dừng ngay, nhiều key chuyển lần lượt)
+│   ├── key_rotator.py          # Module xoay key tối giản (dùng chung 2 providers)
 │   ├── chunker.py              # Cắt chunk tự nhiên, xử lý văn bản rỗng/ngắn/không dấu cách
 │   ├── prompt_engine.py        # Nạp prompt .txt, bảo toàn Unicode tiếng Việt
+│   ├── ai_base.py              # Interface AIClient chung (Protocol)
 │   ├── ai_client.py            # Client Gemini REST (timeout, lỗi mạng, xoay key khi 429)
+│   ├── openai_client.py        # Client OpenAI-compatible REST (tái dùng KeyRotator)
+│   ├── app_db.py + schema.sql  # SQLite index projects/files/runs (không checkpoint)
 │   └── file_handler.py         # Đọc/ghi file an toàn (kiểm tra relative_to, chống path traversal)
 ├── prompts/
 │   └── default_translation.txt # Prompt chính dịch chuẩn
@@ -29,8 +33,10 @@ content-translator/
 │   ├── test_key_rotator.py     # Test 1 key, nhiều key, danh sách rỗng
 │   ├── test_prompt_engine.py   # Test nạp prompt và giữ nguyên Unicode
 │   ├── test_file_handler.py    # Test chống path traversal .. và /
-│   └── test_ai_client.py       # Mock test httpx: 200, 429, hết key, timeout, lỗi mạng, response rỗng
-└── run.py                      # Script CLI thực thi dịch trực tiếp
+│   ├── test_app_db.py          # Test tạo bảng + ghi files/runs
+│   ├── test_ai_client.py       # Mock test httpx Gemini: 200, 429, hết key, timeout, lỗi mạng, response rỗng
+│   └── test_openai_client.py   # Mock test httpx OpenAI-compatible: 200, 429 failover, hết key
+└── run.py                      # Script CLI: --provider/--model explicit, không fallback
 ```
 
 ---
@@ -67,7 +73,7 @@ content-translator/
 ---
 
 ### Task 1.2: `core/config.py` (Lớp Cấu Hình Cực Mỏng & Kiểm Tra Hợp Lệ)
-* **Mã nguồn**:
+* **Mã nguồn** (hỗ trợ 2 nhóm key + danh sách models chọn explicit):
   ```python
   # core/config.py
   import os
@@ -82,10 +88,14 @@ content-translator/
   KEYS_FILE = CONFIG_DIR / "keys.json"
 
   DEFAULT_CONFIG = {
-      "provider": "gemini",
-      "gemini_model": "gemini-2.5-flash",
+      "default_provider": "gemini",
+      "default_model": "gemini-2.5-flash",
       "max_chunk_chars": 16000,
-      "timeout_seconds": 90
+      "timeout_seconds": 90,
+      "providers": {
+          "gemini": {"models": ["gemini-2.5-flash", "gemini-2.5-flash-lite"]},
+          "openai_compat": {"base_url": "https://openrouter.ai/api/v1", "models": ["deepseek-chat"]}
+      }
   }
 
   class AppConfig:
@@ -97,10 +107,10 @@ content-translator/
           if not CONFIG_FILE.exists():
               CONFIG_FILE.write_text(json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
           if not KEYS_FILE.exists():
-              KEYS_FILE.write_text(json.dumps({"gemini_keys": []}, indent=2), encoding="utf-8")
+              KEYS_FILE.write_text(json.dumps({"gemini_keys": [], "openai_compat_keys": []}, indent=2), encoding="utf-8")
 
       def get_config(self) -> Dict[str, Any]:
-          cfg = DEFAULT_CONFIG.copy()
+          cfg = json.loads(json.dumps(DEFAULT_CONFIG))  # deep copy rẻ, khỏi import copy
           if CONFIG_FILE.exists():
               try:
                   data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
@@ -122,35 +132,43 @@ content-translator/
           except (ValueError, TypeError):
               cfg["timeout_seconds"] = 90.0
 
-          if not isinstance(cfg.get("gemini_model"), str) or not cfg.get("gemini_model").strip():
-              cfg["gemini_model"] = "gemini-2.5-flash"
-
           return cfg
 
-      def get_gemini_keys(self) -> List[str]:
-          keys = []
-          # 1. Đọc từ file keys.json
-          if KEYS_FILE.exists():
-              try:
-                  data = json.loads(KEYS_FILE.read_text(encoding="utf-8"))
-                  if isinstance(data, dict) and "gemini_keys" in data:
-                      keys = [k.strip() for k in data["gemini_keys"] if isinstance(k, str) and k.strip()]
-              except Exception:
-                  pass
-
-          # 2. Đọc từ biến môi trường GEMINI_API_KEYS (phân tách bởi dấu phẩy)
-          env_keys = os.getenv("GEMINI_API_KEYS", "")
-          if env_keys:
-              for k in env_keys.split(","):
-                  k_clean = k.strip()
-                  if k_clean and k_clean not in keys:
-                      keys.append(k_clean)
-
+      def _keys_from(self, data: dict, field: str, env_name: str) -> List[str]:
+          keys = [k.strip() for k in data.get(field, []) if isinstance(k, str) and k.strip()]
+          for k in os.getenv(env_name, "").split(","):
+              kc = k.strip()
+              if kc and kc not in keys:
+                  keys.append(kc)
           return keys
 
-      def save_gemini_keys(self, keys: List[str]):
-          data = {"gemini_keys": [k.strip() for k in keys if k.strip()]}
+      def get_keys(self, provider: str) -> List[str]:
+          try:
+              data = json.loads(KEYS_FILE.read_text(encoding="utf-8")) if KEYS_FILE.exists() else {}
+          except Exception:
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          if provider == "openai_compat":
+              return self._keys_from(data, "openai_compat_keys", "OPENAI_COMPAT_KEYS")
+          return self._keys_from(data, "gemini_keys", "GEMINI_API_KEYS")
+
+      def get_gemini_keys(self) -> List[str]:  # giữ tương thích test cũ
+          return self.get_keys("gemini")
+
+      def save_keys(self, provider: str, keys: List[str]):
+          try:
+              data = json.loads(KEYS_FILE.read_text(encoding="utf-8")) if KEYS_FILE.exists() else {}
+          except Exception:
+              data = {}
+          if not isinstance(data, dict):
+              data = {}
+          field = "openai_compat_keys" if provider == "openai_compat" else "gemini_keys"
+          data[field] = [k.strip() for k in keys if k.strip()]
           KEYS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+      def save_gemini_keys(self, keys: List[str]):
+          self.save_keys("gemini", keys)
   ```
 
 ---
@@ -360,6 +378,87 @@ content-translator/
                   raise e
   ```
 
+### Task 1.6b: `core/ai_base.py` + `core/openai_client.py` (Provider thứ 2, chung interface)
+* **Mã nguồn**:
+  ```python
+  # core/ai_base.py
+  from typing import Protocol
+
+  class AIClient(Protocol):
+      async def translate_chunk(self, prompt: str) -> str: ...
+  ```
+  ```python
+  # core/openai_client.py — OpenAI-compatible (OpenRouter/Groq/DeepSeek/Ollama), httpx thuần
+  import httpx, logging
+  from core.key_rotator import KeyRotator
+  logger = logging.getLogger(__name__)
+
+  class OpenAICompatClient:
+      def __init__(self, key_rotator: KeyRotator, model: str, base_url: str, timeout_seconds: float = 90.0):
+          self.rotator = key_rotator
+          self.model = model
+          self.base_url = base_url.rstrip("/")
+          self.timeout = float(timeout_seconds)
+
+      async def translate_chunk(self, prompt: str) -> str:
+          self.rotator.start_chunk_attempt()
+          while True:
+              key = self.rotator.get_current_key()
+              url = f"{self.base_url}/chat/completions"
+              payload = {"model": self.model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.3}
+              headers = {"Authorization": f"Bearer {key}"}
+              try:
+                  async with httpx.AsyncClient(timeout=self.timeout) as client:
+                      resp = await client.post(url, json=payload, headers=headers)
+                      if resp.status_code == 429:
+                          nxt = self.rotator.try_next_key()
+                          if nxt is not None:
+                              logger.warning("⚠️ Key OpenAI-compat bị 429, đổi key...")
+                              continue
+                          raise RuntimeError("❌ TẤT CẢ OPENAI-COMPAT KEY ĐỀU 429! Chạy lại sau.")
+                      resp.raise_for_status()
+                      data = resp.json()
+                      text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+                      if not text or not text.strip():
+                          raise ValueError("AI không trả về nội dung (response rỗng)!")
+                      return text
+              except httpx.ConnectError:
+                  raise ConnectionError("❌ LỖI KẾT NỐI tới OpenAI-compatible endpoint!")
+              except httpx.TimeoutException:
+                  raise TimeoutError(f"❌ TIMEOUT ({self.timeout}s)!")
+  ```
+* **Quy tắc**: CLI/WebUI truyền explicit `--provider/--model`. Không fallback Gemini ↔ OpenAI.
+
+### Task 1.6c: `core/app_db.py` + `core/schema.sql` (SQLite index từ ngày đầu)
+* **Mã nguồn**:
+  ```python
+  # core/schema.sql
+  # CREATE TABLE IF NOT EXISTS projects(slug TEXT PRIMARY KEY, title TEXT, created_at TEXT);
+  # CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, project_slug TEXT, filename TEXT,
+  #   size_bytes INT, char_count INT, chunk_count INT, status TEXT DEFAULT 'new',
+  #   updated_at TEXT, UNIQUE(project_slug, filename));
+  # CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY, file_id INT, provider TEXT,
+  #   model TEXT, started_at TEXT, finished_at TEXT, status TEXT, error TEXT);
+  ```
+  ```python
+  # core/app_db.py — stdlib sqlite3, không dependency
+  import sqlite3, datetime
+  from pathlib import Path
+  PROJECT_ROOT = Path(__file__).resolve().parent.parent
+  DB_PATH = PROJECT_ROOT / "workspace" / "app.db"
+  def get_db():
+      DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+      con = sqlite3.connect(DB_PATH)
+      con.executescript((Path(__file__).with_name("schema.sql")).read_text(encoding="utf-8"))
+      return con
+  def log_run(provider: str, model: str, status: str, error: str = ""):
+      con = get_db()
+      now = datetime.datetime.now().isoformat(timespec="seconds")
+      con.execute("INSERT INTO runs(provider, model, started_at, finished_at, status, error) VALUES (?,?,?,?,?,?)",
+                  (provider, model, now, now, status, error))
+      con.commit(); con.close()
+  ```
+
 ---
 
 ### Task 1.7: `core/file_handler.py` (Đọc/Ghi File Có Chống Path Traversal Chặt Chẽ)
@@ -428,106 +527,46 @@ content-translator/
 
 ---
 
-### Task 1.8: `run.py` (Script CLI Tối Giản Dùng Được Ngay)
-* **Mã nguồn**:
+### Task 1.8: `run.py` (Script CLI Tối Giản — provider/model explicit)
+* **Cách dùng mới**:
+  ```text
+  python run.py input.txt output.txt --provider gemini --model gemini-2.5-flash
+  python run.py input.txt output.txt --provider openai_compat --model deepseek-chat
+  python run.py --project Truyen --file ch01.md --provider gemini
+  ```
+  Không truyền `--provider/--model` thì lấy `default_provider/default_model` trong config. Không fallback ngầm.
+* **Mã nguồn** (rút gọn phần đổi so với v2.2 — giữ nguyên chunker/prompt/ghép `\n\n`/dừng-ngay):
   ```python
-  # run.py - CLI Thực thi dịch Phase 1
-  import asyncio
-  import sys
-  from pathlib import Path
+  # run.py - trích đoạn chọn client
+  import argparse
   from core.config import AppConfig
   from core.key_rotator import KeyRotator
-  from core.chunker import split_text
-  from core.prompt_engine import PromptEngine
   from core.ai_client import GeminiClient
+  from core.openai_client import OpenAICompatClient
+  from core.app_db import log_run
 
-  async def main():
-      config_mgr = AppConfig()
-      cfg = config_mgr.get_config()
-      keys = config_mgr.get_gemini_keys()
+  ap = argparse.ArgumentParser()
+  ap.add_argument("input", nargs="?"); ap.add_argument("output", nargs="?")
+  ap.add_argument("--project"); ap.add_argument("--file")
+  ap.add_argument("--provider"); ap.add_argument("--model"); ap.add_argument("--prompt", default="default_translation.txt")
+  args = ap.parse_args()
 
-      # Nếu chưa có key -> cho phép nhập trực tiếp qua CLI
-      if not keys:
-          print("⚠️ Chưa tìm thấy Gemini API Key trong config/keys.json hoặc biến môi trường!")
-          user_key = input("👉 Vui lòng nhập Gemini API Key của bạn: ").strip()
-          if not user_key:
-              print("❌ LỖI: Không có API Key thì không thể gọi AI. Thoát chương trình.")
-              sys.exit(1)
-          config_mgr.save_gemini_keys([user_key])
-          keys = [user_key]
-          print("✅ Đã lưu API Key vào config/keys.json thành công.")
-
-      # 1. Xác định đường dẫn file đầu vào & đầu ra
-      if len(sys.argv) == 3 and not sys.argv[1].startswith("--"):
-          input_path = Path(sys.argv[1])
-          output_path = Path(sys.argv[2])
-      elif "--project" in sys.argv and "--file" in sys.argv:
-          from core.file_handler import SafeFileHandler
-          handler = SafeFileHandler()
-          p_idx = sys.argv.index("--project") + 1
-          f_idx = sys.argv.index("--file") + 1
-          proj = sys.argv[p_idx]
-          fname = sys.argv[f_idx]
-          try:
-              input_path = handler.get_source_path(proj, fname)
-              output_path = handler.get_translated_path(proj, fname)
-          except ValueError as e:
-              print(f"❌ LỖI ĐƯỜNG DẪN: {str(e)}")
-              sys.exit(1)
-      else:
-          print("Cách dùng:")
-          print("  1. Dịch trực tiếp: python run.py input.txt output.txt")
-          print("  2. Dịch theo dự án: python run.py --project Truyen --file ch01.md")
-          sys.exit(1)
-
-      if not input_path.exists():
-          print(f"❌ LỖI: File không tồn tại: {input_path}")
-          sys.exit(1)
-
-      raw_content = input_path.read_text(encoding="utf-8", errors="replace")
-      if not raw_content.strip():
-          print("⚠️ CẢNH BÁO: File nguồn rỗng! Không có nội dung cần dịch.")
-          sys.exit(0)
-
-      # 2. Cắt chunk tự nhiên (thường 2-3 chunk)
-      chunks = split_text(raw_content, max_chars=cfg["max_chunk_chars"])
-      total = len(chunks)
-      print(f"📄 Bắt đầu dịch: {input_path.name} ({len(raw_content):,} ký tự -> {total} chunk).")
-
-      rotator = KeyRotator(keys)
-      ai_client = GeminiClient(rotator, model=cfg["gemini_model"], timeout_seconds=cfg["timeout_seconds"])
-      prompt_engine = PromptEngine()
-
-      translated_chunks = []
-
-      # 3. Gửi tuần tự từng chunk
-      for idx, chunk_text in enumerate(chunks, 1):
-          print(f"⏳ Đang gửi chunk {idx}/{total} ({len(chunk_text):,} ký tự)...", end="", flush=True)
-          prompt = prompt_engine.assemble_prompt(chunk_text)
-
-          try:
-              res = await ai_client.translate_chunk(prompt)
-              translated_chunks.append(res)
-              print(" [XONG]")
-          except Exception as e:
-              print(f"\n🛑 LỖI: {str(e)}")
-              print("⚠️ CHƯƠNG TRÌNH ĐÃ DỪNG VÀ KHÔNG LƯU TRẠNG THÁI DỞ DANG.")
-              print("👉 Bạn hãy kiểm tra lại kết nối / API key và chạy lại lệnh từ đầu.")
-              sys.exit(1)
-
-      # 4. Ghép nối bằng \n\n và ghi file output
-      output_path.parent.mkdir(parents=True, exist_ok=True)
-      final_result = "\n\n".join(translated_chunks)
-      output_path.write_text(final_result, encoding="utf-8")
-      print(f"🎉 HOÀN TẤT! Bản dịch đã lưu tại: {output_path}")
-
-  if __name__ == "__main__":
-      asyncio.run(main())
+  cfg = AppConfig().get_config()
+  provider = args.provider or cfg.get("default_provider", "gemini")
+  model = args.model or cfg.get("default_model", "gemini-2.5-flash")
+  keys = AppConfig().get_keys(provider)  # hỏi + save nếu trống (giữ logic cũ)
+  rotator = KeyRotator(keys)
+  if provider == "openai_compat":
+      base_url = cfg["providers"]["openai_compat"]["base_url"]
+      ai = OpenAICompatClient(rotator, model=model, base_url=base_url, timeout_seconds=cfg["timeout_seconds"])
+  else:
+      ai = GeminiClient(rotator, model=model, timeout_seconds=cfg["timeout_seconds"])
+  # ... gửi tuần tự từng chunk như cũ, thành công log_run(provider, model, "ok"), lỗi log_run(..., "error", str(e)) rồi sys.exit(1)
   ```
 
 ---
 
-## 3. BỘ TEST TỰ ĐỘNG ĐẦY ĐỦ (BAO GỒM MOCK TEST AI_CLIENT)
+## 3. BỘ TEST TỰ ĐỘNG ĐẦY ĐỦ (BAO GỒM MOCK TEST 2 PROVIDERS + APP_DB)
 
 ### 3.1. `tests/test_chunker.py`
 ```python
@@ -589,7 +628,64 @@ def test_reset_chunk_attempt():
     assert rotator.try_next_key() is not None
 ```
 
-### 3.3. `tests/test_file_handler.py`
+### 3.3. `tests/test_prompt_engine.py` (Bổ sung — trước đây thiếu)
+```python
+from pathlib import Path
+from core.prompt_engine import PromptEngine
+
+def test_unicode_preserved(tmp_path):
+    eng = PromptEngine(tmp_path)
+    out = eng.assemble_prompt("Tiếng Việt có dấu: ễ ộ ư đ.")
+    assert "ễ" in out and "{{source_text}}" not in out
+
+def test_missing_prompt_raises(tmp_path):
+    import pytest
+    eng = PromptEngine(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        eng.load_prompt("khong_ton_tai.txt")
+```
+
+### 3.4. `tests/test_app_db.py`
+```python
+from core.app_db import get_db
+def test_tables_created(tmp_path, monkeypatch):
+    import core.app_db as m
+    monkeypatch.setattr(m, "DB_PATH", tmp_path / "app.db")
+    con = m.get_db()
+    tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    assert {"projects", "files", "runs"} <= tables
+    con.close()
+```
+
+### 3.5. `tests/test_openai_client.py` (Mock OpenAI-compatible)
+```python
+import pytest, httpx
+from unittest.mock import AsyncMock, patch
+from core.key_rotator import KeyRotator
+from core.openai_client import OpenAICompatClient
+
+def _mk(text="ok", status=200):
+    return httpx.Response(status_code=status,
+        json={"choices": [{"message": {"content": text}}]},
+        request=httpx.Request("POST", "http://test"))
+
+@pytest.mark.asyncio
+async def test_openai_success():
+    c = OpenAICompatClient(KeyRotator(["K1"]), model="m", base_url="http://x")
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as p:
+        p.return_value = _mk("Bản dịch")
+        assert await c.translate_chunk("Hi") == "Bản dịch"
+
+@pytest.mark.asyncio
+async def test_openai_429_failover():
+    c = OpenAICompatClient(KeyRotator(["BAD", "GOOD"]), model="m", base_url="http://x")
+    r429 = httpx.Response(status_code=429, request=httpx.Request("POST", "http://test"))
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as p:
+        p.side_effect = [r429, _mk("ok2")]
+        assert await c.translate_chunk("Hi") == "ok2"
+```
+
+### 3.6. `tests/test_file_handler.py`
 ```python
 import pytest
 from pathlib import Path
@@ -690,23 +786,26 @@ async def test_empty_candidates_safety_block():
 
 ---
 
-## 4. BỐN MỐC TRIỂN KHAI NHỎ (IMPLEMENTATION MILESTONES)
+## 4. NĂM MỐC TRIỂN KHAI NHỎ (IMPLEMENTATION MILESTONES)
 
-Thay vì sinh toàn bộ mã một lần, việc code được chia thành **4 mốc rất nhỏ (2–5 phút/mốc)**:
+Thay vì sinh toàn bộ mã một lần, việc code được chia thành **5 mốc rất nhỏ**:
 
+* **MỐC 0: Config đa provider + app.db**:
+  * Tạo `pyproject.toml`, `.gitignore`, `core/config.py`, `core/app_db.py`, `core/schema.sql`.
+  * Chạy test: `pytest tests/test_app_db.py` $\to$ PASS. Mở `workspace/app.db` thấy 3 bảng.
 * **MỐC 1: Chunker & Prompt Engine**:
   * Tạo `pyproject.toml`, `.gitignore`, `core/chunker.py`, `core/prompt_engine.py`.
   * Chạy test: `pytest tests/test_chunker.py tests/test_prompt_engine.py` $\to$ PASS.
   * Chứng minh luồng: `Văn bản nguồn -> Chunks -> Prompt`.
 
-* **MỐC 2: KeyRotator & Gemini Client Độc Lập**:
-  * Tạo `core/config.py`, `core/key_rotator.py`, `core/ai_client.py`.
-  * Chạy test: `pytest tests/test_key_rotator.py tests/test_ai_client.py` $\to$ PASS (vượt qua tất cả mock 200, 429, timeout, connect error).
+* **MỐC 2: KeyRotator & 2 Clients Độc Lập**:
+  * Tạo `core/key_rotator.py`, `core/ai_base.py`, `core/ai_client.py`, `core/openai_client.py`.
+  * Chạy test: `pytest tests/test_key_rotator.py tests/test_ai_client.py tests/test_openai_client.py` $\to$ PASS.
 
 * **MỐC 3: CLI 1 Chunk (Vertical Slice Nhỏ Nhất)**:
-  * Tạo `core/file_handler.py` và phiên bản `run.py` dịch 1 chunk duy nhất.
-  * Chạy thử với file nhỏ 1 câu thực tế để xác nhận gọi Gemini API thật thành công.
+  * Tạo `core/file_handler.py` và phiên bản `run.py` dịch 1 chunk duy nhất với `--provider/--model` explicit.
+  * Chạy thử với file nhỏ 1 câu thực tế để xác nhận gọi AI thật thành công (thử cả 2 providers).
 
 * **MỐC 4: Hoàn Thiện CLI Đầy Đủ & Ghi File**:
-  * Hoàn thiện `run.py`: cắt 2-3 chunk, gửi tuần tự, ghép nối `\n\n`, ghi ra file `output.txt` hoặc `translated/{file}`.
-  * Kiểm tra failure policy: Nếu 1 chunk lỗi thì dừng ngay lập tức, không lưu dở dang.
+  * Hoàn thiện `run.py`: cắt 2-3 chunk, gửi tuần tự, ghép nối `\n\n`, ghi ra file `output.txt` hoặc `translated/{file}`, ghi log `runs` vào app.db.
+  * Kiểm tra failure policy: Nếu 1 chunk lỗi thì dừng ngay lập tức, không lưu dở dang, không fallback model.
