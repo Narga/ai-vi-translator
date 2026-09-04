@@ -23,6 +23,8 @@ class FakeClient:
 
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
+    from core.config import CONFIG_FILE
+    snapshot = CONFIG_FILE.read_bytes() if CONFIG_FILE.exists() else None
     ws = tmp_path / "workspace"
     monkeypatch.setattr(server, "SafeFileHandler", lambda: RealHandler(ws))
     monkeypatch.setattr(server, "get_db", lambda: real_get_db(tmp_path / "app.db"))
@@ -36,6 +38,8 @@ def app(tmp_path, monkeypatch):
     t.start()
     yield f"http://127.0.0.1:{srv.server_address[1]}"
     srv.shutdown()
+    if snapshot is not None:  # PUT /settings ghi config thật → hoàn nguyên
+        CONFIG_FILE.write_bytes(snapshot)
 
 
 def call(base, method, path, body=None, raw=None):
