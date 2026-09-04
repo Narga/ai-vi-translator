@@ -44,7 +44,7 @@ Mọi lượt chạy được log vào `workspace/app.db`.
 ## Phase 2 — WebUI (chính)
 
 ```bash
-python main.py   # mở http://127.0.0.1:8000 (server.py là backend)
+python main.py   # mở http://127.0.0.1:8000 (WebUI backend trong cùng file)
 ```
 
 4 trang: Dự Án → Biên Dịch (dual-pane sync-scroll, inline-edit, copy/save/retry) →
@@ -56,7 +56,7 @@ Prompt → Cấu Hình. Một phiên dịch tại một thời điểm, stream t
 core/            chunker, prompt_engine, key_rotator, ai_client (Gemini),
                  openai_client, file_handler, config, app_db
 prompts/         prompt *.txt (thêm file = thêm prompt)
-run.py           CLI Phase 1        server.py  backend Phase 2 (stdlib)
+run.py           CLI Phase 1        main.py  WebUI backend (stdlib http.server)
 web/index.html   UI 1 file          tools/     công cụ độc lập (EPUB…)
 workspace/       sources/translated/assets + app.db (gitignore, riêng tư)
 tests/           pytest (mock, không gọi API thật)

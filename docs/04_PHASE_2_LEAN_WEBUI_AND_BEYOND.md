@@ -3,7 +3,7 @@
 > **Cam kết**: Giúp người dùng thao tác prompt dễ hơn, kiểm tra chunk dễ hơn, sao chép / lưu file nhanh hơn và gửi lại tức thời khi cần.
 > **Phiên bản**: v2.3 (04/09/2026) — chốt stack + API contract tối thiểu.
 >
-> **Stack chốt**: `server.py` stdlib (`http.server`, không FastAPI), frontend HTML/CSS/JS thuần (không build-chain React), tái dùng 100% `core/` Phase 1. 1 phiên in-flight, không queue/worker.
+> **Stack chốt**: `main.py` stdlib (`http.server`, không FastAPI), frontend HTML/CSS/JS thuần (không build-chain React), tái dùng 100% `core/` Phase 1. 1 phiên in-flight, không queue/worker.
 
 ---
 
@@ -92,7 +92,7 @@ Giao diện chia làm 2 khu vực trực quan:
 
 ## 4. API CONTRACT TỐI THIỂU (CHỐT v2.3 — ĐỦ LÀM XONG PHASE 2)
 
-`server.py` stdlib `http.server`, port 8000, serve `web/` static + 12 endpoint JSON dưới đây. Không auth (single-user local). Mọi lỗi trả `{"error": "<thông điệp tiếng Việt>"}` + HTTP status phù hợp. Dịch là **SSE** để UI hiện từng chunk ngay, không polling.
+`main.py` stdlib `http.server`, port 8000, serve `web/` static + 12 endpoint JSON dưới đây. Không auth (single-user local). Mọi lỗi trả `{"error": "<thông điệp tiếng Việt>"}` + HTTP status phù hợp. Dịch là **SSE** để UI hiện từng chunk ngay, không polling.
 
 | # | Method + Path | Request | Response / SSE | Ghi chú |
 |---|---|---|---|---|
@@ -121,9 +121,9 @@ POST /api/translate {"project":"Kiem_Hiep","file":"chuong_01.md","provider":"gem
 → (lỗi) event: error {"error": "❌ TẤT CẢ API KEY ĐỀU BỊ 429, bấm Gửi Lại sau ít phút."}
 ```
 
-`server.py` mẫu (~khung, tái dùng `core/`):
+`main.py` (~khung, tái dùng `core/`):
 ```python
-# server.py — http.server stdlib, không FastAPI
+# main.py — http.server stdlib, không FastAPI
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json, urllib.parse
 from core.chunker import split_text
@@ -138,7 +138,7 @@ if __name__ == "__main__":
 ## 5. TIÊU CHÍ NGHIỆM THU PHASE 2 (HOÀN TOÀN DÙNG ĐƯỢC CHO CÔNG VIỆC THỰC TẾ)
 
 Sau khi hoàn thành Phase 2, người dùng:
-1. Chạy `python server.py` $\to$ Mở trình duyệt `http://localhost:8000`.
+1. Chạy `python main.py` $\to$ Mở trình duyệt `http://localhost:8000`.
 2. Tạo dự án `Kiem_Hiep`, kéo file `chuong_01.md` vào.
 3. Vào Workspace: Thấy rõ file được chia thành 2 chunk, số ký tự và token ước lượng rõ ràng, chọn provider/model explicit.
 4. Bấm `[▶ Bắt Đầu Dịch]` $\to$ Thấy văn bản tiếng Việt hiển thị song song ngay bên cạnh (SSE từng chunk).

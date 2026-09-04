@@ -7,7 +7,7 @@ from http.server import ThreadingHTTPServer
 
 import pytest
 
-import server
+import main as server
 from core.app_db import get_db as real_get_db
 from core.file_handler import SafeFileHandler as RealHandler
 from core.provider_manager import AIProviderManager as RealMgr
