@@ -24,7 +24,8 @@ hoặc tự nhập custom model. File chứa secret nên đã gitignore.
 Nhập key: WebUI Cấu Hình (hiển thị đầy đủ, sửa trực tiếp) → hoặc CLI tự hỏi khi thiếu.
 `keys.json` cũ được migrate tự động 1 lần.
 
-Cấu hình chung: `config/config.json` (`max_chunk_chars: 16000`, `timeout_seconds: 90`).
+Cấu hình chung: `config/config.json` (`max_chunk_chars`, `api_delay_seconds`,
+`timeout_seconds`). Provider/model/thinking chỉnh trên WebUI trang Cấu Hình.
 
 ## Phase 1 — CLI
 

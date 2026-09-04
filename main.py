@@ -25,6 +25,7 @@ from run import build_client
 PROJECT_ROOT = Path(__file__).resolve().parent
 WEB_DIR = PROJECT_ROOT / "web"
 ALLOWED_EXTS = {".txt", ".md", ".html"}
+THINKING_LEVELS = AIProviderManager.THINKING_LEVELS  # hằng số, không bị patch trong test
 
 _translate_lock = threading.Lock()
 
@@ -183,9 +184,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({
                 "max_chunk_chars": cfg.get("max_chunk_chars"),
                 "timeout_seconds": cfg.get("timeout_seconds"),
+                "api_delay_seconds": cfg.get("api_delay_seconds"),
+                "thinking_levels": THINKING_LEVELS,
                 "active_id": active.get("id"),
                 "default_model": active.get("default_model"),
             })
+
+        if u.path == "/api/settings/model-info":
+            provider_id, model = q.get("provider_id", [""])[0], q.get("model", [""])[0]
+            if not provider_id or not model:
+                return self._err("Thiếu provider_id/model")
+            try:
+                return self._json(AIProviderManager().model_info(provider_id, model))
+            except ValueError as e:
+                return self._err(str(e), 404)
 
         if u.path == "/api/settings/providers":
             return self._json(AIProviderManager().masked_providers())
@@ -289,10 +301,24 @@ class Handler(BaseHTTPRequestHandler):
                     api_key=data.get("api_key"),
                     base_url=data.get("base_url"),
                     selected_model=data.get("selected_model"),
+                    thinking=data.get("thinking"),
+                    docs_url=data.get("docs_url"),
                 )
                 if data.get("set_active"):
                     mgr.set_active_provider(provider_id)
                 return self._json({"ok": True})
+            except ValueError as e:
+                return self._err(str(e))
+
+        if u.path == "/api/settings/providers":
+            data = self._body_json()
+            if data is None:
+                return self._err("JSON không hợp lệ")
+            try:
+                record = AIProviderManager().add_provider(
+                    name=data.get("name", ""), ptype=data.get("type", "openai"),
+                    base_url=data.get("base_url", ""), api_key=data.get("api_key", ""))
+                return self._json(record)
             except ValueError as e:
                 return self._err(str(e))
 
@@ -318,10 +344,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("JSON không hợp lệ")
             mgr = AppConfig()
             cfg = mgr.get_config()
-            for k in ("max_chunk_chars", "timeout_seconds"):
+            for k in ("max_chunk_chars", "timeout_seconds", "api_delay_seconds"):
                 try:
                     v = float(data[k]) if k in data else None
-                    if v is not None and v > 0:
+                    if v is not None and (v > 0 or (k == "api_delay_seconds" and v >= 0)):
                         cfg[k] = int(v) if k == "max_chunk_chars" else v
                 except (ValueError, TypeError):
                     pass
@@ -329,6 +355,20 @@ class Handler(BaseHTTPRequestHandler):
             (_P(__file__).resolve().parent / "config" / "config.json").write_text(
                 json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
             return self._json({"ok": True})
+
+        return self._err("Không tìm thấy", 404)
+
+    # ---- DELETE ----
+    def do_DELETE(self):
+        u = urllib.parse.urlparse(self.path)
+
+        if u.path.startswith("/api/settings/providers/"):
+            provider_id = urllib.parse.unquote(u.path[len("/api/settings/providers/"):]).strip("/")
+            try:
+                AIProviderManager().remove_provider(provider_id)
+                return self._json({"ok": True})
+            except ValueError as e:
+                return self._err(str(e))
 
         return self._err("Không tìm thấy", 404)
 
@@ -385,10 +425,12 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
 
         async def run_all():
-            client = build_client(provider.get("type", "gemini"), model, keys,
-                                  provider.get("base_url", ""), cfg["timeout_seconds"])
+            client = build_client(provider, model, keys, cfg["timeout_seconds"])
+            delay = cfg.get("api_delay_seconds", 2.0)
             outs = []
             for i, ch in enumerate(chunks, 1):
+                if i > 1 and delay > 0:
+                    await asyncio.sleep(delay)  # giãn request, tránh 429
                 p = base_tpl.replace("{{source_text}}", ch).replace(
                     "{{glossary_terms}}", _glossary_for_chunk(project, ch))
                 for e in extras:

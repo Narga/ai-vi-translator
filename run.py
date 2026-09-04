@@ -27,11 +27,14 @@ def parse_args(argv=None) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
-def build_client(provider_type: str, model: str, keys: list, base_url: str, timeout: float):
+def build_client(provider: dict, model: str, keys: list, timeout: float):
+    """Dựng client theo provider record. thinking chỉ Gemini đọc (openai bỏ qua)."""
     rotator = KeyRotator(keys)
-    if provider_type == "openai":
-        return OpenAICompatClient(rotator, model=model, base_url=base_url, timeout_seconds=timeout)
-    return GeminiClient(rotator, model=model, timeout_seconds=timeout)
+    if provider.get("type") == "openai":
+        return OpenAICompatClient(rotator, model=model, base_url=provider.get("base_url", ""),
+                                  timeout_seconds=timeout)
+    thinking = AIProviderManager.THINKING_BUDGETS.get((provider.get("thinking") or "OFF").upper(), 0) or None
+    return GeminiClient(rotator, model=model, timeout_seconds=timeout, thinking_budget=thinking)
 
 
 async def main(argv=None) -> int:
@@ -113,10 +116,13 @@ async def main(argv=None) -> int:
     total = len(chunks)
     print(f"📄 Bắt đầu dịch: {input_path.name} ({len(raw_content):,} ký tự -> {total} chunk) [{provider['id']}/{model}].")
 
-    ai_client = build_client(ptype, model, keys, provider.get("base_url", ""), cfg["timeout_seconds"])
+    ai_client = build_client(provider, model, keys, cfg["timeout_seconds"])
     translated_chunks = []
+    delay = cfg.get("api_delay_seconds", 2.0)
 
     for idx, chunk_text in enumerate(chunks, 1):
+        if idx > 1 and delay > 0:
+            await asyncio.sleep(delay)  # giãn request, tránh 429
         print(f"⏳ Đang gửi chunk {idx}/{total} ({len(chunk_text):,} ký tự)...", end="", flush=True)
         prompt = prompt_engine.assemble_prompt(chunk_text, prompt_filename=args.prompt)
         try:

@@ -112,3 +112,25 @@ def test_provider_endpoints_masked_and_save(app):
     s, b = call(app, "POST", "/api/settings/save",
                 {"provider_id": "gemini-default", "selected_model": "gpt-4o"})
     assert s == 400
+
+
+def test_provider_crud_and_model_info(app):
+    s, b = call(app, "POST", "/api/settings/providers",
+                {"name": "Groq", "type": "openai", "base_url": "https://api.groq.com/openai/v1"})
+    assert s == 200 and json.loads(b)["id"] == "groq"
+    s, b = call(app, "GET", "/api/settings/model-info?provider_id=groq&model=qwen-x")
+    assert s == 200 and "console.groq.com" in json.loads(b)["docs_url"]
+    s, _ = call(app, "DELETE", "/api/settings/providers/groq")
+    assert s == 200
+    s, _ = call(app, "DELETE", "/api/settings/providers/gemini-default")
+    assert s == 400  # active không xóa được
+
+
+def test_prefs_extended(app):
+    s, _ = call(app, "PUT", "/api/settings",
+                {"max_chunk_chars": 8000, "api_delay_seconds": 0.5, "timeout_seconds": 60})
+    assert s == 200
+    s, b = call(app, "GET", "/api/settings")
+    d = json.loads(b)
+    assert (d["max_chunk_chars"], d["api_delay_seconds"], d["timeout_seconds"]) == (8000, 0.5, 60)
+    assert "OFF" in d["thinking_levels"]

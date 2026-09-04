@@ -10,14 +10,9 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 KEYS_FILE = CONFIG_DIR / "keys.json"
 
 DEFAULT_CONFIG = {
-    "default_provider": "gemini",
-    "default_model": "gemini-2.5-flash",
     "max_chunk_chars": 16000,
     "timeout_seconds": 90,
-    "providers": {
-        "gemini": {"models": ["gemini-2.5-flash", "gemini-2.5-flash-lite"]},
-        "openai_compat": {"base_url": "https://openrouter.ai/api/v1", "models": ["deepseek-chat"]},
-    },
+    "api_delay_seconds": 2.0,
 }
 
 
@@ -55,6 +50,12 @@ class AppConfig:
             cfg["timeout_seconds"] = timeout if timeout > 0 else 90.0
         except (ValueError, TypeError):
             cfg["timeout_seconds"] = 90.0
+
+        try:
+            delay = float(cfg.get("api_delay_seconds", 2.0))
+            cfg["api_delay_seconds"] = delay if delay >= 0 else 2.0
+        except (ValueError, TypeError):
+            cfg["api_delay_seconds"] = 2.0
 
         return cfg
 

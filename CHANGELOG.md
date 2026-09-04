@@ -5,6 +5,9 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 [Semantic Versioning](https://semver.org/lang/vi/).
 
 ## [Unreleased]
+### Added
+- Trang Cấu Hình 5 khối (docs/wip/SETTINGS_REDESIGN_v2.5.md): CRUD provider OpenAI-compatible, model select + lọc Bao gồm/Loại trừ (Settings + Workspace), info panel (input/output/context/quota + link docs), thinking OFF/LOW/MEDIUM/HIGH (chỉ Gemini), prefs Chunk Size/API delay/Response timeout có label.
+- Backend: model metadata full object, `GET model-info`, quota OpenRouter, `docs_url` mặc định theo host, `api_delay_seconds`, thinkingBudget cho Gemini.
 ### Changed
 - Single-user: trang Cấu Hình hiện FULL key, sửa/xóa trực tiếp trong danh sách; model dùng select nhìn thấy được + ô custom; chưa nhập key vẫn hiện fallback kèm cảnh báo rõ (trước đây gắn nhãn `api` gây nhầm).
 - Thêm `main.py` làm điểm vào chính (tự bật WebUI server). CLI giữ nguyên, không đầu tư thêm.

@@ -81,12 +81,12 @@ Giao diện chia làm 2 khu vực trực quan:
 * Cho phép mở ra xem nội dung, chỉnh sửa câu chữ và bấm **[Lưu Prompt]**.
 * Cung cấp nút **[+ Tạo Prompt Mới]** (lưu thành file `.txt` mới).
 
-### 3.4. Trang 4: Cấu Hình AI (`/settings`) — v2.4 làm lại theo docs/06
-* Dropdown chọn provider (đánh dấu ★ active) + nút đặt active.
-* Keys hiện **đầy đủ**, sửa trực tiếp trong 1 textarea (mỗi dòng 1 key, xóa dòng = xóa key). Single-user nên không che.
-* Ô `base_url` cho OpenAI-compatible. Model là **select nhìn thấy được** (options từ danh sách live, badge nguồn `api/cache/fallback`) + mục `…tự nhập…` hiện ô custom model (có namespace validation).
-* Chưa nhập key → select vẫn hiện danh sách dự phòng kèm cảnh báo rõ ràng.
-* Prefs app riêng: `max_chunk_chars`.
+### 3.4. Trang 4: Cấu Hình AI (`/settings`) — v2.5 (5 khối, xem `docs/wip/SETTINGS_REDESIGN_v2.5.md`)
+* **A. Providers**: list + radio active ★, form `＋ Thêm provider` (tên/loại/base_url/key), nút xóa (chặn xóa active). Card: keys textarea full, `base_url` (chỉ openai), link docs.
+* **B. Model**: select + `🔄` + ô lọc tên + Bao gồm/Loại trừ + badge 🆓 + `…tự nhập…`. Panel: Input/Output/Context/RPM/RPD (thiếu → `—` + link docs).
+* **C. Thinking**: OFF/LOW/MEDIUM/HIGH, mặc định OFF, chỉ Gemini (ghi chú + tooltip).
+* **D. Tốc độ & chờ**: Chunk Size (ký tự/chunk), API delay (giây), Response timeout (giây) — có label + đơn vị.
+* Lọc model có mặt ở cả Settings lẫn Workspace.
 
 ---
 
@@ -107,10 +107,13 @@ Giao diện chia làm 2 khu vực trực quan:
 | 9 | `GET /api/prompts` | — | `{"prompts": ["default_translation.txt"]}` | Liệt kê `prompts/*.txt` |
 | 10 | `GET /api/prompts/{name}` | — | `{"name": "...", "content": "..."}` | Sanitize như filename |
 | 11 | `PUT /api/prompts/{name}` | `{"content": "..."}` | `{"ok": true}` | Lưu prompt |
-| 12 | `GET /api/settings` / `PUT /api/settings` | GET — / PUT `{"max_chunk_chars": 16000}` | prefs app | Keys/models tách sang 3 endpoint dưới |
+| 12 | `GET /api/settings` / `PUT /api/settings` | GET — / PUT `{"max_chunk_chars": 16000, "api_delay_seconds": 2, "timeout_seconds": 90}` | prefs app + `thinking_levels` | Keys/models tách sang endpoint dưới |
 | 13 | `GET /api/settings/providers` | — | providers **đầy đủ key** (single-user) + `active_id` |
-| 14 | `GET /api/settings/models?provider_id=` | — | `{"models": [...], "selected_model": "...", "source": "api/cache/fallback", "error": null}` | Live từ API NCC, cache 5 phút |
-| 15 | `POST /api/settings/save` | `{"provider_id": "...", "api_keys"/"api_key", "base_url", "selected_model", "set_active": true}` | `{"ok": true}` | Lưu nguyên danh sách key (single-user) + namespace validation |
+| 14 | `GET /api/settings/models?provider_id=` | — | `{"models": [{id, name, context_length?, pricing?, is_free?}], "selected_model", "source", "docs_url"}` | Live từ API NCC, cache 5 phút |
+| 15 | `POST /api/settings/save` | `{"provider_id": "...", "api_keys"/"api_key", "base_url", "selected_model", "thinking", "docs_url", "set_active": true}` | `{"ok": true}` | Lưu nguyên danh sách key (single-user) + namespace validation |
+| 16 | `GET /api/settings/model-info?provider_id=&model=` | — | `{input_limit, output_limit, context_length, pricing, is_free, rate_limits{usage,limit}, quota_url, docs_url}` | Fail-soft; Gemini không quota API → link AI Studio |
+| 17 | `POST /api/settings/providers` | `{"name", "type": "openai"/"gemini", "base_url", "api_key"}` | record mới `{id, docs_url}` | Thêm provider OpenAI-compatible |
+| 18 | `DELETE /api/settings/providers/{id}` | — | `{"ok": true}` | Chặn xóa active / provider cuối |
 
 Ví dụ SSE khi bấm `[Bắt Đầu Dịch]`:
 ```text

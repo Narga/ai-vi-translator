@@ -1,8 +1,9 @@
 {
+  "max_chunk_chars": 8000,
+  "timeout_seconds": 60.0,
+  "api_delay_seconds": 0.5,
   "default_provider": "gemini",
   "default_model": "gemini-2.5-flash",
-  "max_chunk_chars": 16000,
-  "timeout_seconds": 90,
   "providers": {
     "gemini": {
       "models": [

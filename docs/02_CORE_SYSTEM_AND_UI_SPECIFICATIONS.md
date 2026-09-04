@@ -17,6 +17,10 @@
 
 * **Không hardcode model trong code.** Model lấy live từ API provider (`GET /models`), cache 5 phút, fallback mềm khi mất mạng. Người dùng chọn từ danh sách hoặc tự nhập (có namespace validation).
 * **Nhập key**: WebUI trang Cấu Hình — keys hiện **đầy đủ**, sửa trực tiếp trong danh sách (xóa dòng = xóa key); hoặc sửa trực tiếp file, hoặc CLI hỏi khi thiếu. Ghi file kiểu atomic (`.tmp` → validate → `.bak` → `os.replace`).
+* **Thêm provider**: nút `＋ Thêm provider` trên UI (tên, loại, base_url, key) — không cần sửa file tay.
+* **Model metadata**: `list_models` giữ full object (limits/pricing/free); `model_info` cho input/output/context + quota (OpenRouter) hoặc link quota AI Studio (Gemini).
+* **Thinking** (mặc định OFF, per-provider): OFF/LOW/MEDIUM/HIGH → thinkingBudget 0/1024/8192/24576. **Chỉ Gemini**; OpenAI-compatible bỏ qua hoàn toàn.
+* **Prefs request** (`config/config.json`): `max_chunk_chars` (Chunk Size, ký tự), `api_delay_seconds` (giây chờ giữa các request, tránh 429), `timeout_seconds` (chờ phản hồi AI).
 * **Migration 1 chiều**: `keys.json`/`config.json` cũ tự chuyển sang `providers.json` lần đầu chạy. `config/providers.json*` đã gitignore.
 * `config/config.json` chỉ còn prefs app (`max_chunk_chars`, `timeout_seconds`).
 

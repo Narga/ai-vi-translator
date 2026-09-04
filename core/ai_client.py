@@ -8,11 +8,13 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiClient:
-    def __init__(self, key_rotator: KeyRotator, model: str = "gemini-2.5-flash",
-                 timeout_seconds: float = 90.0):
+    def __init__(self, key_rotator: KeyRotator, model: str = "",
+                 timeout_seconds: float = 90.0, thinking_budget: int | None = None):
         self.rotator = key_rotator
         self.model = model
         self.timeout = float(timeout_seconds)
+        # None/OFF = bỏ hẳn thinkingConfig (dùng default API)
+        self.thinking_budget = thinking_budget
 
     async def translate_chunk(self, prompt: str) -> str:
         self.rotator.start_chunk_attempt()
@@ -27,6 +29,9 @@ class GeminiClient:
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.3},
             }
+            if self.thinking_budget:
+                payload["generationConfig"]["thinkingConfig"] = {
+                    "thinkingBudget": self.thinking_budget}
 
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:

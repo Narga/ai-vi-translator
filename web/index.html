@@ -46,6 +46,10 @@ textarea{width:100%}
 <table><tbody id="wChunks"></tbody></table>
 <div class="row">
 <select id="wProv"></select><select id="wModel"></select><input id="wCustom" size="30" placeholder="custom model…" style="display:none">
+<input id="wFilter" size="18" placeholder="Lọc: deepseek, free…" oninput="renderWorkspaceModels()">
+<select id="wFilterMode" onchange="renderWorkspaceModels()"><option value="include">Bao gồm</option><option value="exclude">Loại trừ</option></select>
+</div>
+<div class="row">
 <select id="wPrompt"></select><span id="wExtra"></span>
 </div>
 <div class="row">
@@ -67,24 +71,41 @@ textarea{width:100%}
 </section>
 <section id="v-settings" class="view">
 <h2>Cấu hình AI</h2>
+<h3>A. Providers</h3>
 <div class="row"><select id="sProvSel"></select>
-<button class="btn" onclick="loadProvDetail()">Mở provider</button>
-<button class="btn" onclick="setActive()">Đặt làm active</button>
+<button class="btn" onclick="setActive()">Đặt làm active ★</button>
+<button class="btn" onclick="delProvider()">Xóa provider</button>
 <span id="sActive"></span></div>
-<div class="row"><input id="sMax" type="number" placeholder="max_chunk_chars">
-<button class="btn" onclick="savePrefs()">Lưu prefs</button></div>
+<details><summary>＋ Thêm provider OpenAI-compatible</summary>
+<div class="row"><input id="nName" placeholder="Tên: Groq" size="16">
+<select id="nType"><option value="openai">OpenAI-compatible</option><option value="gemini">Gemini</option></select>
+<input id="nBase" placeholder="base_url" size="35"></div>
+<div class="row"><input id="nKey" placeholder="API key (có thể để trống, nhập sau)" size="45">
+<button class="btn pri" onclick="addProvider()">Thêm</button></div>
+</details>
 <h3 id="sPName"></h3>
-<label>API keys — sửa trực tiếp trong danh sách (mỗi dòng 1 key, xóa dòng = xóa key)</label>
+<label>API keys — sửa trực tiếp (mỗi dòng 1 key, xóa dòng = xóa key)</label>
 <textarea id="sKeys" rows="4"></textarea>
-<div class="row" id="sBaseRow"><input id="sBase" placeholder="base_url (OpenAI-compatible)" size="45"></div>
-<label>Model — chọn từ danh sách live hoặc tự nhập</label>
+<div class="row" id="sBaseRow"><label>Base URL <input id="sBase" size="45"></label>
+<label>Docs <input id="sDocs" size="40"></label></div>
+<h3>B. Model</h3>
 <div class="row"><select id="sModelSel"></select>
 <input id="sModel" size="35" placeholder="tự nhập custom model…" style="display:none">
-<button class="btn" onclick="refreshModels()">↻ Lấy danh sách mới</button>
+<button class="btn" onclick="refreshModels()">🔄 Lấy danh sách mới</button></div>
+<div class="row"><input id="sFilter" placeholder="Lọc tên: deepseek, free…" oninput="renderSettingsModels()">
+<select id="sFilterMode" onchange="renderSettingsModels()"><option value="include">Bao gồm</option><option value="exclude">Loại trừ</option></select>
 <span id="sSrc"></span></div>
+<div id="mInfo" class="f7">Input: <b id="mIn">—</b> · Output: <b id="mOut">—</b> · Context: <b id="mCtx">—</b> · <span id="mRate">—</span> <a id="mDocs" href="#" target="_blank" rel="noopener">ⓘ Thông tin model</a></div>
 <p id="sWarn" class="err"></p>
-<div class="row"><button class="btn pri" onclick="saveProvider()">Lưu Provider</button></div>
-<p id="sMsg"></p>
+<h3>C. Thinking <small>(chỉ Gemini; OpenAI-compatible bỏ qua)</small></h3>
+<div class="row"><select id="sThink"><option>OFF</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select>
+<span>Mặc định OFF. Với OpenAI-compatible trường này bị bỏ qua hoàn toàn — dùng model non-reasoning thay vì giảm thinking.</span></div>
+<div class="row"><button class="btn pri" onclick="saveProvider()">Lưu Provider</button><span id="sMsg"></span></div>
+<h3>D. Tốc độ &amp; chờ</h3>
+<div class="row"><label>Chunk Size (ký tự/chunk) <input id="sMax" type="number" min="1000"></label>
+<label>API delay (giây giữa các request) <input id="sDelay" type="number" min="0" step="0.5"></label>
+<label>Response timeout (giây) <input id="sTimeout" type="number" min="10"></label>
+<button class="btn" onclick="savePrefs()">Lưu prefs</button></div>
 </section>
 </main>
 <script>
@@ -113,7 +134,8 @@ $('tSrc').textContent=txt.chunks.map(c=>c.text).join('\n\n');}
 $('tSrc').onscroll=()=>{$('tOut').scrollTop=$('tSrc').scrollTop;};
 $('tOut').onscroll=()=>{$('tSrc').scrollTop=$('tOut').scrollTop;};
 async function loadMeta(){const s=await fetch('/api/settings').then(J);
-$('sMax').value=s.max_chunk_chars;
+$('sMax').value=s.max_chunk_chars;$('sDelay').value=s.api_delay_seconds;$('sTimeout').value=s.timeout_seconds;
+$('sThink').innerHTML=s.thinking_levels.map(l=>`<option>${l}</option>`).join('');
 const pv=await fetch('/api/settings/providers').then(J);
 $('wProv').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}</option>`).join('');
 $('sProvSel').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}${p.id===pv.active_id?' ★':''}</option>`).join('');
@@ -123,10 +145,26 @@ const pr=await fetch('/api/prompts').then(J);
 $('wPrompt').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');
 $('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${p}"> +${p}</label>`).join(' ');
 $('prList').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');}
+// --- Model list dùng chung: lọc client-side, badge free, giữ selection ---
+window._Models={};
+function filterList(list,kw,mode){kw=(kw||'').toLowerCase().trim();if(!kw)return list;
+return list.filter(m=>{const t=((m.id||'')+' '+(m.name||'')).toLowerCase();const hit=t.includes(kw);
+return mode==='exclude'?!hit:hit;});}
+function optHtml(list,selected){return list.map(m=>{const id=m.id||m;
+const free=(m.is_free||/free/i.test(id))?' 🆓':'';
+return `<option value="${id}" ${id===selected?'selected':''}>${m.name||id}${free}</option>`;}).join('')
++`<option value="__custom__">…tự nhập…</option>`;}
+async function fetchModels(pid){const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
+window._Models[pid]=m;return m;}
 async function fillModels(){const pid=$('wProv').value;if(!pid)return;
-const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-$('wModel').innerHTML=m.models.map(x=>`<option ${x===m.selected_model?'selected':''}>${x}</option>`).join('')
-+`<option value="__custom__">…tự nhập…</option>`;
+const m=window._Models[pid]||await fetchModels(pid);
+renderWorkspaceModels();}
+function renderWorkspaceModels(){const pid=$('wProv').value;const m=window._Models[pid];if(!m)return;
+const list=filterList(m.models,$('wFilter').value,$('wFilterMode').value);
+let cur=$('wModel').value;if(cur==='__custom__')cur=$('wCustom').value;
+if(!list.some(x=>(x.id||x)===cur))cur=m.selected_model;
+$('wModel').innerHTML=optHtml(list,cur);
+if(cur&&!list.some(x=>(x.id||x)===cur)&&cur!==m.selected_model){$('wModel').value='__custom__';$('wCustom').value=cur;}
 $('wModel').onchange=()=>{$('wCustom').style.display=$('wModel').value==='__custom__'?'':'none'};}
 $('wProv').onchange=fillModels;
 function curModel(){return $('wModel').value==='__custom__'?$('wCustom').value.trim():$('wModel').value;}
@@ -163,30 +201,55 @@ async function loadProvDetail(){const p=curProv();if(!p)return;
 $('sPName').textContent=p.name+' ('+p.type+')';
 const keys=p.api_keys||(p.api_key?[p.api_key]:[]);
 $('sKeys').value=keys.join('\n');
-$('sBaseRow').style.display=p.type==='openai'?'':'none';$('sBase').value=p.base_url||'';
+$('sBaseRow').style.display=p.type==='openai'?'':'none';
+$('sBase').value=p.base_url||'';$('sDocs').value=p.docs_url||'';
+$('sThink').value=p.thinking||'OFF';
 await refreshModels();}
 async function refreshModels(){const pid=$('sProvSel').value;
-const p=curProv();
 const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-const opts=m.models.map(x=>`<option ${x===m.selected_model?'selected':''}>${x}</option>`).join('');
-$('sModelSel').innerHTML=opts+`<option value="__custom__">…tự nhập…</option>`;
-const isCustom=p.default_model&&!m.models.includes(p.default_model);
-if(isCustom){$('sModelSel').value='__custom__';$('sModel').value=p.default_model;}
-else $('sModel').value='';
+window._Models[pid]=m;renderSettingsModels();}
+function renderSettingsModels(){const pid=$('sProvSel').value;const m=window._Models[pid];if(!m)return;
+const p=curProv();
+const list=filterList(m.models,$('sFilter').value,$('sFilterMode').value);
+const isCustom=p.default_model&&!m.models.some(x=>(x.id||x)===p.default_model);
+const sel=isCustom?'__custom__':(m.selected_model||p.default_model);
+$('sModelSel').innerHTML=optHtml(list,sel);
+if(isCustom)$('sModel').value=p.default_model;else $('sModel').value='';
 $('sModel').style.display=$('sModelSel').value==='__custom__'?'':'none';
-$('sModelSel').onchange=()=>{$('sModel').style.display=$('sModelSel').value==='__custom__'?'':'none';};
+$('sModelSel').onchange=()=>{const c=$('sModelSel').value==='__custom__';
+$('sModel').style.display=c?'':'none';if(!c)loadModelInfo();};
 $('sSrc').textContent='nguồn: '+m.source;
-$('sWarn').textContent=m.error?('⚠️ '+m.error):'';}
+$('sWarn').textContent=m.error?('⚠️ '+m.error):'';
+loadModelInfo();}
+async function loadModelInfo(){const pid=$('sProvSel').value;const model=selOrCustom();if(!model)return;
+const d=await fetch(`/api/settings/model-info?provider_id=${encodeURIComponent(pid)}&model=${encodeURIComponent(model)}`).then(J);
+const f=n=>n==null?'—':(+n).toLocaleString();
+$('mIn').textContent=f(d.input_limit);$('mOut').textContent=f(d.output_limit);
+$('mCtx').textContent=f(d.context_length);
+const r=d.rate_limits||{};const parts=[];
+if(r.usage!=null||r.limit!=null)parts.push(`usage ${r.usage??'—'}/${r.limit??'—'}`);
+if(d.quota_url)parts.push(`<a href="${d.quota_url}" target="_blank" rel="noopener">quota↗</a>`);
+$('mRate').innerHTML=parts.join(' · ')||'—';
+if(d.docs_url){$('mDocs').style.display='';$('mDocs').href=d.docs_url;}else $('mDocs').style.display='none';}
 async function saveProvider(){const p=curProv();const isG=p.type==='gemini';
 const lines=$('sKeys').value.split('\n').map(s=>s.trim()).filter(Boolean);
-const body={provider_id:p.id,selected_model:selOrCustom()||undefined};
+const body={provider_id:p.id,selected_model:selOrCustom()||undefined,thinking:$('sThink').value,docs_url:$('sDocs').value.trim()};
 if(isG){body.api_keys=lines;}else{body.api_key=lines[0]||'';body.base_url=$('sBase').value.trim();}
 try{await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(J);
-$('sMsg').textContent='✅ Đã lưu.';loadMeta().then(loadProvDetail);}catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
+$('sMsg').textContent='✅ Đã lưu.';delete window._Models[p.id];loadMeta().then(loadProvDetail);}catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
 async function setActive(){await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({provider_id:$('sProvSel').value,set_active:true})}).then(J);loadMeta();}
+async function addProvider(){const body={name:$('nName').value.trim(),type:$('nType').value,
+base_url:$('nBase').value.trim(),api_key:$('nKey').value.trim()};
+if(!body.name){$('sMsg').innerHTML='<span class=err>Nhập tên provider.</span>';return;}
+const r=await fetch('/api/settings/providers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(J);
+$('sMsg').textContent='✅ Đã thêm '+r.id;loadMeta().then(()=>{$('sProvSel').value=r.id;loadProvDetail();});}
+async function delProvider(){const pid=$('sProvSel').value;
+if(!confirm('Xóa provider '+pid+'?'))return;
+try{await fetch('/api/settings/providers/'+encodeURIComponent(pid),{method:'DELETE'}).then(J);loadMeta().then(loadProvDetail);}
+catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
 async function savePrefs(){await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({max_chunk_chars:+$('sMax').value||16000})}).then(J);$('sMsg').textContent='✅ Đã lưu prefs.';}
+body:JSON.stringify({max_chunk_chars:+$('sMax').value||16000,api_delay_seconds:+$('sDelay').value||0,timeout_seconds:+$('sTimeout').value||90})}).then(J);$('sMsg').textContent='✅ Đã lưu prefs.';}
 listProjects().then(listFiles);loadMeta().then(loadProvDetail);$('wProj').onchange=listFiles;$('wProv').onchange=fillModels;
 </script>
 </body>
