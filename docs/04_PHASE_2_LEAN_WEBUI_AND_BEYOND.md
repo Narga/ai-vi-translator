@@ -98,7 +98,7 @@ Giao diện chia làm 2 khu vực trực quan:
 | 3 | `POST /api/projects` | `{"slug": "Kiem_Hiep"}` | `{"slug": "Kiem_Hiep"}` | Tạo `sources/`, `translated/`, `assets/` |
 | 4 | `GET /api/projects/{slug}/files` | — | `{"sources": ["ch01.md"], "translated": ["ch01.md"]}` | So sánh 2 thư mục |
 | 5 | `POST /api/projects/{slug}/upload` | multipart `file` (.txt/.md/.html) | `{"filename": "ch01.md", "chars": 32100}` | Lưu vào `sources/` |
-| 6 | `GET /api/chunks?project=S&file=F` | — | `{"chunks": [{"i": 1, "chars": 16200, "tokens_est": 4050, "preview": "..."}]}` | Dùng chung `split_text`; tokens_est = `chars/4` |
+| 6 | `GET /api/chunks?project=S&file=F` | — (`&full=1` kèm full text mỗi chunk cho dual-pane) | `{"chunks": [{"i": 1, "chars": 16200, "tokens_est": 4050, "preview": "..."}]}` | Dùng chung `split_text`; tokens_est = `chars/4` |
 | 7 | `POST /api/translate` (SSE) | `{"project": "S", "file": "F", "provider": "gemini", "model": "gemini-2.5-flash", "prompt": "default_translation.txt", "extra_prompts": []}` | SSE: `event: chunk\ndata: {"i":1,"n":2,"text":"..."}` … cuối `event: done\ndata: {"chars": 30000}` hoặc `event: error\ndata: {"error": "..."}` | Tuần tự từng chunk, lỗi dừng ngay, không lưu dở dang |
 | 8 | `POST /api/save` | `{"project": "S", "file": "F", "content": "..."}` | `{"path": "translated/ch01.md"}` | Ghi đè `translated/`, cập nhật app.db |
 | 9 | `GET /api/prompts` | — | `{"prompts": ["default_translation.txt"]}` | Liệt kê `prompts/*.txt` |

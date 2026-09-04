@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Translator</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;display:flex;height:100vh}
+#side{width:260px;background:#111827;color:#e5e7eb;display:flex;flex-direction:column;transition:width .15s}
+#side.mini{width:64px}#side.mini .lbl{display:none}
+#side button{background:none;border:0;color:inherit;padding:12px 16px;text-align:left;cursor:pointer;font-size:15px}
+#side button.on{background:#1f2937}#tog{font-weight:bold}
+main{flex:1;overflow:auto;padding:20px;max-width:1200px}
+.view{display:none}.view.on{display:block}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:6px 8px;font-size:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
+.panes{display:flex;gap:12px;height:55vh}
+.pane{flex:1;border:1px solid #ccc;border-radius:8px;padding:10px;overflow:auto;white-space:pre-wrap;font-size:14px}
+#tOut[contenteditable=true]{background:#fffbeb}
+.btn{padding:8px 14px;border:1px solid #888;border-radius:6px;background:#f3f4f6;cursor:pointer}
+.btn.pri{background:#2563eb;color:#fff;border-color:#2563eb}
+.err{color:#b91c1c;font-weight:bold}input,select,textarea{padding:7px;font-size:14px}
+textarea{width:100%}
+</style>
+</head>
+<body>
+<nav id="side">
+<button id="tog">☰ <span class="lbl">Thu gọn</span></button>
+<button data-v="projects" class="on">📁 <span class="lbl">Dự Án</span></button>
+<button data-v="workspace">✍️ <span class="lbl">Biên Dịch</span></button>
+<button data-v="prompts">📜 <span class="lbl">Prompt</span></button>
+<button data-v="settings">⚙️ <span class="lbl">Cấu Hình</span></button>
+</nav>
+<main>
+<section id="v-projects" class="view on">
+<h2>Dự án</h2>
+<div class="row"><input id="pSlug" placeholder="Ten_Du_An"><button class="btn pri" onclick="mkProject()">Tạo Dự Án</button></div>
+<table><thead><tr><th>Slug</th><th>Files</th><th></th></tr></thead><tbody id="pList"></tbody></table>
+</section>
+<section id="v-workspace" class="view">
+<h2>Biên dịch</h2>
+<div class="row">
+<select id="wProj"></select><select id="wFile"></select>
+<button class="btn" onclick="loadChunks()">Xem chunks</button>
+</div>
+<table><tbody id="wChunks"></tbody></table>
+<div class="row">
+<select id="wProv"></select><select id="wModel"></select>
+<select id="wPrompt"></select><span id="wExtra"></span>
+</div>
+<div class="row">
+<button class="btn pri" onclick="startTl()">▶ Bắt Đầu Dịch</button>
+<button class="btn" onclick="copyTl()">📋 Sao Chép</button>
+<button class="btn" onclick="saveTl()">💾 Lưu Vào File</button>
+<button class="btn" onclick="retryTl()">🔄 Gửi Lại</button>
+<button class="btn" onclick="clearTl()">❌ Xóa &amp; Gửi Lại</button>
+</div>
+<p id="wMsg"></p>
+<div class="panes"><div class="pane" id="tSrc"></div><div class="pane" id="tOut" contenteditable="true"></div></div>
+</section>
+<section id="v-prompts" class="view">
+<h2>Prompt</h2>
+<div class="row"><select id="prList"></select><button class="btn" onclick="loadPrompt()">Mở</button>
+<input id="prNew" placeholder="ten_moi.txt"><button class="btn" onclick="newPrompt()">+ Tạo</button></div>
+<textarea id="prBody" rows="18"></textarea>
+<div class="row"><button class="btn pri" onclick="savePrompt()">Lưu Prompt</button></div>
+</section>
+<section id="v-settings" class="view">
+<h2>Cấu hình</h2>
+<div class="row"><select id="sProv"></select><input id="sModel" placeholder="default model" size="28"></div>
+<div class="row"><input id="sBase" placeholder="OpenAI base_url" size="40"></div>
+<div class="row"><input id="sMax" type="number" placeholder="max_chunk_chars"></div>
+<label>Gemini keys (mỗi dòng 1 key)</label><textarea id="sGK" rows="3"></textarea>
+<label>OpenAI-compat keys</label><textarea id="sOK" rows="3"></textarea>
+<div class="row"><button class="btn pri" onclick="saveSettings()">Lưu Cấu Hình</button></div>
+<p id="sMsg"></p>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll('#side [data-v]').forEach(b=>b.onclick=()=>{
+document.querySelectorAll('#side [data-v]').forEach(x=>x.classList.remove('on'));
+b.classList.add('on');document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+$('v-'+b.dataset.v).classList.add('on');});
+$('tog').onclick=()=>$('side').classList.toggle('mini');
+const J=r=>{if(!r.ok)return r.json().then(j=>{throw new Error(j.error||r.status)});return r.json()};
+async function mkProject(){const slug=$('pSlug').value.trim();if(!slug)return;
+await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug})}).then(J);
+$('pSlug').value='';listProjects();}
+async function listProjects(){const d=await fetch('/api/projects').then(J);
+$('pList').innerHTML=d.projects.map(p=>`<tr><td>${p.slug}</td><td>${p.files}</td><td><button class="btn" onclick="goWS('${p.slug}')">Biên Dịch →</button></td></tr>`).join('');
+$('wProj').innerHTML=d.projects.map(p=>`<option>${p.slug}</option>`).join('');}
+function goWS(slug){document.querySelector('[data-v=workspace]').click();$('wProj').value=slug;listFiles();}
+async function listFiles(){const s=$('wProj').value;if(!s)return;
+const d=await fetch(`/api/projects/${encodeURIComponent(s)}/files`).then(J);
+$('wFile').innerHTML=d.sources.map(f=>`<option>${f}</option>`).join('');}
+async function loadChunks(){const p=$('wProj').value,f=$('wFile').value;
+const txt=await fetch(`/api/chunks?project=${encodeURIComponent(p)}&file=${encodeURIComponent(f)}&full=1`).then(J);
+$('wChunks').innerHTML=txt.chunks.map(c=>`<tr><td>Chunk ${c.i}</td><td>${c.chars.toLocaleString()} ký tự (~${c.tokens_est} tokens)</td><td>${c.preview.slice(0,80)}…</td></tr>`).join('');
+$('tSrc').textContent=txt.chunks.map(c=>c.text).join('\n\n');}
+// sync-scroll dual-pane
+$('tSrc').onscroll=()=>{$('tOut').scrollTop=$('tSrc').scrollTop;};
+$('tOut').onscroll=()=>{$('tSrc').scrollTop=$('tOut').scrollTop;};
+async function loadMeta(){const s=await fetch('/api/settings').then(J);
+$('wProv').innerHTML=Object.keys(s.providers).map(p=>`<option ${p===s.default_provider?'selected':''}>${p}</option>`).join('');
+fillModels();$('wProv').onchange=fillModels;
+function fillModels(){$('wModel').innerHTML=(s.providers[$('wProv').value].models||[]).map(m=>`<option>${m}</option>`).join('')}
+const pr=await fetch('/api/prompts').then(J);
+$('wPrompt').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');
+$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${p}"> +${p}</label>`).join(' ');
+$('prList').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');
+$('sProv').innerHTML=Object.keys(s.providers).map(p=>`<option>${p}</option>`).join('');
+$('sModel').value=s.default_model;$('sBase').value=(s.providers.openai_compat||{}).base_url||'';$('sMax').value=s.max_chunk_chars;}
+let lastSSE=[];
+async function startTl(){const body={project:$('wProj').value,file:$('wFile').value,provider:$('wProv').value,
+model:$('wModel').value,prompt:$('wPrompt').value,
+extra_prompts:[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value)};
+$('wMsg').textContent='⏳ Đang dịch…';$('tOut').textContent='';lastSSE=[];
+const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+if(r.status===409){$('wMsg').innerHTML='<span class=err>Đang có 1 phiên chạy.</span>';return}
+if(!r.ok){const j=await r.json();$('wMsg').innerHTML='<span class=err>'+j.error+'</span>';return}
+const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+let idx;while((idx=buf.indexOf('\n\n'))>=0){const blk=buf.slice(0,idx);buf=buf.slice(idx+2);
+const ev=(blk.match(/event: (\w+)/)||[])[1],dt=(blk.match(/data: ([\s\S]*)/)||[])[1];
+if(!ev)continue;const j=JSON.parse(dt);
+if(ev==='chunk'){lastSSE[j.i-1]=j.text;$('tOut').textContent=lastSSE.filter(Boolean).join('\n\n');$('wMsg').textContent=`⏳ chunk ${j.i}/${j.n} xong`;}
+else if(ev==='done'){$('wMsg').textContent='🎉 Xong! Bấm Lưu Vào File.';}
+else if(ev==='error'){$('wMsg').innerHTML='<span class=err>'+j.error+'</span>';}}}}
+function copyTl(){navigator.clipboard.writeText($('tOut').textContent);$('wMsg').textContent='📋 Đã copy.'}
+async function saveTl(){await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({project:$('wProj').value,file:$('wFile').value,content:$('tOut').textContent})}).then(J);
+$('wMsg').textContent='💾 Đã lưu vào translated/.'}
+function retryTl(){startTl()}function clearTl(){$('tOut').textContent='';startTl()}
+async function loadPrompt(){const n=$('prList').value;const d=await fetch('/api/prompts/'+encodeURIComponent(n)).then(J);$('prBody').value=d.content;}
+async function newPrompt(){const n=$('prNew').value.trim();if(!n)return;
+await fetch('/api/prompts/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:''})}).then(J);loadMeta();}
+async function savePrompt(){const n=$('prList').value;
+await fetch('/api/prompts/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:$('prBody').value})}).then(J);}
+async function saveSettings(){const b={default_provider:$('sProv').value,default_model:$('sModel').value,
+max_chunk_chars:+$('sMax').value||16000,providers:{openai_compat:{base_url:$('sBase').value}},
+gemini_keys:$('sGK').value.split('\n').map(s=>s.trim()).filter(Boolean),
+openai_compat_keys:$('sOK').value.split('\n').map(s=>s.trim()).filter(Boolean)};
+await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(J);
+$('sMsg').textContent='✅ Đã lưu.';loadMeta();}
+listProjects().then(listFiles);loadMeta();$('wProj').onchange=listFiles;
+</script>
+</body>
+</html>
