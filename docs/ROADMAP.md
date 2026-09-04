@@ -1,7 +1,19 @@
 # LỘ TRÌNH PHÁT TRIỂN TƯƠNG LAI (FUTURE ROADMAP)
 > **Tài liệu**: Lưu trữ các tính năng nâng cao được dời lại từ Phase 1 & Phase 2 nhằm giữ cho lõi gửi–nhận của dự án luôn tinh gọn, nhẹ và không phát sinh lỗi.  
 > **Địa chỉ**: `docs/ROADMAP.md`
-> **Phiên bản**: v2.3 (04/09/2026) — app.db đã có từ Phase 1, OCR đã loại bỏ, OpenAI đã làm sớm.
+> **Phiên bản**: v2.5.0 (04/09/2026) — settings redesign 5 khối, model metadata, thinking, CRUD provider, tuning prefs.
+
+---
+
+## 8. HOÀN THÀNH v2.5 — Trang Cấu Hình Redesign
+
+- [x] 5 khối UI (Providers / Model / Thinking / Tuning / Lưu riêng)
+- [x] CRUD provider OpenAI-compatible (`POST /api/settings/providers`, `DELETE /api/settings/providers/{id}`)
+- [x] Model metadata + `GET /api/settings/model-info` (input/output/context/quota/docs)
+- [x] Thinking 4 mức (OFF/LOW/MEDIUM/HIGH) cho Gemini, OpenAI-compatible bỏ qua
+- [x] Prefs: `max_chunk_chars`, `api_delay_seconds` (mặc định 2s), `timeout_seconds` có label + đơn vị
+- [x] Lọc model Bao gồm/Loại trừ ở cả Settings lẫn Workspace
+- [x] Tests + docs + CHANGELOG
 
 ---
 
@@ -72,8 +84,12 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 
 ---
 
-## 7. QUYẾT ĐỊNH ĐÃ CHỐT v2.3 (KHỎI TRANH LUẬN LẠI)
+## 7. QUYẾT ĐỊNH ĐÃ CHỐT v2.5 (KHỎI TRANH LUẬT LẠI)
 
 * OCR: tạm hoãn vào §6 trên, dùng tool ngoài.
 * OpenAI-compatible: đã đưa vào Phase 1, chọn explicit `--provider/--model`, không fallback.
 * Plugin: quy ước file (prompts/tools/providers), không framework động.
+* Single-user: FULL key hiển thị, sửa/xóa trực tiếp trong UI; model select nhìn thấy được + custom; thinking chỉ Gemini; lọc model client-side ở cả Settings và Workspace.
+* `main.py` là điểm vào chính; `run.py` CLI giữ nguyên.
+* `config/providers.json` là SSOT provider; `config/config.json` chỉ chứa prefs app (`max_chunk_chars`, `api_delay_seconds`, `timeout_seconds`).
+* `api_delay_seconds` mặc định 2.0s giữa các chunk chống 429; `timeout_seconds` mặc định 90s.
