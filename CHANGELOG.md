@@ -9,6 +9,7 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 - M0: cấu hình đa provider (`config.py`), SQLite index `workspace/app.db` (`app_db.py` + `schema.sql`).
 - M1: cắt chunk tự nhiên `smartHardSplit` (`chunker.py`), nạp prompt Unicode (`prompt_engine.py`).
 - M2: xoay key dùng chung (`key_rotator.py`), client Gemini (`ai_client.py`) + OpenAI-compatible (`openai_client.py`) qua interface `AIClient`. Test mock dùng `asyncio.run` stdlib (môi trường thiếu `pytest-asyncio`).
+- M3-M4: đọc/ghi an toàn (`file_handler.py`, sanitize + `relative_to()`), CLI `run.py` (`--provider/--model/--prompt` explicit, dừng-ngay khi lỗi, log `runs` vào app.db).
 
 ## [1.0.0] - 2026-09-04
 ### Added
