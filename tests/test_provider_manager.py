@@ -34,18 +34,25 @@ def test_migrate_legacy(tmp_path):
     assert cfg["providers"][1]["base_url"] == "https://x.ai/v1"
 
 
-def test_mask_key():
-    assert AIProviderManager.mask_key("") == ""
-    assert AIProviderManager.mask_key("short") == "****"
-    assert AIProviderManager.mask_key("AIzaSyD-KEY_1234567890") == "AIza...7890"
+def test_full_keys_returned_for_single_user(mgr):
+    mgr.update_provider_keys_and_model("gemini-default", api_keys=["SECRETKEY123"])
+    data = mgr.masked_providers()  # single-user: trả full để sửa trực tiếp
+    assert data["providers"][0]["api_keys"] == ["SECRETKEY123"]
+    masked = mgr.masked_providers(mask=True)
+    assert masked["providers"][0]["api_keys"] == ["SECR...Y123"]
 
 
-def test_sentinel_keeps_old_key(mgr):
-    mgr.update_provider_keys_and_model("gemini-default", api_keys=["REALKEY123"])
-    mgr.update_provider_keys_and_model("gemini-default", api_keys=["****"], selected_model="gemini-a-1")
+def test_no_key_returns_fallback_with_warning(mgr):
+    r = mgr.list_models_for_provider("gemini-default")
+    assert r["source"] == "fallback" and "API key" in (r["error"] or "")
+
+
+def test_save_keys_verbatim_single_user(mgr):
+    # Single-user: sửa trực tiếp danh sách, xóa dòng = xóa key
+    mgr.update_provider_keys_and_model("gemini-default", api_keys=["K1", "K2"])
+    mgr.update_provider_keys_and_model("gemini-default", api_keys=["K1"])
     p = mgr.get_by_id("gemini-default")
-    assert p["api_keys"] == ["REALKEY123"]  # masked không ghi đè
-    assert p["default_model"] == "gemini-a-1"
+    assert p["api_keys"] == ["K1"]
 
 
 def test_namespace_validation(mgr):

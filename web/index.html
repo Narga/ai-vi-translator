@@ -45,7 +45,7 @@ textarea{width:100%}
 </div>
 <table><tbody id="wChunks"></tbody></table>
 <div class="row">
-<select id="wProv"></select><input id="wModel" list="wModelList" size="30" placeholder="model">
+<select id="wProv"></select><select id="wModel"></select><input id="wCustom" size="30" placeholder="custom model…" style="display:none">
 <select id="wPrompt"></select><span id="wExtra"></span>
 </div>
 <div class="row">
@@ -74,13 +74,12 @@ textarea{width:100%}
 <div class="row"><input id="sMax" type="number" placeholder="max_chunk_chars">
 <button class="btn" onclick="savePrefs()">Lưu prefs</button></div>
 <h3 id="sPName"></h3>
-<label>Keys hiện tại (đã che)</label><textarea id="sMasked" rows="2" readonly></textarea>
-<label id="sKeyLbl">Thêm keys (mỗi dòng 1 key, để trống = giữ nguyên)</label>
-<textarea id="sKeys" rows="3" placeholder="dán key mới vào đây"></textarea>
+<label>API keys — sửa trực tiếp trong danh sách (mỗi dòng 1 key, xóa dòng = xóa key)</label>
+<textarea id="sKeys" rows="4"></textarea>
 <div class="row" id="sBaseRow"><input id="sBase" placeholder="base_url (OpenAI-compatible)" size="45"></div>
 <label>Model — chọn từ danh sách live hoặc tự nhập</label>
-<div class="row"><input id="sModel" list="sModelList" size="35" placeholder="gemini-…">
-<datalist id="sModelList"></datalist>
+<div class="row"><select id="sModelSel"></select>
+<input id="sModel" size="35" placeholder="tự nhập custom model…" style="display:none">
 <button class="btn" onclick="refreshModels()">↻ Lấy danh sách mới</button>
 <span id="sSrc"></span></div>
 <p id="sWarn" class="err"></p>
@@ -126,14 +125,14 @@ $('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${
 $('prList').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');}
 async function fillModels(){const pid=$('wProv').value;if(!pid)return;
 const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-let dl=$('wModelList');if(!dl){dl=document.createElement('datalist');dl.id='wModelList';document.body.appendChild(dl);$('wModel').setAttribute('list','wModelList');}
-dl.innerHTML=m.models.map(x=>`<option value="${x}">`).join('');
-if(m.selected_model)$('wModel').value=m.selected_model;}
-$('sProvSel').onchange=loadProvDetail;
+$('wModel').innerHTML=m.models.map(x=>`<option ${x===m.selected_model?'selected':''}>${x}</option>`).join('')
++`<option value="__custom__">…tự nhập…</option>`;
+$('wModel').onchange=()=>{$('wCustom').style.display=$('wModel').value==='__custom__'?'':'none'};}
 $('wProv').onchange=fillModels;
+function curModel(){return $('wModel').value==='__custom__'?$('wCustom').value.trim():$('wModel').value;}
 let lastSSE=[];
 async function startTl(){const body={project:$('wProj').value,file:$('wFile').value,provider_id:$('wProv').value,
-model:$('wModel').value||undefined,prompt:$('wPrompt').value,
+model:curModel()||undefined,prompt:$('wPrompt').value,
 extra_prompts:[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value)};
 $('wMsg').textContent='⏳ Đang dịch…';$('tOut').textContent='';lastSSE=[];
 const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -159,21 +158,29 @@ async function savePrompt(){const n=$('prList').value;
 await fetch('/api/prompts/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:$('prBody').value})}).then(J);}
 // --- Trang cấu hình mới (providers.json SSOT, model live) ---
 function curProv(){return (window._PV.providers||[]).find(p=>p.id===$('sProvSel').value);}
+function selOrCustom(){return $('sModelSel').value==='__custom__'?$('sModel').value.trim():$('sModelSel').value;}
 async function loadProvDetail(){const p=curProv();if(!p)return;
 $('sPName').textContent=p.name+' ('+p.type+')';
 const keys=p.api_keys||(p.api_key?[p.api_key]:[]);
-$('sMasked').value=keys.join('\n');$('sKeys').value='';
+$('sKeys').value=keys.join('\n');
 $('sBaseRow').style.display=p.type==='openai'?'':'none';$('sBase').value=p.base_url||'';
-$('sModel').value=p.default_model||'';await refreshModels();}
+await refreshModels();}
 async function refreshModels(){const pid=$('sProvSel').value;
+const p=curProv();
 const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-$('sModelList').innerHTML=m.models.map(x=>`<option value="${x}">`).join('');
+const opts=m.models.map(x=>`<option ${x===m.selected_model?'selected':''}>${x}</option>`).join('');
+$('sModelSel').innerHTML=opts+`<option value="__custom__">…tự nhập…</option>`;
+const isCustom=p.default_model&&!m.models.includes(p.default_model);
+if(isCustom){$('sModelSel').value='__custom__';$('sModel').value=p.default_model;}
+else $('sModel').value='';
+$('sModel').style.display=$('sModelSel').value==='__custom__'?'':'none';
+$('sModelSel').onchange=()=>{$('sModel').style.display=$('sModelSel').value==='__custom__'?'':'none';};
 $('sSrc').textContent='nguồn: '+m.source;
-$('sWarn').textContent=m.error?('⚠️ '+m.error+' (dùng fallback)'):'';}
+$('sWarn').textContent=m.error?('⚠️ '+m.error):'';}
 async function saveProvider(){const p=curProv();const isG=p.type==='gemini';
 const lines=$('sKeys').value.split('\n').map(s=>s.trim()).filter(Boolean);
-const body={provider_id:p.id,selected_model:$('sModel').value.trim()||undefined};
-if(isG){if(lines.length)body.api_keys=lines;}else{if(lines.length)body.api_key=lines[0];body.base_url=$('sBase').value.trim();}
+const body={provider_id:p.id,selected_model:selOrCustom()||undefined};
+if(isG){body.api_keys=lines;}else{body.api_key=lines[0]||'';body.base_url=$('sBase').value.trim();}
 try{await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(J);
 $('sMsg').textContent='✅ Đã lưu.';loadMeta().then(loadProvDetail);}catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
 async function setActive(){await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},

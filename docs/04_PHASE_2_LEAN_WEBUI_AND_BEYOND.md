@@ -83,8 +83,9 @@ Giao diện chia làm 2 khu vực trực quan:
 
 ### 3.4. Trang 4: Cấu Hình AI (`/settings`) — v2.4 làm lại theo docs/06
 * Dropdown chọn provider (đánh dấu ★ active) + nút đặt active.
-* Keys hiện tại hiển thị **đã che** (`AIza...9xKl`); ô nhập key mới (để trống = giữ nguyên — sentinel protection).
-* Ô `base_url` cho OpenAI-compatible. Ô model dạng **datalist**: chọn từ danh sách live (`↻ Lấy danh sách mới`, badge nguồn `api/cache/fallback`) hoặc tự nhập custom model (có namespace validation).
+* Keys hiện **đầy đủ**, sửa trực tiếp trong 1 textarea (mỗi dòng 1 key, xóa dòng = xóa key). Single-user nên không che.
+* Ô `base_url` cho OpenAI-compatible. Model là **select nhìn thấy được** (options từ danh sách live, badge nguồn `api/cache/fallback`) + mục `…tự nhập…` hiện ô custom model (có namespace validation).
+* Chưa nhập key → select vẫn hiện danh sách dự phòng kèm cảnh báo rõ ràng.
 * Prefs app riêng: `max_chunk_chars`.
 
 ---
@@ -107,9 +108,9 @@ Giao diện chia làm 2 khu vực trực quan:
 | 10 | `GET /api/prompts/{name}` | — | `{"name": "...", "content": "..."}` | Sanitize như filename |
 | 11 | `PUT /api/prompts/{name}` | `{"content": "..."}` | `{"ok": true}` | Lưu prompt |
 | 12 | `GET /api/settings` / `PUT /api/settings` | GET — / PUT `{"max_chunk_chars": 16000}` | prefs app | Keys/models tách sang 3 endpoint dưới |
-| 13 | `GET /api/settings/providers` | — | providers đã **mask key** + `active_id` | Không bao giờ lộ secret |
+| 13 | `GET /api/settings/providers` | — | providers **đầy đủ key** (single-user) + `active_id` |
 | 14 | `GET /api/settings/models?provider_id=` | — | `{"models": [...], "selected_model": "...", "source": "api/cache/fallback", "error": null}` | Live từ API NCC, cache 5 phút |
-| 15 | `POST /api/settings/save` | `{"provider_id": "...", "api_keys"/"api_key", "base_url", "selected_model", "set_active": true}` | `{"ok": true}` | Sentinel (rỗng/masked = giữ nguyên) + namespace validation |
+| 15 | `POST /api/settings/save` | `{"provider_id": "...", "api_keys"/"api_key", "base_url", "selected_model", "set_active": true}` | `{"ok": true}` | Lưu nguyên danh sách key (single-user) + namespace validation |
 
 Ví dụ SSE khi bấm `[Bắt Đầu Dịch]`:
 ```text

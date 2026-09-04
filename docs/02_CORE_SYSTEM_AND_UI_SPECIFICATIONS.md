@@ -16,7 +16,7 @@
 ```
 
 * **Không hardcode model trong code.** Model lấy live từ API provider (`GET /models`), cache 5 phút, fallback mềm khi mất mạng. Người dùng chọn từ danh sách hoặc tự nhập (có namespace validation).
-* **Nhập key**: WebUI trang Cấu Hình (keys hiển thị đã che), hoặc sửa trực tiếp file, hoặc CLI hỏi khi thiếu. Ghi file kiểu atomic (`.tmp` → validate → `.bak` → `os.replace`).
+* **Nhập key**: WebUI trang Cấu Hình — keys hiện **đầy đủ**, sửa trực tiếp trong danh sách (xóa dòng = xóa key); hoặc sửa trực tiếp file, hoặc CLI hỏi khi thiếu. Ghi file kiểu atomic (`.tmp` → validate → `.bak` → `os.replace`).
 * **Migration 1 chiều**: `keys.json`/`config.json` cũ tự chuyển sang `providers.json` lần đầu chạy. `config/providers.json*` đã gitignore.
 * `config/config.json` chỉ còn prefs app (`max_chunk_chars`, `timeout_seconds`).
 

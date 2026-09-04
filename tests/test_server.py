@@ -101,7 +101,7 @@ def test_provider_endpoints_masked_and_save(app):
     s, b = call(app, "GET", "/api/settings/providers")
     data = json.loads(b)
     assert data["active_id"] == "gemini-default"
-    assert data["providers"][0]["api_keys"] == ["****"]  # key thật bị che
+    assert data["providers"][0]["api_keys"] == ["DUMMY"]  # single-user: full key
     # save đổi model + active
     s, _ = call(app, "POST", "/api/settings/save",
                 {"provider_id": "gemini-default", "selected_model": "gemini-new-1"})

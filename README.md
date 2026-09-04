@@ -21,7 +21,7 @@ python3 -m pip install "httpx>=0.27.0"
 Model lấy **live từ API nhà cung cấp** (cache 5 phút), chọn trên WebUI trang Cấu Hình
 hoặc tự nhập custom model. File chứa secret nên đã gitignore.
 
-Nhập key: WebUI Cấu Hình (hiển thị đã che) → hoặc CLI tự hỏi khi thiếu.
+Nhập key: WebUI Cấu Hình (hiển thị đầy đủ, sửa trực tiếp) → hoặc CLI tự hỏi khi thiếu.
 `keys.json` cũ được migrate tự động 1 lần.
 
 Cấu hình chung: `config/config.json` (`max_chunk_chars: 16000`, `timeout_seconds: 90`).
@@ -41,10 +41,10 @@ Nguyên tắc: mỗi chunk thử mỗi key 1 lần, 429 thì đổi key, hết k
 không lưu dở dang** — chạy lại từ đầu. **Không fallback ngầm** sang model khác.
 Mọi lượt chạy được log vào `workspace/app.db`.
 
-## Phase 2 — WebUI
+## Phase 2 — WebUI (chính)
 
 ```bash
-python server.py   # mở http://127.0.0.1:8000
+python main.py   # mở http://127.0.0.1:8000 (server.py là backend)
 ```
 
 4 trang: Dự Án → Biên Dịch (dual-pane sync-scroll, inline-edit, copy/save/retry) →

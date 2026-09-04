@@ -182,15 +182,11 @@ class AIProviderManager:
         if not provider:
             raise ValueError(f"Provider ID '{provider_id}' không tồn tại.")
 
-        if api_keys is not None:
-            valid = [k.strip() for k in api_keys if k.strip() and not _is_masked(k)]
-            if valid:
-                provider["api_keys"] = valid
+        if api_keys is not None:  # single-user: lưu nguyên danh sách đang sửa
+            provider["api_keys"] = [k.strip() for k in api_keys if k.strip()]
 
         if api_key is not None:
-            clean_k = api_key.strip()
-            if clean_k and not _is_masked(clean_k):
-                provider["api_key"] = clean_k
+            provider["api_key"] = api_key.strip()
 
         if base_url is not None:
             provider["base_url"] = base_url.strip().rstrip("/")
@@ -234,6 +230,9 @@ class AIProviderManager:
         models, error_msg, source = [], None, "api"
         try:
             if provider["type"] == "gemini":
+                if not provider.get("api_keys"):
+                    # Chưa có key thì không gọi live — trả fallback kèm cảnh báo rõ ràng
+                    raise RuntimeError("Chưa nhập API key — hiển thị danh sách dự phòng.")
                 models = self._fetch_gemini_models(provider.get("api_keys", []))
             else:
                 models = self._fetch_openai_models(provider.get("api_key", ""), provider.get("base_url", ""))
@@ -300,19 +299,17 @@ class AIProviderManager:
             return "****"
         return f"{key[:4]}...{key[-4:]}"
 
-    def masked_providers(self) -> Dict[str, Any]:
-        """Dữ liệu public cho UI: keys đã che, không lộ secret."""
+    def masked_providers(self, mask: bool = False) -> Dict[str, Any]:
+        """Dữ liệu cho UI. Single-user: mặc định trả FULL key để sửa trực tiếp.
+        mask=True chỉ dùng khi cần che (log/share)."""
         config = self.load_config()
         out = []
         for p in config["providers"]:
             q = dict(p)
-            if "api_keys" in q:
-                q["api_keys"] = [self.mask_key(k) for k in q["api_keys"]]
-            if "api_key" in q:
-                q["api_key"] = self.mask_key(q["api_key"])
+            if mask:
+                if "api_keys" in q:
+                    q["api_keys"] = [self.mask_key(k) for k in q["api_keys"]]
+                if "api_key" in q:
+                    q["api_key"] = self.mask_key(q["api_key"])
             out.append(q)
         return {"version": config.get("version", 1), "active_id": config.get("active_id"), "providers": out}
-
-
-def _is_masked(s: str) -> bool:
-    return s.startswith("****") or "..." in s
