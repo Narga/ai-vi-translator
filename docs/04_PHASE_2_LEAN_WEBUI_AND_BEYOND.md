@@ -81,9 +81,11 @@ Giao diện chia làm 2 khu vực trực quan:
 * Cho phép mở ra xem nội dung, chỉnh sửa câu chữ và bấm **[Lưu Prompt]**.
 * Cung cấp nút **[+ Tạo Prompt Mới]** (lưu thành file `.txt` mới).
 
-### 3.4. Trang 4: Cấu Hình Tối Giản (`/settings`)
-* 2 textarea nhập API Key theo provider (mỗi dòng 1 key, lưu vào `config/keys.json`): Gemini + OpenAI-compatible.
-* 2 dropdown `default_provider` / `default_model` (options lấy từ `config.json`), ô `base_url` cho OpenAI-compatible, ô `max_chunk_chars` (mặc định 16.000).
+### 3.4. Trang 4: Cấu Hình AI (`/settings`) — v2.4 làm lại theo docs/06
+* Dropdown chọn provider (đánh dấu ★ active) + nút đặt active.
+* Keys hiện tại hiển thị **đã che** (`AIza...9xKl`); ô nhập key mới (để trống = giữ nguyên — sentinel protection).
+* Ô `base_url` cho OpenAI-compatible. Ô model dạng **datalist**: chọn từ danh sách live (`↻ Lấy danh sách mới`, badge nguồn `api/cache/fallback`) hoặc tự nhập custom model (có namespace validation).
+* Prefs app riêng: `max_chunk_chars`.
 
 ---
 
@@ -104,7 +106,10 @@ Giao diện chia làm 2 khu vực trực quan:
 | 9 | `GET /api/prompts` | — | `{"prompts": ["default_translation.txt"]}` | Liệt kê `prompts/*.txt` |
 | 10 | `GET /api/prompts/{name}` | — | `{"name": "...", "content": "..."}` | Sanitize như filename |
 | 11 | `PUT /api/prompts/{name}` | `{"content": "..."}` | `{"ok": true}` | Lưu prompt |
-| 12 | `GET /api/settings` / `PUT /api/settings` | GET — / PUT `{"default_provider": "...", "default_model": "...", "max_chunk_chars": 16000, "gemini_keys": [...], "openai_compat_keys": [...]}` | GET trả config+models / PUT validate tối thiểu rồi lưu | Keys không bao giờ log |
+| 12 | `GET /api/settings` / `PUT /api/settings` | GET — / PUT `{"max_chunk_chars": 16000}` | prefs app | Keys/models tách sang 3 endpoint dưới |
+| 13 | `GET /api/settings/providers` | — | providers đã **mask key** + `active_id` | Không bao giờ lộ secret |
+| 14 | `GET /api/settings/models?provider_id=` | — | `{"models": [...], "selected_model": "...", "source": "api/cache/fallback", "error": null}` | Live từ API NCC, cache 5 phút |
+| 15 | `POST /api/settings/save` | `{"provider_id": "...", "api_keys"/"api_key", "base_url", "selected_model", "set_active": true}` | `{"ok": true}` | Sentinel (rỗng/masked = giữ nguyên) + namespace validation |
 
 Ví dụ SSE khi bấm `[Bắt Đầu Dịch]`:
 ```text

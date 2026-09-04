@@ -1,7 +1,7 @@
 # 03. KẾ HOẠCH TRIỂN KHAI PHASE 1 CHI TIẾT TỈ MỈ (CLI WORKING CORE)
 > **Mục tiêu**: Xây dựng bộ mã nguồn cốt lõi tối giản, chỉ dùng `httpx` (+ `sqlite3` stdlib), loại bỏ hoàn toàn FastAPI/uvicorn/pydantic và storage trạng thái chunk, **sử dụng được ngay lập tức từ dòng lệnh CLI để dịch file với Gemini + OpenAI-compatible**.  
 > **Cam kết**: Đầy đủ mã nguồn mẫu cho toàn bộ các module, bộ test hoàn chỉnh (mock test cả 2 providers), kiểm tra an toàn đường dẫn và chia thành 5 mốc triển khai nhỏ.
-> **Phiên bản**: v2.3 (04/09/2026).
+> **Phiên bản**: v2.4 (06/09/2026) — providers.json SSOT + dynamic model listing (docs/06).
 
 ---
 
@@ -12,11 +12,13 @@ content-translator/
 ├── pyproject.toml              # CHỈ CẦN httpx (dev: pytest, pytest-asyncio) + sqlite3 stdlib
 ├── .gitignore                  # Bỏ qua workspace/ và config/keys.json
 ├── config/
-│   ├── config.json             # Cấu hình chung (providers, models, timeout, max_chars)
-│   └── keys.json               # API keys nhạy cảm (gemini_keys + openai_compat_keys)
+│   ├── config.json             # Prefs app (timeout, max_chars)
+│   ├── keys.json               # Legacy (migrate 1 chiều sang providers.json)
+│   └── providers.json          # SSOT providers + keys + default_model (gitignore)
 ├── core/
 │   ├── __init__.py
-│   ├── config.py               # Lớp nạp cấu hình JSON mỏng (tính theo PROJECT_ROOT)
+│   ├── config.py               # Lớp nạp prefs JSON mỏng (tính theo PROJECT_ROOT)
+│   ├── provider_manager.py     # SSOT providers.json: atomic write, mask, dynamic models, validation (docs/06)
 │   ├── key_rotator.py          # Module xoay key tối giản (dùng chung 2 providers)
 │   ├── chunker.py              # Cắt chunk tự nhiên, xử lý văn bản rỗng/ngắn/không dấu cách
 │   ├── prompt_engine.py        # Nạp prompt .txt, bảo toàn Unicode tiếng Việt
@@ -32,6 +34,7 @@ content-translator/
 │   ├── test_chunker.py         # Test cắt chunk, văn bản rỗng, văn bản ngắn
 │   ├── test_key_rotator.py     # Test 1 key, nhiều key, danh sách rỗng
 │   ├── test_prompt_engine.py   # Test nạp prompt và giữ nguyên Unicode
+│   ├── test_provider_manager.py # Test atomic/mask/sentinel/namespace/cache/migration (mock httpx)
 │   ├── test_file_handler.py    # Test chống path traversal .. và /
 │   ├── test_app_db.py          # Test tạo bảng + ghi files/runs
 │   ├── test_ai_client.py       # Mock test httpx Gemini: 200, 429, hết key, timeout, lỗi mạng, response rỗng
@@ -527,14 +530,14 @@ content-translator/
 
 ---
 
-### Task 1.8: `run.py` (Script CLI Tối Giản — provider/model explicit)
-* **Cách dùng mới**:
+### Task 1.8: `run.py` (Script CLI — provider/model từ providers.json)
+* **Cách dùng mới (provider = id trong providers.json, model = default_model hoặc override)**:
   ```text
-  python run.py input.txt output.txt --provider gemini --model gemini-2.5-flash
-  python run.py input.txt output.txt --provider openai_compat --model deepseek-chat
-  python run.py --project Truyen --file ch01.md --provider gemini
+  python run.py input.txt output.txt                        # dùng active provider + default_model
+  python run.py input.txt output.txt --provider openai-compat --model deepseek-chat
+  python run.py --project Truyen --file ch01.md --provider gemini-default
   ```
-  Không truyền `--provider/--model` thì lấy `default_provider/default_model` trong config. Không fallback ngầm.
+  Không fallback ngầm. Model rỗng → báo mở WebUI Cấu Hình chọn từ danh sách live.
 * **Mã nguồn** (rút gọn phần đổi so với v2.2 — giữ nguyên chunker/prompt/ghép `\n\n`/dừng-ngay):
   ```python
   # run.py - trích đoạn chọn client
@@ -790,9 +793,9 @@ async def test_empty_candidates_safety_block():
 
 Thay vì sinh toàn bộ mã một lần, việc code được chia thành **5 mốc rất nhỏ**:
 
-* **MỐC 0: Config đa provider + app.db**:
-  * Tạo `pyproject.toml`, `.gitignore`, `core/config.py`, `core/app_db.py`, `core/schema.sql`.
-  * Chạy test: `pytest tests/test_app_db.py` $\to$ PASS. Mở `workspace/app.db` thấy 3 bảng.
+* **MỐC 0: Config + providers.json SSOT + app.db**:
+  * Tạo `pyproject.toml`, `.gitignore`, `core/config.py`, `core/provider_manager.py` (docs/06), `core/app_db.py`, `core/schema.sql`.
+  * Chạy test: `pytest tests/test_provider_manager.py tests/test_app_db.py` $\to$ PASS.
 * **MỐC 1: Chunker & Prompt Engine**:
   * Tạo `pyproject.toml`, `.gitignore`, `core/chunker.py`, `core/prompt_engine.py`.
   * Chạy test: `pytest tests/test_chunker.py tests/test_prompt_engine.py` $\to$ PASS.

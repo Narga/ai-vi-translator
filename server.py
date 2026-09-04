@@ -16,6 +16,7 @@ from core.chunker import split_text
 from core.config import AppConfig
 from core.file_handler import SafeFileHandler
 from core.prompt_engine import PromptEngine
+from core.provider_manager import AIProviderManager
 from run import build_client
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -171,15 +172,29 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path == "/api/settings":
             cfg = AppConfig().get_config()
+            mgr = AIProviderManager()
+            try:
+                active = mgr.get_active()
+            except Exception:
+                active = {"id": "", "default_model": ""}
             return self._json({
-                "default_provider": cfg.get("default_provider"),
-                "default_model": cfg.get("default_model"),
                 "max_chunk_chars": cfg.get("max_chunk_chars"),
                 "timeout_seconds": cfg.get("timeout_seconds"),
-                "providers": cfg.get("providers"),
-                "gemini_keys": len(AppConfig().get_keys("gemini")),
-                "openai_compat_keys": len(AppConfig().get_keys("openai_compat")),
+                "active_id": active.get("id"),
+                "default_model": active.get("default_model"),
             })
+
+        if u.path == "/api/settings/providers":
+            return self._json(AIProviderManager().masked_providers())
+
+        if u.path == "/api/settings/models":
+            provider_id = q.get("provider_id", [""])[0]
+            if not provider_id:
+                return self._err("Thiếu provider_id")
+            try:
+                return self._json(AIProviderManager().list_models_for_provider(provider_id))
+            except ValueError as e:
+                return self._err(str(e), 404)
 
         return self._serve_static(u.path)
 
@@ -256,6 +271,28 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, KeyError) as e:
                 return self._err(str(e))
 
+        if u.path == "/api/settings/save":
+            data = self._body_json()
+            if data is None:
+                return self._err("JSON không hợp lệ")
+            provider_id = (data.get("provider_id") or "").strip()
+            if not provider_id:
+                return self._err("Thiếu provider_id")
+            try:
+                mgr = AIProviderManager()
+                mgr.update_provider_keys_and_model(
+                    provider_id,
+                    api_keys=data.get("api_keys"),
+                    api_key=data.get("api_key"),
+                    base_url=data.get("base_url"),
+                    selected_model=data.get("selected_model"),
+                )
+                if data.get("set_active"):
+                    mgr.set_active_provider(provider_id)
+                return self._json({"ok": True})
+            except ValueError as e:
+                return self._err(str(e))
+
         return self._err("Không tìm thấy", 404)
 
     # ---- PUT ----
@@ -278,9 +315,6 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("JSON không hợp lệ")
             mgr = AppConfig()
             cfg = mgr.get_config()
-            for k in ("default_provider", "default_model"):
-                if data.get(k):
-                    cfg[k] = data[k]
             for k in ("max_chunk_chars", "timeout_seconds"):
                 try:
                     v = float(data[k]) if k in data else None
@@ -288,15 +322,9 @@ class Handler(BaseHTTPRequestHandler):
                         cfg[k] = int(v) if k == "max_chunk_chars" else v
                 except (ValueError, TypeError):
                     pass
-            if isinstance(data.get("providers"), dict) and "openai_compat" in data["providers"]:
-                cfg["providers"]["openai_compat"]["base_url"] = data["providers"]["openai_compat"].get(
-                    "base_url", cfg["providers"]["openai_compat"]["base_url"])
             from pathlib import Path as _P
             (_P(__file__).resolve().parent / "config" / "config.json").write_text(
                 json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
-            for field, prov in (("gemini_keys", "gemini"), ("openai_compat_keys", "openai_compat")):
-                if isinstance(data.get(field), list):
-                    mgr.save_keys(prov, [k for k in data[field] if isinstance(k, str)])
             return self._json({"ok": True})
 
         return self._err("Không tìm thấy", 404)
@@ -304,8 +332,14 @@ class Handler(BaseHTTPRequestHandler):
     # ---- SSE translate ----
     def _handle_translate_sse(self, data):
         project, fname = data.get("project", ""), data.get("file", "")
-        provider = data.get("provider") or AppConfig().get_config().get("default_provider")
-        model = data.get("model") or AppConfig().get_config().get("default_model")
+        mgr = AIProviderManager()
+        try:
+            provider = mgr.get_by_id(data["provider_id"]) if data.get("provider_id") else mgr.get_active()
+        except ValueError as e:
+            return self._err(str(e))
+        model = data.get("model") or provider.get("default_model", "")
+        if not model:
+            return self._err(f"Provider '{provider['id']}' chưa chọn model. Mở Cấu Hình để chọn.", 400)
         prompt_name = data.get("prompt", "default_translation.txt")
         extra = [e for e in (data.get("extra_prompts") or []) if isinstance(e, str)]
 
@@ -320,10 +354,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(str(e), 404)
 
         cfg = AppConfig().get_config()
-        keys = AppConfig().get_keys(provider)
+        keys = mgr.get_keys(provider)
         if not keys:
             _translate_lock.release()
-            return self._err(f"Chưa có API Key cho provider '{provider}'. Nhập ở trang Cấu Hình.", 400)
+            return self._err(f"Chưa có API Key cho provider '{provider['id']}'. Nhập ở trang Cấu Hình.", 400)
 
         chunks = split_text(text, max_chars=cfg["max_chunk_chars"])
         if not chunks:
@@ -348,7 +382,8 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.flush()
 
         async def run_all():
-            client = build_client(provider, model, keys, cfg)
+            client = build_client(provider.get("type", "gemini"), model, keys,
+                                  provider.get("base_url", ""), cfg["timeout_seconds"])
             outs = []
             for i, ch in enumerate(chunks, 1):
                 p = base_tpl.replace("{{source_text}}", ch).replace(
@@ -362,10 +397,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             outs = asyncio.run(run_all())
             _upsert_file(project, fname, len(text), len(chunks), "translating")
-            log_run(provider, model, "ok")
+            log_run(provider["id"], model, "ok")
             emit("done", {"chars": sum(len(o) for o in outs)})
         except (ConnectionError, TimeoutError, RuntimeError, ValueError) as e:
-            log_run(provider, model, "error", str(e))
+            log_run(provider["id"], model, "error", str(e))
             emit("error", {"error": str(e)})
         finally:
             _translate_lock.release()

@@ -1,4 +1,4 @@
-"""CLI dịch Phase 1: provider/model explicit, dừng-ngay khi lỗi, log runs vào app.db."""
+"""CLI dịch Phase 1: provider/model lấy từ providers.json (SSOT), --provider/--model override."""
 
 import argparse
 import asyncio
@@ -12,6 +12,7 @@ from core.config import AppConfig
 from core.key_rotator import KeyRotator
 from core.openai_client import OpenAICompatClient
 from core.prompt_engine import PromptEngine
+from core.provider_manager import AIProviderManager
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -20,31 +21,44 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("output", nargs="?")
     ap.add_argument("--project")
     ap.add_argument("--file")
-    ap.add_argument("--provider")
-    ap.add_argument("--model")
+    ap.add_argument("--provider", help="Provider id trong providers.json (mặc định: active_id)")
+    ap.add_argument("--model", help="Model override (mặc định: default_model của provider)")
     ap.add_argument("--prompt", default="default_translation.txt")
     return ap.parse_args(argv)
 
 
-def build_client(provider: str, model: str, keys: list, cfg: dict):
+def build_client(provider_type: str, model: str, keys: list, base_url: str, timeout: float):
     rotator = KeyRotator(keys)
-    if provider == "openai_compat":
-        base_url = cfg["providers"]["openai_compat"]["base_url"]
-        return OpenAICompatClient(rotator, model=model, base_url=base_url,
-                                  timeout_seconds=cfg["timeout_seconds"])
-    return GeminiClient(rotator, model=model, timeout_seconds=cfg["timeout_seconds"])
+    if provider_type == "openai":
+        return OpenAICompatClient(rotator, model=model, base_url=base_url, timeout_seconds=timeout)
+    return GeminiClient(rotator, model=model, timeout_seconds=timeout)
 
 
 async def main(argv=None) -> int:
     args = parse_args(argv)
-    config_mgr = AppConfig()
-    cfg = config_mgr.get_config()
-    provider = args.provider or cfg.get("default_provider", "gemini")
-    model = args.model or cfg.get("default_model", "gemini-2.5-flash")
-    keys = config_mgr.get_keys(provider)
+    cfg = AppConfig().get_config()
+    mgr = AIProviderManager()
 
+    try:
+        provider = mgr.get_by_id(args.provider) if args.provider else mgr.get_active()
+    except ValueError as e:
+        print(f"❌ LỖI: {e}")
+        return 1
+    ptype = provider.get("type", "gemini")
+    model = args.model or provider.get("default_model", "")
+    if args.model:  # override phải qua namespace validation
+        try:
+            mgr._validate_model_namespace(ptype, model, provider.get("base_url", ""))
+        except ValueError as e:
+            print(f"❌ LỖI: {e}")
+            return 1
+    if not model:
+        print(f"❌ LỖI: Provider '{provider['id']}' chưa chọn model. Mở WebUI Cấu Hình hoặc docs/06 để chọn từ danh sách live.")
+        return 1
+
+    keys = mgr.get_keys(provider)
     if not keys:
-        print(f"⚠️ Chưa tìm thấy API Key cho provider '{provider}' trong config/keys.json hoặc biến môi trường!")
+        print(f"⚠️ Chưa tìm thấy API Key cho provider '{provider['id']}'!")
         try:
             user_key = input("👉 Vui lòng nhập API Key của bạn: ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -53,9 +67,12 @@ async def main(argv=None) -> int:
         if not user_key:
             print("❌ LỖI: Không có API Key thì không thể gọi AI. Thoát chương trình.")
             return 1
-        config_mgr.save_keys(provider, [user_key])
+        if ptype == "gemini":
+            mgr.update_provider_keys_and_model(provider["id"], api_keys=[user_key])
+        else:
+            mgr.update_provider_keys_and_model(provider["id"], api_key=user_key)
         keys = [user_key]
-        print("✅ Đã lưu API Key vào config/keys.json thành công.")
+        print("✅ Đã lưu API Key vào config/providers.json thành công.")
 
     if args.project and args.file:
         from core.file_handler import SafeFileHandler
@@ -94,9 +111,9 @@ async def main(argv=None) -> int:
 
     chunks = split_text(raw_content, max_chars=cfg["max_chunk_chars"])
     total = len(chunks)
-    print(f"📄 Bắt đầu dịch: {input_path.name} ({len(raw_content):,} ký tự -> {total} chunk) [{provider}/{model}].")
+    print(f"📄 Bắt đầu dịch: {input_path.name} ({len(raw_content):,} ký tự -> {total} chunk) [{provider['id']}/{model}].")
 
-    ai_client = build_client(provider, model, keys, cfg)
+    ai_client = build_client(ptype, model, keys, provider.get("base_url", ""), cfg["timeout_seconds"])
     translated_chunks = []
 
     for idx, chunk_text in enumerate(chunks, 1):
@@ -110,12 +127,12 @@ async def main(argv=None) -> int:
             print(f"\n🛑 LỖI: {e}")
             print("⚠️ CHƯƠNG TRÌNH ĐÃ DỪNG VÀ KHÔNG LƯU TRẠNG THÁI DỞ DANG.")
             print("👉 Bạn hãy kiểm tra lại kết nối / API key và chạy lại lệnh từ đầu.")
-            log_run(provider, model, "error", str(e))
+            log_run(provider["id"], model, "error", str(e))
             return 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text("\n\n".join(translated_chunks), encoding="utf-8")
-    log_run(provider, model, "ok")
+    log_run(provider["id"], model, "ok")
     print(f"🎉 HOÀN TẤT! Bản dịch đã lưu tại: {output_path}")
     return 0
 

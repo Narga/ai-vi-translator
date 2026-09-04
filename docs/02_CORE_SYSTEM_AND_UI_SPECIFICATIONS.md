@@ -4,47 +4,23 @@
 
 ---
 
-## 1. CẤU HÌNH DỰ ÁN & API KEY NHẬP VÀO ĐÂU?
+## 1. CẤU HÌNH DỰ ÁN & API KEY NHẬP VÀO ĐÂU? (v2.4: providers.json SSOT)
 
-Hệ thống cung cấp 3 cách nạp API Key rõ ràng, linh hoạt, tự động fallback:
+`config/providers.json` là nguồn sự thật duy nhất (chi tiết: `docs/06_AI_MODELS_MANAGEMENT_SPEC.md`):
 
-### 1.1. Nạp API Key (3 Cách, 2 Nhóm Key Độc Lập)
-* **Cách 1 (Chuẩn nhất cho người dùng cá nhân)**:
-  * Mở file `config/keys.json` (hệ thống tự tạo file mẫu nếu chưa có) và dán các key vào:
-    ```json
-    {
-      "gemini_keys": ["AIzaSyD-KEY_1", "AIzaSyD-KEY_2"],
-      "openai_compat_keys": ["sk-or-KEY_1"]
-    }
-    ```
-  * File này đã được đưa vào `.gitignore`, không bao giờ bị lộ lên Git.
-* **Cách 2 (Biến môi trường - Phù hợp khi chạy VPS)**:
-  * Export trực tiếp trong terminal (KHÔNG có cơ chế tự load file `.env`, để khỏi thêm dependency):
-    ```bash
-    export GEMINI_API_KEYS="AIzaSyD-KEY_1,AIzaSyD-KEY_2"
-    export OPENAI_COMPAT_KEYS="sk-or-KEY_1"
-    export OPENAI_COMPAT_BASE_URL="https://openrouter.ai/api/v1"
-    ```
-* **Cách 3 (Nhập tương tác CLI)**:
-  * Nếu cả 2 cách trên đều chưa có key cho provider đang chọn, khi chạy lệnh `python run.py`, màn hình sẽ hỏi trực tiếp và tự động ghi nhớ vào `config/keys.json`.
-
-### 1.2. Nạp Cấu Hình Chung (`config/config.json`)
-Chứa tham số vận hành + danh sách model được phép chọn (không hardcode model trong code). Có kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`):
 ```json
-{
-  "default_provider": "gemini",
-  "default_model": "gemini-2.5-flash",
-  "max_chunk_chars": 16000,
-  "timeout_seconds": 90,
-  "providers": {
-    "gemini": {"models": ["gemini-2.5-flash", "gemini-2.5-flash-lite"]},
-    "openai_compat": {"base_url": "https://openrouter.ai/api/v1", "models": ["deepseek-chat"]}
-  }
-}
+{"version": 1, "active_id": "gemini-default", "providers": [
+  {"id": "gemini-default", "type": "gemini", "name": "Google Gemini", "api_keys": [], "default_model": ""},
+  {"id": "openai-compat", "type": "openai", "name": "OpenAI-Compatible", "api_key": "", "base_url": "https://openrouter.ai/api/v1", "default_model": ""}
+]}
 ```
-> Nguyên tắc: mọi lượt gọi chỉ rõ `provider + model` (CLI `--provider/--model`, WebUI dropdown). **Không fallback ngầm** sang model khác khi lỗi.
 
-### 1.3. Nạp Nội Dung Cần Dịch
+* **Không hardcode model trong code.** Model lấy live từ API provider (`GET /models`), cache 5 phút, fallback mềm khi mất mạng. Người dùng chọn từ danh sách hoặc tự nhập (có namespace validation).
+* **Nhập key**: WebUI trang Cấu Hình (keys hiển thị đã che), hoặc sửa trực tiếp file, hoặc CLI hỏi khi thiếu. Ghi file kiểu atomic (`.tmp` → validate → `.bak` → `os.replace`).
+* **Migration 1 chiều**: `keys.json`/`config.json` cũ tự chuyển sang `providers.json` lần đầu chạy. `config/providers.json*` đã gitignore.
+* `config/config.json` chỉ còn prefs app (`max_chunk_chars`, `timeout_seconds`).
+
+### 1.2. Nạp Nội Dung Cần Dịch
 * **Chế độ trực tiếp**: Để file ở bất kỳ đâu trên máy tính và chạy:
   `python run.py /duong/dan/input.txt /duong/dan/output.txt`
 * **Chế độ dự án**: Tạo thư mục dự án trong `workspace/projects/{ten_du_an}/sources/` và đặt file nguồn vào đó.

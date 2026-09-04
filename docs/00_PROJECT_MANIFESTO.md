@@ -91,7 +91,7 @@ FILE & CẤU HÌNH (LOCAL)
 
 ## 6. NGUYÊN TẮC PROVIDER/MODEL & MỞ RỘNG (CHỐT v2.3)
 
-1. **Explicit, không fallback ngầm**: Mọi lượt gọi chỉ rõ `provider + model` (CLI `--provider/--model`, WebUI dropdown). Lỗi thì dừng, không tự đổi model khác. Việc khác (tóm tắt, trích thuật ngữ) cũng chọn model riêng từ danh sách trong `config.json`.
+1. **Explicit, không fallback ngầm**: Mọi lượt gọi chỉ rõ `provider id + model` (CLI `--provider/--model`, WebUI dropdown từ danh sách live). Lỗi thì dừng, không tự đổi model khác. Model không hardcode — lấy động từ API nhà cung cấp (`providers.json` SSOT, docs/06).
 2. **Key theo provider**: `gemini_keys` và `openai_compat_keys` độc lập, cùng dùng `KeyRotator`.
 3. **app.db từ Phase 1**: Chỉ index + log (`projects/files/runs`). Không bảng `chunks/checkpoints` cho tới khi ROADMAP kích hoạt.
 4. **Mở rộng bằng quy ước, không framework plugin**: Prompt mới = thêm file `prompts/*.txt`; tool mới = thêm file `tools/*.py` chạy độc lập; provider mới = thêm file `core/*_client.py` theo interface `AIClient`. Không hệ thống nạp plugin động, không sandbox trong Phase 1/2.

@@ -25,7 +25,15 @@ def test_valid_file_handling(tmp_path):
 def test_cli_usage_error(monkeypatch):
     import asyncio
 
-    monkeypatch.setenv("GEMINI_API_KEYS", "DUMMY")
+    class FakeMgr:
+        def get_by_id(self, pid):
+            return {"id": pid, "type": "gemini", "default_model": "m", "base_url": ""}
+        def get_active(self):
+            return {"id": "gemini-default", "type": "gemini", "default_model": "m", "base_url": ""}
+        def get_keys(self, provider):
+            return ["DUMMY"]
+
+    monkeypatch.setattr("run.AIProviderManager", lambda: FakeMgr())
     from run import main
 
     assert asyncio.run(main(["--project", "X"])) == 1

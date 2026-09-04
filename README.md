@@ -15,25 +15,26 @@ python3 -m venv .venv && source .venv/bin/activate
 python3 -m pip install "httpx>=0.27.0"
 ```
 
-## Cấu hình API key (3 cách)
+## Cấu hình AI (không hardcode model)
 
-1. File `config/keys.json` (tự tạo khi chạy lần đầu, đã gitignore):
-   ```json
-   {"gemini_keys": ["AIzaSy..."], "openai_compat_keys": ["sk-or-..."]}
-   ```
-2. Biến môi trường: `GEMINI_API_KEYS`, `OPENAI_COMPAT_KEYS` (phân tách dấu phẩy).
-3. Nhập trực tiếp khi CLI hỏi (tự lưu vào `config/keys.json`).
+`config/providers.json` là nguồn sự thật duy nhất (chi tiết `docs/06_AI_MODELS_MANAGEMENT_SPEC.md`).
+Model lấy **live từ API nhà cung cấp** (cache 5 phút), chọn trên WebUI trang Cấu Hình
+hoặc tự nhập custom model. File chứa secret nên đã gitignore.
 
-Cấu hình chung: `config/config.json` (`default_provider/default_model`,
-danh sách `providers.*.models`, `max_chunk_chars: 16000`, `timeout_seconds: 90`).
+Nhập key: WebUI Cấu Hình (hiển thị đã che) → hoặc CLI tự hỏi khi thiếu.
+`keys.json` cũ được migrate tự động 1 lần.
+
+Cấu hình chung: `config/config.json` (`max_chunk_chars: 16000`, `timeout_seconds: 90`).
 
 ## Phase 1 — CLI
 
 ```bash
-# Dịch trực tiếp
-python run.py input.txt output.txt --provider gemini --model gemini-2.5-flash
+# Dịch trực tiếp (dùng active provider + default_model)
+python run.py input.txt output.txt
+# Override provider/model
+python run.py input.txt output.txt --provider openai-compat --model deepseek-chat
 # Dịch theo dự án (file trong workspace/projects/{ten}/sources/)
-python run.py --project Truyen --file ch01.md --provider openai_compat --model deepseek-chat
+python run.py --project Truyen --file ch01.md
 ```
 
 Nguyên tắc: mỗi chunk thử mỗi key 1 lần, 429 thì đổi key, hết key thì **dừng ngay,

@@ -10,6 +10,7 @@ import pytest
 import server
 from core.app_db import get_db as real_get_db
 from core.file_handler import SafeFileHandler as RealHandler
+from core.provider_manager import AIProviderManager as RealMgr
 
 
 class FakeClient:
@@ -27,7 +28,9 @@ def app(tmp_path, monkeypatch):
     monkeypatch.setattr(server, "get_db", lambda: real_get_db(tmp_path / "app.db"))
     monkeypatch.setattr(server, "log_run", lambda *a, **k: None)
     monkeypatch.setattr(server, "build_client", FakeClient)
-    monkeypatch.setattr(server.AppConfig, "get_keys", lambda self, p: ["DUMMY"])
+    monkeypatch.setattr(server, "AIProviderManager", lambda: RealMgr(tmp_path / "pconfig"))
+    RealMgr(tmp_path / "pconfig").update_provider_keys_and_model(
+        "gemini-default", api_keys=["DUMMY"], selected_model="gemini-test-1")
     srv = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
@@ -79,7 +82,7 @@ def test_prompts_and_translate_sse(app):
     assert "default_translation.txt" in b.decode()
     s, b = call(app, "POST", "/api/translate",
                 {"project": "Kiem_Hiep", "file": "ch01.md",
-                 "provider": "gemini", "model": "m", "prompt": "default_translation.txt"})
+                 "provider_id": "gemini-default", "prompt": "default_translation.txt"})
     assert s == 200
     txt = b.decode()
     assert "event: chunk" in txt and "DỊCH:" in txt and "event: done" in txt
@@ -92,3 +95,20 @@ def test_prompts_and_translate_sse(app):
 def test_path_traversal_blocked(app):
     s, b = call(app, "GET", "/api/chunks?project=X&file=../evil")
     assert s in (400, 404)
+
+
+def test_provider_endpoints_masked_and_save(app):
+    s, b = call(app, "GET", "/api/settings/providers")
+    data = json.loads(b)
+    assert data["active_id"] == "gemini-default"
+    assert data["providers"][0]["api_keys"] == ["****"]  # key thật bị che
+    # save đổi model + active
+    s, _ = call(app, "POST", "/api/settings/save",
+                {"provider_id": "gemini-default", "selected_model": "gemini-new-1"})
+    assert s == 200
+    s, b = call(app, "GET", "/api/settings/providers")
+    assert json.loads(b)["providers"][0]["default_model"] == "gemini-new-1"
+    # namespace validation: gpt-* vào gemini bị từ chối
+    s, b = call(app, "POST", "/api/settings/save",
+                {"provider_id": "gemini-default", "selected_model": "gpt-4o"})
+    assert s == 400

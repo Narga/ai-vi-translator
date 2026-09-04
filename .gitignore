@@ -1,4 +1,7 @@
 __pycache__/
 .venv/
 config/keys.json
+config/providers.json
+config/providers.json.bak
+config/providers.json.tmp
 workspace/
