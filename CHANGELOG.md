@@ -7,6 +7,7 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 ## [Unreleased]
 ### Added
 - M0: cấu hình đa provider (`config.py`), SQLite index `workspace/app.db` (`app_db.py` + `schema.sql`).
+- M1: cắt chunk tự nhiên `smartHardSplit` (`chunker.py`), nạp prompt Unicode (`prompt_engine.py`).
 
 ## [1.0.0] - 2026-09-04
 ### Added
