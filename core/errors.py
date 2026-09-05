@@ -13,6 +13,10 @@ MAX_SAME_KEY_ATTEMPTS = 2
 _RETRY_SAME_STATUS = {408, 500, 502, 503, 504}
 
 
+class TranslateCancelled(Exception):
+    """Người dùng hủy phiên giữa chừng — không phải lỗi provider, không retry."""
+
+
 def classify(status_code: int | None = None, exc: BaseException | None = None) -> str:
     """Trả về 'rotate' | 'retry_same' | 'fatal'."""
     if status_code is not None:

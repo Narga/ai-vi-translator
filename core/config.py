@@ -15,6 +15,7 @@ DEFAULT_CONFIG = {
     "max_chunk_chars": 16000,
     "timeout_seconds": 90,
     "api_delay_seconds": 2.0,
+    "default_prompt": "default_translation.txt",
 }
 
 
@@ -32,11 +33,15 @@ def normalize_prefs(raw: Dict[str, Any]) -> Dict[str, Any]:
     """Chuẩn hóa prefs về contract duy nhất (manifesto v2.4 §8).
     Sai → rơi về mặc định, key lạ → bỏ. Dùng chung cho get_config() và PUT /api/settings."""
     raw = raw if isinstance(raw, dict) else {}
-    return {
+    prefs = {
         "max_chunk_chars": _num(raw.get("max_chunk_chars", 16000), 16000, integer=True),
         "timeout_seconds": _num(raw.get("timeout_seconds", 90), 90.0),
         "api_delay_seconds": _num(raw.get("api_delay_seconds", 2.0), 2.0, allow_zero=True),
     }
+    dp = raw.get("default_prompt", "default_translation.txt")
+    prefs["default_prompt"] = dp.strip() if isinstance(dp, str) and dp.strip().endswith(".txt") \
+        and "/" not in dp and "\\" not in dp else "default_translation.txt"
+    return prefs
 
 
 class AppConfig:

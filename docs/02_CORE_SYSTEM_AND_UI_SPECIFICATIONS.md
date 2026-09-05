@@ -1,6 +1,6 @@
 # 02. ĐẶC TẢ HỆ THỐNG CỐT LÕI & CHỈ DẪN CẤU HÌNH
 > **Mục tiêu**: Định nghĩa chuẩn xác cấu trúc hệ thống gửi–nhận, định vị đường dẫn độc lập CWD, kiểm tra an toàn đường dẫn và hướng dẫn nhập cấu hình, API key.
-> **Phiên bản**: v2.3 (04/09/2026) — thêm đa provider explicit + app.db từ Phase 1.
+> **Phiên bản**: v3.0.0 (05/09/2026) — prefs thêm `default_prompt`; DB thêm cột project meta; ref taxonomy về hồ sơ 09.
 
 ---
 
@@ -20,9 +20,9 @@
 * **Thêm provider**: nút `＋ Thêm provider` trên UI (tên, loại, base_url, key) — không cần sửa file tay.
 * **Model metadata**: `list_models` giữ full object (limits/pricing/free); `model_info` cho input/output/context + quota (OpenRouter) hoặc link quota AI Studio (Gemini).
 * **Thinking** (mặc định OFF, per-provider): OFF/LOW/MEDIUM/HIGH → thinkingBudget 0/1024/8192/24576. **Chỉ Gemini**; OpenAI-compatible bỏ qua hoàn toàn.
-* **Prefs request** (`config/config.json`): `max_chunk_chars` (Chunk Size, ký tự), `api_delay_seconds` (giây chờ giữa các request, tránh 429), `timeout_seconds` (chờ phản hồi AI).
+* **Prefs request** (`config/config.json`): `max_chunk_chars` (Chunk Size, ký tự), `api_delay_seconds` (giây chờ giữa các request, tránh 429), `timeout_seconds` (chờ phản hồi AI), `default_prompt` (prompt mặc định, `*.txt`).
 * **Migration 1 chiều**: `keys.json`/`config.json` cũ tự chuyển sang `providers.json` lần đầu chạy. `config/providers.json*` đã gitignore.
-* `config/config.json` chỉ còn prefs app (`max_chunk_chars`, `timeout_seconds`).
+* `config/config.json` chỉ còn prefs app (`max_chunk_chars`, `timeout_seconds`, `api_delay_seconds`, `default_prompt`).
 
 ### 1.2. Nạp Nội Dung Cần Dịch
 * **Chế độ trực tiếp**: Để file ở bất kỳ đâu trên máy tính và chạy:
@@ -54,10 +54,10 @@ PROMPTS_DIR = PROJECT_ROOT / "prompts"
 
 Trong chế độ `--project`, cả `slug` và `filename` phải được kiểm tra chặt chẽ trước khi truy cập ổ cứng:
 
-1. **Quy tắc Sanitize tên file & slug**:
-   * Không được rỗng.
-   * Không chứa ký tự đi lùi thư mục `..`.
-   * Không chứa dấu phân cách thư mục `/` hoặc `\`.
+1. **Quy tắc Sanitize tên file & slug** (`core/fileops.guard_name`, chuẩn duy nhất):
+   * Strip + chuẩn hóa Unicode NFC.
+   * Không được rỗng; từ chối đúng `.` và `..`.
+   * Không chứa dấu phân cách thư mục `/` hoặc `\`, không chứa `..`.
 2. **Kiểm tra lồng thư mục bằng `relative_to()`**:
    * Thay vì dùng `startswith()` (dễ bị lỗi chuỗi tương đồng như `/tmp/workspace2` với `/tmp/workspace`), hệ thống bắt buộc dùng:
      ```python
@@ -109,7 +109,7 @@ Trong chế độ `--project`, cả `slug` và `filename` phải được kiểm
 | Retry cùng key (tối đa 2 attempt/chunk) | timeout, mất kết nối, HTTP 408/500/502/503/504 | thử lại cùng key; hết attempt → dừng |
 | Dừng ngay | HTTP 400/401/403/404, response rỗng/JSON sai cấu trúc, safety-block | không retry, không đổi key, báo đúng nguyên nhân + cách sửa |
 
-Chi tiết đầy đủ + test: `docs/07_PHASE_2_5_DETAILED_ACTION_PLAN.md` (Chunk 1, Task 2).
+Chi tiết đầy đủ + test: `docs/09_PHASE_2_5_COMPLETED.md` §A2 (hồ sơ đối chiếu).
 
 ---
 
@@ -119,6 +119,7 @@ Chi tiết đầy đủ + test: `docs/07_PHASE_2_5_DETAILED_ACTION_PLAN.md` (Chu
 * Chỉ 3 bảng để **index + log, không checkpoint nội dung**:
   ```sql
   CREATE TABLE IF NOT EXISTS projects(slug TEXT PRIMARY KEY, title TEXT, created_at TEXT);
+  -- migration tự động khi mở db (core/app_db.py): ADD COLUMN author, description
   CREATE TABLE IF NOT EXISTS files(id INTEGER PRIMARY KEY, project_slug TEXT, filename TEXT,
     size_bytes INT, char_count INT, chunk_count INT, status TEXT DEFAULT 'new',
     updated_at TEXT, UNIQUE(project_slug, filename));

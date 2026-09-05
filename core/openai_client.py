@@ -2,6 +2,7 @@
 
 import httpx
 import logging
+from core.ai_client import _post_or_abort
 from core.errors import MAX_SAME_KEY_ATTEMPTS, classify
 from core.key_rotator import KeyRotator
 
@@ -16,8 +17,9 @@ class OpenAICompatClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = float(timeout_seconds)
 
-    async def translate_chunk(self, prompt: str, on_attempt=None) -> str:
-        """on_attempt(attempt, key_idx): callback trước mỗi lần gọi HTTP (để UI hiện tiến độ)."""
+    async def translate_chunk(self, prompt: str, on_attempt=None, abort=None) -> str:
+        """on_attempt(attempt, key_idx): callback trước mỗi lần gọi HTTP.
+        abort (threading.Event): hủy cả request đang bay, không chỉ giữa chunk."""
         self.rotator.start_chunk_attempt()
         same_key_tries = 0
 
@@ -34,7 +36,8 @@ class OpenAICompatClient:
                 on_attempt(same_key_tries + 1, self.rotator.current_idx)
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
-                    resp = await client.post(url, json=payload, headers=headers)
+                    resp = await _post_or_abort(client, url, json=payload, headers=headers,
+                                                     abort=abort)
 
                     if resp.status_code == 429:
                         same_key_tries = 0

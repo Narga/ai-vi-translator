@@ -1,11 +1,27 @@
 """Client Google Gemini qua REST thuần (httpx, zero SDK)."""
 
+import asyncio
 import httpx
 import logging
-from core.errors import MAX_SAME_KEY_ATTEMPTS, classify
+from core.errors import MAX_SAME_KEY_ATTEMPTS, TranslateCancelled, classify
 from core.key_rotator import KeyRotator
 
 logger = logging.getLogger(__name__)
+
+
+async def _post_or_abort(client, url, *, json=None, headers=None, abort=None):
+    """POST có thể hủy GIỮA request: abort.set() -> cắt kết nối, raise TranslateCancelled.
+    Không abort thì hành vi cũ. CancelledError (BaseException) không bị nuốt bởi
+    các except httpx bên dưới."""
+    task = asyncio.create_task(client.post(url, json=json, headers=headers))
+    if abort is None:
+        return await task
+    while not task.done():
+        if abort.is_set():
+            task.cancel()
+            raise TranslateCancelled("Đã hủy giữa request — kết nối đã cắt")
+        await asyncio.sleep(0.05)
+    return task.result()
 
 
 class GeminiClient:
@@ -17,8 +33,9 @@ class GeminiClient:
         # None/OFF = bỏ hẳn thinkingConfig (dùng default API)
         self.thinking_budget = thinking_budget
 
-    async def translate_chunk(self, prompt: str, on_attempt=None) -> str:
-        """on_attempt(attempt, key_idx): callback trước mỗi lần gọi HTTP (để UI hiện tiến độ)."""
+    async def translate_chunk(self, prompt: str, on_attempt=None, abort=None) -> str:
+        """on_attempt(attempt, key_idx): callback trước mỗi lần gọi HTTP.
+        abort (threading.Event): hủy cả request đang bay, không chỉ giữa chunk."""
         self.rotator.start_chunk_attempt()
         same_key_tries = 0
 
@@ -40,7 +57,7 @@ class GeminiClient:
 
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
-                    resp = await client.post(url, json=payload)
+                    resp = await _post_or_abort(client, url, json=payload, abort=abort)
 
                     if resp.status_code == 429:
                         same_key_tries = 0

@@ -25,7 +25,7 @@ Nhập key: WebUI Cấu Hình (hiển thị đầy đủ, sửa trực tiếp) �
 `keys.json` cũ được migrate tự động 1 lần.
 
 Cấu hình chung: `config/config.json` (`max_chunk_chars`, `api_delay_seconds`,
-`timeout_seconds`). Provider/model/thinking chỉnh trên WebUI trang Cấu Hình.
+`timeout_seconds`, `default_prompt`). Provider/model/thinking chỉnh trên WebUI trang Cấu Hình.
 
 ## Phase 1 — CLI
 
@@ -48,18 +48,20 @@ Mọi lượt chạy được log vào `workspace/app.db`.
 python main.py   # mở http://127.0.0.1:8000 (WebUI backend trong cùng file)
 ```
 
-4 trang: Dự Án (cards, tiến độ) → Biên Dịch 3 cột (file sources/results, dual editor, tìm/thay regex, copy/save/retry) →
-Prompt → Cấu Hình. Một phiên dịch tại một thời điểm, stream từng chunk qua SSE, atomic write bảo vệ output.
+4 trang: Dự Án (cards, tiến độ, lưu trữ, lịch sử) → Biên Dịch 3 cột (file sources/results theo tab, dual editor, tìm/thay regex 1 file + tất cả file, gộp/tuần tự, hủy, tiến độ) →
+Prompt (đổi tên/xóa/backup vào dự án) → Cấu Hình. Một phiên dịch tại một thời điểm, stream từng chunk qua SSE, atomic write bảo vệ output.
 
 ## Cấu trúc
 
 ```text
 core/            chunker, prompt_engine, key_rotator, ai_client (Gemini),
-                 openai_client, file_handler, config, app_db
+                 openai_client, file_handler, config, app_db, errors
 prompts/         prompt *.txt (thêm file = thêm prompt)
 run.py           CLI Phase 1        main.py  WebUI backend (stdlib http.server)
-web/index.html   UI 1 file          tools/     công cụ độc lập (EPUB…)
-workspace/       sources/results/assets + app.db (gitignore, riêng tư)
+web/index.html   UI shell           web/css/   tokens + components
+web/js/          JS theo trang (app/projects/workspace/findreplace/prompts/settings/init)
+web/vendor/      lib vendored khi duyệt (hiện trống, xem manifesto §9)
+workspace/       sources/results/assets + archive/ + app.db (gitignore, riêng tư)
 tests/           pytest (mock, không gọi API thật)
 ```
 

@@ -1,32 +1,12 @@
 """Đọc/ghi file an toàn: sanitize tên + relative_to() chống path traversal."""
 
-import os
 import shutil
-import tempfile
 from pathlib import Path
-from typing import List
+
+from core.fileops import atomic_write_text, guard_name  # helper dùng chung (R2#archi)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_WORKSPACE = PROJECT_ROOT / "workspace"
-
-
-def atomic_write_text(target: Path, content: str, encoding: str = "utf-8") -> None:
-    """Ghi file kiểu atomic: .tmp cùng thư mục rồi os.replace. Crash giữa chừng
-    không bao giờ để lại file đích dở dang (giữ nguyên nội dung cũ)."""
-    target = Path(target)
-    fd, tmp = tempfile.mkstemp(dir=str(target.parent), prefix=target.name + ".", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding=encoding) as f:
-            f.write(content)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, target)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 class SafeFileHandler:
@@ -35,12 +15,7 @@ class SafeFileHandler:
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _sanitize_name(self, name: str) -> str:
-        if not name or not name.strip():
-            raise ValueError("Tên không được để trống!")
-        clean = name.strip()
-        if ".." in clean or "/" in clean or "\\" in clean:
-            raise ValueError(f"Tên chứa ký tự không hợp lệ (path traversal): {name}")
-        return clean
+        return guard_name(name)  # NFC + từ chối rỗng/./.. /separator, dùng chung mọi endpoint
 
     def _validate_path(self, target_path: Path) -> Path:
         resolved = target_path.resolve()
@@ -82,10 +57,6 @@ class SafeFileHandler:
         clean_file = self._sanitize_name(filename)
         return self._validate_path(self.get_project_dir(slug) / "results" / clean_file)
 
-    def list_sources(self, slug: str) -> List[str]:
-        sources_dir = self.get_project_dir(slug) / "sources"
-        return sorted([f.name for f in sources_dir.iterdir() if f.is_file()])
-
     def read_source(self, slug: str, filename: str) -> str:
         file_path = self.get_source_path(slug, filename)
         if not file_path.exists():
@@ -108,21 +79,26 @@ class SafeFileHandler:
         if not found:
             raise FileNotFoundError(f"Không tìm thấy file: {filename}")
 
-    def rename_file(self, slug: str, old: str, new: str) -> str:
-        """Đổi tên ở cả sources/ và results/ (bên nào có thì đổi). Trùng tên → lỗi."""
-        clean_old, clean_new = self._sanitize_name(old), self._sanitize_name(new)
-        moved = False
-        for sub in ("sources", "results"):
-            src = self._validate_path(self.get_project_dir(slug) / sub / clean_old)
-            if src.is_file():
-                dst = self._validate_path(self.get_project_dir(slug) / sub / clean_new)
-                if dst.exists():
-                    raise ValueError(f"Đã tồn tại file: {new}")
-                src.rename(dst)
-                moved = True
-        if not moved:
+    def rename_paired(self, slug: str, old: str, new: str):
+        """Đổi tên ở MỌI bên chứa old (sources/results giữ cặp cùng tên).
+        Va chạm -> _conflict từng bên (không ghi đè, không báo lỗi).
+        Trả [(side, newname)]. Không thấy old ở đâu -> FileNotFoundError."""
+        from core.fileops import unique_name
+        clean_old = self._sanitize_name(old)
+        clean_new = self._sanitize_name(new)
+        out = []
+        for sub, getter in (("sources", self.get_source_path),
+                            ("results", self.get_output_path)):
+            src = getter(slug, clean_old)
+            if not src.is_file():
+                continue
+            dest_name = clean_new if not (src.parent / clean_new).exists() \
+                else unique_name(src.parent, clean_new)
+            src.rename(src.parent / dest_name)
+            out.append((sub, dest_name))
+        if not out:
             raise FileNotFoundError(f"Không tìm thấy file: {old}")
-        return clean_new
+        return out
 
     def delete_project(self, slug: str) -> None:
         clean = self._sanitize_name(slug)
@@ -130,3 +106,16 @@ class SafeFileHandler:
         if not d.is_dir():
             raise FileNotFoundError(f"Không tìm thấy dự án: {slug}")
         shutil.rmtree(d)
+
+    def archive_project(self, slug: str, archive_dir: Path | None = None) -> Path:
+        """Nén project thành zip trong archive/ rồi xóa thư mục gốc."""
+        clean = self._sanitize_name(slug)
+        d = self._validate_path(self.base_dir / "projects" / clean)
+        if not d.is_dir():
+            raise FileNotFoundError(f"Không tìm thấy dự án: {slug}")
+        out_dir = Path(archive_dir) if archive_dir else self.base_dir / "archive"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = Path(shutil.make_archive(str(out_dir / clean), "zip",
+                                            root_dir=str(d.parent), base_dir=clean))
+        shutil.rmtree(d)
+        return zip_path

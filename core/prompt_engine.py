@@ -28,6 +28,31 @@ class PromptEngine:
         if not default_file.exists():
             default_file.write_text(DEFAULT_PROMPT, encoding="utf-8")
 
+    def _check_name(self, name: str) -> str:
+        clean = (name or "").strip()
+        if not clean or "/" in clean or "\\" in clean or ".." in clean \
+                or not clean.endswith(".txt"):
+            raise ValueError(f"Tên prompt phải là *.txt, không chứa /: {name}")
+        return clean
+
+    def delete_prompt(self, prompt_filename: str) -> None:
+        name = self._check_name(prompt_filename)
+        p = self.prompts_dir / name
+        if not p.is_file():
+            raise FileNotFoundError(f"Không tìm thấy prompt: {name}")
+        p.unlink()
+
+    def rename_prompt(self, old: str, new: str) -> str:
+        clean_old, clean_new = self._check_name(old), self._check_name(new)
+        src = self.prompts_dir / clean_old
+        if not src.is_file():
+            raise FileNotFoundError(f"Không tìm thấy prompt: {clean_old}")
+        dst = self.prompts_dir / clean_new
+        if dst.exists():
+            raise ValueError(f"Đã tồn tại prompt: {clean_new}")
+        src.rename(dst)
+        return clean_new
+
     def load_prompt(self, prompt_filename: str = "default_translation.txt") -> str:
         file_path = self.prompts_dir / prompt_filename
         if not file_path.exists():

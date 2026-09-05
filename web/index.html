@@ -4,28 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Content Translator</title>
-<style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,sans-serif;display:flex;height:100vh}
-#side{width:260px;background:#111827;color:#e5e7eb;display:flex;flex-direction:column;transition:width .15s}
-#side.mini{width:64px}#side.mini .lbl{display:none}
-#side button{background:none;border:0;color:inherit;padding:12px 16px;text-align:left;cursor:pointer;font-size:15px}
-#side button.on{background:#1f2937}#tog{font-weight:bold}
-main{flex:1;overflow:auto;padding:20px}
-.view{display:none}.view.on{display:block}
-table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:6px 8px;font-size:14px}
-.row{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}
-.panes{display:flex;gap:12px;height:55vh}
-.pane{flex:1;border:1px solid #ccc;border-radius:8px;padding:10px;overflow:auto;white-space:pre-wrap;font-size:14px}
-#tOut[contenteditable=true]{background:#fffbeb}
-.btn{padding:8px 14px;border:1px solid #888;border-radius:6px;background:#f3f4f6;cursor:pointer}
-.btn.pri{background:#2563eb;color:#fff;border-color:#2563eb}
-.pcard{border:1px solid #ccc;border-radius:8px;padding:12px;margin:8px 0;max-width:640px}
-.pcard h3{margin:0 0 6px}.pfile{padding:6px 8px;border-bottom:1px solid #eee;cursor:pointer;font-size:14px}
-.pfile:hover{background:#f8fafc}.pfile.on{background:#eff6ff;font-weight:bold}
-mark{background:#fde68a}mark.cur{background:#f59e0b;color:#fff}
-.err{color:#b91c1c;font-weight:bold}input,select,textarea{padding:7px;font-size:14px}
-textarea{width:100%}
-</style>
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 <nav id="side">
@@ -42,9 +21,28 @@ textarea{width:100%}
 <main>
 <section id="v-projects" class="view on">
 <h2>Dự án</h2>
-<div class="row"><input id="pSlug" placeholder="Ten_Du_An"><button class="btn pri" onclick="mkProject()">Tạo Dự Án</button>
+<p style="color:var(--text-muted)">Quản lý thư mục tài liệu và kết quả xử lý.</p>
+<div class="row"><button class="btn pri" onclick="projDlg.showModal()">+ Tạo dự án</button>
 <button class="btn" onclick="listProjects()">🔄 Làm mới</button></div>
-<div id="pCards"></div>
+<div id="pCards" class="cards"></div>
+<dialog id="projDlg">
+<h3>Tạo dự án mới</h3>
+<label class="label-tracked">Tên sách</label><input id="npTitle" size="35" class="input">
+<label class="label-tracked">Tác giả</label><input id="npAuthor" size="35" class="input">
+<label class="label-tracked">Mô tả</label><textarea id="npDesc" rows="3" class="textarea"></textarea>
+<div class="row"><button class="btn" onclick="projDlg.close()">Hủy bỏ</button>
+<button class="btn pri" onclick="mkProject()">Tạo</button></div>
+</dialog>
+<dialog id="infoDlg">
+<h3>Thông tin dự án</h3>
+<label class="label-tracked">Tên sách</label><input id="ipTitle" size="35" class="input">
+<label class="label-tracked">Tác giả</label><input id="ipAuthor" size="35" class="input">
+<label class="label-tracked">Mô tả</label><textarea id="ipDesc" rows="3" class="textarea"></textarea>
+<div class="row"><button class="btn" onclick="infoDlg.close()">Hủy bỏ</button>
+<button class="btn pri" onclick="saveInfo()">Lưu</button></div>
+</dialog>
+<h3>Lịch sử chạy</h3>
+<table class="table-minimal"><thead><tr><th>Dự án</th><th>File</th><th>Provider/Model</th><th>Trạng thái</th><th>Bắt đầu</th></tr></thead><tbody id="pHist"></tbody></table>
 </section>
 <section id="v-workspace" class="view">
 <h2>Biên dịch</h2>
@@ -52,37 +50,58 @@ textarea{width:100%}
 <select id="wProj"></select>
 <button class="btn" onclick="listFiles()">🔄 Tải danh sách file</button>
 </div>
-<table><tbody id="wChunks"></tbody></table>
 <div class="row">
-<select id="wProv"></select><select id="wModel"></select><input id="wCustom" size="30" placeholder="custom model…" style="display:none">
+<span class="lbl-ic" title="Provider"><svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="2" width="10" height="5" rx="1"/><rect x="3" y="9" width="10" height="5" rx="1"/><path d="M5.5 4.5h.5M5.5 11.5h.5"/></svg></span> <select id="wProv"></select>
+<span class="lbl-ic" title="Model"><svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="8" height="8" rx="1"/><path d="M6 1v3M10 1v3M6 12v3M10 12v3M1 6h3M1 10h3M12 6h3M12 10h3"/></svg></span> <select id="wModel"></select><input id="wCustom" size="30" placeholder="custom model…" style="display:none">
 <input id="wFilter" size="18" placeholder="Lọc: deepseek, free…" oninput="renderWorkspaceModels()">
 <select id="wFilterMode" onchange="renderWorkspaceModels()"><option value="include">Bao gồm</option><option value="exclude">Loại trừ</option></select>
 </div>
-<div class="row">
-<select id="wPrompt"></select><span id="wExtra"></span>
+<div class="row" id="wTools">
+<span class="lbl-ic" title="Prompt"><svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12v8H7l-3 3v-3H2z"/></svg></span> <select id="wPrompt"></select>
+<details style="display:inline"><summary style="cursor:pointer">bổ sung</summary><span id="wExtra"></span><p id="wExtraEst"></p></details>
+<button class="icon-btn" data-act onclick="wsRenameSel()" title="Đổi tên file đã chọn (nhiều file: đổi hàng loạt)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2l3 3L5 14l-4 1 1-4z"/></svg></button>
+<button class="icon-btn" data-act onclick="wsDelSel()" title="Xóa file đã chọn"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h12M6 4V2h4v2M4 4l1 10h6l1-10"/></svg></button>
+<button class="icon-btn" id="wrapBtn" onclick="wrapTog()" title="Bật/tắt wrap dòng trong editor (wrap giúp cuộn đồng bộ tốt hơn)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h9a3 3 0 010 6H5"/><path d="M8 8l-3 3M8 8L5 5"/><path d="M2 12h12"/></svg></button>
+<button class="icon-btn" id="fltToolBtn" onclick="fltToggle(event)" title="Lọc / sắp xếp danh sách file"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12l-5 6v4l-2 1V9z"/></svg></button>
+<button class="icon-btn" onclick="findDlg.showModal()" title="Tìm / thay thế (regex)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></svg></button>
+<button class="icon-btn" onclick="cancelTl()" title="Hủy phiên đang dịch: cắt cả request đang bay, không ghi file, nháp giữ trên editor để copy"><svg viewBox="0 0 16 16" width="16" height="16"><rect x="5" y="5" width="6" height="6" fill="currentColor" stroke="none"/></svg></button>
+<button class="icon-btn" onclick="copyTl()" title="Sao chép bản dịch vào clipboard"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="7" height="7" rx="1"/><path d="M10 6V3H3v7h3"/></svg></button>
+<button class="icon-btn" onclick="saveTl()" title="Lưu nội dung editor vào results/ (ghi đè chủ đích)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h7l3 3v7H3z"/><path d="M5 3v4h4V3M5 13V9h6v4"/></svg></button>
+<button class="icon-btn" onclick="retryTl()" title="Gửi lại: dịch lại toàn bộ file đang mở từ chunk đầu (không resume), kết quả mới hiện trên editor, bấm Lưu để ghi đè"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 8a5 5 0 11-1.6-3.6M13 1v4h-4"/></svg></button>
+<button class="icon-btn" onclick="clearTl()" title="Xóa & gửi lại: xóa trắng editor rồi dịch lại từ đầu như Gửi lại"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8a5 5 0 101.6-3.6M3 1v4h4"/></svg></button>
+<button class="btn pri" id="wSendBtn" onclick="sendOpen()" title="Gửi file đã chọn cho AI: chọn Gộp-chia-chunk hoặc Tuần tự trong hộp thoại">Gửi AI →</button>
 </div>
-<div class="row">
-<button class="btn pri" onclick="startTl()">▶ Bắt Đầu Dịch</button>
-<button class="btn" onclick="copyTl()">📋 Sao Chép</button>
-<button class="btn" onclick="saveTl()">💾 Lưu Vào File</button>
-<button class="btn" onclick="retryTl()">🔄 Gửi Lại</button>
-<button class="btn" onclick="clearTl()">❌ Xóa &amp; Gửi Lại</button>
+<p id="wFileInfo" style="color:var(--text-muted);text-align:right">Chưa chọn tập tin.</p>
+<dialog id="sendDlg">
+<h3>Gửi AI — <span id="sendCount"></span></h3>
+<p id="sendInfo"></p>
+<label><input type="radio" name="sendMode" value="merge" checked> Gộp, chia chunk — gộp toàn bộ file đã chọn, chia chunk, đánh dấu từng phần, dịch xong tách đúng về từng file trong results/ (tối ưu limit ngày/giờ)</label><br>
+<label><input type="radio" name="sendMode" value="seq"> Gửi tuần tự — dịch từng file riêng, lỗi dừng cả loạt</label>
+<div class="row"><button class="btn" onclick="sendDlg.close()">Hủy bỏ</button>
+<button class="btn pri" onclick="sendGo()">Gửi →</button></div>
+</dialog>
+<div id="fltPanel" style="display:none">
+<div><b>SẮP XẾP</b> <label><input type="radio" name="fltSort" value="name" checked onchange="fltSet()"> Tên</label>
+<label><input type="radio" name="fltSort" value="ext" onchange="fltSet()"> Định dạng</label>
+<label><input type="radio" name="fltOrd" value="asc" checked onchange="fltSet()"> A→Z</label>
+<label><input type="radio" name="fltOrd" value="desc" onchange="fltSet()"> Z→A</label></div>
+<div><b>LỌC</b> <input id="fltKw" size="20" placeholder="Lọc theo tên…" oninput="fltSet()"></div>
 </div>
 <p id="wMsg"></p>
+<p id="wProg" style="color:var(--text-muted)"></p>
 <div style="display:flex;gap:12px;align-items:flex-start">
-<div id="wFiles" style="width:250px;flex-shrink:0">
-<div class="row"><b>Tập tin</b><button class="btn" id="wsAddBtn" onclick="wsPick()">+ Thêm vào sources</button>
-<input type="file" id="wFileInput" accept=".txt,.md,.html" multiple style="display:none"></div>
-<p style="color:#64748b;font-size:12px;margin:4px 0">Kéo-thả file thẳng vào khung này để tải lên sources/.</p>
-<p id="wUpMsg"></p>
-<div class="row"><button class="btn pri" id="wTabSrc" onclick="wsTab('sources')">Nguồn</button>
+<div id="wFilesWrap" style="width:250px;flex-shrink:0">
+<h4 onclick="wsPick()" title="Bấm để chọn file tải lên" style="cursor:pointer">Tập tin</h4>
+<input type="file" id="wFileInput" multiple style="display:none">
+<div id="wFiles" class="card">
+<div class="row" id="wTabsRow"><button class="btn pri" id="wTabSrc" onclick="wsTab('sources')">Nguồn</button>
 <button class="btn" id="wTabRes" onclick="wsTab('results')">Kết quả</button></div>
+<p id="wUpMsg"></p>
+<div class="row"><label><input type="checkbox" id="wSelAll" onchange="wsSelAll()"> Chọn hết</label>
+<span id="wSelCount"></span></div>
 <div id="wFileList"></div>
-<div class="row" id="wBulkBar" style="display:none">
-<button class="btn pri" id="wBulkMerge" onclick="wsMergeTranslate()">Gộp &amp; dịch</button>
-<button class="btn" id="wBulkSeq" onclick="wsBulkTranslate()">Dịch tuần tự</button>
-<button class="btn" onclick="wsBulkDelete()">🗑 Xóa đã chọn</button></div>
 <p id="wBulkMsg"></p>
+</div>
 </div>
 <div style="flex:1;min-width:0">
 <h4 id="wSrcName">Nguồn</h4><div class="pane" id="tSrc" style="height:55vh"></div>
@@ -91,30 +110,54 @@ textarea{width:100%}
 <h4 id="wOutName">Kết quả</h4><div class="pane" id="tOut" contenteditable="true" style="height:55vh"></div>
 </div>
 </div>
+<h4>Nhật ký hệ thống</h4>
+<div id="wTerm" aria-label="Nhật ký hệ thống"></div>
+<dialog id="findDlg">
+<h3>Tìm / thay thế</h3>
 <div class="row" id="wFindBar">
 <select id="fTarget"><option value="tOut">Tìm trong: Kết quả</option><option value="tSrc">Tìm trong: Nguồn</option></select>
 <select id="fScope"><option value="one">Phạm vi: file này</option><option value="sources">Tất cả sources</option><option value="results">Tất cả results</option></select>
 <input id="fFind" size="22" placeholder="Tìm (regex: \d+,…)">
 <input id="fRepl" size="26" placeholder="Thay bằng ($1 file này / \1 tất cả file)">
-<label><input type="checkbox" id="fRegex" checked> Regex</label>
+<label><input type="checkbox" id="fRegex" checked> Regex <a href="https://sigil-ebook.com/sigil-user-guide" target="_blank" rel="noopener" title="Tài liệu regex (PCRE) của Sigil">?</a></label>
 <label><input type="checkbox" id="fCase"> Hoa/thường</label>
 <label><input type="checkbox" id="fWord"> Cả từ</label>
 <button class="btn" onclick="fNext(-1)">← Trước</button>
 <button class="btn" onclick="fNext(1)">Tiếp →</button>
 <button class="btn" onclick="fReplace()">Thay</button>
 <button class="btn" onclick="fReplaceAll()">Thay hết</button>
-<span id="fMsg"></span></div>
+<span id="fMsg"></span><button class="btn" onclick="findDlg.close()">Đóng</button></div>
+</dialog>
+<dialog id="rnDlg">
+<h3>Đổi tên hàng loạt</h3>
+<label class="label-tracked">Pattern (bắt buộc {N})</label>
+<input id="rnPat" size="30" placeholder="VD: Chuong{N}" oninput="rnPreview()">
+<p style="color:var(--text-muted)">Dùng {N} để đánh số. VD: Chuong{N} → Chuong01, Chuong02…</p>
+<div class="row"><label>Bắt đầu từ <input id="rnStart" type="number" value="1" min="0" oninput="rnPreview()"></label>
+<label>Zero-pad <input id="rnPad" type="number" value="2" min="0" max="10" oninput="rnPreview()"></label></div>
+<p id="rnCount"></p>
+<div id="rnPrev" style="max-height:150px;overflow-y:auto"></div>
+<div class="row"><button class="btn" onclick="rnDlg.close()">Hủy bỏ</button>
+<button class="btn pri" id="rnGo" onclick="rnExec()">Đổi tên</button></div>
+</dialog>
 </section>
 <section id="v-prompts" class="view">
 <h2>Prompt</h2>
+<div class="card">
 <div class="row"><select id="prList"></select><button class="btn" onclick="loadPrompt()">Mở</button>
-<input id="prNew" placeholder="ten_moi.txt"><button class="btn" onclick="newPrompt()">+ Tạo</button></div>
-<textarea id="prBody" rows="18"></textarea>
-<div class="row"><button class="btn pri" onclick="savePrompt()">Lưu Prompt</button></div>
+<input id="prNew" placeholder="ten_moi.txt"><button class="btn" onclick="newPrompt()">+ Tạo</button>
+<button class="btn" onclick="renamePrompt()">Đổi tên</button>
+<button class="btn" onclick="delPrompt()">Xóa</button></div>
+<textarea id="prBody" rows="18" class="textarea"></textarea>
+<div class="row spread"><span><button class="btn pri" onclick="savePrompt()">Lưu Prompt</button>
+<button class="btn" onclick="setDefault()">★ Đặt mặc định</button></span>
+<span><button class="btn" onclick="backupPrompt()">⬇ Lưu vào dự án</button>
+<select id="prProj"></select></span></div>
+</div>
 </section>
 <section id="v-settings" class="view">
 <h2>Cấu hình AI</h2>
-<h3>A. Providers</h3>
+<div class="card"><h3>A. Providers</h3>
 <div class="row"><select id="sProvSel"></select>
 <button class="btn" onclick="setActive()">Đặt làm active ★</button>
 <button class="btn" onclick="delProvider()">Xóa provider</button>
@@ -127,11 +170,12 @@ textarea{width:100%}
 <button class="btn pri" onclick="addProvider()">Thêm</button></div>
 </details>
 <h3 id="sPName"></h3>
-<label>API keys — sửa trực tiếp (mỗi dòng 1 key, xóa dòng = xóa key)</label>
-<textarea id="sKeys" rows="4"></textarea>
+<label class="label-tracked">API keys — sửa trực tiếp (mỗi dòng 1 key, xóa dòng = xóa key)</label>
+<textarea id="sKeys" rows="4" class="textarea"></textarea>
 <div class="row" id="sBaseRow"><label>Base URL <input id="sBase" size="45"></label>
 <label>Docs <input id="sDocs" size="40"></label></div>
-<h3>B. Model</h3>
+</div>
+<div class="card"><h3>B. Model</h3>
 <div class="row"><select id="sModelSel"></select>
 <input id="sModel" size="35" placeholder="tự nhập custom model…" style="display:none">
 <button class="btn" onclick="refreshModels()">🔄 Lấy danh sách mới</button></div>
@@ -140,343 +184,26 @@ textarea{width:100%}
 <span id="sSrc"></span></div>
 <div id="mInfo" class="f7">Input: <b id="mIn">—</b> · Output: <b id="mOut">—</b> · Context: <b id="mCtx">—</b> · <span id="mRate">—</span> <a id="mDocs" href="#" target="_blank" rel="noopener">ⓘ Thông tin model</a></div>
 <p id="sWarn" class="err"></p>
-<h3>C. Thinking <small>(chỉ Gemini; OpenAI-compatible bỏ qua)</small></h3>
+</div>
+<div class="card"><h3>C. Thinking <small>(chỉ Gemini; OpenAI-compatible bỏ qua)</small></h3>
 <div class="row"><select id="sThink"><option>OFF</option><option>LOW</option><option>MEDIUM</option><option>HIGH</option></select>
 <span>Mặc định OFF. Với OpenAI-compatible trường này bị bỏ qua hoàn toàn — dùng model non-reasoning thay vì giảm thinking.</span></div>
 <div class="row"><button class="btn pri" onclick="saveProvider()">Lưu Provider</button><span id="sMsg"></span></div>
-<h3>D. Tốc độ &amp; chờ</h3>
+</div>
+<div class="card"><h3>D. Tốc độ &amp; chờ</h3>
 <div class="row"><label>Chunk Size (ký tự/chunk) <input id="sMax" type="number" min="1000"></label>
 <label>API delay (giây giữa các request) <input id="sDelay" type="number" min="0" step="0.5"></label>
 <label>Response timeout (giây) <input id="sTimeout" type="number" min="10"></label>
 <button class="btn" onclick="savePrefs()">Lưu prefs</button></div>
+</div>
 </section>
 </main>
-<script>
-const $=id=>document.getElementById(id);
-document.querySelectorAll('#side [data-v]').forEach(b=>b.onclick=()=>{
-document.querySelectorAll('#side [data-v]').forEach(x=>x.classList.remove('on'));
-b.classList.add('on');document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-$('v-'+b.dataset.v).classList.add('on');try{localStorage.setItem('ct_view',b.dataset.v);}catch(e){}});
-try{const _v0=localStorage.getItem('ct_view');
-if(_v0){const _t=document.querySelector('#side [data-v="'+_v0+'"]');if(_t)_t.click();}}catch(e){}
-$('tog').onclick=()=>$('side').classList.toggle('mini');
-const J=r=>{if(!r.ok)return r.json().then(j=>{throw new Error(j.error||r.status)});return r.json()};
-async function mkProject(){const slug=$('pSlug').value.trim();if(!slug)return;
-await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug})}).then(J);
-$('pSlug').value='';listProjects();}
-async function listProjects(){const d=await fetch('/api/projects').then(J);
-$('pCards').innerHTML=d.projects.map(p=>{const e=encodeURIComponent(p.slug);
-const n=p.sources||0,m=p.results||0;
-return `<div class="pcard"><h3>📁 ${esc(p.slug)}</h3>`
-+`<div>${n} file nguồn · ${m} file kết quả · tiến độ ${m}/${n}</div>`
-+`<div class="row"><button class="btn pri" onclick="goWS('${e}')">Mở workspace →</button> `
-+`<button class="btn" onclick="delProject('${e}')">🗑 Xóa</button></div></div>`;}).join('')
-||'<p>Chưa có dự án — tạo ở trên.</p>';
-$('wProj').innerHTML=d.projects.map(p=>`<option>${esc(p.slug)}</option>`).join('');}
-function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function goWS(eslug){const slug=decodeURIComponent(eslug);document.querySelector('[data-v=workspace]').click();$('wProj').value=slug;listFiles();}
-async function delProject(eslug){const slug=decodeURIComponent(eslug);
-if(!confirm('Xóa toàn bộ dự án '+slug+'?'))return;
-try{await fetch('/api/projects/'+encodeURIComponent(slug),{method:'DELETE'}).then(J);}
-catch(e){alert(e.message);return;}
-listProjects();}
-// --- File trong workspace: nạp vào editor, liên kết cùng tên (2.5b-sửa) ---
-let _wsSrc=null,_wsRes=null;
-function wsProj(){return $('wProj').value;}
-let _wsTab='sources';
-function wsTab(t){_wsTab=t;listFiles();}
-async function listFiles(){const s=wsProj();if(!s)return;
-const d=await fetch(`/api/projects/${encodeURIComponent(s)}/files`).then(J);
-$('wTabSrc').className='btn'+(_wsTab==='sources'?' pri':'');
-$('wTabRes').className='btn'+(_wsTab==='results'?' pri':'');
-$('wsAddBtn').style.display=_wsTab==='sources'?'':'none';
-const names=_wsTab==='sources'?d.sources:d.results;
-const other=new Set(_wsTab==='sources'?d.results:d.sources);
-$('wFileList').innerHTML=names.map(f=>wsRow(f,other.has(f))).join('')||'<p>Trống.</p>';
-const show=wsSel().length>0,srcTab=_wsTab==='sources';
-$('wBulkBar').style.display=show?'':'none';
-$('wBulkMerge').style.display=show&&srcTab?'':'none';
-$('wBulkSeq').style.display=show&&srcTab?'':'none';}
-function wsRow(f,hasRes){const e=encodeURIComponent(f);
-const on=f===_wsSrc||f===_wsRes?' on':'';
-return `<div class="pfile${on}"><input type="checkbox" class="wSel" value="${e}"> `
-+`<span onclick="wsOpen('${e}')" style="cursor:pointer">${esc(f)}${hasRes?' ✅':''}</span> `
-+`<button class="btn" onclick="wsRename('${e}')">Đổi tên</button> `
-+`<button class="btn" onclick="wsDel('${e}')">Xóa</button></div>`;}
-function wsSel(){return [...document.querySelectorAll('#wFileList .wSel:checked')].map(x=>decodeURIComponent(x.value));}
-async function wsOpen(ef){const f=decodeURIComponent(ef),p=wsProj();if(!p)return;
-try{const s=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=sources`).then(J);
-_wsSrc=f;$('tSrc').textContent=s.content;$('wSrcName').textContent='Nguồn: '+f;}catch(e){_wsSrc=null;}
-try{const r=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=results`).then(J);
-_wsRes=f;$('tOut').textContent=r.content;$('wOutName').textContent='Kết quả: '+f;}
-catch(e){_wsRes=null;$('tOut').textContent='';$('wOutName').textContent='Kết quả: (chưa có — bấm Bắt Đầu Dịch)';}
-_fMatches=[];loadChunks();listFiles();}
-async function loadChunks(){const p=wsProj(),f=_wsSrc;if(!p||!f){$('wChunks').innerHTML='';return;}
-const txt=await fetch(`/api/chunks?project=${encodeURIComponent(p)}&file=${encodeURIComponent(f)}&full=1`).then(J);
-$('wChunks').innerHTML=txt.chunks.map(c=>`<tr><td>Chunk ${c.i}</td><td>${c.chars.toLocaleString()} ký tự (~${c.tokens_est} tokens)</td><td>${esc(c.preview.slice(0,80))}…</td></tr>`).join('');}
-function wsPick(){$('wFileInput').click();}
-async function wsUpload(files){const p=wsProj();if(!p||!files.length)return;let ok=0,fail=0;
-for(const f of files){try{await fetch(`/api/projects/${encodeURIComponent(p)}/upload?filename=${encodeURIComponent(f.name)}`,{method:'POST',body:f});ok++;}
-catch(e){fail++;}}
-$('wUpMsg').textContent=`Đã tải ${ok} file${fail?`, lỗi ${fail}`:''}.`;$('wFileInput').value='';
-listFiles();listProjects();}
-async function wsDel(ef){const f=decodeURIComponent(ef),p=wsProj();
-if(!confirm('Xóa '+f+' (cả kết quả nếu có)?'))return;
-try{await fetch(`/api/projects/${encodeURIComponent(p)}/files?filename=${encodeURIComponent(f)}`,{method:'DELETE'}).then(J);}
-catch(e){alert(e.message);return;}
-if(_wsSrc===f)_wsSrc=null;if(_wsRes===f)_wsRes=null;listFiles();listProjects();}
-async function wsRename(ef){const f=decodeURIComponent(ef),p=wsProj();
-const n=prompt('Tên mới (đổi cả 2 bên cùng tên):',f);if(!n||n===f)return;
-try{await fetch(`/api/projects/${encodeURIComponent(p)}/rename`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old:f,new:n})}).then(J);}
-catch(e){alert(e.message);return;}
-if(_wsSrc===f)_wsSrc=n;if(_wsRes===f)_wsRes=n;listFiles();}
-async function wsBulkDelete(){const fs=wsSel(),p=wsProj();if(!fs.length||!confirm(`Xóa ${fs.length} file?`))return;
-for(const f of fs){await fetch(`/api/projects/${encodeURIComponent(p)}/files?filename=${encodeURIComponent(f)}`,{method:'DELETE'}).then(J)
-.catch(e=>alert(f+': '+e.message));}
-listFiles();listProjects();}
-// sync-scroll dual-pane
-$('tSrc').onscroll=()=>{$('tOut').scrollTop=$('tSrc').scrollTop;};
-$('tOut').onscroll=()=>{$('tSrc').scrollTop=$('tOut').scrollTop;};
-async function loadMeta(){const s=await fetch('/api/settings').then(J);
-try{const h=await fetch('/api/health').then(J);
-$('srvInfo').textContent=h.version+' · từ '+(h.started_at||'').slice(11);}
-catch(e){$('srvInfo').textContent='mất kết nối?';}
-$('sMax').value=s.max_chunk_chars;$('sDelay').value=s.api_delay_seconds;$('sTimeout').value=s.timeout_seconds;
-$('sThink').innerHTML=s.thinking_levels.map(l=>`<option>${l}</option>`).join('');
-const pv=await fetch('/api/settings/providers').then(J);
-$('wProv').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}</option>`).join('');
-$('sProvSel').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}${p.id===pv.active_id?' ★':''}</option>`).join('');
-$('sActive').textContent='active: '+pv.active_id;window._PV=pv;
-await fillModels();
-const pr=await fetch('/api/prompts').then(J);
-$('wPrompt').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');
-$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${p}"> +${p}</label>`).join(' ');
-$('prList').innerHTML=pr.prompts.map(p=>`<option>${p}</option>`).join('');}
-// --- Model list dùng chung: lọc client-side, badge free, giữ selection ---
-window._Models={};
-function filterList(list,kw,mode){kw=(kw||'').toLowerCase().trim();if(!kw)return list;
-return list.filter(m=>{const t=((m.id||'')+' '+(m.name||'')).toLowerCase();const hit=t.includes(kw);
-return mode==='exclude'?!hit:hit;});}
-function optHtml(list,selected){return list.map(m=>{const id=m.id||m;
-const free=(m.is_free||/free/i.test(id))?' 🆓':'';
-return `<option value="${id}" ${id===selected?'selected':''}>${m.name||id}${free}</option>`;}).join('')
-+`<option value="__custom__">…tự nhập…</option>`;}
-async function fetchModels(pid){const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-window._Models[pid]=m;return m;}
-async function fillModels(){const pid=$('wProv').value;if(!pid)return;
-const m=window._Models[pid]||await fetchModels(pid);
-renderWorkspaceModels();}
-function renderWorkspaceModels(){const pid=$('wProv').value;const m=window._Models[pid];if(!m)return;
-const list=filterList(m.models,$('wFilter').value,$('wFilterMode').value);
-let cur=$('wModel').value;if(cur==='__custom__')cur=$('wCustom').value;
-if(!list.some(x=>(x.id||x)===cur))cur=m.selected_model;
-$('wModel').innerHTML=optHtml(list,cur);
-if(cur&&!list.some(x=>(x.id||x)===cur)&&cur!==m.selected_model){$('wModel').value='__custom__';$('wCustom').value=cur;}
-$('wModel').onchange=()=>{$('wCustom').style.display=$('wModel').value==='__custom__'?'':'none'};}
-$('wProv').onchange=fillModels;
-function curModel(){return $('wModel').value==='__custom__'?$('wCustom').value.trim():$('wModel').value;}
-let lastSSE=[];
-async function startTl(){if(!_wsSrc){$('wMsg').innerHTML='<span class=err>Chọn file nguồn ở cột trái trước.</span>';return;}
-const body={project:wsProj(),file:_wsSrc,provider_id:$('wProv').value,
-model:curModel()||undefined,prompt:$('wPrompt').value,
-extra_prompts:[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value)};
-$('wMsg').textContent='⏳ Đang dịch…';$('tOut').textContent='';lastSSE=[];
-const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-if(r.status===409){$('wMsg').innerHTML='<span class=err>Đang có 1 phiên chạy.</span>';return}
-if(!r.ok){const j=await r.json();$('wMsg').innerHTML='<span class=err>'+j.error+'</span>';return}
-const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
-while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
-let idx;while((idx=buf.indexOf('\n\n'))>=0){const blk=buf.slice(0,idx);buf=buf.slice(idx+2);
-const ev=(blk.match(/event: (\w+)/)||[])[1],dt=(blk.match(/data: ([\s\S]*)/)||[])[1];
-if(!ev)continue;const j=JSON.parse(dt);
-if(ev==='chunk'){lastSSE[j.i-1]=j.text;$('tOut').textContent=lastSSE.filter(Boolean).join('\n\n');_wsRes=_wsSrc;
-$('wOutName').textContent='Kết quả: '+_wsRes;$('wMsg').textContent=`⏳ chunk ${j.i}/${j.n} xong`;}
-else if(ev==='done'){$('wMsg').textContent='🎉 Xong! Bấm Lưu Vào File.';}
-else if(ev==='error'){$('wMsg').innerHTML='<span class=err>'+j.error+'</span>';}}}}
-function copyTl(){navigator.clipboard.writeText($('tOut').textContent);$('wMsg').textContent='📋 Đã copy.'}
-async function saveTl(){const f=_wsRes||_wsSrc;if(!f)return;
-await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:wsProj(),file:f,content:$('tOut').textContent})}).then(J);
-$('wMsg').textContent='💾 Đã lưu vào results/'+f+'.';listFiles();}
-function retryTl(){startTl()}function clearTl(){$('tOut').textContent='';startTl()}
-async function loadPrompt(){const n=$('prList').value;const d=await fetch('/api/prompts/'+encodeURIComponent(n)).then(J);$('prBody').value=d.content;}
-async function newPrompt(){const n=$('prNew').value.trim();if(!n)return;
-await fetch('/api/prompts/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:''})}).then(J);loadMeta();}
-async function savePrompt(){const n=$('prList').value;
-await fetch('/api/prompts/'+encodeURIComponent(n),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:$('prBody').value})}).then(J);}
-// --- Trang cấu hình mới (providers.json SSOT, model live) ---
-function curProv(){return (window._PV.providers||[]).find(p=>p.id===$('sProvSel').value);}
-function selOrCustom(){return $('sModelSel').value==='__custom__'?$('sModel').value.trim():$('sModelSel').value;}
-async function loadProvDetail(){const p=curProv();if(!p)return;
-$('sPName').textContent=p.name+' ('+p.type+')';
-const keys=p.api_keys||(p.api_key?[p.api_key]:[]);
-$('sKeys').value=keys.join('\n');
-$('sBaseRow').style.display=p.type==='openai'?'':'none';
-$('sBase').value=p.base_url||'';$('sDocs').value=p.docs_url||'';
-$('sThink').value=p.thinking||'OFF';
-await refreshModels();}
-async function refreshModels(){const pid=$('sProvSel').value;
-const m=await fetch('/api/settings/models?provider_id='+encodeURIComponent(pid)).then(J);
-window._Models[pid]=m;renderSettingsModels();}
-function renderSettingsModels(){const pid=$('sProvSel').value;const m=window._Models[pid];if(!m)return;
-const p=curProv();
-const list=filterList(m.models,$('sFilter').value,$('sFilterMode').value);
-const isCustom=p.default_model&&!m.models.some(x=>(x.id||x)===p.default_model);
-const sel=isCustom?'__custom__':(m.selected_model||p.default_model);
-$('sModelSel').innerHTML=optHtml(list,sel);
-if(isCustom)$('sModel').value=p.default_model;else $('sModel').value='';
-$('sModel').style.display=$('sModelSel').value==='__custom__'?'':'none';
-$('sModelSel').onchange=()=>{const c=$('sModelSel').value==='__custom__';
-$('sModel').style.display=c?'':'none';if(!c)loadModelInfo();};
-$('sSrc').textContent='nguồn: '+m.source;
-$('sWarn').textContent=m.error?('⚠️ '+m.error):'';
-loadModelInfo();}
-async function loadModelInfo(){const pid=$('sProvSel').value;const model=selOrCustom();if(!model)return;
-const d=await fetch(`/api/settings/model-info?provider_id=${encodeURIComponent(pid)}&model=${encodeURIComponent(model)}`).then(J);
-const f=n=>n==null?'—':(+n).toLocaleString();
-$('mIn').textContent=f(d.input_limit);$('mOut').textContent=f(d.output_limit);
-$('mCtx').textContent=f(d.context_length);
-const r=d.rate_limits||{};const parts=[];
-if(r.usage!=null||r.limit!=null)parts.push(`usage ${r.usage??'—'}/${r.limit??'—'}`);
-if(d.quota_url)parts.push(`<a href="${d.quota_url}" target="_blank" rel="noopener">quota↗</a>`);
-$('mRate').innerHTML=parts.join(' · ')||'—';
-if(d.docs_url){$('mDocs').style.display='';$('mDocs').href=d.docs_url;}else $('mDocs').style.display='none';}
-async function saveProvider(){const p=curProv();const isG=p.type==='gemini';
-const lines=$('sKeys').value.split('\n').map(s=>s.trim()).filter(Boolean);
-const body={provider_id:p.id,selected_model:selOrCustom()||undefined,thinking:$('sThink').value,docs_url:$('sDocs').value.trim()};
-if(isG){body.api_keys=lines;}else{body.api_key=lines[0]||'';body.base_url=$('sBase').value.trim();}
-try{await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(J);
-$('sMsg').textContent='✅ Đã lưu.';delete window._Models[p.id];loadMeta().then(loadProvDetail);}catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
-async function setActive(){await fetch('/api/settings/save',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({provider_id:$('sProvSel').value,set_active:true})}).then(J);loadMeta();}
-async function addProvider(){const body={name:$('nName').value.trim(),type:$('nType').value,
-base_url:$('nBase').value.trim(),api_key:$('nKey').value.trim()};
-if(!body.name){$('sMsg').innerHTML='<span class=err>Nhập tên provider.</span>';return;}
-const r=await fetch('/api/settings/providers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(J);
-$('sMsg').textContent='✅ Đã thêm '+r.id;loadMeta().then(()=>{$('sProvSel').value=r.id;loadProvDetail();});}
-async function delProvider(){const pid=$('sProvSel').value;
-if(!confirm('Xóa provider '+pid+'?'))return;
-try{await fetch('/api/settings/providers/'+encodeURIComponent(pid),{method:'DELETE'}).then(J);loadMeta().then(loadProvDetail);}
-catch(e){$('sMsg').innerHTML='<span class=err>'+e.message+'</span>';}}
-async function restartSrv(){if(!confirm('Khởi động lại server? Trang sẽ tự tải lại.'))return;
-try{await fetch('/api/restart',{method:'POST'}).then(J);}catch(e){}
-alert('Server đang khởi động lại… bấm OK rồi chờ 3 giây, trang tự tải lại.');
-setTimeout(()=>location.reload(),3000);}
-async function savePrefs(){await fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({max_chunk_chars:+$('sMax').value||16000,api_delay_seconds:+$('sDelay').value||0,timeout_seconds:+$('sTimeout').value||90})}).then(J);$('sMsg').textContent='✅ Đã lưu prefs.';}
-listProjects().then(listFiles);loadMeta().then(loadProvDetail);$('wProj').onchange=()=>{_wsSrc=null;_wsRes=null;listFiles();};$('wProv').onchange=fillModels;
-// cả panel file là drop target (không ô riêng)
-const _dz=$('wFiles');
-['dragover','dragenter'].forEach(e=>_dz.addEventListener(e,ev=>{ev.preventDefault();_dz.style.outline='2px dashed #2563eb';}));
-['dragleave','drop'].forEach(e=>_dz.addEventListener(e,ev=>{ev.preventDefault();_dz.style.outline='';}));
-_dz.addEventListener('drop',ev=>wsUpload(ev.dataTransfer.files));
-$('wFileInput').onchange=()=>wsUpload($('wFileInput').files);
-$('wFiles').onchange=()=>{$('wBulkBar').style.display=wsSel().length?'':'none';};
-// bulk dịch tuần tự trong workspace (giữ nguyên, không gộp)
-async function wsBulkTranslate(){const fs=wsSel(),p=wsProj();if(!fs.length)return;
-if(!confirm(`Dịch tuần tự ${fs.length} file? Lỗi thì dừng cả loạt.`))return;
-const prov=$('wProv').value,model=curModel()||undefined,prompt=$('wPrompt').value;
-const extra=[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value);
-for(let k=0;k<fs.length;k++){const f=fs[k];
-$('wBulkMsg').textContent=`⏳ file ${k+1}/${fs.length}: ${f}`;
-const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:p,file:f,provider_id:prov,model,prompt,extra_prompts:extra})});
-if(!r.ok){const j=await r.json();$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';return;}
-const rd=r.body.getReader(),dec=new TextDecoder();let buf='',err=null;const texts=[];
-while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
-let idx;while((idx=buf.indexOf('\n\n'))>=0){const blk=buf.slice(0,idx);buf=buf.slice(idx+2);
-const ev=(blk.match(/event: (\w+)/)||[])[1],dt=(blk.match(/data: ([\s\S]*)/)||[])[1];if(!ev)continue;
-const j=JSON.parse(dt);
-if(ev==='chunk')texts[j.i-1]=j.text;else if(ev==='done')break;else if(ev==='error'){err=j.error;break;}}
-if(err)break;}
-if(err){$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(err)+'</span>';return;}
-await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:p,file:f,content:texts.filter(Boolean).join('\n\n')})}).then(J);}
-$('wBulkMsg').textContent=`🎉 Xong ${fs.length} file.`;listFiles();}
-// gộp nhiều file -> 1 phiên: ước lượng chunk trước, quá 2 chunk thì cảnh báo
-async function wsMergeTranslate(){const fs=wsSel(),p=wsProj();if(!fs.length)return;
-let total=0;const bodies={};
-for(const f of fs){try{const d=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=sources`).then(J);
-bodies[f]=d.content;total+=d.content.length;}catch(e){alert('Không đọc được '+f+': '+e.message);return;}}
-const max=+$('sMax').value||16000,est=Math.max(1,Math.ceil(total/max));
-if(!confirm(`Gộp ${fs.length} file (${total.toLocaleString()} ký tự, ~${est} chunk) gửi 1 lần?`
-+(est>2?'\n⚠️ Quá 2 chunk dễ giảm chất lượng — nên chia nhỏ hoặc dùng Dịch tuần tự.':'')))return;
-const prov=$('wProv').value,model=curModel()||undefined,prompt=$('wPrompt').value;
-const extra=[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value);
-$('wBulkMsg').textContent=`⏳ Đang gộp dịch ${fs.length} file…`;$('tOut').textContent='';
-const r=await fetch('/api/translate/merge',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:p,files:fs,provider_id:prov,model,prompt,extra_prompts:extra})});
-if(!r.ok){const j=await r.json();$('wBulkMsg').innerHTML='<span class=err>'+esc(j.error)+'</span>';return;}
-const rd=r.body.getReader(),dec=new TextDecoder();let buf='',err=null;const texts=[];
-while(true){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
-let idx;while((idx=buf.indexOf('\n\n'))>=0){const blk=buf.slice(0,idx);buf=buf.slice(idx+2);
-const ev=(blk.match(/event: (\w+)/)||[])[1],dt=(blk.match(/data: ([\s\S]*)/)||[])[1];if(!ev)continue;
-const j=JSON.parse(dt);
-if(ev==='chunk'){texts[j.i-1]=j.text;$('tOut').textContent=texts.filter(Boolean).join('\n\n');
-$('wBulkMsg').textContent=`⏳ chunk ${j.i}/${j.n}`+(j.files&&j.files.length>1?` · ${j.files.join('+')}`:(j.file?` · ${j.file}`:''));}
-else if(ev==='done')break;else if(ev==='error'){err=j.error;break;}}
-if(err)break;}
-if(err){$('wBulkMsg').innerHTML='<span class=err>'+esc(err)+'</span>';return;}
-const out=texts.filter(Boolean).join('\n\n');
-const base=fs[0].replace(/\.[^.]+$/,'');
-const ext=(fs[0].match(/\.[^.]+$/)||['.md'])[0];
-const name=prompt('Lưu kết quả gộp thành:',base+'_gop'+ext);
-if(!name)return;
-await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:p,file:name,content:out})}).then(J);
-_wsSrc=null;_wsRes=name;$('wOutName').textContent='Kết quả: '+name;
-$('wBulkMsg').textContent=`🎉 Gộp xong ${fs.length} file → results/${name}.`;listFiles();listProjects();}
-// --- Tìm/thay thế kiểu Sigil: regex, hoa/thường, cả từ, $1 backref ---
-let _fMatches=[],_fIdx=-1;
-function fPane(){return $($('fTarget').value==='tSrc'?'tSrc':'tOut');}
-function fMsg(t){$('fMsg').textContent=t;}
-function fBuild(){const pat=$('fFind').value;
-if(!pat){fMsg('Nhập mẫu tìm.');return null;}
-let src=$('fRegex').checked?pat:pat.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-if($('fWord').checked)src='\\b(?:'+src+')\\b';
-try{return new RegExp(src,'g'+($('fCase').checked?'':'i')+'u');}
-catch(e){fMsg('Regex lỗi: '+e.message);return null;}}
-function fPaint(cur){const pane=fPane(),text=pane.textContent,re=fBuild();if(!re)return false;
-_fMatches=[...text.matchAll(re)].filter(m=>m[0].length>0);
-if(_fIdx>=_fMatches.length)_fIdx=_fMatches.length-1;
-let html='',last=0;
-_fMatches.forEach((m,i)=>{html+=esc(text.slice(last,m.index))
-+`<mark data-i="${i}"${i===cur?' class="cur"':''}>${esc(m[0])}</mark>`;last=m.index+m[0].length;});
-html+=esc(text.slice(last));
-pane.innerHTML=html;
-const marks=pane.querySelectorAll('mark');
-if(cur>=0&&marks[cur])marks[cur].scrollIntoView({block:'nearest'});
-fMsg(_fMatches.length?`${_fMatches.length} kết quả — ${cur+1}/${_fMatches.length}`:'Không thấy.');
-return true;}
-function fNext(dir){if(!fPaint(_fIdx<0?0:_fIdx))return;
-if(!_fMatches.length)return;
-_fIdx=(_fIdx+dir+_fMatches.length)%_fMatches.length;fPaint(_fIdx);}
-function fPlain(){const pane=fPane(); // gỡ mark, giữ nguyên text + caret
-pane.querySelectorAll('mark').forEach(m=>m.replaceWith(document.createTextNode(m.textContent)));
-pane.normalize();return pane.textContent;}
-function fReplace(){const pane=fPane();if(!fPaint(Math.max(_fIdx,0)))return;
-if(!_fMatches.length||_fIdx<0)return;
-const m=_fMatches[_fIdx],text=fPlain(),single=new RegExp(fBuild().source,fBuild().flags.replace('g',''));
-const rep=m[0].replace(single,$('fRepl').value);
-pane.textContent=text.slice(0,m.index)+rep+text.slice(m.index+m[0].length);
-_fIdx=-1;fPaint(0);}
-function fReplaceAll(){if($('fScope').value!=='one'){fReplaceAllScope();return;}
-const pane=fPane(),re=fBuild();if(!re)return;
-const text=fPlain(),ms=[...text.matchAll(re)].filter(m=>m[0].length>0);
-pane.textContent=text.replace(re,$('fRepl').value);
-_fMatches=[];_fIdx=-1;fMsg(`Đã thay ${ms.length} chỗ.`);}
-async function fReplaceAllScope(){const scope=$('fScope').value,p=wsProj();
-if(!p){fMsg('Chọn dự án trước.');return;}
-const d=await fetch(`/api/projects/${encodeURIComponent(p)}/files`).then(J);
-const n=(scope==='sources'?d.sources:d.results).length;
-if(!n||!confirm(`Thay hết trong ${n} file ${scope}? Không hoàn tác được.`))return;
-try{const r=await fetch('/api/find-replace',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:p,side:scope,pattern:$('fFind').value,repl:$('fRepl').value,
-regex:$('fRegex').checked,case:$('fCase').checked,word:$('fWord').checked})}).then(J);
-fMsg(`Đã thay ${r.total} chỗ trong ${Object.keys(r.files).length} file.`);
-if(_wsSrc)wsOpen(encodeURIComponent(_wsSrc));listFiles();}
-catch(e){fMsg(e.message);}}
-$('tOut').addEventListener('input',()=>{if($('fTarget').value==='tOut'&&_fMatches.length){fPlain();_fMatches=[];_fIdx=-1;}});
-</script>
+<script src="js/app.js" defer></script>
+<script src="js/projects.js" defer></script>
+<script src="js/workspace.js" defer></script>
+<script src="js/findreplace.js" defer></script>
+<script src="js/prompts.js" defer></script>
+<script src="js/settings.js" defer></script>
+<script src="js/init.js" defer></script>
 </body>
 </html>

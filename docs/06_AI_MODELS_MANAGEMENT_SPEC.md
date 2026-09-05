@@ -78,15 +78,17 @@ File `config/providers.json` đóng vai trò là nguồn sự thật duy nhất 
 3. Nếu file `config/providers.json` hiện tại đang tồn tại, sao chép thành `config/providers.json.bak` để làm điểm khôi phục dự phòng.
 4. Thực thi lệnh hoán đổi tệp nguyên tử `os.replace("config/providers.json.tmp", "config/providers.json")`.
 
-#### B. Cơ chế Sentinel Protection (Chống vô tình xóa key)
-Trên giao diện WebUI, vì lý do an toàn, các API key thường hiển thị dưới dạng chuỗi che giấu (ví dụ: `AIza...xxxx`). Khi người dùng bấm nút "Lưu":
-- Nếu dữ liệu gửi lên là chuỗi rỗng (`""`), giá trị `None`, hoặc chuỗi masked (`****` / chứa `...`), hệ thống **giữ nguyên giá trị API key cũ**, không ghi đè giá trị rỗng.
-- Hệ thống chỉ cập nhật key mới khi người dùng nhập chuỗi ký tự hợp lệ khác định dạng masked.
+#### B. Cơ chế Sentinel Protection (giữ key đang sửa — single-user, KHÔNG mask mặc định)
+Trên WebUI keys hiện **đầy đủ** để sửa trực tiếp (manifesto §7 — không mask, không fingerprint).
+Khi người dùng bấm nút "Lưu", backend (`update_provider_keys_and_model`) lưu nguyên danh sách đang sửa:
+- Dòng bị xóa = xóa key; dòng trống bị bỏ qua.
+- Không có chuyện "giữ key cũ khi gửi rỗng" — UI luôn gửi toàn bộ danh sách hiện tại.
 
-#### C. Quy tắc Che giấu khóa (Key Masking)
-Khi backend trả dữ liệu provider về frontend:
+#### C. Che giấu khóa (Key Masking — OPT-IN, mặc định TẮT)
+`masked_providers(mask=False)`: mặc định trả FULL key. Chỉ khi gọi với `mask=True`
+(mục đích log/share) mới che:
 - Nếu độ dài chuỗi key $\le 8$: Trả về `****`.
-- Nếu độ dài chuỗi key $> 8$: Trả về `4 ký tự đầu + "..." + 4 ký tự cuối` (Ví dụ: `AIza...9xKl` hoặc `sk-o...aB12`).
+- Nếu độ dài chuỗi key $> 8$: Trả về `4 ký tự đầu + "..." + 4 ký tự cuối`.
 
 ---
 
@@ -423,7 +425,7 @@ class AIProviderManager:
 ### 5.1. Tích hợp vào WebUI / API Settings
 - **GET `/api/settings/providers`**:
   - Đọc `config = manager.load_config()`.
-  - Che giấu toàn bộ API keys bằng `manager.mask_key(k)`.
+  - Trả FULL keys (`masked_providers(mask=False)` — mặc định, đúng manifesto §7).
   - Trả về danh sách provider và `active_id` cho giao diện.
 - **GET `/api/settings/models?provider_id={id}`**:
   - Gọi `manager.list_models_for_provider(provider_id)`.

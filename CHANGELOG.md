@@ -4,6 +4,23 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/) và
 [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [3.0.0] - 2026-09-05 — Phase 3a: hoàn thiện UI
+### Added
+- Tách frontend: `web/css/app.css` (tokens + components) + `web/js/` theo trang (app/projects/workspace/findreplace/prompts/settings/init); MIME map css/js + test; `readSSE`/`toast()` dùng chung (xóa 3 bản copy SSE, `alert()` → toast trừ restart).
+- Cards/tokens đồng bộ 4 trang (projects grid + settings 5 khối + workspace/prompts/table-minimal).
+- Quản lý prompt: đổi tên, xóa, backup 1 endpoint chung vào `assets/prompts/` của dự án.
+- Lưu trữ dự án: nén zip vào `workspace/archive/` + xóa gốc + dọn db.
+- Hủy phiên dịch giữa chunk (không ghi output dở) + thanh tiến độ (chunk/attempt/key/file/giây chờ).
+- Lịch sử chạy: `runs.file_id` + `GET /api/history` + bảng cuối trang Dự Án.
+- Tìm/thay thế phạm vi tất cả file (`POST /api/find-replace`, Python re, atomic từng file).
+- Nút restart server + version/giờ chạy ở sidebar + nhớ tab sau reload + health `started_at`.
+### Changed
+- Layout fluid khi thu gọn sidebar (bỏ `max-width`); file workspace dạng tabs Nguồn/Kết quả.
+- Manifesto v2.5: chính sách lib local (§9) + restart đúng mọi launcher.
+### Fixed
+- Crash endpoint find-replace do `import re` cục bộ trong `do_POST` (test khóa).
+- Nút restart chết lặng dưới `uv run` do `argv[0]` tương đối (absolutize + kiểm chứng live).
+
 ## [2.6.0] - 2026-09-05
 ### Added
 - Atomic write toàn repo (`core/file_handler.atomic_write_text`): output/config/prompt không bao giờ dở dang, crash giữ nguyên file cũ.
@@ -26,6 +43,29 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 - Retry giữ nguyên: mỗi key thử 1 lần/chunk với 429 (không fallback model); network/5xx retry cùng key ≤2 attempt/chunk rồi dừng.
 ### Fixed
 - Config/PUT /api/settings không còn ghi đè giá trị sai bằng default — giữ giá trị đang lưu khi input vô hiệu.
+
+## [3.1.0] - 2026-09-06
+### Added
+- `core/fileops.py`: `guard_name` (NFC + từ chối rỗng/./..), `unique_name` (`_conflict` chain), `read_text_strict`, `write_bytes_no_overwrite` (`xb` chống race); ranh giới 5 vùng trong `main.py`.
+- Upload theo tab, không gate ext, raw bytes, va chạm `_conflict` + trả tên thực.
+- Rename đơn va chạm `_conflict` từng bên (trả mapping); batch rename endpoint + dialog preview + auto-detect (không auto-sync, lỗi cô lập).
+- Find/replace: binary skip + `skipped`/`errors`, duyệt sorted, all-or-nothing từng file.
+- Toolbar SVG + status dot + selection Set + select-all-visible + khóa toolbar khi dịch.
+- Find vào `<dialog>`; filter client-side (sort vi-locale, keyword, lifecycle).
+- Prompt mặc định (prefs + preselect + ước lượng extras, bất khả xóa/đổi; dropdown hiện ✓ đầu list).
+- Gộp 3 nút gửi thành 1 nút **Gửi AI** + dialog 2 chế độ (Gộp-chia-chunk / Tuần tự) kèm provider/model/prompt/chars/chunks; merge **tách đúng về từng file** (marker, fallback file chính, không double-count) + tự lưu `results/`.
+- Nhật ký hệ thống ô đen dưới editor (timestamp, cap 200 dòng).
+- Hủy **cắt cả request đang bay** (`task.cancel` + `TranslateCancelled`, abort <0.2s đã test).
+- Tiêu đề cột Tập tin ngoài card; tabs wrap; tên file dài cuộn ngang khối list; info file canh phải.
+- Dòng thông tin file (ký tự/từ/tokens + số file đã chọn); editor wrap mặc định + nút Wrap; link Regex Sigil.
+- Prompt/Provider/Model dùng icon SVG; prompt gộp vào toolbar + extras inline.
+- Project metadata (title/author/description, slug tự sinh + duy nhất) + endpoint info GET/PUT + migrate cột db; cards mới (click tên mở workspace, icon info/archive/delete, progress bar).
+### Fixed (audit 3a++)
+- `wBulkBar` null-throw mỗi lần tick checkbox (DOM đã xóa) — thay bằng `updSelUI`.
+- Xóa chunks table mồ côi + `loadChunks` + `list_sources` + `ALLOWED_EXTS` + `prMsg` (chết sau refactor).
+- Tick checkbox không re-render toàn list nữa (hết giật/mất scroll); model row gom nhóm.
+### Changed
+- Nguyên tắc ghi đè: tạo/đổi tên không bao giờ đè im lặng; Save/find-replace chủ động được ghi đè atomic.
 
 ## [2.5.0] - 2026-09-04
 ### Added

@@ -55,7 +55,7 @@ FILE & CẤU HÌNH (LOCAL)
 * **`run.py` (CLI)**: Đọc file đầu vào, chạy luồng gửi-nhận, in tiến độ và ghi file đầu ra.
 
 ### B. Thành Phần Tiện Ích Mỏng (Hỗ trợ cấu hình và an toàn cơ bản)
-* **`config`**: Đọc cấu hình JSON mỏng, kiểm tra tính hợp lệ tối thiểu (`max_chunk_chars > 0`, `timeout_seconds > 0`), chứa danh sách `providers.{gemini,openai_compat}.models` để chọn, tách biệt `keys.json` (`gemini_keys`, `openai_compat_keys`).
+* **`config`**: `normalize_prefs()` chuẩn hóa duy nhất prefs app (`max_chunk_chars`, `timeout_seconds`, `api_delay_seconds`, `default_prompt`); giá trị sai → default; `config/providers.json` là SSOT provider (migration 1 chiều từ `keys.json` cũ).
 * **`key_rotator`**: Bộ xoay key tối giản (1 key gặp 429 dừng ngay, nhiều key chuyển lần lượt, không thử lại key trong cùng 1 chunk). Tái dùng y hệt cho cả Gemini và OpenAI-compatible.
 * **`file_handler`**: Lớp đọc/ghi file có kiểm tra an toàn đường dẫn (`relative_to()`, chống path traversal `..`, `/`, `\`).
 * **`app_db`**: SQLite stdlib (`workspace/app.db`, đã gitignore theo `workspace/`). Chỉ 3 bảng `projects/files/runs` để index + log, KHÔNG lưu checkpoint chunk. Tạo từ Phase 1 để dùng ngay.
@@ -134,7 +134,8 @@ Mọi tầng config (file cũ, file mới, env, UI) đều được chuẩn hóa
 runtime duy nhất. Từng module KHÔNG tự đọc dictionary config thô.
 
 **Prefs app** (`config/config.json`): `max_chunk_chars` (int > 0, mặc định 16000),
-`timeout_seconds` (float > 0, mặc định 90), `api_delay_seconds` (float ≥ 0, mặc định 2.0).
+`timeout_seconds` (float > 0, mặc định 90), `api_delay_seconds` (float ≥ 0, mặc định 2.0),
+`default_prompt` (str `*.txt`, mặc định `default_translation.txt`; file mất → fallback + warn).
 Giá trị sai → rơi về mặc định, không crash.
 
 **Providers** (`config/providers.json` là SSOT): `{version, active_id, providers[]}`,
@@ -146,7 +147,7 @@ Chi tiết: `docs/06_AI_MODELS_MANAGEMENT_SPEC.md`.
 Thứ tự ưu tiên: contract mới > migration cũ > mặc định.
 
 **Error model chuẩn**: mọi lỗi provider được phân loại retry-cùng-key / đổi-key / dừng-ngay
-theo taxonomy tại `docs/02_CORE_SYSTEM_AND_UI_SPECIFICATIONS.md` §5 + `docs/07_*` Phase 2.5.
+theo taxonomy tại `docs/02_CORE_SYSTEM_AND_UI_SPECIFICATIONS.md` §5 (hồ sơ: `docs/09_*`).
 Không module nào tự phân loại lại theo cách riêng.
 
 ---

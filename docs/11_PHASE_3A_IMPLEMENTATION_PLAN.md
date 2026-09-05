@@ -8,7 +8,8 @@
 
 **Tech Stack:** giữ nguyên (stdlib + httpx + vanilla). Không thêm dependency nào trong 3a.
 
-**Tài liệu gốc:** `docs/UI_TECHNOLOGY_AND_LONG_TERM_MAINTENANCE_RECOMMENDATION.md` (áp dụng có chọn lọc — xem "Điểm cố ý làm khác" cuối file), `docs/04_*` (API contract), `docs/00_*` v2.5 §9, `docs/10_*` §1 (backlog 3a), **`docs/wip/del_PLAN_REDESIGN_PROJECTS_AND_SETTINGS_UI.md` (đối chiếu chi tiết ở "Phụ lục R" cuối file — đọc trước khi làm Task 0).**
+**Tài liệu gốc:** `docs/wip/UI_TECHNOLOGY_AND_LONG_TERM_MAINTENANCE_RECOMMENDATION.md` (áp dụng có chọn lọc — xem "Điểm cố ý làm khác" cuối file), `docs/04_*` (API contract), `docs/00_*` v2.5 §9, `docs/10_*` §1 (backlog 3a), **`docs/wip/del_PLAN_REDESIGN_PROJECTS_AND_SETTINGS_UI.md` (đối chiếu chi tiết ở "Phụ lục R" cuối file — đọc trước khi làm Task 0).**
+> **TRẠNG THÁI: ĐÃ THỰC THI XONG (05/09/2026).** File này giữ nguyên làm hồ sơ đối chiếu; việc tiếp theo xem `docs/16_NEXT_PHASES.md`.
 
 **Điều kiện vào:** branch `phase-2.5` đã merge hoặc đang đứng trên nó (code 2.6.0: results/, merge, tabs, find/replace, restart — plan này giả định đã có).
 
@@ -27,9 +28,9 @@
 - Modify: `web/index.html` (thay `<style>` bằng `<link rel="stylesheet" href="css/app.css">`), `main.py` (`_serve_static`: thêm `MIME_MAP = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json"}`)
 - Test: `tests/test_server.py::test_static_mime` (mới: GET `/css/app.css` → 200 + `text/css`; traversal `..` vẫn 404)
 
-- [ ] **Step 1:** Viết test MIME → FAIL (chưa có file/route).
-- [ ] **Step 2:** Tạo `app.css`, sửa `index.html`, thêm `MIME_MAP`.
-- [ ] **Step 3:** PASS + mở 4 trang bằng mắt thường, không vỡ layout. Commit.
+- [x] **Step 1:** Viết test MIME → FAIL (chưa có file/route).
+- [x] **Step 2:** Tạo `app.css`, sửa `index.html`, thêm `MIME_MAP`.
+- [x] **Step 3:** PASS + mở 4 trang bằng mắt thường, không vỡ layout. Commit.
 
 ### Task 0.2: Rút JS theo trang + hạ tầng dùng chung
 
@@ -38,12 +39,12 @@
 - Modify: `web/index.html` (thay `<script>` bằng 8 thẻ `<script src="js/..." defer>` đúng thứ tự: app → projects → workspace → findreplace → prompts → settings → init)
 - Test: `node --check` từng file + checklist click tay 4 trang
 
-- [ ] **Step 1:** Tách `app.js` trước (helpers + `readSSE` từ 1 trong 3 bản copy SSE trong `startTl`).
-- [ ] **Step 2:** `startTl`/`wsBulkTranslate`/`wsMergeTranslate` chuyển sang `readSSE` (xóa 2 bản copy, giữ nguyên message/progress).
-- [ ] **Step 3:** Tách từng file trang, `index.html` chỉ còn markup + thẻ nạp.
-- [ ] **Step 4:** `node --check js/*.js` toàn PASS + checklist: tạo project → upload → dịch 1 file → save → find/replace → đổi settings → restart (không test restart ở đây, chỉ không vỡ nút).
-- [ ] **Step 5:** `alert()` còn lại chuyển sang `toast()` — NGOẠI TRỪ `restartSrv` (giữ `alert` vì reload xóa DOM) và `confirm()` (giữ native, không dựng dialog component ở 3a).
-- [ ] **Step 6:** Commit.
+- [x] **Step 1:** Tách `app.js` trước (helpers + `readSSE` từ 1 trong 3 bản copy SSE trong `startTl`).
+- [x] **Step 2:** `startTl`/`wsBulkTranslate`/`wsMergeTranslate` chuyển sang `readSSE` (xóa 2 bản copy, giữ nguyên message/progress).
+- [x] **Step 3:** Tách từng file trang, `index.html` chỉ còn markup + thẻ nạp.
+- [x] **Step 4:** `node --check js/*.js` toàn PASS + checklist: tạo project → upload → dịch 1 file → save → find/replace → đổi settings → restart (không test restart ở đây, chỉ không vỡ nút).
+- [x] **Step 5:** `alert()` còn lại chuyển sang `toast()` — NGOẠI TRỪ `restartSrv` (giữ `alert` vì reload xóa DOM) và `confirm()` (giữ native, không dựng dialog component ở 3a).
+- [x] **Step 6:** Commit.
 
 **Acceptance Chunk 0:** `index.html` không còn `<style>`/`<script>` lớn; `pytest -q` PASS; checklist tay không hồi quy; JS không lỗi console trên 4 trang.
 
@@ -51,10 +52,10 @@
 
 Triết lý giữ nguyên (§2: nền `#f8fafc`, card trắng viền `#e2e8f0` bo `8px`, tracked-labels, minimal table, badges, transition `0.15s`, không gradient/neon/blur).
 
-- [ ] **Step 1 — Projects (theo §3.1, BỎ §3.2 vì lỗi thời):** header trang + phụ đề `Quản lý thư mục tài liệu và kết quả xử lý.`; cards grid responsive (1 cột nhỏ, 2–3 cột rộng); mỗi card: 📁 slug + `N nguồn · M kết quả · tiến độ M/N` + badges + hàng nút (Mở workspace / 📦 Lưu trữ (Task 2) / Xóa). §3.2 (upload drawer + bảng file trong Projects) **không làm** — file đã chuyển sang Workspace 3 cột từ v2.6.0.
-- [ ] **Step 2 — Settings (theo §4, chỉ còn việc CSS vì chức năng xong ở v2.5.0):** bọc 5 khối (A Providers / B Model / C Thinking / D Tuning + 2 nút lưu riêng) vào `.card`; labels → `.label-tracked`; model info strip → chips; tuning → lưới 3 cột; textarea keys monospace; cảnh báo thinking → hộp xám viền mảnh (§4.3 nguyên văn).
-- [ ] **Step 3 — Workspace + Prompts (tối thiểu):** file panel + headers 2 editor vào `.card`/tracked-labels; trang Prompt bọc list + editor + nút vào `.card`; bảng chunks → `.table-minimal`.
-- [ ] **Step 4:** Checklist 4 trang + commit. DoD §6.2 gốc được thay bằng: cards đồng bộ 4 trang, zero npm, không hiệu ứng màu mè (bỏ tiêu chí `<35KB index.html` và `nút tải file trong Dự Án` vì đã lỗi thời sau tách file + chuyển kiến trúc).
+- [x] **Step 1 — Projects (theo §3.1, BỎ §3.2 vì lỗi thời):** header trang + phụ đề `Quản lý thư mục tài liệu và kết quả xử lý.`; cards grid responsive (1 cột nhỏ, 2–3 cột rộng); mỗi card: 📁 slug + `N nguồn · M kết quả · tiến độ M/N` + badges + hàng nút (Mở workspace / 📦 Lưu trữ (Task 2) / Xóa). §3.2 (upload drawer + bảng file trong Projects) **không làm** — file đã chuyển sang Workspace 3 cột từ v2.6.0.
+- [x] **Step 2 — Settings (theo §4, chỉ còn việc CSS vì chức năng xong ở v2.5.0):** bọc 5 khối (A Providers / B Model / C Thinking / D Tuning + 2 nút lưu riêng) vào `.card`; labels → `.label-tracked`; model info strip → chips; tuning → lưới 3 cột; textarea keys monospace; cảnh báo thinking → hộp xám viền mảnh (§4.3 nguyên văn).
+- [x] **Step 3 — Workspace + Prompts (tối thiểu):** file panel + headers 2 editor vào `.card`/tracked-labels; trang Prompt bọc list + editor + nút vào `.card`; bảng chunks → `.table-minimal`.
+- [x] **Step 4:** Checklist 4 trang + commit. DoD §6.2 gốc được thay bằng: cards đồng bộ 4 trang, zero npm, không hiệu ứng màu mè (bỏ tiêu chí `<35KB index.html` và `nút tải file trong Dự Án` vì đã lỗi thời sau tách file + chuyển kiến trúc).
 
 ---
 
@@ -69,7 +70,7 @@ Backend dùng chung 1 endpoint backup cho mọi dự án — không viết hàm 
 - Modify: `main.py` (`DELETE /api/prompts/{name}` → 200/`{"ok": true}`; `POST /api/prompts/rename` `{"old","new"}` → 200/`{"filename"}`; validate ext qua `ALLOWED_EXTS`? prompt là `.txt` — check `endswith(".txt")` như PUT hiện tại; 400 tên xấu, 404 thiếu file, 400 trùng tên)
 - Test: `tests/test_server.py::test_prompt_rename_delete` (rename ok + trùng + ext lạ + traversal + xóa + xóa file không có → 404 + default tự tạo lại sau khi xóa và gọi lại GET)
 
-- [ ] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + commit.
+- [x] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + commit.
 
 ### Task 1.2: Backup prompt vào dự án (1 endpoint chung)
 
@@ -78,7 +79,7 @@ Backend dùng chung 1 endpoint backup cho mọi dự án — không viết hàm 
 - Modify: `web/js/prompts.js` (hàng nút mỗi prompt trong dropdown? UI hiện tại là select — thêm select dự án đích (mặc định = project đang mở ở workspace, fallback dropdown dự án) + nút `⬇ Lưu vào dự án` + toast kết quả)
 - Test: `tests/test_server.py::test_prompt_backup` (backup ok + file nằm đúng `assets/prompts/` + 404 + traversal)
 
-- [ ] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay (backup → kiểm tra file trên đĩa). Commit.
+- [x] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay (backup → kiểm tra file trên đĩa). Commit.
 
 **Acceptance Chunk 1:** rename/delete/backup có test; không còn nhu cầu "hàm riêng từng dự án".
 
@@ -94,7 +95,7 @@ Backend dùng chung 1 endpoint backup cho mọi dự án — không viết hàm 
 - Modify: `web/js/projects.js` (nút `📦 Lưu trữ` trên card + confirm; toast đường dẫn zip)
 - Test: `tests/test_server.py::test_project_archive` (seed + archive → zip tồn tại + thư mục gốc mất + GET /projects không còn + archive project không có → 404)
 
-- [ ] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + kiểm tra mở được zip. Commit.
+- [x] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + kiểm tra mở được zip. Commit.
 
 ---
 
@@ -108,14 +109,14 @@ Backend dùng chung 1 endpoint backup cho mọi dự án — không viết hàm 
 - Modify: `web/js/workspace.js` (nút ⏹ Hủy (confirm) + trạng thái cuối `⏹ Đã hủy` + nút ở bulk bar khi đang chạy)
 - Test: unit `_run_chunks` với FakeClient mà `on_attempt` set event → assert raise `TranslateCancelled` sau đúng 1 chunk; server test cancel khi không có phiên → 200 (không crash)
 
-- [ ] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay (dịch file 3+ chunk → hủy giữa chừng → không có file dở). Commit.
+- [x] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay (dịch file 3+ chunk → hủy giữa chừng → không có file dở). Commit.
 
 ### Task 3.2: Thanh tiến độ workspace
 
 **Files:**
 - Modify: `web/js/workspace.js` + `web/css/app.css` (thanh `wProg`: `chunk i/n · attempt k · key j/m · file · đã chờ Ns`, timer `setInterval` từ lúc start, dọn khi done/error/cancel; dùng event `progress` đã có từ 2.5 — không đụng backend)
 
-- [ ] **Step 1:** Implement + checklist tay (thấy attempt tăng khi timeout giả lập? — chỉ cần thấy chunk/key/file chạy). Commit.
+- [x] **Step 1:** Implement + checklist tay (thấy attempt tăng khi timeout giả lập? — chỉ cần thấy chunk/key/file chạy). Commit.
 
 ## Chunk 4 — Lịch sử chạy (trong trang Projects, không thêm nav)
 
@@ -126,7 +127,7 @@ Backend dùng chung 1 endpoint backup cho mọi dự án — không viết hàm 
 - Modify: `web/js/projects.js` (bảng lịch sử dưới cards + ước tính chi phí từ `model_info.pricing` nếu có, ghi rõ "ước tính")
 - Test: `tests/test_server.py::test_history` (dịch 1 file fake → history có đúng project/file/model/status)
 
-- [ ] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay. Commit.
+- [x] **Step 1:** Test → FAIL. **Step 2:** Implement. **Step 3:** PASS + checklist tay. Commit.
 
 **Acceptance Chunk 2–4:** archive/cancel/progress/history có test; Đóng Phase 3a khi thêm: `pytest` PASS, checklist 4 trang không hồi quy, CHANGELOG entry 3a.0.
 

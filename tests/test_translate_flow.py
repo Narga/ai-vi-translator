@@ -118,3 +118,84 @@ def test_attribute_maps_chunks_to_files():
     assert main._attribute(["AAA", "BBB"], joined, segs) == [["a"], ["b"]]
     assert main._attribute(["AAABBB"], joined, segs) == [["a", "b"]]
     assert main._attribute(["ZZZ"], joined, segs) == [[]]
+
+
+def test_run_chunks_cancelled_between_chunks():
+    import threading
+    import main
+    from core.errors import TranslateCancelled
+
+    calls = []
+    ev = threading.Event()
+
+    class FakeClient:
+        async def translate_chunk(self, prompt, on_attempt=None, abort=None):
+            calls.append(prompt)
+            if on_attempt:
+                on_attempt(1, 0)
+            ev.set()  # hủy ngay sau chunk đầu
+            return "XONG:" + prompt
+
+    async def go():
+        with pytest.raises(TranslateCancelled):
+            await main._run_chunks(FakeClient(), ["p1", "p2", "p3"], [[None]] * 3,
+                                   0, 1, lambda e, p: None, cancel=ev)
+
+    run(go())
+    assert calls == ["p1"]  # dừng đúng sau chunk đầu, không chạy tiếp
+
+
+def test_split_marked_by_file():
+    import main
+
+    text = "===== FILE: a.md =====\nNội dung A.\n\n===== FILE: b.md =====\nNội dung B."
+    out, regs = main._split_marked(text, ["a.md", "b.md"])
+    assert out == {"a.md": "Nội dung A.", "b.md": "Nội dung B."}
+    assert len(regs) == 2
+    assert main._split_marked("không marker gì", ["a.md"])[0] == {}
+    # marker tên lạ bị bỏ qua, không crash
+    out, _ = main._split_marked("===== FILE: stranger.md =====\nX.", ["a.md"])
+    assert out == {}
+
+
+def test_split_output_fallback_no_markers():
+    import main
+
+    outs = ["DỊCH A", "DỊCH B"]
+    segs = [["a.md"], ["b.md"]]
+    assert main._split_output(outs, segs, ["a.md", "b.md"]) == {"a.md": "DỊCH A", "b.md": "DỊCH B"}
+    # marker thiếu 1 file -> file đó chỉ nhận chunk ngoài region file khác
+    outs = ["===== FILE: a.md =====\nA1", "B1 không marker"]
+    segs = [["a.md"], ["b.md"]]
+    out = main._split_output(outs, segs, ["a.md", "b.md"])
+    assert out["a.md"] == "A1\n\nB1 không marker" and out["b.md"] == ""
+
+
+def test_abort_mid_request():
+    import threading
+    import time
+    from core.ai_client import GeminiClient
+    from core.errors import TranslateCancelled
+    from core.key_rotator import KeyRotator
+
+    async def slow_post(*a, **k):
+        await asyncio.sleep(5)
+        return _gemini_ok()
+
+    async def go():
+        import httpx
+        from unittest.mock import AsyncMock, patch
+        ev = threading.Event()
+        client = GeminiClient(KeyRotator(["K1"]), timeout_seconds=30)
+        async def trigger():
+            await asyncio.sleep(0.1)
+            ev.set()
+        asyncio.ensure_future(trigger())
+        t0 = time.monotonic()
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as m:
+            m.side_effect = slow_post
+            with pytest.raises(TranslateCancelled):
+                await client.translate_chunk("Hi", abort=ev)
+        return time.monotonic() - t0
+
+    assert run(go()) < 2.0  # hủy tức thì, không chờ hết 5s

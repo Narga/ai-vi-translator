@@ -13,6 +13,11 @@ def get_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(db_path)
     con.executescript((Path(__file__).with_name("schema.sql")).read_text(encoding="utf-8"))
+    cols = [r[1] for r in con.execute("PRAGMA table_info(projects)").fetchall()]
+    for col in ("author", "description"):
+        if col not in cols:
+            con.execute(f"ALTER TABLE projects ADD COLUMN {col} TEXT DEFAULT ''")
+    con.commit()
     return con
 
 

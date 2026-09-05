@@ -1,5 +1,10 @@
 # 08. PHASE 3 HOÀN THIỆN UI + CÔNG CỤ NỘI DUNG & CÁC PHA TIẾP THEO
 
+> **SUPERSEDED (05/09/2026): không dùng làm plan nữa.**
+> Chunk 1 (3a) → xong, hồ sơ ở `docs/11_*`. Task 7 history → xong (trong 11).
+> Chunk 2 (3b), Chunk 3 (3c), Phase 4/5 → chuyển sang `docs/16_NEXT_PHASES.md`.
+> Phần còn lại dưới đây giữ nguyên làm lịch sử.
+
 > **For agentic workers:** REQUIRED: làm theo thứ tự 3a → 3b → 3c. Mỗi Task xong chạy test + commit. Đọc `docs/00_PROJECT_MANIFESTO.md` (v2.4) trước khi sửa bất cứ gì.
 
 **Goal:** Đưa UI từ "hơn CLI một chút" lên mức dùng hàng ngày thoải mái (đẹp tối giản + quan sát được phiên dịch + hủy được), rồi thêm công cụ nội dung nhẹ (glossary, prompt profile, diff, batch) — vẫn zero-npm, vẫn stdlib backend.

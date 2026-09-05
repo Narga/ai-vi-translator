@@ -1,7 +1,36 @@
 # LỘ TRÌNH PHÁT TRIỂN TƯƠNG LAI (FUTURE ROADMAP)
 > **Tài liệu**: Lưu trữ các tính năng nâng cao được dời lại từ Phase 1 & Phase 2 nhằm giữ cho lõi gửi–nhận của dự án luôn tinh gọn, nhẹ và không phát sinh lỗi.  
 > **Địa chỉ**: `docs/ROADMAP.md`
-> **Phiên bản**: v2.6.0 (05/09/2026) — atomic write toàn repo, error taxonomy, file management UI, contract-first.
+> **Phiên bản**: v3.1.0 (06/09/2026) — 3a+ released (fileops, batch rename, filter, default prompt, Gửi AI, abort thật); backlog chuẩn ở `docs/16_NEXT_PHASES.md`.
+
+---
+
+## 11. HOÀN THÀNH 3a+ — WORKSPACE REWORK (chi tiết: `docs/15_*`, CHANGELOG `[3a+]`)
+
+- [x] `core/fileops.py`: `guard_name`/`unique_name` (`_conflict`)/`read_text_strict`/`write_bytes_no_overwrite` + ranh giới 5 vùng `main.py`
+- [x] Upload theo tab (không gate ext, raw bytes) + rename đơn/batch (preview, `{N}` bắt buộc, lỗi cô lập, không auto-sync/ghi đè)
+- [x] Find/replace `skipped`/`errors`, binary strict, sorted, all-or-nothing từng file
+- [x] Toolbar SVG + tabs + filter + selection Set + `<dialog>` + status dot + khóa toolbar khi dịch
+- [x] Prompt mặc định (prefs, ✓ đầu list, bất khả xóa/đổi) + backup vào dự án
+- [x] Nút Gửi AI + dialog 2 chế độ; merge tách đúng về từng file + tự lưu; terminal log; abort thật giữa request
+- [x] Project metadata + cards mới (progress bar, info dialog, archive icon)
+- [x] Tests + docs (92 tests PASS lúc đóng)
+
+---
+
+---
+
+## 10. HOÀN THÀNH 3a — HOÀN THIỆN UI (chi tiết: `docs/11_*`)
+
+- [x] Tách frontend: `web/css/app.css` + `web/js/` theo trang, MIME map + test, `readSSE`/`toast` dùng chung
+- [x] Cards/tokens đồng bộ 4 trang (grid, chips, table-minimal, tracked-labels)
+- [x] Prompt: đổi tên, xóa, backup 1 endpoint chung vào `assets/prompts/`
+- [x] Archive dự án (zip + xóa + dọn db)
+- [x] Hủy phiên giữa chunk + thanh tiến độ (chunk/attempt/key/file/giây)
+- [x] Lịch sử chạy (`runs.file_id` + `GET /api/history` + bảng Projects)
+- [x] Find/replace phạm vi tất cả file + tabs Nguồn/Kết quả + layout fluid
+- [x] Nút restart + version/health + nhớ tab (manifesto v2.5 §9)
+- [x] Tests + docs + CHANGELOG 3.0.0
 
 ---
 
@@ -66,7 +95,9 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 
 ## 3. CÁC TÍNH NĂNG XỬ LÝ TẬP TIN NÂNG CAO (PHASE 3+ — xem docs/08_PHASE_3_AND_BEYOND.md)
 
-1. **Bộ công cụ Tìm kiếm & Thay thế Hàng loạt (Batch Search & Replace)**:
+> **Cập nhật:** Batch Search & Replace phạm vi file đã XONG ở 2.6/3a+ (`POST /api/find-replace` + `skipped`/`errors` + dialog). Còn lại Diff Viewer → Phase 3b (`docs/16_*`).
+
+1. **Bộ công cụ Tìm kiếm & Thay thế Hàng loạt (Batch Search & Replace)** — ✅ DONE:
    * Cho phép người dùng tìm một từ bị dịch sai (ví dụ: tên riêng dịch gượng gạo) và thay thế đồng loạt trên toàn bộ các file bản dịch trong thư mục `results/`.
    * Hỗ trợ tìm kiếm theo chuỗi văn bản thường hoặc biểu thức chính quy (Regex).
 2. **Công cụ So Sánh Chênh Lệch Nâng Cao (Diff Viewer)**:
@@ -111,5 +142,5 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 * Plugin: quy ước file (prompts/tools/providers), không framework động.
 * Single-user: FULL key hiển thị, sửa/xóa trực tiếp trong UI; model select nhìn thấy được + custom; thinking chỉ Gemini; lọc model client-side ở cả Settings và Workspace.
 * `main.py` là điểm vào chính; `run.py` CLI giữ nguyên.
-* `config/providers.json` là SSOT provider; `config/config.json` chỉ chứa prefs app (`max_chunk_chars`, `api_delay_seconds`, `timeout_seconds`).
+* `config/providers.json` là SSOT provider; `config/config.json` chỉ chứa prefs app (`max_chunk_chars`, `api_delay_seconds`, `timeout_seconds`, `default_prompt`).
 * `api_delay_seconds` mặc định 2.0s giữa các chunk chống 429; `timeout_seconds` mặc định 90s.

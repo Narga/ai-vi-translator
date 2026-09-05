@@ -1,6 +1,6 @@
 # 05. CHỈ DẪN CHI TIẾT CÁC CÔNG CỤ & PLUGINS ĐỘC LẬP
 > **Tài liệu**: Hướng dẫn kỹ thuật và mã nguồn chi tiết cho các công cụ chuyên biệt, đảm bảo tính tách biệt, không làm phình to lõi ứng dụng chính.
-> **Phiên bản**: v2.3 (04/09/2026) — bỏ OCR, chốt glossary path + quy ước mở rộng không framework.
+> **Trạng thái**: `tools/epub_tool.py` **chưa tồn tại** — toàn bộ §1 dưới đây là đặc tả chờ triển khai (Phase 4), không phải code hiện hành.
 
 ---
 
@@ -163,6 +163,8 @@ class TextFormatConverter:
 Theo yêu cầu, tính năng này được **tinh giản và tích hợp trực tiếp thành tính năng cốt lõi** thông qua cơ chế chọn Prompt Bổ Sung.
 
 ### Các File Prompt Bổ Sung Cung Cấp Sẵn (`prompts/`):
+
+> **Trạng thái:** hiện chỉ ship `default_translation.txt`. Hai file dưới là **mẫu để tự tạo** (Thêm file `prompts/<ten>.txt` là dùng được ngay, không cần sửa code).
 
 #### 1. File `prompts/qa_polish_tien_hiep.txt`:
 ```text
