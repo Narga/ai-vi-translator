@@ -1,7 +1,24 @@
 # LỘ TRÌNH PHÁT TRIỂN TƯƠNG LAI (FUTURE ROADMAP)
 > **Tài liệu**: Lưu trữ các tính năng nâng cao được dời lại từ Phase 1 & Phase 2 nhằm giữ cho lõi gửi–nhận của dự án luôn tinh gọn, nhẹ và không phát sinh lỗi.  
 > **Địa chỉ**: `docs/ROADMAP.md`
-> **Phiên bản**: v2.5.0 (04/09/2026) — settings redesign 5 khối, model metadata, thinking, CRUD provider, tuning prefs.
+> **Phiên bản**: v2.6.0 (05/09/2026) — atomic write toàn repo, error taxonomy, file management UI, contract-first.
+
+---
+
+## 9. HOÀN THÀNH v2.6 — Stabilization & File Management
+
+- [x] Atomic write toàn repo (`core/file_handler.atomic_write_text`) cho output/config/prompt
+- [x] Error taxonomy chuẩn (`core/errors.py`, `docs/02` §5.1): 429 đổi key / network+5xx retry cùng key ≤2 attempt/chunk / 401/404+rỗng+malformed dừng ngay
+- [x] SSE `progress` event (chunk/attempt/key) — UI quan sát tiến độ
+- [x] Contract prefs duy nhất (`normalize_prefs`) cho `get_config()` + `PUT /api/settings`
+- [x] 4 endpoint file mới: `GET .../file`, `DELETE .../files`, `POST .../rename`, `DELETE /api/projects/{slug}` (409 khi đang dịch)
+- [x] Thư mục kết quả `translated/` → `results/` + tự migrate file cũ
+- [x] Trang Dự Án chỉ còn cards (số file nguồn/kết quả, tiến độ, mở workspace, xóa)
+- [x] Workspace 3 cột: file sources/results + dual editor, click-load cùng tên, lưu `results/`
+- [x] Tìm/thay thế kiểu Sigil (regex, hoa/thường, cả từ, `$1`)
+- [x] Tests mới (`core/errors.py`, `tests/test_translate_flow.py`, `tests/test_config.py`, `tests/test_file_handler.py` case crash atomic + migration)
+- [x] Manifesto v2.4 (READ-FIRST + local-first security + contract runtime SSOT)
+- [x] CHANGELOG v2.6.0
 
 ---
 
@@ -47,13 +64,16 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 
 ---
 
-## 3. CÁC TÍNH NĂNG XỬ LÝ TẬP TIN NÂNG CAO (PHASE 3 TRỞ ĐI)
+## 3. CÁC TÍNH NĂNG XỬ LÝ TẬP TIN NÂNG CAO (PHASE 3+ — xem docs/08_PHASE_3_AND_BEYOND.md)
 
 1. **Bộ công cụ Tìm kiếm & Thay thế Hàng loạt (Batch Search & Replace)**:
-   * Cho phép người dùng tìm một từ bị dịch sai (ví dụ: tên riêng dịch gượng gạo) và thay thế đồng loạt trên toàn bộ các file bản dịch trong thư mục `translated/`.
+   * Cho phép người dùng tìm một từ bị dịch sai (ví dụ: tên riêng dịch gượng gạo) và thay thế đồng loạt trên toàn bộ các file bản dịch trong thư mục `results/`.
    * Hỗ trợ tìm kiếm theo chuỗi văn bản thường hoặc biểu thức chính quy (Regex).
 2. **Công cụ So Sánh Chênh Lệch Nâng Cao (Diff Viewer)**:
    * So sánh chi tiết từng câu giữa bản gốc và bản dịch, hoặc giữa 2 lần dịch khác nhau (khi đổi prompt).
+   * Đề xuất: vendor `diff-match-patch` (1 file ~30KB) + render DIY 2 cột/inline; CodeMirror 6 (`@codemirror/merge`) nếu cần workflow nhận/bỏ chunk; cửa CM6 chỉ khi IME tiếng Việt tái phát.
+- [ ] Batch Search & Replace (Phase 3b)
+- [ ] Diff Viewer (Phase 3b)
 
 ---
 
@@ -64,7 +84,7 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 2. **Chuyển đổi định dạng văn bản 2 chiều**:
    * `Markdown (.md)` $\longleftrightarrow$ `Text thuần (.txt)`.
    * `HTML (.html)` $\longleftrightarrow$ `Markdown (.md)`.
-   * Áp dụng cho cả thư mục `sources/` và thư mục `translated/`.
+   * Áp dụng cho cả thư mục `sources/` và thư mục `results/`.
 
 ---
 

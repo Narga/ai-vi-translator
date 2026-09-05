@@ -78,12 +78,10 @@ async def main(argv=None) -> int:
         print("✅ Đã lưu API Key vào config/providers.json thành công.")
 
     if args.project and args.file:
-        from core.file_handler import SafeFileHandler
-
         handler = SafeFileHandler()
         try:
             input_path = handler.get_source_path(args.project, args.file)
-            output_path = handler.get_translated_path(args.project, args.file)
+            output_path = handler.get_output_path(args.project, args.file)
         except ValueError as e:
             print(f"❌ LỖI ĐƯỜNG DẪN: {e}")
             return 1
@@ -117,7 +115,7 @@ async def main(argv=None) -> int:
     print(f"📄 Bắt đầu dịch: {input_path.name} ({len(raw_content):,} ký tự -> {total} chunk) [{provider['id']}/{model}].")
 
     ai_client = build_client(provider, model, keys, cfg["timeout_seconds"])
-    translated_chunks = []
+    out_chunks = []
     delay = cfg.get("api_delay_seconds", 2.0)
 
     for idx, chunk_text in enumerate(chunks, 1):
@@ -127,7 +125,7 @@ async def main(argv=None) -> int:
         prompt = prompt_engine.assemble_prompt(chunk_text, prompt_filename=args.prompt)
         try:
             res = await ai_client.translate_chunk(prompt)
-            translated_chunks.append(res)
+            out_chunks.append(res)
             print(" [XONG]")
         except Exception as e:
             print(f"\n🛑 LỖI: {e}")
@@ -137,7 +135,7 @@ async def main(argv=None) -> int:
             return 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text("\n\n".join(translated_chunks), encoding="utf-8")
+    atomic_write_text(output_path, "\n\n".join(out_chunks))
     log_run(provider["id"], model, "ok")
     print(f"🎉 HOÀN TẤT! Bản dịch đã lưu tại: {output_path}")
     return 0

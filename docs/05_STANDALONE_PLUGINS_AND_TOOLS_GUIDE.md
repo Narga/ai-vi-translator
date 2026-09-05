@@ -16,7 +16,7 @@
      * Chuyển đổi giữa `Markdown (.md)` $\longleftrightarrow$ `Text thuần (.txt)`
      * Chuyển đổi giữa `HTML (.html)` $\longleftrightarrow$ `Markdown (.md)`
      * Chuyển đổi giữa `HTML (.html)` $\longleftrightarrow$ `Text thuần (.txt)`
-  3. **Hỗ trợ toàn diện 2 chiều**: Áp dụng được cho **CẢ** thư mục nguồn (`sources/`) lẫn thư mục bản dịch (`translated/`).
+  3. **Hỗ trợ toàn diện 2 chiều**: Áp dụng được cho **CẢ** thư mục nguồn (`sources/`) lẫn thư mục kết quả (`results/`).
 
 ### 1.2. Thiết Kế Mã Nguồn Độc Lập (`tools/epub_tool.py`)
 Công cụ được viết độc lập bằng thư viện chuẩn, không can thiệp vào lõi dịch thuật:

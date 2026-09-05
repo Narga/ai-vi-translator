@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
+from core.file_handler import atomic_write_text
+
 # Định vị đường dẫn tuyệt đối theo thư mục gốc của project
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -16,6 +18,27 @@ DEFAULT_CONFIG = {
 }
 
 
+def _num(v, default, integer=False, allow_zero=False):
+    try:
+        n = float(v)
+    except (ValueError, TypeError):
+        return default
+    if n > 0 or (allow_zero and n == 0):
+        return int(n) if integer else n
+    return default
+
+
+def normalize_prefs(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Chuẩn hóa prefs về contract duy nhất (manifesto v2.4 §8).
+    Sai → rơi về mặc định, key lạ → bỏ. Dùng chung cho get_config() và PUT /api/settings."""
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        "max_chunk_chars": _num(raw.get("max_chunk_chars", 16000), 16000, integer=True),
+        "timeout_seconds": _num(raw.get("timeout_seconds", 90), 90.0),
+        "api_delay_seconds": _num(raw.get("api_delay_seconds", 2.0), 2.0, allow_zero=True),
+    }
+
+
 class AppConfig:
     def __init__(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -23,41 +46,19 @@ class AppConfig:
 
     def _ensure_files(self):
         if not CONFIG_FILE.exists():
-            CONFIG_FILE.write_text(json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False), encoding="utf-8")
+            atomic_write_text(CONFIG_FILE, json.dumps(DEFAULT_CONFIG, indent=2, ensure_ascii=False))
         if not KEYS_FILE.exists():
-            KEYS_FILE.write_text(
-                json.dumps({"gemini_keys": [], "openai_compat_keys": []}, indent=2), encoding="utf-8"
-            )
+            atomic_write_text(KEYS_FILE, json.dumps({"gemini_keys": [], "openai_compat_keys": []}, indent=2))
 
     def get_config(self) -> Dict[str, Any]:
-        cfg = json.loads(json.dumps(DEFAULT_CONFIG))  # deep copy rẻ, khỏi import copy
         if CONFIG_FILE.exists():
             try:
                 data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-                if isinstance(data, dict):
-                    cfg.update(data)
             except Exception:
-                pass
-
-        try:
-            max_chars = int(cfg.get("max_chunk_chars", 16000))
-            cfg["max_chunk_chars"] = max_chars if max_chars > 0 else 16000
-        except (ValueError, TypeError):
-            cfg["max_chunk_chars"] = 16000
-
-        try:
-            timeout = float(cfg.get("timeout_seconds", 90))
-            cfg["timeout_seconds"] = timeout if timeout > 0 else 90.0
-        except (ValueError, TypeError):
-            cfg["timeout_seconds"] = 90.0
-
-        try:
-            delay = float(cfg.get("api_delay_seconds", 2.0))
-            cfg["api_delay_seconds"] = delay if delay >= 0 else 2.0
-        except (ValueError, TypeError):
-            cfg["api_delay_seconds"] = 2.0
-
-        return cfg
+                data = {}
+        else:
+            data = {}
+        return normalize_prefs(data)
 
     def _keys_from(self, data: dict, field: str, env_name: str) -> List[str]:
         keys = [k.strip() for k in data.get(field, []) if isinstance(k, str) and k.strip()]
@@ -90,7 +91,7 @@ class AppConfig:
             data = {}
         field = "openai_compat_keys" if provider == "openai_compat" else "gemini_keys"
         data[field] = [k.strip() for k in keys if k.strip()]
-        KEYS_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        atomic_write_text(KEYS_FILE, json.dumps(data, indent=2))
 
     def save_gemini_keys(self, keys: List[str]):
         self.save_keys("gemini", keys)

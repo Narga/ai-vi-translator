@@ -101,6 +101,16 @@ Trong chế độ `--project`, cả `slug` và `filename` phải được kiểm
   * Dừng toàn bộ chương trình ngay lập tức và KHÔNG lưu trạng thái dở dang.
   * Người dùng chạy lại lệnh sẽ bắt đầu lại toàn bộ file từ chunk đầu tiên.
 
+### 5.1. Taxonomy lỗi chuẩn (Phase 2.5 — chuẩn duy nhất, code tại `core/errors.py`)
+
+| Nhóm | Điều kiện | Hành động |
+|---|---|---|
+| Đổi key rồi retry | HTTP 429 | `try_next_key()`; hết key → dừng |
+| Retry cùng key (tối đa 2 attempt/chunk) | timeout, mất kết nối, HTTP 408/500/502/503/504 | thử lại cùng key; hết attempt → dừng |
+| Dừng ngay | HTTP 400/401/403/404, response rỗng/JSON sai cấu trúc, safety-block | không retry, không đổi key, báo đúng nguyên nhân + cách sửa |
+
+Chi tiết đầy đủ + test: `docs/07_PHASE_2_5_DETAILED_ACTION_PLAN.md` (Chunk 1, Task 2).
+
 ---
 
 ## 6. DATABASE TỐI THIỂU TỪ PHASE 1 (`workspace/app.db`)

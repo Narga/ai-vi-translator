@@ -22,7 +22,7 @@ Mọi thành phần trên giao diện WebUI phải vượt qua câu hỏi sát h
 ### Những gì TẬP TRUNG XÂY DỰNG trong Phase 2:
 * ✅ **Prompt dễ dùng hơn**: Chọn file `.txt`, xem nội dung, chỉnh sửa và lưu prompt trực tiếp trên web.
 * ✅ **Chunk dễ kiểm tra hơn**: Hiển thị rõ danh sách các chunk (thường 2-3 chunk), số ký tự thực tế, số token ước lượng.
-* ✅ **Kết quả dễ sao chép & lưu hơn**: Nút **[Sao chép]** (1-click copy) và **[Lưu file]** (ghi thẳng vào `translated/`).
+* ✅ **Kết quả dễ sao chép & lưu hơn**: Nút **[Sao chép]** (1-click copy) và **[Lưu file]** (ghi thẳng vào `results/`).
 * ✅ **Gửi lại dễ hơn**: Nút **[Xóa & Gửi lại]** và nút **[Gửi lại]** khi gặp lỗi mạng / 429.
 * ✅ **Kế thừa các tính năng hữu ích từ UI cũ**: Màn hình song ngữ **Dual-Pane** cuộn đồng bộ (Sync-Scroll) và cho phép sửa trực tiếp văn bản dịch (Inline Edit).
 
@@ -44,7 +44,7 @@ Thanh Sidebar (Thu gọn được 260px -> 64px):
 
 ### 3.1. Trang 1: Quản Lý Dự Án & Nạp File (`/projects`)
 * **Thao tác nhanh**:
-  * Nhập tên dự án $\to$ Bấm `[Tạo Dự Án]` $\to$ Tự động tạo cấu trúc `sources/`, `translated/`.
+  * Nhập tên dự án $\to$ Bấm `[Tạo Dự Án]` $\to$ Tự động tạo cấu trúc `sources/`, `results/`.
   * Kéo thả file `.txt`, `.md`, `.html` trực tiếp vào khung upload để nạp vào thư mục `sources/`.
   * Bảng danh sách file nguồn hiển thị: Tên file, Dung lượng, Trạng thái (Đã dịch / Chưa dịch).
   * Nút `[Chuyển Sang Biên Dịch]` để đưa các file được chọn vào màn hình Workspace.
@@ -65,7 +65,7 @@ Giao diện chia làm 2 khu vực trực quan:
 3. **Bộ nút điều khiển phiên gửi–nhận**:
    * `[▶ Bắt Đầu Dịch]`: Gửi tuần tự các chunk của file lên AI.
    * `[📋 Sao Chép Bản Dịch]`: Copy toàn bộ nội dung bản dịch vào clipboard.
-   * `[💾 Lưu Vào File]`: Lưu nội dung vào `workspace/projects/{slug}/translated/{filename}`.
+   * `[💾 Lưu Vào File]`: Lưu nội dung vào `workspace/projects/{slug}/results/{filename}`.
    * `[❌ Xóa & Gửi Lại]`: Xóa kết quả hiện tại và gửi lại từ đầu.
    * `[🔄 Gửi Lại (Retry)]`: Nút này sáng lên khi gặp lỗi mạng hoặc lỗi 429 để người dùng chủ động bấm gửi lại.
 
@@ -98,12 +98,12 @@ Giao diện chia làm 2 khu vực trực quan:
 |---|---|---|---|---|
 | 1 | `GET /api/health` | — | `{"ok": true}` | Kiểm tra server sống |
 | 2 | `GET /api/projects` | — | `{"projects": [{"slug": "Kiem_Hiep", "files": 12}]}` | Đọc từ app.db |
-| 3 | `POST /api/projects` | `{"slug": "Kiem_Hiep"}` | `{"slug": "Kiem_Hiep"}` | Tạo `sources/`, `translated/`, `assets/` |
-| 4 | `GET /api/projects/{slug}/files` | — | `{"sources": ["ch01.md"], "translated": ["ch01.md"]}` | So sánh 2 thư mục |
+| 3 | `POST /api/projects` | `{"slug": "Kiem_Hiep"}` | `{"slug": "Kiem_Hiep"}` | Tạo `sources/`, `results/`, `assets/` |
+| 4 | `GET /api/projects/{slug}/files` | — | `{"sources": ["ch01.md"], "results": ["ch01.md"]}` | So sánh 2 thư mục |
 | 5 | `POST /api/projects/{slug}/upload` | multipart `file` (.txt/.md/.html) | `{"filename": "ch01.md", "chars": 32100}` | Lưu vào `sources/` |
 | 6 | `GET /api/chunks?project=S&file=F` | — (`&full=1` kèm full text mỗi chunk cho dual-pane) | `{"chunks": [{"i": 1, "chars": 16200, "tokens_est": 4050, "preview": "..."}]}` | Dùng chung `split_text`; tokens_est = `chars/4` |
 | 7 | `POST /api/translate` (SSE) | `{"project": "S", "file": "F", "provider": "gemini", "model": "gemini-2.5-flash", "prompt": "default_translation.txt", "extra_prompts": []}` | SSE: `event: chunk\ndata: {"i":1,"n":2,"text":"..."}` … cuối `event: done\ndata: {"chars": 30000}` hoặc `event: error\ndata: {"error": "..."}` | Tuần tự từng chunk, lỗi dừng ngay, không lưu dở dang |
-| 8 | `POST /api/save` | `{"project": "S", "file": "F", "content": "..."}` | `{"path": "translated/ch01.md"}` | Ghi đè `translated/`, cập nhật app.db |
+| 8 | `POST /api/save` | `{"project": "S", "file": "F", "content": "..."}` | `{"path": "results/ch01.md"}` | Ghi đè `results/`, cập nhật app.db |
 | 9 | `GET /api/prompts` | — | `{"prompts": ["default_translation.txt"]}` | Liệt kê `prompts/*.txt` |
 | 10 | `GET /api/prompts/{name}` | — | `{"name": "...", "content": "..."}` | Sanitize như filename |
 | 11 | `PUT /api/prompts/{name}` | `{"content": "..."}` | `{"ok": true}` | Lưu prompt |
@@ -146,7 +146,7 @@ Sau khi hoàn thành Phase 2, người dùng:
 3. Vào Workspace: Thấy rõ file được chia thành 2 chunk, số ký tự và token ước lượng rõ ràng, chọn provider/model explicit.
 4. Bấm `[▶ Bắt Đầu Dịch]` $\to$ Thấy văn bản tiếng Việt hiển thị song song ngay bên cạnh (SSE từng chunk).
 5. Nếu gặp lỗi 429 hay lỗi mạng $\to$ UI hiển thị thông báo đỏ rõ ràng và hiện nút `[Gửi Lại]` (không tự fallback model).
-6. Dịch xong $\to$ Bấm `[Lưu Vào File]` $\to$ File xuất hiện ngay trong `translated/chuong_01.md`, app.db cập nhật.
+6. Dịch xong $\to$ Bấm `[Lưu Vào File]` $\to$ File xuất hiện ngay trong `results/chuong_01.md`, app.db cập nhật.
 
 ---
 
@@ -157,7 +157,7 @@ Nhằm giữ cho Phase 1 và Phase 2 tập trung tuyệt đối vào việc ch�
 * **PHASE 3: TIỆN ÍCH FILE & GLASSARY (OpenAI đã xong từ Phase 1)**:
   1. ~~Hỗ trợ thêm Provider OpenAI~~ → ĐÃ LÀM ở Phase 1 v2.3.
   2. Bổ sung thư mục `assets/` riêng của từng dự án (`workspace/projects/{slug}/assets/glossary.txt` + prompt riêng).
-  3. Công cụ Tìm kiếm & Thay thế hàng loạt (Batch Search & Replace) trong thư mục `translated/`.
+   3. Công cụ Tìm kiếm & Thay thế hàng loạt (Batch Search & Replace) trong thư mục `results/`.
   4. Trình so sánh Diff chi tiết giữa bản dịch cũ và mới.
 
 * **PHASE 4: CÔNG CỤ EPUB & NÂNG CAO (KẾ THỪA SILABOOK)**:

@@ -502,16 +502,16 @@ content-translator/
           clean_slug = self._sanitize_name(slug)
           p = self._validate_path(self.base_dir / "projects" / clean_slug)
           (p / "sources").mkdir(parents=True, exist_ok=True)
-          (p / "translated").mkdir(parents=True, exist_ok=True)
+          (p / "results").mkdir(parents=True, exist_ok=True)
           return p
 
       def get_source_path(self, slug: str, filename: str) -> Path:
           clean_file = self._sanitize_name(filename)
           return self._validate_path(self.get_project_dir(slug) / "sources" / clean_file)
 
-      def get_translated_path(self, slug: str, filename: str) -> Path:
+      def get_output_path(self, slug: str, filename: str) -> Path:
           clean_file = self._sanitize_name(filename)
-          return self._validate_path(self.get_project_dir(slug) / "translated" / clean_file)
+          return self._validate_path(self.get_project_dir(slug) / "results" / clean_file)
 
       def list_sources(self, slug: str) -> List[str]:
           sources_dir = self.get_project_dir(slug) / "sources"
@@ -523,8 +523,8 @@ content-translator/
               raise FileNotFoundError(f"Không tìm thấy file nguồn: {file_path}")
           return file_path.read_text(encoding="utf-8", errors="replace")
 
-      def save_translated(self, slug: str, filename: str, content: str):
-          out_path = self.get_translated_path(slug, filename)
+      def save_output(self, slug: str, filename: str, content: str):
+          out_path = self.get_output_path(slug, filename)
           out_path.write_text(content, encoding="utf-8")
   ```
 
@@ -810,5 +810,5 @@ Thay vì sinh toàn bộ mã một lần, việc code được chia thành **5 m
   * Chạy thử với file nhỏ 1 câu thực tế để xác nhận gọi AI thật thành công (thử cả 2 providers).
 
 * **MỐC 4: Hoàn Thiện CLI Đầy Đủ & Ghi File**:
-  * Hoàn thiện `run.py`: cắt 2-3 chunk, gửi tuần tự, ghép nối `\n\n`, ghi ra file `output.txt` hoặc `translated/{file}`, ghi log `runs` vào app.db.
+  * Hoàn thiện `run.py`: cắt 2-3 chunk, gửi tuần tự, ghép nối `\n\n`, ghi ra file `output.txt` hoặc `results/{file}`, ghi log `runs` vào app.db.
   * Kiểm tra failure policy: Nếu 1 chunk lỗi thì dừng ngay lập tức, không lưu dở dang, không fallback model.

@@ -1,7 +1,16 @@
 # 00. TÔN CHỈ & BẢN TUYÊN NGÔN CỐT LÕI DỰ ÁN
 > **Dự án**: Content Translator (Next-Gen)  
-> **Phiên bản tài liệu**: v2.3 (Chốt: app.db từ Phase 1 + đa provider explicit + bỏ OCR)  
-> **Cập nhật ngày**: 04/09/2026
+> **Phiên bản tài liệu**: v2.5 (Chốt: chính sách lib local + restart an toàn mọi launcher)  
+> **Cập nhật ngày**: 05/09/2026
+
+---
+
+## 0. ĐIỀU KIỆN KIỂM SOÁT (READ-FIRST — BẮT BUỘC)
+
+> **Bất cứ tính năng mới hay chỉnh sửa nào cũng phải đọc file này ĐẦU TIÊN.**
+> File này là contract chuẩn duy nhất: mọi thay đổi làm đổi contract (schema config,
+> error model, API, quy ước đường dẫn) phải cập nhật file này TRƯỚC khi sửa code.
+> Mâu thuẫn giữa code và file này → file này thắng, code phải sửa theo.
 
 ---
 
@@ -95,3 +104,72 @@ FILE & CẤU HÌNH (LOCAL)
 2. **Key theo provider**: `gemini_keys` và `openai_compat_keys` độc lập, cùng dùng `KeyRotator`.
 3. **app.db từ Phase 1**: Chỉ index + log (`projects/files/runs`). Không bảng `chunks/checkpoints` cho tới khi ROADMAP kích hoạt.
 4. **Mở rộng bằng quy ước, không framework plugin**: Prompt mới = thêm file `prompts/*.txt`; tool mới = thêm file `tools/*.py` chạy độc lập; provider mới = thêm file `core/*_client.py` theo interface `AIClient`. Không hệ thống nạp plugin động, không sandbox trong Phase 1/2.
+
+---
+
+## 7. TƯ THẾ BẢO MẬT SINGLE-USER LOCAL (CHỐT v2.4 — KHỎI ĐỀ XUẤT LẠI)
+
+> App chạy local, 1 người dùng duy nhất, dùng xong tắt. Không share, không public,
+> không multi-user. Mọi đề xuất bảo mật phải đo bằng câu hỏi:
+> *"Kẻ tấn công ở đâu, khi app không public và máy là của chính người dùng?"*
+> Nếu không trả lời được → loại bỏ, không tranh luận lại.
+
+1. **Hiển thị FULL API key** trong UI (sửa/xóa trực tiếp từng dòng) để dễ quản lý.
+   Không mask, không fingerprint, không "hiện 4 ký tự cuối".
+2. **Chống lộ key = chống PUBLIC, không chống chính người dùng**:
+   * `config/providers.json`, `config/keys.json`, toàn bộ `workspace/` đã nằm trong `.gitignore` — KHÔNG commit, KHÔNG push secret lên remote.
+   * Không dán log chứa key lên nơi công cộng.
+   * Hết. Đó là toàn bộ bề mặt cần bảo vệ.
+3. **Danh sách KHÔNG làm (đã chốt, đừng gợi ý lại)**:
+   * Mask/ẩn key trên UI, phân quyền, tài khoản, đăng nhập/auth.
+   * Audit log truy cập, secret vault/KMS, mã hóa key lúc nghỉ.
+   * Redact key trong log nội bộ, HTTPS nội bộ, rate-limit chống abuse từ ngoài.
+   * Mọi biện pháp dành cho "app public nhiều người dùng".
+
+---
+
+## 8. CONTRACT RUNTIME CHUẨN (SSOT — MỌI MODULE ĐỌC QUA 1 NƠI)
+
+Mọi tầng config (file cũ, file mới, env, UI) đều được chuẩn hóa về MỘT contract
+runtime duy nhất. Từng module KHÔNG tự đọc dictionary config thô.
+
+**Prefs app** (`config/config.json`): `max_chunk_chars` (int > 0, mặc định 16000),
+`timeout_seconds` (float > 0, mặc định 90), `api_delay_seconds` (float ≥ 0, mặc định 2.0).
+Giá trị sai → rơi về mặc định, không crash.
+
+**Providers** (`config/providers.json` là SSOT): `{version, active_id, providers[]}`,
+mỗi provider `{id, type: gemini|openai, name, api_keys[] | api_key, base_url?, default_model, thinking: OFF|LOW|MEDIUM|HIGH, docs_url?}`.
+Chi tiết: `docs/06_AI_MODELS_MANAGEMENT_SPEC.md`.
+
+**Quy tắc tương thích**: tên cũ (`keys.json`, `config.json` cũ, hằng số `PROCESSING.*`,
+`RUNTIME.*`) chỉ được đọc qua migration 1 chiều về contract trên, không dùng trực tiếp.
+Thứ tự ưu tiên: contract mới > migration cũ > mặc định.
+
+**Error model chuẩn**: mọi lỗi provider được phân loại retry-cùng-key / đổi-key / dừng-ngay
+theo taxonomy tại `docs/02_CORE_SYSTEM_AND_UI_SPECIFICATIONS.md` §5 + `docs/07_*` Phase 2.5.
+Không module nào tự phân loại lại theo cách riêng.
+
+---
+
+## 9. CHÍNH SÁCH KỸ THUẬT LOCAL (CHỐT v2.5 — ƯU TIÊN ĐÚNG, KHÔNG TỐI ƯU CỰC ĐOAN)
+
+> App chạy local cho 1 người dùng. Không tối ưu tốc độ UI đến cực đoan, không đua
+> kilobyte. Được phép dùng thư viện vừa phải để **đẹp hơn, ít bug hơn**, với điều kiện:
+> không build-chain, không framework, không phá `python main.py` là chạy offline.
+
+1. **Ưu tiên 1 — JS/CSS thuần**: vanilla + CSS variables. Mọi thứ làm được gọn bằng
+   thuần thì làm bằng thuần (sidebar, cards, bảng, tabs, sync-scroll, gutter số dòng).
+2. **Ưu tiên 2 — lib minimal/lightweight, tính năng riêng biệt, vendor 1 file**:
+   được dùng không cần tranh luận: `diff-match-patch` (diff), `marked` (preview Markdown),
+   `DOMPurify` (sanitize hiển thị). Thêm lib mới cùng hạng (1 việc, <50KB, MIT) thì
+   ghi 1 dòng lý do vào CHANGELOG.
+3. **Cấm**: Tailwind/Bootstrap, React/Vue/Svelte, jQuery, mọi thứ cần `npm install`
+   hay build-step ở máy người dùng; CDN làm dependency cứng (mất mạng là mất tính năng).
+4. **Lib nặng (vd. CodeMirror/Monaco)**: chỉ khi có bằng chứng bug không tự sửa được
+   (IME tiếng Việt, merge-workflow) + lazy-load đúng trang cần + vendor 1 file.
+   Không duyệt chỉ vì "hiện đại hơn".
+5. **Backend giữ stdlib + `httpx`**. Restart server phải đúng với MỌI cách chạy
+   (`python`, `uv run`, venv): dùng `os.execv` với **đường dẫn script tuyệt đối**,
+   không spawn subprocess, không đoán lệnh qua PATH/shell. Bài học: `sys.argv[0]`
+   tương đối + CWD lệch = tiến trình mới chết lặng (dự án cũ, nút restart vô tác dụng
+   dưới `uv run`).

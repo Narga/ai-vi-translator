@@ -48,8 +48,8 @@ Mọi lượt chạy được log vào `workspace/app.db`.
 python main.py   # mở http://127.0.0.1:8000 (WebUI backend trong cùng file)
 ```
 
-4 trang: Dự Án → Biên Dịch (dual-pane sync-scroll, inline-edit, copy/save/retry) →
-Prompt → Cấu Hình. Một phiên dịch tại một thời điểm, stream từng chunk qua SSE.
+4 trang: Dự Án (cards, tiến độ) → Biên Dịch 3 cột (file sources/results, dual editor, tìm/thay regex, copy/save/retry) →
+Prompt → Cấu Hình. Một phiên dịch tại một thời điểm, stream từng chunk qua SSE, atomic write bảo vệ output.
 
 ## Cấu trúc
 
@@ -59,7 +59,7 @@ core/            chunker, prompt_engine, key_rotator, ai_client (Gemini),
 prompts/         prompt *.txt (thêm file = thêm prompt)
 run.py           CLI Phase 1        main.py  WebUI backend (stdlib http.server)
 web/index.html   UI 1 file          tools/     công cụ độc lập (EPUB…)
-workspace/       sources/translated/assets + app.db (gitignore, riêng tư)
+workspace/       sources/results/assets + app.db (gitignore, riêng tư)
 tests/           pytest (mock, không gọi API thật)
 ```
 
