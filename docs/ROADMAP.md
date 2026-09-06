@@ -141,6 +141,12 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 * OpenAI-compatible: đã đưa vào Phase 1, chọn explicit `--provider/--model`, không fallback.
 * Plugin: quy ước file (prompts/tools/providers), không framework động.
 * Single-user: FULL key hiển thị, sửa/xóa trực tiếp trong UI; model select nhìn thấy được + custom; thinking chỉ Gemini; lọc model client-side ở cả Settings và Workspace.
-* `main.py` là điểm vào chính; `run.py` CLI giữ nguyên.
+* `main.py` là điểm vào chính; `run.py` CLI giữ nguyên là entry point được hỗ trợ (quyết định cuối §10.2 `docs/17_*` — đã bác đề xuất loại bỏ).
 * `config/providers.json` là SSOT provider; `config/config.json` chỉ chứa prefs app (`max_chunk_chars`, `api_delay_seconds`, `timeout_seconds`, `default_prompt`).
 * `api_delay_seconds` mặc định 2.0s giữa các chunk chống 429; `timeout_seconds` mặc định 90s.
+
+---
+
+## 8. ĐỀ XUẤT KỸ THUẬT TẠM GÁC (tham khảo sau, không làm ở 3b)
+
+* **`TranslationError` có cấu trúc** (`category: retry_same_key | rotate_key | stop` + provider/model/status/chunk/message): taxonomy đã tập trung ở `classify()`, SSE đã mang attempt/key — chưa có nhu cầu tiêu thụ nên không tạo class. Quay lại khi UI cần dữ liệu lỗi có cấu trúc. (Nguồn: review ngoài 05/09, phản biện tại `docs/17_*` §2.3.)

@@ -1,0 +1,4 @@
+[CHỈ THỊ SOÁT LỖI CHÍNH TẢ & DẤU CÂU]
+1. Rà soát và sửa triệt để các lỗi chính tả tiếng Việt (dấu hỏi/ngã, s/x, tr/ch, d/gi/r).
+2. Xử lý các câu bị lặp từ hoặc dịch gượng gạo theo cấu trúc ngữ pháp ngoại ngữ.
+3. Giữ nguyên 100% tất cả các thẻ Markdown và khoảng cách dòng trống.

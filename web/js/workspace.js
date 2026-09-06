@@ -66,6 +66,17 @@ _wsRes=f;$('tOut').textContent=r.content;
 if(!_wsStats)_wsStats=fStats(f,r.content);}catch(e){_wsRes=null;$('tOut').textContent='';toast('Chưa có kết quả — bấm Gửi AI.');}
 _fMatches=[];updFileInfo();listFiles();}
 function wsPick(){$('wFileInput').click();}
+async function loadProfiles(){
+try{const d=await fetch('/api/profiles').then(J);
+$('wProfile').innerHTML='<option value="">— Profile —</option>'+d.profiles.map(p=>
+`<option value="${esc(p.file)}" title="${esc(p.description||'')}">${esc(p.name)}</option>`).join('');}catch(e){}}
+async function applyProfile(){const f=$('wProfile').value;if(!f)return;
+try{const d=await fetch('/api/profiles').then(J);
+const p=d.profiles.find(x=>x.file===f);if(!p)return;
+const opts=[...$('wPrompt').options].map(o=>o.value);
+if(p.prompt&&opts.includes(p.prompt))$('wPrompt').value=p.prompt;
+document.querySelectorAll('#wExtra input').forEach(x=>{x.checked=(p.extra_prompts||[]).includes(x.value);});
+updExtraEst();toast('Đã nạp profile: '+p.name);}catch(e){toast(e.message,true);}}
 async function wsUpload(files){const p=wsProj();if(!p||!files.length)return;let ok=0,fail=0;const saved=[];
 for(const f of files){try{const r=await fetch(`/api/projects/${encodeURIComponent(p)}/upload?filename=${encodeURIComponent(f.name)}&side=${_wsTab}`,{method:'POST',body:f}).then(J);
 saved.push(r.filename);ok++;}catch(e){fail++;}}
@@ -115,7 +126,10 @@ $('wProg').textContent=`chunk ${j.i}/${j.n} · attempt ${j.attempt} · key ${j.k
 const res0=await readSSE(r,{
 onChunk:j=>{lastSSE[j.i-1]=j.text;$('tOut').textContent=lastSSE.filter(Boolean).join('\n\n');$('wMsg').textContent=`⏳ chunk ${j.i}/${j.n} xong`;},
 onProgress:j=>{window._progLast=j;progPaint();},
-onDone:()=>{clearInterval(window._progT);setRunning(false);$('wMsg').textContent='🎉 Xong! Bấm Lưu Vào File.';tlog(`Xong ${_wsSrc} — bấm Lưu để ghi results/.`,'ok');},
+onDone:d=>{clearInterval(window._progT);setRunning(false);$('wMsg').textContent='🎉 Xong! Bấm Lưu Vào File.';tlog(`Xong ${_wsSrc} — bấm Lưu để ghi results/.`,'ok');
+const w=(d&&d.warnings||[]).filter(x=>x.warnings&&x.warnings.length);
+if(w.length){const t=`⚠️ Cảnh báo output: ${w.map(x=>`chunk ${x.i} (${x.warnings.join(',')})`).join('; ')} — chỉ cảnh báo, không tự sửa.`;
+$('wMsg').innerHTML+='<br><span class=err>'+esc(t)+'</span>';tlog(t,'err');}},
 onError:j=>{clearInterval(window._progT);setRunning(false);
 if(j.cancelled){$('wMsg').textContent='⏹ Đã hủy — không ghi output dở.';tlog('Đã hủy phiên (nháp giữ trên editor).');}
 else {$('wMsg').innerHTML='<span class=err>'+esc(j.error)+'</span>';tlog(`LỖI: ${j.error}`,'err');}}});}
@@ -160,6 +174,8 @@ if(_wsTab!=='sources'){toast('Chuyển tab Nguồn để dịch.',true);return;}
 if(!inConfirmed&&!confirm(`Dịch tuần tự ${fs.length} file? Lỗi thì dừng cả loạt.`))return;
 setRunning(true);
 tlog(`Bắt đầu tuần tự ${fs.length} file: ${fs.join(', ')}`);
+const skipErr=$('sendSkipErr')&&$('sendSkipErr').checked;
+const failed=[];
 const prov=$('wProv').value,model=curModel()||undefined,prompt=$('wPrompt').value;
 const extra=[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value);
 for(let k=0;k<fs.length;k++){const f=fs[k];
@@ -167,15 +183,19 @@ $('wBulkMsg').textContent=`⏳ file ${k+1}/${fs.length}: ${f}`;
 tlog(`file ${k+1}/${fs.length}: ${f}…`);
 const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,file:f,provider_id:prov,model,prompt,extra_prompts:extra})});
-if(!r.ok){const j=await r.json();$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';tlog(`LỖI ở ${f}: ${j.error}`,'err');setRunning(false);return;}
+if(!r.ok){const j=await r.json();
+if(skipErr){failed.push(f);tlog(`Bỏ qua ${f}: ${j.error}`,'err');continue;}
+$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';tlog(`LỖI ở ${f}: ${j.error}`,'err');setRunning(false);return;}
 const textsB=[];
 const resB=await readSSE(r,{onChunk:j=>{textsB[j.i-1]=j.text;}});
 if(resB.error){const ce=resB.error.cancelled?'Đã hủy':resB.error.error||resB.error;
+if(skipErr&&!resB.error.cancelled){failed.push(f);tlog(`Bỏ qua ${f}: ${ce}`,'err');continue;}
 $('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(ce)+'</span>';tlog(`Dừng ở ${f}: ${ce}`,'err');setRunning(false);return;}
 await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,file:f,content:textsB.filter(Boolean).join('\n\n')})}).then(J);
 tlog(`xong ${f} → results/`);}
-$('wBulkMsg').textContent=`🎉 Xong ${fs.length} file.`;tlog(`Hoàn tất tuần tự ${fs.length} file.`);
+$('wBulkMsg').textContent=`🎉 Xong ${fs.length-failed.length}/${fs.length} file.`+(failed.length?` Bỏ qua: ${failed.join(', ')}.`:'');
+tlog(`Hoàn tất tuần tự (${failed.length?`bỏ qua ${failed.join(', ')}`:'đủ'}).`);
 setRunning(false);listFiles();}
 // gộp nhiều file -> 1 phiên, server tách đúng về từng file (gọi từ dialog Gửi AI)
 async function wsMergeTranslate(fs,inConfirmed){const p=wsProj();
@@ -199,6 +219,8 @@ $('wBulkMsg').innerHTML='<span class=err>'+esc(ce)+'</span>';tlog(`Dừng gộp:
 const saved=resM.done&&resM.done.files?resM.done.files:[];
 $('wBulkMsg').textContent=`🎉 Gộp xong → results/: ${saved.map(x=>x.file).join(', ')||fs.join(', ')}.`;
 tlog(`Hoàn tất gộp: ${saved.map(x=>`${x.file} (${x.chars} ký tự)`).join(', ')}.`);
+const mw=saved.filter(x=>x.warnings&&x.warnings.length);
+if(mw.length)tlog(`⚠️ Cảnh báo: ${mw.map(x=>`${x.file} (${x.warnings.join(',')})`).join('; ')}.`,'err');
 if(saved.length){_wsSrc=null;_wsRes=saved[0].file;
 try{const d=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(saved[0].file)}&side=results`).then(J);
 $('tOut').textContent=d.content;}catch(e){}}

@@ -76,7 +76,8 @@
 <h3>Gửi AI — <span id="sendCount"></span></h3>
 <p id="sendInfo"></p>
 <label><input type="radio" name="sendMode" value="merge" checked> Gộp, chia chunk — gộp toàn bộ file đã chọn, chia chunk, đánh dấu từng phần, dịch xong tách đúng về từng file trong results/ (tối ưu limit ngày/giờ)</label><br>
-<label><input type="radio" name="sendMode" value="seq"> Gửi tuần tự — dịch từng file riêng, lỗi dừng cả loạt</label>
+<label><input type="radio" name="sendMode" value="seq"> Gửi tuần tự — dịch từng file riêng, lỗi dừng cả loạt</label><br>
+<label title="Bật: file lỗi được ghi nhận và bỏ qua, tiếp tục file sau"><input type="checkbox" id="sendSkipErr"> Bỏ qua file lỗi (chỉ chế độ tuần tự)</label>
 <div class="row"><button class="btn" onclick="sendDlg.close()">Hủy bỏ</button>
 <button class="btn pri" onclick="sendGo()">Gửi →</button></div>
 </dialog>

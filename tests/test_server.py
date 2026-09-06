@@ -30,6 +30,8 @@ def app(tmp_path, monkeypatch):
     ws = tmp_path / "workspace"
     monkeypatch.setattr(server, "SafeFileHandler", lambda: RealHandler(ws))
     monkeypatch.setattr(server, "get_db", lambda: real_get_db(tmp_path / "app.db"))
+    import core.app_db as app_db_mod
+    monkeypatch.setattr(app_db_mod, "get_db", lambda db_path=None: real_get_db(tmp_path / "app.db"))
     monkeypatch.setattr(server, "log_run", lambda *a, **k: None)
     monkeypatch.setattr(server, "build_client", FakeClient)
     monkeypatch.setattr(server, "AIProviderManager", lambda: RealMgr(tmp_path / "pconfig"))
@@ -587,3 +589,23 @@ def test_cancel_between_delay_no_output(app, monkeypatch):
     assert s == 404  # hủy trước khi ghi -> không file dở dang
     s, _ = call(app, "GET", "/api/health")  # lock đã thả
     assert s == 200
+
+
+def test_profiles_endpoint(app):
+    s, b = call(app, "GET", "/api/profiles")
+    d = json.loads(b)
+    assert s == 200 and len(d["profiles"]) >= 3
+    names = {p["name"] for p in d["profiles"]}
+    assert {"Tiểu thuyết", "Kỹ thuật", "Giữ Markdown"} <= names
+    p0 = d["profiles"][0]
+    assert set(("file", "name", "description", "prompt", "extra_prompts")) <= set(p0)
+
+
+def test_done_carries_warnings(app):
+    _seed(app)
+    s, b = call(app, "POST", "/api/translate",
+                {"project": "Kiem_Hiep", "file": "ch01.md",
+                 "provider_id": "gemini-default", "prompt": "default_translation.txt"})
+    assert s == 200
+    body = b.decode()
+    assert '"warnings"' in body  # done kèm cảnh báo heuristic (kể cả rỗng)

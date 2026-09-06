@@ -22,6 +22,7 @@ from core.app_db import get_db, log_run, file_id as _file_id
 from core.chunker import split_text
 from core.config import AppConfig
 from core.errors import TranslateCancelled
+from core.quality import warn_output
 from core.file_handler import SafeFileHandler, atomic_write_text
 from core.prompt_engine import PromptEngine
 from core.provider_manager import AIProviderManager
@@ -404,6 +405,22 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/prompts":
             return self._json({"prompts": sorted(
                 f.name for f in PromptEngine().prompts_dir.glob("*.txt") if f.is_file())})
+
+        if u.path == "/api/profiles":
+            out = []
+            prof_dir = PromptEngine().prompts_dir / "profiles"
+            if prof_dir.is_dir():
+                for f in sorted(prof_dir.glob("*.json")):
+                    try:
+                        d = json.loads(f.read_text(encoding="utf-8"))
+                        if isinstance(d, dict) and d.get("name"):
+                            out.append({"file": f.name, "name": d.get("name", f.stem),
+                                        "description": d.get("description", ""),
+                                        "prompt": d.get("prompt", ""),
+                                        "extra_prompts": d.get("extra_prompts", []) or []})
+                    except (ValueError, OSError):
+                        continue
+            return self._json({"profiles": out})
 
         if u.path.startswith("/api/prompts/"):
             name = urllib.parse.unquote(u.path[len("/api/prompts/"):])
@@ -974,7 +991,10 @@ class Handler(BaseHTTPRequestHandler):
             output = "\n\n".join(outs)
             _persist_output(fh, project, fname, output, len(chunks),
                             provider["id"], model, _file_id(project, fname))
-            emit("done", {"chars": len(output.encode("utf-8"))})
+            warns = [{"i": i + 1, "warnings": w}
+                     for i, (ch, o) in enumerate(zip(chunks, outs))
+                     if (w := warn_output(ch, o))]
+            emit("done", {"chars": len(output.encode("utf-8")), "warnings": warns})
         except TranslateCancelled as e:
             log_run(provider["id"], model, "cancelled", str(e), file_id=_file_id(project, fname))
             emit("error", {"error": str(e), "cancelled": True})
@@ -1058,13 +1078,15 @@ class Handler(BaseHTTPRequestHandler):
                                            cfg.get("api_delay_seconds", 2.0), len(keys), emit,
                                            cancel=_cancel_event))
             parts_out = _split_output(outs, seg_names, files)
+            src_map = dict(parts)
             saved, failed = [], []
             for f in files:
                 try:
                     content = parts_out.get(f, "")
                     _persist_output(fh, project, f, content, 0,
                                     provider["id"], model, _file_id(project, f))
-                    saved.append({"file": f, "chars": len(content.encode("utf-8"))})
+                    saved.append({"file": f, "chars": len(content.encode("utf-8")),
+                                  "warnings": warn_output(src_map.get(f, ""), content)})
                 except OSError as e:
                     failed.append({"file": f, "error": str(e)})
             if failed:
