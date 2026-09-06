@@ -9,6 +9,8 @@ from core.ai_client import GeminiClient
 from core.app_db import log_run
 from core.chunker import split_text
 from core.config import AppConfig
+from core.file_handler import SafeFileHandler
+from core.fileops import atomic_write_text
 from core.key_rotator import KeyRotator
 from core.openai_client import OpenAICompatClient
 from core.prompt_engine import PromptEngine

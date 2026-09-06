@@ -66,7 +66,7 @@ def _glossary_for_chunk(slug: str, chunk: str) -> str:
 def _upsert_file(project: str, filename: str, chars: int, chunks: int, status: str):
     con = get_db()
     now = datetime.datetime.now().isoformat(timespec="seconds")
-    size = len(filename.encode("utf-8")) + chars  # ước lượng nhẹ, khỏi stat thêm
+    size = chars  # size thật (bytes content) do caller truyền; không ước lượng cộng tên file
     con.execute(
         "INSERT INTO files(project_slug, filename, size_bytes, char_count, chunk_count, status, updated_at)"
         " VALUES (?,?,?,?,?,?,?)"
@@ -77,6 +77,29 @@ def _upsert_file(project: str, filename: str, chars: int, chunks: int, status: s
     )
     con.commit()
     con.close()
+
+
+def _job_blocks(slug: str, fname: str | None = None) -> bool:
+    """True nếu phiên đang chạy đụng project/file. fname=None = cả project.
+    Tương thích _active_job dạng (slug, fname-str) của single và (slug, [files]) của merge."""
+    if not _active_job:
+        return False
+    job_slug, job_files = _active_job[0], _active_job[1]
+    if isinstance(job_files, str):
+        job_files = [job_files]
+    if job_slug != slug:
+        return False
+    return fname is None or fname in job_files
+
+
+def _persist_output(fh: SafeFileHandler, project: str, fname: str, content: str,
+                    n_chunks: int, provider_id: str, model: str,
+                    file_id: int | None) -> None:
+    """Contract §9.3 docs/17: atomic → upsert done (size thật) → log ok.
+    Raise để caller map lỗi; KHÔNG emit done ở đây (caller chịu trách nhiệm SSE)."""
+    fh.save_output(project, fname, content)
+    _upsert_file(project, fname, len(content.encode("utf-8")), n_chunks, "done")
+    log_run(provider_id, model, "ok", file_id=file_id)
 
 
 def _file_id(project: str, filename: str) -> int | None:
@@ -514,7 +537,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if u.path.startswith("/api/projects/") and u.path.endswith("/archive"):
             slug = urllib.parse.unquote(u.path[len("/api/projects/"):-len("/archive")].strip("/"))
-            if _active_job and _active_job[0] == slug:
+            if _job_blocks(slug):
                 return self._err("Dự án đang có phiên dịch chạy, chờ xong rồi lưu trữ.", 409)
             try:
                 SafeFileHandler().archive_project(slug)
@@ -549,7 +572,7 @@ class Handler(BaseHTTPRequestHandler):
             if data is None:
                 return self._err("JSON không hợp lệ")
             old, new = (data.get("old") or "").strip(), (data.get("new") or "").strip()
-            if _active_job and _active_job[0] == slug and _active_job[1] == old:
+            if _job_blocks(slug, old):
                 return self._err("File đang dịch, chờ xong rồi đổi tên.", 409)
             try:
                 fh = SafeFileHandler()
@@ -600,7 +623,7 @@ class Handler(BaseHTTPRequestHandler):
                 target = fh.get_project_dir(slug) / side
             except ValueError as e:
                 return self._err(str(e))
-            if _active_job and _active_job[0] == slug and _active_job[1] in olds:
+            if _active_job and any(_job_blocks(slug, o) for o in olds):
                 return self._err("Có file đang dịch trong danh sách, chờ xong rồi đổi.", 409)
             # tên mới dự kiến (giữ đuôi old khi thiếu-dot) + phát hiện trùng nội bộ trước
             planned, seen = [], set()
@@ -847,7 +870,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path.startswith("/api/projects/") and u.path.endswith("/files"):
             slug = urllib.parse.unquote(u.path[len("/api/projects/"):-len("/files")].strip("/"))
             fname = urllib.parse.parse_qs(u.query).get("filename", [""])[0]
-            if _active_job and (_active_job[0], _active_job[1]) == (slug, fname):
+            if _job_blocks(slug, fname):
                 return self._err("File đang dịch, chờ xong rồi xóa.", 409)
             try:
                 SafeFileHandler().delete_file(slug, fname)
@@ -862,7 +885,7 @@ class Handler(BaseHTTPRequestHandler):
             slug = urllib.parse.unquote(u.path[len("/api/projects/"):]).strip("/")
             if not slug or "/" in slug:
                 return self._err("Không tìm thấy", 404)
-            if _active_job and _active_job[0] == slug:
+            if _job_blocks(slug):
                 return self._err("Dự án đang có phiên dịch chạy, chờ xong rồi xóa.", 409)
             try:
                 SafeFileHandler().delete_project(slug)
@@ -953,13 +976,14 @@ class Handler(BaseHTTPRequestHandler):
             outs = asyncio.run(_run_chunks(client, prompts, [[fname]] * len(prompts),
                                            cfg.get("api_delay_seconds", 2.0), len(keys), emit,
                                            cancel=_cancel_event))
-            _upsert_file(project, fname, len(text), len(chunks), "translating")
-            log_run(provider["id"], model, "ok", file_id=_file_id(project, fname))
-            emit("done", {"chars": sum(len(o) for o in outs)})
+            output = "\n\n".join(outs)
+            _persist_output(fh, project, fname, output, len(chunks),
+                            provider["id"], model, _file_id(project, fname))
+            emit("done", {"chars": len(output.encode("utf-8"))})
         except TranslateCancelled as e:
             log_run(provider["id"], model, "cancelled", str(e), file_id=_file_id(project, fname))
             emit("error", {"error": str(e), "cancelled": True})
-        except (ConnectionError, TimeoutError, RuntimeError, ValueError) as e:
+        except (ConnectionError, TimeoutError, RuntimeError, ValueError, OSError) as e:
             log_run(provider["id"], model, "error", str(e), file_id=_file_id(project, fname))
             emit("error", {"error": str(e)})
         finally:
@@ -1020,7 +1044,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream; charset=utf-8")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
-        _active_job = (project, files[0])
+        _active_job = (project, list(files))
 
         def emit(event, payload):
             line = f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -1035,17 +1059,26 @@ class Handler(BaseHTTPRequestHandler):
                                            cfg.get("api_delay_seconds", 2.0), len(keys), emit,
                                            cancel=_cancel_event))
             parts_out = _split_output(outs, seg_names, files)
-            saved = []
+            saved, failed = [], []
             for f in files:
-                fh.save_output(project, f, parts_out.get(f, ""))
-                _upsert_file(project, f, len(parts_out.get(f, "")), 0, "done")
-                saved.append({"file": f, "chars": len(parts_out.get(f, ""))})
-            log_run(provider["id"], model, "ok")
-            emit("done", {"chars": sum(len(o) for o in outs), "chunks": len(outs), "files": saved})
+                try:
+                    content = parts_out.get(f, "")
+                    _persist_output(fh, project, f, content, 0,
+                                    provider["id"], model, _file_id(project, f))
+                    saved.append({"file": f, "chars": len(content.encode("utf-8"))})
+                except OSError as e:
+                    failed.append({"file": f, "error": str(e)})
+            if failed:
+                log_run(provider["id"], model, "error",
+                        f"merge partial: {len(saved)} ok, {len(failed)} fail")
+                emit("error", {"error": f"Một số file lỗi: {', '.join(x['file'] for x in failed)}",
+                               "saved": saved, "failed": failed})
+            else:
+                emit("done", {"chars": sum(len(o) for o in outs), "chunks": len(outs), "files": saved})
         except TranslateCancelled as e:
             log_run(provider["id"], model, "cancelled", str(e))
             emit("error", {"error": str(e), "cancelled": True})
-        except (ConnectionError, TimeoutError, RuntimeError, ValueError) as e:
+        except (ConnectionError, TimeoutError, RuntimeError, ValueError, OSError) as e:
             log_run(provider["id"], model, "error", str(e))
             emit("error", {"error": str(e)})
         finally:
