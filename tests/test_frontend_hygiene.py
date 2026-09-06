@@ -1,8 +1,26 @@
 """Khóa vệ sinh frontend: dữ liệu ngoài vào innerHTML/href phải qua esc()/safeHref()."""
 
+import re
 from pathlib import Path
 
 JS_DIR = Path(__file__).resolve().parent.parent / "web" / "js"
+INDEX_HTML = Path(__file__).resolve().parent.parent / "web" / "index.html"
+
+# ID do JS tự tạo lúc chạy (không có trong HTML tĩnh) — allowlist kín, thêm mới phải ghi lý do
+DYNAMIC_IDS = {"toast"}
+
+
+def _all_js():
+    return "".join((JS_DIR / f).read_text(encoding="utf-8") for f in sorted(
+        p.name for p in JS_DIR.glob("*.js")))
+
+
+def test_no_dangling_dom_references():
+    html = INDEX_HTML.read_text(encoding="utf-8")
+    ids = set(re.findall(r'id="([^"]+)"', html))
+    used = set(re.findall(r"\$\('([^']+)'\)", _all_js()))
+    dangling = {u for u in used if u not in ids} - DYNAMIC_IDS
+    assert not dangling, f"JS trỏ ID không tồn tại trong HTML (gây TypeError chết script): {dangling}"
 
 
 def _src(name):

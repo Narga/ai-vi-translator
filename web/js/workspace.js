@@ -148,13 +148,20 @@ _sendFiles=fs.slice();
 let total=0;for(const f of fs){try{const d=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=sources`).then(J);
 total+=d.content.length;}catch(e){toast('Không đọc được '+f+': '+e.message,true);return;}}
 const max=+$('sMax').value||16000,est=Math.max(1,Math.ceil(total/max));
+window._sendTotal=total;window._sendMax=max;
 $('sendCount').textContent=`${fs.length} file`;
 $('sendInfo').textContent=`${fs.join(', ')} — ${total.toLocaleString()} ký tự, ~${est} chunk.`
 +` Provider: ${$('wProv').selectedOptions[0].textContent}, model: ${curModel()||'(chưa chọn)'}, prompt: ${$('wPrompt').value}.`
 +(est>2?' ⚠️ Quá 2 chunk dễ giảm chất lượng.':'');
+const mMerge=document.querySelector('input[name=sendMode][value=merge]');
+const mSeq=document.querySelector('input[name=sendMode][value=seq]');
+if(fs.length<2){mMerge.disabled=true;mSeq.checked=true;
+$('sendInfo').textContent+=` Chỉ 1 file${total<=max?' (dưới ngưỡng chia chunk)':''} → dịch trực tiếp, không gộp.`;}
+else{mMerge.disabled=false;}
 sendDlg.showModal();}
 async function sendGo(){const mode=document.querySelector('input[name=sendMode]:checked').value;
 sendDlg.close();const fs=_sendFiles.slice();
+if(mode==='merge'&&fs.length<2){tlog(`1 file (${(window._sendTotal||0).toLocaleString()} ký tự) → bỏ qua gộp, dịch trực tiếp.`);wsBulkTranslate(fs,true);return;}
 if(mode==='merge')wsMergeTranslate(fs,true);else wsBulkTranslate(fs,true);}
 async function saveTl(){const f=_wsRes||_wsSrc;if(!f)return;
 await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -173,11 +180,20 @@ if(!fs||!fs.length){toast('Chọn file trước.');return;}
 if(_wsTab!=='sources'){toast('Chuyển tab Nguồn để dịch.',true);return;}
 if(!inConfirmed&&!confirm(`Dịch tuần tự ${fs.length} file? Lỗi thì dừng cả loạt.`))return;
 setRunning(true);
-tlog(`Bắt đầu tuần tự ${fs.length} file: ${fs.join(', ')}`);
-const skipErr=$('sendSkipErr')&&$('sendSkipErr').checked;
-const failed=[];
 const prov=$('wProv').value,model=curModel()||undefined,prompt=$('wPrompt').value;
 const extra=[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value);
+const skipErr=$('sendSkipErr')&&$('sendSkipErr').checked;
+const failed=[];
+try{const pv=await fetch('/api/settings/providers').then(J);
+const pi=(pv.providers||[]).find(x=>x.id===prov);
+const nk=pi?((pi.api_keys||[]).length||(pi.api_key?1:0)):0;
+tlog(`🔑 ${nk} API key · ${prov}/${model||'(mặc định)'} · prompt ${prompt}`+(extra.length?` +${extra.length} bổ sung`:'')+`.`);
+}catch(e){}
+for(const f of fs){try{const c=await fetch(`/api/chunks?project=${encodeURIComponent(p)}&file=${encodeURIComponent(f)}`).then(J);
+tlog(`📄 ${f}: ${(c.chunks.reduce((a,x)=>a+x.chars,0)).toLocaleString()} ký tự (~${c.chunks.length} chunk).`);}catch(e){}}
+clearInterval(window._progT);window._progT0=Date.now();window._progLast=null;
+window._progT=setInterval(()=>{if(window._progLast)progPaint();},1000);
+const doneOk=[];
 for(let k=0;k<fs.length;k++){const f=fs[k];
 $('wBulkMsg').textContent=`⏳ file ${k+1}/${fs.length}: ${f}`;
 tlog(`file ${k+1}/${fs.length}: ${f}…`);
@@ -185,18 +201,24 @@ const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'app
 body:JSON.stringify({project:p,file:f,provider_id:prov,model,prompt,extra_prompts:extra})});
 if(!r.ok){const j=await r.json();
 if(skipErr){failed.push(f);tlog(`Bỏ qua ${f}: ${j.error}`,'err');continue;}
-$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';tlog(`LỖI ở ${f}: ${j.error}`,'err');setRunning(false);return;}
+$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';tlog(`LỖI ở ${f}: ${j.error}`,'err');clearInterval(window._progT);setRunning(false);return;}
 const textsB=[];
-const resB=await readSSE(r,{onChunk:j=>{textsB[j.i-1]=j.text;}});
+const resB=await readSSE(r,{onChunk:j=>{textsB[j.i-1]=j.text;
+tlog(`✅ chunk ${j.i}/${j.n} xong (${f}).`);},
+onProgress:j=>{window._progLast=j;progPaint();}});
 if(resB.error){const ce=resB.error.cancelled?'Đã hủy':resB.error.error||resB.error;
 if(skipErr&&!resB.error.cancelled){failed.push(f);tlog(`Bỏ qua ${f}: ${ce}`,'err');continue;}
-$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(ce)+'</span>';tlog(`Dừng ở ${f}: ${ce}`,'err');setRunning(false);return;}
+$('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(ce)+'</span>';tlog(`Dừng ở ${f}: ${ce}`,'err');clearInterval(window._progT);setRunning(false);return;}
 await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,file:f,content:textsB.filter(Boolean).join('\n\n')})}).then(J);
-tlog(`xong ${f} → results/`);}
+doneOk.push(f);
+tlog(`💾 ${f} → results/ (${textsB.filter(Boolean).length} chunk).`);}
+clearInterval(window._progT);
 $('wBulkMsg').textContent=`🎉 Xong ${fs.length-failed.length}/${fs.length} file.`+(failed.length?` Bỏ qua: ${failed.join(', ')}.`:'');
 tlog(`Hoàn tất tuần tự (${failed.length?`bỏ qua ${failed.join(', ')}`:'đủ'}).`);
-setRunning(false);listFiles();}
+setRunning(false);listFiles();
+if(doneOk.length){await wsOpen(encodeURIComponent(doneOk[doneOk.length-1]));
+toast(`Đã nạp kết quả: ${doneOk[doneOk.length-1]}`);}}
 // gộp nhiều file -> 1 phiên, server tách đúng về từng file (gọi từ dialog Gửi AI)
 async function wsMergeTranslate(fs,inConfirmed){const p=wsProj();
 if(!fs||!fs.length){toast('Chọn file trước.');return;}
@@ -205,17 +227,30 @@ const prov=$('wProv').value,model=curModel()||undefined,prompt=$('wPrompt').valu
 const extra=[...document.querySelectorAll('#wExtra input:checked')].map(x=>x.value);
 $('wBulkMsg').textContent=`⏳ Đang gộp dịch ${fs.length} file…`;$('tOut').textContent='';
 setRunning(true);
-tlog(`Bắt đầu gộp ${fs.length} file: ${fs.join(', ')}`);
+try{const pv=await fetch('/api/settings/providers').then(J);
+const pi=(pv.providers||[]).find(x=>x.id===prov);
+const nk=pi?((pi.api_keys||[]).length||(pi.api_key?1:0)):0;
+tlog(`🔑 ${nk} API key · ${prov}/${model||'(mặc định)'} · prompt ${prompt}`+(extra.length?` +${extra.length} bổ sung`:'')+`.`);
+}catch(e){}
+let mTotal=0;for(const f of fs){try{const d=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=sources`).then(J);
+mTotal+=d.content.length;tlog(`📄 ${f}: ${d.content.length.toLocaleString()} ký tự.`);}catch(e){}}
+try{const c=await fetch('/api/settings').then(J);
+const mx=+c.max_chunk_chars||window._sendMax||16000;
+tlog(`🧩 Gộp ${fs.length} file, tổng ~${mTotal.toLocaleString()} ký tự (~${Math.max(1,Math.ceil(mTotal/mx))} chunk, ngưỡng ${mx.toLocaleString()}).`);}catch(e){
+tlog(`Bắt đầu gộp ${fs.length} file: ${fs.join(', ')}`);}
+clearInterval(window._progT);window._progT0=Date.now();window._progLast=null;
+window._progT=setInterval(()=>{if(window._progLast)progPaint();},1000);
 const r=await fetch('/api/translate/merge',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,files:fs,provider_id:prov,model,prompt,extra_prompts:extra})});
-if(!r.ok){const j=await r.json();$('wBulkMsg').innerHTML='<span class=err>'+esc(j.error)+'</span>';tlog(`LỖI gộp: ${j.error}`,'err');setRunning(false);return;}
+if(!r.ok){const j=await r.json();$('wBulkMsg').innerHTML='<span class=err>'+esc(j.error)+'</span>';tlog(`LỖI gộp: ${j.error}`,'err');clearInterval(window._progT);setRunning(false);return;}
 const texts=[];
 const resM=await readSSE(r,{
 onChunk:j=>{texts[j.i-1]=j.text;$('tOut').textContent=texts.filter(Boolean).join('\n\n');
 const lbl=`⏳ chunk ${j.i}/${j.n}`+(j.files&&j.files.length>1?` · ${j.files.join('+')}`:(j.file?` · ${j.file}`:''));
-$('wBulkMsg').textContent=lbl;tlog(lbl);}});
+$('wBulkMsg').textContent=lbl;tlog(lbl);},
+onProgress:j=>{window._progLast=j;progPaint();}});
 if(resM.error){const ce=resM.error.cancelled?'Đã hủy':(resM.error.error||resM.error);
-$('wBulkMsg').innerHTML='<span class=err>'+esc(ce)+'</span>';tlog(`Dừng gộp: ${ce}`,'err');setRunning(false);return;}
+$('wBulkMsg').innerHTML='<span class=err>'+esc(ce)+'</span>';tlog(`Dừng gộp: ${ce}`,'err');clearInterval(window._progT);setRunning(false);return;}
 const saved=resM.done&&resM.done.files?resM.done.files:[];
 $('wBulkMsg').textContent=`🎉 Gộp xong → results/: ${saved.map(x=>x.file).join(', ')||fs.join(', ')}.`;
 tlog(`Hoàn tất gộp: ${saved.map(x=>`${x.file} (${x.chars} ký tự)`).join(', ')}.`);
@@ -224,6 +259,7 @@ if(mw.length)tlog(`⚠️ Cảnh báo: ${mw.map(x=>`${x.file} (${x.warnings.join
 if(saved.length){_wsSrc=null;_wsRes=saved[0].file;
 try{const d=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(saved[0].file)}&side=results`).then(J);
 $('tOut').textContent=d.content;}catch(e){}}
+clearInterval(window._progT);
 setRunning(false);listFiles();listProjects();}
 // --- Batch rename: preview + xác nhận (không auto-sync, không ghi đè) ---
 let _rnFiles=[];

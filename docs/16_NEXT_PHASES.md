@@ -8,11 +8,13 @@
 
 ## Phase 3b — Công cụ nội dung nhẹ (làm tiếp theo, vẫn zero-npm)
 
+> **Chi tiết thực thi + review ngoài đã đối chiếu: `docs/17_PHASE_3B_STABILIZATION_PLAN.md`** (Đợt A–C stabilization trước, Đợt D tính năng sau; 5 câu hỏi chặn khởi công ở cuối file 17).
+
 - [ ] **Glossary theo project có UI:** endpoint `GET/PUT /api/projects/{slug}/glossary` (text `gốc=nghĩa`, cap ~200 dòng + cảnh báo phình prompt); tab sửa trong Workspace + preview "chunk này trúng N thuật ngữ". Backend lọc đã có (`_glossary_for_chunk` trong `main.py`).
-- [ ] **Prompt profile (preset, không engine động):** file JSON trong `prompts/profiles/` (`{name, prompt, extra_prompts[]}`); dropdown Workspace nạp sẵn prompt + extras vào control hiện có; ship 3 mẫu (Tiểu thuyết / Kỹ thuật / Giữ Markdown).
-- [ ] **Diff + cảnh báo output bất thường (heuristic, không model chấm điểm):** sau `emit("done")`, server tính mỗi chunk — rỗng / ngắn hơn nguồn 50% / trùng nguồn 80% / mất cấu trúc Markdown (đếm `#`,`-`,`>`) / nghi cắt dở (kết thúc không dấu câu) → kèm `done.warnings[]`; UI banner vàng theo chunk, chỉ cảnh báo không tự sửa. Vendor `diff-match-patch` (1 file ~30KB, `web/vendor/`) khi cần view 2 cột/inline — theo manifesto §9, không cần thảo luận lại. Cửa CodeMirror 6 chỉ mở khi diff/search-replace cần editor thật (chưa có bằng chứng IME).
+- [x] **Prompt profile (preset, không engine động):** `GET /api/profiles` + dropdown Workspace; 3 mẫu ship kèm (Tiểu thuyết / Kỹ thuật / Giữ Markdown) + 2 prompt bổ sung (`qa_polish_tien_hiep.txt`, `qa_proofread.txt`).
+- [x] **Diff + cảnh báo output bất thường (heuristic):** `core/quality.py` (`empty/too_short/mostly_unchanged/md_structure_lost/possibly_truncated`) + unit; `done` kèm `warnings`; banner vàng UI. Chưa làm: view diff 2 cột (vendor `diff-match-patch` khi cần).
 - [ ] **Preview Markdown/HTML:** vendor `marked` + `DOMPurify` vào `web/vendor/` (pin version, ghi license); pane toggle thứ 3 hoặc thay thế tạm trong Workspace; sanitize hiển thị (backend đã sanitize là chính).
-- [ ] **Batch search/replace nâng cao:** đã có thay-hết phạm vi (`POST /api/find-replace` + `skipped`/`errors`); còn thiếu: preview danh sách chỗ match trước khi thay, undo 1 bước (backup `.bak` trước khi ghi).
+- [x] **Batch dịch:** skip-error checkbox (mặc định TẮT) + progress tổng; còn thiếu: preview match + undo `.bak` của find-replace.
 - [ ] **Ước tính token/chi phí** từ `model_info.pricing` (hiển thị, không cam kết chính xác).
 - **Acceptance:** glossary/profile/diff/preview dùng được end-to-end; không model chấm điểm; không state mới ngoài `profiles/*.json`.
 

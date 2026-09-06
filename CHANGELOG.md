@@ -15,6 +15,20 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 - `load_prompt` validate tên; `split_text` từ chối `max_chars` vô hiệu; KeyRotator dedup + message đúng SSOT.
 - SSE emit chống đứt kết nối; archive verify zip trước xóa; settings XSS escape + whitelist scheme.
 
+## [v3.1.1] - 2026-09-06 — Phase 3b stabilization (bugfixes & profiles)
+### Added
+- `core/quality.py`: heuristic warnings (`empty/too_short/mostly_unchanged/md_structure_lost/possibly_truncated`); `done` kèm `warnings`; banner vàng UI (chỉ cảnh báo).
+- Batch tuần tự: checkbox "bỏ qua file lỗi" (mặc định TẮT) + progress tổng.
+- Prompt profiles: `GET /api/profiles` + dropdown Workspace; 3 mẫu + 2 prompt bổ sung (`qa_polish_tien_hiep.txt`, `qa_proofread.txt`).
+- `/api/profiles` endpoint + `wProfile` dropdown nạp preset, `applyProfile` tự c đặt prompt + extras.
+### Fixed
+- WebUI single translate tự lưu `results/` (P0.1); `run.py` đủ import (P0.2).
+- Client parse chuẩn hóa cả 2 provider (JSON non-object, rỗng/whitespace parity, RequestError chung).
+- `load_prompt` validate tên; `split_text` từ chối `max_chars` vô hiệu; KeyRotator dedup + message đúng SSOT.
+- SSE emit chống đứt kết nối; archive verify zip trước xóa; settings XSS escape + whitelist scheme.
+- 1 file + Gửi AI → khóa merge, mặc định tuần tự (không gộp 1 file).
+- Dialog Gộp: log phiên (key/provider/model/chunks), progress chunk/attempt/key, timer clearInterval đầy đủ.
+- Gộp nhiều file → log total/ngưỡng chunk + mỗi file ký tự, auto-fetch sources size.
 ## [3.0.0] - 2026-09-05 — Phase 3a: hoàn thiện UI
 ### Added
 - Tách frontend: `web/css/app.css` (tokens + components) + `web/js/` theo trang (app/projects/workspace/findreplace/prompts/settings/init); MIME map css/js + test; `readSSE`/`toast()` dùng chung (xóa 3 bản copy SSE, `alert()` → toast trừ restart).
