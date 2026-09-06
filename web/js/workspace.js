@@ -32,9 +32,11 @@ return `<div class="pfile${on}"><span class="dot${paired?'':' off'}" title="${pa
 +`<span class="fname" title="${esc(f)}" onclick="wsOpen('${e}')">${esc(f)}</span></div>`;}
 function updSelUI(){const boxes=[...document.querySelectorAll('#wFileList .wSel')];
 const vis=boxes.filter(x=>_sel.has(decodeURIComponent(x.value)));
-$('wSelAll').checked=boxes.length>0&&vis.length===boxes.length;
-const all=_wsTab==='sources'?_lists.sources:_lists.results;
-const shown=new Set(applyFlt(all));
+const all=boxes.length>0&&vis.length===boxes.length;
+$('wSelAll').checked=all;
+$('wSelAll').indeterminate=!all&&vis.length>0; // chọn một phần → gạch ngang
+const allF=_wsTab==='sources'?_lists.sources:_lists.results;
+const shown=new Set(applyFlt(allF));
 const hid=[..._sel].filter(f=>!shown.has(f)).length;
 $('wSelCount').textContent=_sel.size?`${_sel.size} đã chọn`+(hid?` (${hid} ẩn bởi filter)`:''):'';
 updFileInfo();}
@@ -47,9 +49,7 @@ function wsSel(){return [..._sel];}
 function fStats(name,text){const c=text.length,w=text.split(/\s+/).filter(Boolean).length;
 return `Tập tin: ${name} | gồm có: ${c.toLocaleString()} ký tự | ${w.toLocaleString()} từ | ước lượng ~${Math.round(c/4).toLocaleString()} tokens`;}
 let _wsStats='';
-function updFileInfo(){let t=_wsStats||'Chưa chọn tập tin.';
-if(_sel.size>1)t+=` | đã chọn ${_sel.size} tập tin.`;
-$('wFileInfo').textContent=t;}
+function updFileInfo(){$('wFileInfo').textContent=_wsStats||'Chưa chọn tập tin.';}
 function wrapTog(){const off=$('tSrc').classList.toggle('nowrap');$('tOut').classList.toggle('nowrap',off);
 try{localStorage.setItem('ct_wrap',off?'0':'1');}catch(e){}}
 $('tOut').addEventListener('paste',e=>{  // chỉ chèn plain-text, chặn rác rich-text
@@ -66,17 +66,6 @@ _wsRes=f;$('tOut').textContent=r.content;
 if(!_wsStats)_wsStats=fStats(f,r.content);}catch(e){_wsRes=null;$('tOut').textContent='';toast('Chưa có kết quả — bấm Gửi AI.');}
 _fMatches=[];updFileInfo();listFiles();}
 function wsPick(){$('wFileInput').click();}
-async function loadProfiles(){
-try{const d=await fetch('/api/profiles').then(J);
-$('wProfile').innerHTML='<option value="">— Profile —</option>'+d.profiles.map(p=>
-`<option value="${esc(p.file)}" title="${esc(p.description||'')}">${esc(p.name)}</option>`).join('');}catch(e){}}
-async function applyProfile(){const f=$('wProfile').value;if(!f)return;
-try{const d=await fetch('/api/profiles').then(J);
-const p=d.profiles.find(x=>x.file===f);if(!p)return;
-const opts=[...$('wPrompt').options].map(o=>o.value);
-if(p.prompt&&opts.includes(p.prompt))$('wPrompt').value=p.prompt;
-document.querySelectorAll('#wExtra input').forEach(x=>{x.checked=(p.extra_prompts||[]).includes(x.value);});
-updExtraEst();toast('Đã nạp profile: '+p.name);}catch(e){toast(e.message,true);}}
 async function wsUpload(files){const p=wsProj();if(!p||!files.length)return;let ok=0,fail=0;const saved=[];
 for(const f of files){try{const r=await fetch(`/api/projects/${encodeURIComponent(p)}/upload?filename=${encodeURIComponent(f.name)}&side=${_wsTab}`,{method:'POST',body:f}).then(J);
 saved.push(r.filename);ok++;}catch(e){fail++;}}
@@ -163,10 +152,11 @@ async function sendGo(){const mode=document.querySelector('input[name=sendMode]:
 sendDlg.close();const fs=_sendFiles.slice();
 if(mode==='merge'&&fs.length<2){tlog(`1 file (${(window._sendTotal||0).toLocaleString()} ký tự) → bỏ qua gộp, dịch trực tiếp.`);wsBulkTranslate(fs,true);return;}
 if(mode==='merge')wsMergeTranslate(fs,true);else wsBulkTranslate(fs,true);}
-async function saveTl(){const f=_wsRes||_wsSrc;if(!f)return;
+async function saveSide(paneId,side){const f=side==='sources'?_wsSrc:_wsRes;if(!f){toast('Chưa mở file '+(side==='sources'?'nguồn':'kết quả')+'.',true);return;}
 await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
-body:JSON.stringify({project:wsProj(),file:f,content:$('tOut').textContent})}).then(J);
-$('wMsg').textContent='💾 Đã lưu vào results/'+f+'.';tlog(`Đã lưu results/${f} (ghi đè chủ đích).`,'ok');listFiles();}
+body:JSON.stringify({project:wsProj(),file:f,side,content:$(paneId).textContent})}).then(J);
+$('wMsg').textContent=`💾 Đã lưu ${side}/`+f+'.';tlog(`Đã lưu ${side}/${f} (ghi đè chủ đích).`,'ok');listFiles();}
+function saveSrc(){saveSide('tSrc','sources')}function saveRes(){saveSide('tOut','results')}
 function retryTl(){startTl()}function clearTl(){$('tOut').textContent='';startTl()}
 async function cancelTl(){if(!confirm('Hủy phiên dịch đang chạy? Output dở không được ghi.'))return;
 try{await fetch('/api/translate/cancel',{method:'POST'}).then(J);
@@ -199,15 +189,15 @@ $('wBulkMsg').textContent=`⏳ file ${k+1}/${fs.length}: ${f}`;
 tlog(`file ${k+1}/${fs.length}: ${f}…`);
 const r=await fetch('/api/translate',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,file:f,provider_id:prov,model,prompt,extra_prompts:extra})});
-if(!r.ok){const j=await r.json();
-if(skipErr){failed.push(f);tlog(`Bỏ qua ${f}: ${j.error}`,'err');continue;}
+    if(!r.ok){const j=await r.json();
+    if(batchOnFileError(skipErr,false)==='skip'){failed.push(f);tlog(`Bỏ qua ${f}: ${j.error}`,'err');continue;}
 $('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(j.error)+'</span>';tlog(`LỖI ở ${f}: ${j.error}`,'err');clearInterval(window._progT);setRunning(false);return;}
 const textsB=[];
 const resB=await readSSE(r,{onChunk:j=>{textsB[j.i-1]=j.text;
 tlog(`✅ chunk ${j.i}/${j.n} xong (${f}).`);},
 onProgress:j=>{window._progLast=j;progPaint();}});
-if(resB.error){const ce=resB.error.cancelled?'Đã hủy':resB.error.error||resB.error;
-if(skipErr&&!resB.error.cancelled){failed.push(f);tlog(`Bỏ qua ${f}: ${ce}`,'err');continue;}
+    if(resB.error){const ce=resB.error.cancelled?'Đã hủy':resB.error.error||resB.error;
+    if(batchOnFileError(skipErr,!!resB.error.cancelled)==='skip'){failed.push(f);tlog(`Bỏ qua ${f}: ${ce}`,'err');continue;}
 $('wBulkMsg').innerHTML='<span class=err>Dừng ở '+esc(f)+': '+esc(ce)+'</span>';tlog(`Dừng ở ${f}: ${ce}`,'err');clearInterval(window._progT);setRunning(false);return;}
 await fetch('/api/save',{method:'POST',headers:{'Content-Type':'application/json'},
 body:JSON.stringify({project:p,file:f,content:textsB.filter(Boolean).join('\n\n')})}).then(J);
@@ -306,3 +296,8 @@ if(s)_flt.sortBy=s.value;if(o)_flt.sortOrder=o.value;_flt.keyword=$('fltKw').val
 document.addEventListener('click',e=>{const p=$('fltPanel');if(!p||p.style.display==='none')return;
 if(!e.target.closest('#fltPanel')&&!e.target.closest('#fltToolBtn'))p.style.display='none';});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('fltPanel');if(p)p.style.display='none';}});
+// --- Dropdown +prompts: bấm mở checklist checkbox, không nút chọn ---
+function extraToggle(ev){ev.stopPropagation();const p=$('wExtraPanel');p.style.display=p.style.display==='none'?'block':'none';}
+document.addEventListener('click',e=>{const p=$('wExtraPanel');if(!p||p.style.display==='none')return;
+if(!e.target.closest('#wExtraPanel')&&!e.target.closest('#wExtraBtn'))p.style.display='none';});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=$('wExtraPanel');if(p)p.style.display='none';}});

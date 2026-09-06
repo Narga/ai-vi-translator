@@ -1,5 +1,4 @@
-listProjects().then(listFiles);loadMeta().then(loadProvDetail);loadProfiles();
-$('wProfile').onchange=applyProfile;
+listProjects().then(listFiles);loadMeta().then(loadProvDetail);
 $('wProj').onchange=()=>{_wsSrc=null;_wsRes=null;_sel.clear();
 Object.assign(_flt,{sortBy:'name',sortOrder:'asc',keyword:''});
 const kw=$('fltKw');if(kw)kw.value='';listFiles();};

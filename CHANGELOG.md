@@ -4,6 +4,26 @@ Mọi thay đổi đáng chú ý của dự án được ghi tại đây, theo
 [Keep a Changelog](https://keepachangelog.com/vi/1.1.0/) và
 [Semantic Versioning](https://semver.org/lang/vi/).
 
+## [Unreleased] — Phase 4 (Preview + Doc Viewer)
+### Added
+- Vendor offline `web/vendor/` (commit kèm, manifesto §9): `marked.min.js` 18.0.11
+  (`lib/marked.umd.js` — v18 không còn bản min; nguồn `https://cdn.jsdelivr.net/npm/marked@18.0.11/lib/marked.umd.js`,
+  sha256 `69451c8541c9c1e7a4bf3ffc6f73c4d89633de92bfbe3e484dfe182ef8091f88`)
+  + `dompurify.min.js` 3.4.15 (nguồn `https://cdn.jsdelivr.net/npm/dompurify@3.4.15/dist/purify.min.js`,
+  sha256 `f263b05369e050fa175d4ecb9c9358eb4253602d510297adfb31df48b2f1c4d5`).
+  Không sửa file minified; `.gitignore` exception + verify `git check-ignore`.
+- `loadScriptOnce()` trong `web/js/app.js`: vendor chỉ tải khi mở preview/tab Tài liệu.
+- Preview editor: nút 👁 2 editor (`web/js/preview.js`, ext → heuristic), Markdown qua `marked` + `DOMPurify`, HTML trong `iframe sandbox=""` + `referrerpolicy="no-referrer"`, modal `<dialog>` có a11y (focus trả về nút gọi).
+- Doc Viewer: `GET /api/docs` + `GET /api/docs/content` (whitelist `.md/.txt/.html`, `resolve_doc` symlink-safe + cap 2MB, lỗi đúng shape `{"error"}`: 400/403/404/413) + tab 📚 Tài liệu (viewer chỉ đọc source, không render HTML); tên file dài cuộn ngang cả khối list.
+- Diff nguồn ↔ kết quả (`web/js/diff.js`): vendor `diff_match_patch.js` (Google raw build, sha256 `9a79cf03…7e4a3`, Apache-2.0 — cửa manifesto §9-điểm 2b: line-mode + timeout chống blowup khi so 2 ngôn ngữ), render 2 cột (gom cặp -/+) + liền mạch trong `<dialog>`, render DOM + `textContent` từng dòng.
+- Toolbar regroup: preview/save per-editor (căn phải header), lọc/đổi tên/xóa vào tiêu đề Tập tin (đúng thứ tự); copy/wrap/find chuyển vào header Kết quả (copy giữa preview–save).
+- Tab Tài liệu tự nạp khi mở (app.js gọi `loadDocList()` — onclick inline bị handler tab ghi đè nên không chạy).
+- Save 2 chiều: `/api/save` thêm `side` (`sources` → status `new` vì nguồn sửa thì cần dịch lại; `results` → `done` như cũ).
+- Batch coverage 3 lớp (logic skip đã có, chỉ thiếu test): API từng file (`test_batch_sequential_stops_at_failed_file`), `batchOnFileError` thuần trong `web/js/batch.js` + `node tests/test_batch_skip.mjs`, manual checklist.
+- Workspace UX: header Kết quả Wrap/Preview/Tìm kiếm/Diff/Copy/Save; khối actions căn phải (Gửi AI→/Hủy/Dịch lại/Xóa trắng); `+prompts` dropdown checkbox + info luôn hiện ở info bar góc phải; filter panel restyle + neo dưới nút; 3 cột cao bằng nhau; select-all indeterminate.
+- **Gỡ prompt profile** (dropdown + `GET /api/profiles` + 3 JSON) theo yêu cầu user — thừa so với nhu cầu; 2 prompt `qa_*.txt` giữ lại.
+- Nút Wrap cho bảng diff (cạnh chọn 2 cột/liền mạch); refresh docs cùng dòng input lọc.
+
 ## [Unreleased] — Phase 3b stabilization
 ### Added
 - `core/quality.py`: heuristic warnings (`empty/too_short/mostly_unchanged/md_structure_lost/possibly_truncated`); `done` kèm `warnings`; banner vàng UI (chỉ cảnh báo).

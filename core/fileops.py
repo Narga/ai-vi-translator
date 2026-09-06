@@ -91,6 +91,44 @@ def list_names(directory: Path, exts: set | None = None) -> List[str]:
     return sorted(out)
 
 
+ALLOWED_DOC_EXTS = {".md", ".txt", ".html"}
+MAX_DOC_BYTES = 2 * 1024 * 1024  # chống size abuse (đọc capped, vượt → 413)
+
+
+class DocForbiddenError(ValueError):
+    """Path resolve ra ngoài vùng tài liệu được phép → handler map 403."""
+
+
+def resolve_doc(root: Path, rel: str) -> Path:
+    """rel → Path đã resolve, nằm trong root, đúng ext, là file.
+    Path xấu/traversal/sai ext → ValueError (400).
+    Ngoài whitelist hoặc symlink thoát root → DocForbiddenError (403).
+    Không tồn tại/không phải file → FileNotFoundError (404)."""
+    if not isinstance(rel, str) or not rel or "\x00" in rel or "\\" in rel:
+        raise ValueError(f"Đường dẫn không hợp lệ: {rel!r}")
+    p = Path(rel)
+    if p.is_absolute() or ".." in p.parts:
+        raise ValueError(f"Đường dẫn không hợp lệ: {rel!r}")
+    target = (Path(root) / p).resolve()  # resolve symlink TRƯỚC…
+    try:
+        target.relative_to(Path(root).resolve())  # …rồi mới check vùng
+    except ValueError:
+        raise DocForbiddenError(f"Tệp tin không thuộc vùng tài liệu: {rel!r}")
+    if target.suffix.lower() not in ALLOWED_DOC_EXTS:
+        raise ValueError(f"Định dạng tệp không được hỗ trợ: {target.suffix}")
+    if not target.is_file():
+        raise FileNotFoundError(f"Tài liệu không tồn tại: {rel!r}")
+    return target
+
+
+def read_doc_limited(target: Path) -> str:
+    """Đọc tối đa MAX_DOC_BYTES+1 byte (tránh race stat→read); vượt → ValueError."""
+    raw = Path(target).read_bytes()[:MAX_DOC_BYTES + 1]
+    if len(raw) > MAX_DOC_BYTES:
+        raise ValueError(f"Tài liệu quá lớn (> {MAX_DOC_BYTES} bytes)")
+    return raw.decode("utf-8", errors="replace")
+
+
 def slugify(text: str, fallback: str = "du-an") -> str:
     """Tên sách -> slug thư mục: thường, gạch dưới, giữ chữ Unicode, không đặc biệt."""
     import re

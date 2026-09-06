@@ -47,8 +47,20 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:6p
 .pfile{display:flex;align-items:center;gap:6px;min-width:max-content}
 .pfile .fname{cursor:pointer;white-space:nowrap}
 .pfile .dot,.pfile input{flex-shrink:0}
-#wFiles{display:flex;flex-direction:column;height:55vh}
+/* Tên file dài: cuộn ngang CẢ KHỐI list, không phải từng dòng, không tràn khối khác */
 #wFileList{overflow:auto;flex:1;min-height:60px}
+#docList{overflow:auto;min-height:60px}
+.doc-item{white-space:nowrap}
+/* ---- Workspace 3 cột cao bằng nhau (stretch theo cột cao nhất) ---- */
+#wsCols{display:flex;gap:12px;align-items:stretch;height:62vh}
+#wFilesWrap{width:250px;flex-shrink:0;display:flex;flex-direction:column;min-height:0}
+#wFiles{flex:1;min-height:0;margin-bottom:0;display:flex;flex-direction:column}
+.edcol{flex:1;min-width:0;display:flex;flex-direction:column}
+.edcol .pane{flex:1;min-height:0;height:auto}
+/* Hàng tiêu đề khối: tên trái + nút phải (preview/save per-editor, filter/rename/delete) */
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 8px}
+.hrow h4{margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrow .acts{display:flex;gap:6px;flex-shrink:0}
 #wFileList .selcount{color:var(--text-muted);font-size:12px}
 #wTabsRow{flex-wrap:wrap;gap:8px}
 #wTabsRow .btn{padding:6px 10px;font-size:13px}
@@ -60,7 +72,17 @@ table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:6p
 /* ---- Dialogs + filter panel ---- */
 dialog{border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;max-width:520px}
 dialog::backdrop{background:rgba(15,23,42,.45)}
-#fltPanel{display:none;position:absolute;z-index:50;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);padding:12px;width:230px;margin-top:4px}
+#fltPanel{display:none;position:absolute;top:calc(100% + 4px);right:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);padding:12px;width:230px}
+#fltPanel label{display:block;padding:3px 0;font-size:14px;cursor:pointer}
+.flt-h{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin:10px 0 4px}
+.flt-h:first-child{margin-top:0}
+#fltPanel .input{width:100%;box-sizing:border-box}
+/* Dropdown +prompts */
+#wExtraPanel{display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:50;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow-md);padding:8px 12px;min-width:220px;max-height:300px;overflow-y:auto}
+#wExtraPanel label{display:block;padding:4px 0;font-size:14px;cursor:pointer;white-space:nowrap}
+/* Ô thông tin góc phải tiêu đề Biên dịch */
+#wInfoBar{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--text-muted);text-align:right}
+#wActions{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 #rnPrev .ok{color:var(--text-main)}#rnPrev .bad{color:var(--danger)}
 
 /* ---- Cards ---- */
@@ -93,3 +115,37 @@ mark{background:#fde68a}mark.cur{background:#f59e0b;color:#fff}
 textarea{width:100%}
 .toast{position:fixed;right:16px;bottom:16px;background:#111827;color:#f9fafb;padding:10px 14px;border-radius:8px;font-size:14px;box-shadow:var(--shadow-md);opacity:0;transition:opacity .2s;z-index:99}
 .toast.show{opacity:1}.toast.err{background:#7f1d1d}
+
+/* ---- Preview Markdown (.doc-markdown, từ spec EDITOR_PREVIEW) ---- */
+.doc-markdown{max-width:72ch;line-height:1.6;color:var(--text-main)}
+.doc-markdown h1{font-size:1.6rem;font-weight:700;margin:0 0 1rem;border-bottom:2px solid var(--border);padding-bottom:.5rem}
+.doc-markdown h2{font-size:1.25rem;font-weight:700;margin:1.5rem 0 .75rem}
+.doc-markdown h3{font-size:1rem;font-weight:600;margin:1rem 0 .5rem}
+.doc-markdown p{margin:0 0 .75rem}
+.doc-markdown ul,.doc-markdown ol{padding-left:1.5rem;margin:0 0 .75rem}
+.doc-markdown code{font-family:monospace;background:var(--bg-subtle);padding:2px 5px;border-radius:4px;font-size:.875em}
+.doc-markdown pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:6px;overflow-x:auto;margin:0 0 1rem}
+.doc-markdown pre code{background:none;color:inherit;padding:0}
+.doc-markdown blockquote{border-left:4px solid var(--primary);margin:0 0 .75rem;padding:.5rem 1rem;background:var(--bg-subtle);border-radius:0 6px 6px 0}
+.doc-markdown table{border-collapse:collapse;width:100%;margin:0 0 1rem;font-size:.875rem}
+.doc-markdown th,.doc-markdown td{padding:.5rem .75rem;border:1px solid var(--border)}
+.doc-markdown th{background:var(--bg-subtle);font-weight:600}
+
+/* ---- Tab Tài liệu ---- */
+.doc-item{display:block;width:100%;text-align:left;padding:6px 8px;font-size:14px;background:transparent;border:none;border-radius:6px;cursor:pointer;color:var(--text-main)}
+.doc-item:hover{background:var(--bg-subtle)}.doc-item.on{background:#eff6ff;font-weight:bold}
+.doc-dir{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin:10px 0 4px}
+#docBody pre{font-family:monospace;font-size:13px;white-space:pre-wrap}
+/* Hàng lọc docs: input co giãn, nút refresh cùng dòng */
+#docFilterRow{display:flex;gap:8px;align-items:center}
+#docFilter{flex:1;min-width:0;width:auto}
+
+/* ---- Diff 2 cột / liền mạch ---- */
+.diff-tbl{table-layout:fixed;width:100%}
+.diff-tbl td{white-space:pre-wrap;word-break:break-word;font-size:13px;vertical-align:top;width:50%}
+.diff-tbl.nowrap td{white-space:pre} /* tắt wrap: cuộn ngang cả bảng để dò cột */
+.diff-eq{background:transparent}
+.diff-del{background:#fef2f2}
+.diff-add{background:#f0fdf4}
+.diff-empty{background:var(--bg-subtle)}
+#diffModeSide.pri,#diffModeUni.pri{outline:2px solid var(--primary)}

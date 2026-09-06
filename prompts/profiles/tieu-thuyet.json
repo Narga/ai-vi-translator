@@ -1,1 +1,0 @@
-{"description": "Dịch tiểu thuyết: giữ giọng văn, xưng hô và tên riêng nhất quán", "extra_prompts": ["qa_polish_tien_hiep.txt"], "name": "Tiểu thuyết", "prompt": "default_translation.txt"}

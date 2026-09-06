@@ -20,15 +20,16 @@ const prSorted=pr.prompts.slice().sort((a,b)=>(a===dp?-1:0)-(b===dp?-1:0)||a.loc
 const prOpt=prSorted.map(p=>`<option value="${esc(p)}">${p===dp?'✓ ':''}${esc(p)}</option>`).join('');
 $('wPrompt').innerHTML=prOpt;
 if(s.default_prompt_missing)toast('Prompt mặc định '+dp+' không còn file!',true);
-$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${esc(p)}"> +${esc(p)}</label>`).join(' ');
+$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${esc(p)}"> ${esc(p)}</label>`).join('');
 $('prList').innerHTML=prOpt;updExtraEst();}
 const _plenCache={};
 async function plen(name){if(_plenCache[name]==null){
 try{const d=await fetch('/api/prompts/'+encodeURIComponent(name)).then(J);_plenCache[name]=d.content.length;}
 catch(e){_plenCache[name]=0;}}return _plenCache[name];}
-async function updExtraEst(){const base=await plen($('wPrompt').value);let ex=0;
-for(const x of document.querySelectorAll('#wExtra input:checked'))ex+=await plen(x.value);
-$('wExtraEst').textContent=`Prompt chính ${base} + bổ sung ${ex} ≈ ${base+ex} ký tự/chunk.`;}
+async function updExtraEst(){const base=await plen($('wPrompt').value);let ex=0,n=0;
+for(const x of document.querySelectorAll('#wExtra input:checked')){ex+=await plen(x.value);n++;}
+$('wExtraEst').textContent=`Prompt chính ${base} + bổ sung ${ex} ≈ ${base+ex} ký tự/chunk.`;
+const b=$('wExtraBtn');if(b)b.textContent=n?`+prompts (${n})`:'+prompts';}
 // --- Model list dùng chung: lọc client-side, badge free, giữ selection ---
 window._Models={};
 function filterList(list,kw,mode){kw=(kw||'').toLowerCase().trim();if(!kw)return list;

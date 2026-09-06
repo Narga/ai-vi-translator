@@ -13,6 +13,7 @@
 <button data-v="workspace">✍️ <span class="lbl">Biên Dịch</span></button>
 <button data-v="prompts">📜 <span class="lbl">Prompt</span></button>
 <button data-v="settings">⚙️ <span class="lbl">Cấu Hình</span></button>
+<button data-v="docs">📚 <span class="lbl">Tài Liệu</span></button>
 <div style="margin-top:auto;padding:12px 16px;font-size:12px;color:#9ca3af">
 <div id="srvInfo" class="lbl">…</div>
 <button onclick="restartSrv()" style="margin-top:6px">↻ <span class="lbl">Khởi động lại server</span></button>
@@ -45,7 +46,8 @@
 <table class="table-minimal"><thead><tr><th>Dự án</th><th>File</th><th>Provider/Model</th><th>Trạng thái</th><th>Bắt đầu</th></tr></thead><tbody id="pHist"></tbody></table>
 </section>
 <section id="v-workspace" class="view">
-<h2>Biên dịch</h2>
+<div class="hrow"><h2 style="margin:0">Biên dịch</h2>
+<span id="wInfoBar"><span id="wExtraEst">Chưa nạp prompt.</span><span id="wFileInfo">Chưa chọn tập tin.</span></span></div>
 <div class="row">
 <select id="wProj"></select>
 <button class="btn" onclick="listFiles()">🔄 Tải danh sách file</button>
@@ -58,21 +60,13 @@
 </div>
 <div class="row" id="wTools">
 <span class="lbl-ic" title="Prompt"><svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12v8H7l-3 3v-3H2z"/></svg></span> <select id="wPrompt"></select>
-<select id="wProfile" title="Nạp preset prompt profile"><option value="">— Profile —</option></select>
-<details style="display:inline"><summary style="cursor:pointer">bổ sung</summary><span id="wExtra"></span><p id="wExtraEst"></p></details>
-<button class="icon-btn" data-act onclick="wsRenameSel()" title="Đổi tên file đã chọn (nhiều file: đổi hàng loạt)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2l3 3L5 14l-4 1 1-4z"/></svg></button>
-<button class="icon-btn" data-act onclick="wsDelSel()" title="Xóa file đã chọn"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h12M6 4V2h4v2M4 4l1 10h6l1-10"/></svg></button>
-<button class="icon-btn" id="wrapBtn" onclick="wrapTog()" title="Bật/tắt wrap dòng trong editor (wrap giúp cuộn đồng bộ tốt hơn)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h9a3 3 0 010 6H5"/><path d="M8 8l-3 3M8 8L5 5"/><path d="M2 12h12"/></svg></button>
-<button class="icon-btn" id="fltToolBtn" onclick="fltToggle(event)" title="Lọc / sắp xếp danh sách file"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12l-5 6v4l-2 1V9z"/></svg></button>
-<button class="icon-btn" onclick="findDlg.showModal()" title="Tìm / thay thế (regex)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></svg></button>
+<span style="position:relative"><button class="btn" id="wExtraBtn" onclick="extraToggle(event)" title="Chọn prompt bổ sung (một hoặc nhiều)">+prompts</button>
+<div id="wExtraPanel" style="display:none"><span id="wExtra"></span></div></span>
+<span id="wActions"><button class="btn pri" id="wSendBtn" onclick="sendOpen()" title="Gửi file đã chọn cho AI: chọn Gộp-chia-chunk hoặc Tuần tự trong hộp thoại">Gửi AI →</button>
 <button class="icon-btn" onclick="cancelTl()" title="Hủy phiên đang dịch: cắt cả request đang bay, không ghi file, nháp giữ trên editor để copy"><svg viewBox="0 0 16 16" width="16" height="16"><rect x="5" y="5" width="6" height="6" fill="currentColor" stroke="none"/></svg></button>
-<button class="icon-btn" onclick="copyTl()" title="Sao chép bản dịch vào clipboard"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="7" height="7" rx="1"/><path d="M10 6V3H3v7h3"/></svg></button>
-<button class="icon-btn" onclick="saveTl()" title="Lưu nội dung editor vào results/ (ghi đè chủ đích)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h7l3 3v7H3z"/><path d="M5 3v4h4V3M5 13V9h6v4"/></svg></button>
-<button class="icon-btn" onclick="retryTl()" title="Gửi lại: dịch lại toàn bộ file đang mở từ chunk đầu (không resume), kết quả mới hiện trên editor, bấm Lưu để ghi đè"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 8a5 5 0 11-1.6-3.6M13 1v4h-4"/></svg></button>
-<button class="icon-btn" onclick="clearTl()" title="Xóa & gửi lại: xóa trắng editor rồi dịch lại từ đầu như Gửi lại"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8a5 5 0 101.6-3.6M3 1v4h4"/></svg></button>
-<button class="btn pri" id="wSendBtn" onclick="sendOpen()" title="Gửi file đã chọn cho AI: chọn Gộp-chia-chunk hoặc Tuần tự trong hộp thoại">Gửi AI →</button>
+<button class="icon-btn" onclick="retryTl()" title="Dịch lại: dịch lại toàn bộ file đang mở từ chunk đầu (không resume), kết quả mới hiện trên editor, bấm Lưu để ghi đè"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 8a5 5 0 11-1.6-3.6M13 1v4h-4"/></svg></button>
+<button class="icon-btn" onclick="clearTl()" title="Xóa trắng & dịch lại từ đầu như Dịch lại"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8a5 5 0 101.6-3.6M3 1v4h4"/></svg></button></span>
 </div>
-<p id="wFileInfo" style="color:var(--text-muted);text-align:right">Chưa chọn tập tin.</p>
 <dialog id="sendDlg">
 <h3>Gửi AI — <span id="sendCount"></span></h3>
 <p id="sendInfo"></p>
@@ -82,18 +76,21 @@
 <div class="row"><button class="btn" onclick="sendDlg.close()">Hủy bỏ</button>
 <button class="btn pri" onclick="sendGo()">Gửi →</button></div>
 </dialog>
-<div id="fltPanel" style="display:none">
-<div><b>SẮP XẾP</b> <label><input type="radio" name="fltSort" value="name" checked onchange="fltSet()"> Tên</label>
-<label><input type="radio" name="fltSort" value="ext" onchange="fltSet()"> Định dạng</label>
-<label><input type="radio" name="fltOrd" value="asc" checked onchange="fltSet()"> A→Z</label>
-<label><input type="radio" name="fltOrd" value="desc" onchange="fltSet()"> Z→A</label></div>
-<div><b>LỌC</b> <input id="fltKw" size="20" placeholder="Lọc theo tên…" oninput="fltSet()"></div>
-</div>
 <p id="wMsg"></p>
 <p id="wProg" style="color:var(--text-muted)"></p>
-<div style="display:flex;gap:12px;align-items:flex-start">
-<div id="wFilesWrap" style="width:250px;flex-shrink:0">
-<h4 onclick="wsPick()" title="Bấm để chọn file tải lên" style="cursor:pointer">Tập tin</h4>
+<div id="wsCols">
+<div id="wFilesWrap">
+<div class="hrow"><h4 onclick="wsPick()" title="Bấm để chọn file tải lên" style="cursor:pointer">Tập tin</h4>
+<span class="acts"><span style="position:relative"><button class="icon-btn" id="fltToolBtn" onclick="fltToggle(event)" title="Lọc / sắp xếp danh sách file"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12l-5 6v4l-2 1V9z"/></svg></button><div id="fltPanel" style="display:none">
+<p class="flt-h">Sắp xếp theo</p>
+<label><input type="radio" name="fltSort" value="name" checked onchange="fltSet()"> Tên tập tin</label>
+<label><input type="radio" name="fltSort" value="ext" onchange="fltSet()"> Định dạng</label>
+<p class="flt-h">Thứ tự</p>
+<label><input type="radio" name="fltOrd" value="asc" checked onchange="fltSet()"> A → Z</label>
+<label><input type="radio" name="fltOrd" value="desc" onchange="fltSet()"> Z → A</label>
+<p class="flt-h">Lọc theo tên</p>
+<input id="fltKw" class="input" placeholder="Lọc theo tên…" oninput="fltSet()">
+</div></span><button class="icon-btn" data-act onclick="wsRenameSel()" title="Đổi tên file đã chọn (nhiều file: đổi hàng loạt)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2l3 3L5 14l-4 1 1-4z"/></svg></button><button class="icon-btn" data-act onclick="wsDelSel()" title="Xóa file đã chọn"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h12M6 4V2h4v2M4 4l1 10h6l1-10"/></svg></button></span></div>
 <input type="file" id="wFileInput" multiple style="display:none">
 <div id="wFiles" class="card">
 <div class="row" id="wTabsRow"><button class="btn pri" id="wTabSrc" onclick="wsTab('sources')">Nguồn</button>
@@ -105,15 +102,30 @@
 <p id="wBulkMsg"></p>
 </div>
 </div>
-<div style="flex:1;min-width:0">
-<h4 id="wSrcName">Nguồn</h4><div class="pane" id="tSrc" style="height:55vh"></div>
+<div class="edcol">
+<div class="hrow"><h4 id="wSrcName">Nguồn</h4>
+<span class="acts"><button class="icon-btn" onclick="openPreview('tSrc','Nguồn')" title="Xem trước nguồn (Markdown/HTML)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/></svg></button><button class="icon-btn" onclick="saveSrc()" title="Lưu nội dung editor nguồn vào sources/ (ghi đè chủ đích)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h7l3 3v7H3z"/><path d="M5 3v4h4V3M5 13V9h6v4"/></svg></button></span></div><div class="pane" id="tSrc"></div>
 </div>
-<div style="flex:1;min-width:0">
-<h4 id="wOutName">Kết quả</h4><div class="pane" id="tOut" contenteditable="true" style="height:55vh"></div>
+<div class="edcol">
+<div class="hrow"><h4 id="wOutName">Kết quả</h4>
+<span class="acts"><button class="icon-btn" id="wrapBtn" onclick="wrapTog()" title="Bật/tắt wrap dòng trong editor (wrap giúp cuộn đồng bộ tốt hơn)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 4h9a3 3 0 010 6H5"/><path d="M8 8l-3 3M8 8L5 5"/><path d="M2 12h12"/></svg></button><button class="icon-btn" onclick="openPreview('tOut','Kết quả')" title="Xem trước kết quả (Markdown/HTML)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1 8s2.5-4.5 7-4.5S15 8 15 8s-2.5 4.5-7 4.5S1 8 1 8z"/><circle cx="8" cy="8" r="2"/><path d="M11 3l2 2-2 2"/></svg></button><button class="icon-btn" onclick="findDlg.showModal()" title="Tìm / thay thế (regex)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="7" cy="7" r="4"/><path d="M10 10l3 3"/></svg></button><button class="icon-btn" onclick="openDiff()" title="So sánh nguồn ↔ kết quả (từng dòng, 2 cột)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 2H2v12h5M9 2h5v12H9"/><path d="M4 5h1M4 8h1M4 11h1M11 5h1M11 8h1M11 11h1"/></svg></button><button class="icon-btn" onclick="copyTl()" title="Sao chép bản dịch vào clipboard"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="6" width="7" height="7" rx="1"/><path d="M10 6V3H3v7h3"/></svg></button><button class="icon-btn" onclick="saveRes()" title="Lưu nội dung editor kết quả vào results/ (ghi đè chủ đích)"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3h7l3 3v7H3z"/><path d="M5 3v4h4V3M5 13V9h6v4"/></svg></button></span></div><div class="pane" id="tOut" contenteditable="true"></div>
 </div>
 </div>
 <h4>Nhật ký hệ thống</h4>
 <div id="wTerm" aria-label="Nhật ký hệ thống"></div>
+<dialog id="prevDlg" aria-labelledby="prevTitle" style="max-width:720px;width:90vw">
+<div class="row spread"><span><b id="prevTitle">Preview</b><br><small id="prevSub" style="color:var(--text-muted)"></small></span>
+<button class="btn" id="prevClose" aria-label="Đóng xem trước" onclick="prevDlg.close()">✕ Đóng</button></div>
+<div id="prevBody" style="max-height:65vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
+<dialog id="diffDlg" aria-labelledby="diffTitle" style="max-width:900px;width:92vw">
+<div class="row spread"><span><b id="diffTitle">So sánh nguồn ↔ kết quả</b><br><small id="diffSub" style="color:var(--text-muted)"></small></span>
+<span><button class="btn" id="diffModeSide" onclick="diffMode('side')">2 cột</button>
+<button class="btn" id="diffModeUni" onclick="diffMode('uni')">Liền mạch</button>
+<button class="btn pri" id="diffWrapBtn" onclick="diffWrapTog()" title="Bật/tắt xuống dòng trong bảng so sánh">Wrap</button>
+<button class="btn" id="diffClose" aria-label="Đóng so sánh" onclick="diffDlg.close()">✕ Đóng</button></span></div>
+<div id="diffBody" style="max-height:65vh;overflow-y:auto;margin-top:8px"></div>
+</dialog>
 <dialog id="findDlg">
 <h3>Tìm / thay thế</h3>
 <div class="row" id="wFindBar">
@@ -155,6 +167,21 @@
 <button class="btn" onclick="setDefault()">★ Đặt mặc định</button></span>
 <span><button class="btn" onclick="backupPrompt()">⬇ Lưu vào dự án</button>
 <select id="prProj"></select></span></div>
+</div>
+</section>
+<section id="v-docs" class="view">
+<h2>Tài liệu</h2>
+<p style="color:var(--text-muted)">Đọc tài liệu dự án (chỉ xem source, không render HTML).</p>
+<div style="display:flex;gap:12px;align-items:flex-start">
+<div class="card" style="width:300px;flex-shrink:0">
+<div class="row" id="docFilterRow"><input id="docFilter" class="input" placeholder="🔍 Tìm nhanh…" oninput="filterDocs()">
+<button class="btn" onclick="loadDocList()">↻</button></div>
+<nav id="docList"><p style="color:var(--text-muted)">Mở tab để tải…</p></nav>
+</div>
+<div class="card" style="flex:1;min-width:0">
+<div class="row spread"><span><b id="docTitle">Chưa chọn tài liệu</b><br><small id="docPath" style="color:var(--text-muted)"></small></span></div>
+<div id="docBody" style="max-height:65vh;overflow-y:auto"><p style="color:var(--text-muted)">← Chọn tài liệu bên trái để đọc.</p></div>
+</div>
 </div>
 </section>
 <section id="v-settings" class="view">
@@ -202,7 +229,11 @@
 </main>
 <script src="js/app.js" defer></script>
 <script src="js/projects.js" defer></script>
+<script src="js/batch.js" defer></script>
 <script src="js/workspace.js" defer></script>
+<script src="js/preview.js" defer></script>
+<script src="js/diff.js" defer></script>
+<script src="js/docs.js" defer></script>
 <script src="js/findreplace.js" defer></script>
 <script src="js/prompts.js" defer></script>
 <script src="js/settings.js" defer></script>

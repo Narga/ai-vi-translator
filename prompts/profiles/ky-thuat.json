@@ -1,1 +1,0 @@
-{"description": "Dịch tài liệu kỹ thuật: chính xác thuật ngữ, giữ cấu trúc và định dạng", "extra_prompts": ["qa_proofread.txt"], "name": "Kỹ thuật", "prompt": "default_translation.txt"}

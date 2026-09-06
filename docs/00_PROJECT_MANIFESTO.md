@@ -164,6 +164,13 @@ Không module nào tự phân loại lại theo cách riêng.
    được dùng không cần tranh luận: `diff-match-patch` (diff), `marked` (preview Markdown),
    `DOMPurify` (sanitize hiển thị). Thêm lib mới cùng hạng (1 việc, <50KB, MIT) thì
    ghi 1 dòng lý do vào CHANGELOG.
+2b. **Minimal CSS/JS library (vd. Pico, AlpineJS): cho phép theo đề xuất duyệt trước.**
+   Framework CSS/JS (React/Vue/Svelte, Tailwind/Bootstrap, jQuery) vẫn CẤM tuyệt đối.
+   Lib minimal chỉ được duyệt khi đề xuất chứng minh được: (a) việc cụ thể mà vanilla
+   làm kém hơn/đắt hơn rõ rệt (ít code hơn, ít bug hơn, đo được); (b) 1 file vendored,
+   offline, không build-step, không dependency truyền dẫn; (c) license cho phép vendor
+   + checksum ghi CHANGELOG; (d) gỡ ra được (không lan khắp codebase — dùng có rào,
+   đúng trang/tính năng cần). Không duyệt "cho hiện đại", chỉ duyệt khi có bằng chứng.
 3. **Cấm**: Tailwind/Bootstrap, React/Vue/Svelte, jQuery, mọi thứ cần `npm install`
    hay build-step ở máy người dùng; CDN làm dependency cứng (mất mạng là mất tính năng).
 4. **Lib nặng (vd. CodeMirror/Monaco)**: chỉ khi có bằng chứng bug không tự sửa được

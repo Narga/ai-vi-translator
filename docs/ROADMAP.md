@@ -1,7 +1,7 @@
 # LỘ TRÌNH PHÁT TRIỂN TƯƠNG LAI (FUTURE ROADMAP)
 > **Tài liệu**: Lưu trữ các tính năng nâng cao được dời lại từ Phase 1 & Phase 2 nhằm giữ cho lõi gửi–nhận của dự án luôn tinh gọn, nhẹ và không phát sinh lỗi.  
 > **Địa chỉ**: `docs/ROADMAP.md`
-> **Phiên bản**: v3.1.0 (06/09/2026) — 3a+ released (fileops, batch rename, filter, default prompt, Gửi AI, abort thật); backlog chuẩn ở `docs/16_NEXT_PHASES.md`.
+> **Phiên bản**: v3.1.1 (06/09/2026) — 3b stabilization released (136 tests PASS) + Phase 4 completed (155 tests PASS + node 5/5); backlog chuẩn ở `docs/16_NEXT_PHASES.md`; kế hoạch Phase 5 (`docs/20_PHASE_5_TOOLS_CONVERT_EPUB_PLAN.md`) + Phase 6 (`docs/21_PHASE_6_UI_POLISH_PROPOSAL.md`).
 
 ---
 
@@ -93,9 +93,9 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 
 ---
 
-## 3. CÁC TÍNH NĂNG XỬ LÝ TẬP TIN NÂNG CAO (PHASE 3+ — xem docs/08_PHASE_3_AND_BEYOND.md)
+## 3. CÁC TÍNH NĂNG XỬ LÝ TẬP TIN NÂNG CAO (PHASE 4 + BACKLOG — xem docs/16_NEXT_PHASES.md + docs/18_*)
 
-> **Cập nhật:** Batch Search & Replace phạm vi file đã XONG ở 2.6/3a+ (`POST /api/find-replace` + `skipped`/`errors` + dialog). Còn lại Diff Viewer → Phase 3b (`docs/16_*`).
+> **Cập nhật:** Batch Search & Replace phạm vi file đã XONG ở 2.6/3a+ (`POST /api/find-replace` + `skipped`/`errors` + dialog). Preview + Doc Viewer → Phase 4 (`docs/18_*`). Dry-run counts + undo `.bak` → backlog khi cần.
 
 1. **Bộ công cụ Tìm kiếm & Thay thế Hàng loạt (Batch Search & Replace)** — ✅ DONE:
    * Cho phép người dùng tìm một từ bị dịch sai (ví dụ: tên riêng dịch gượng gạo) và thay thế đồng loạt trên toàn bộ các file bản dịch trong thư mục `results/`.
@@ -103,12 +103,12 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 2. **Công cụ So Sánh Chênh Lệch Nâng Cao (Diff Viewer)**:
    * So sánh chi tiết từng câu giữa bản gốc và bản dịch, hoặc giữa 2 lần dịch khác nhau (khi đổi prompt).
    * Đề xuất: vendor `diff-match-patch` (1 file ~30KB) + render DIY 2 cột/inline; CodeMirror 6 (`@codemirror/merge`) nếu cần workflow nhận/bỏ chunk; cửa CM6 chỉ khi IME tiếng Việt tái phát.
-- [ ] Batch Search & Replace (Phase 3b)
-- [ ] Diff Viewer (Phase 3b)
+- [x] Batch Search & Replace (xong 2.6/3a+)
+- [x] Diff Viewer (backlog khi cần — vendor `diff-match-patch` khi có nhu cầu thật) — **Hoàn thành Phase 4**: vendor `diff_match_patch.js` (78KB, sha256 `9a79cf03…7e4a3`, Apache-2.0) commit kèm, render 2 cột/liền mạch `<dialog>`, timeout 2s.
 
 ---
 
-## 4. CÔNG CỤ EPUB & CHUYỂN ĐỔI ĐỊNH DẠNG 2 CHIỀU (PHASE 4)
+## 4. CÔNG CỤ EPUB & CHUYỂN ĐỔI ĐỊNH DẠNG 2 CHIỀU (PHASE 5 — kế hoạch `docs/20_*`)
 
 1. **Đóng gói sách EPUB tối giản**:
    * Chỉ nhận đầu vào là các file text (`.txt`, `.md`, `.html`), tự động ghép thành sách `.epub` tiêu chuẩn có mục lục TOC.
@@ -119,12 +119,29 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 
 ---
 
-## 5. CƠ CHẾ NGỮ CẢNH TỰ ĐỘNG & TRÍCH XUẤT THUẬT NGỮ (PHASE 4)
+## 5. HOÃN DÀI HẠN — HIỆU QUẢ THẤP, CHƯA CẦN (quyết định user, như OCR)
+
+> Tóm tắt nối tiếp, trích xuất thực thể, glossary UI: chi phí cao hơn lợi ích đo được.
+> Giữ phân tích dưới đây để sau này khỏi nghiên cứu lại; chỉ làm khi có nhu cầu thật.
 
 1. **Tự động tóm tắt chương trước (`previous_chunk_handoff` - Kế thừa từ silaBook)**:
-   * Sau khi dịch xong một chương, AI tự sinh tóm tắt 3 câu và tự động truyền vào biến `{{previous_summary}}` của chương kế tiếp để giữ giọng điệu liền mạch.
+   * Thiết kế đã phân tích: sau mỗi chunk, cùng model đang dịch tóm tắt 3 câu
+     (template `prompts/summarize_3sent.txt`), vá vào `{{previous_summary}}` của prompt
+     chunk kế; template không có placeholder thì prepend `Bối cảnh đoạn trước: ...`;
+     tóm tắt lỗi → fallback 2 câu đầu, **không dừng phiên**; tắt ở merge mode
+     (chunk gộp rò bối cảnh giữa các file). Ước lượng ~50 dòng + tests.
+   * **Model-riêng-cho-tóm-tắt (+~120 dòng, ~3x):** resolve + build client thứ hai
+     (2 rotation state độc lập), dialog thêm 2 select explicit provider/model
+     (không fallback ngầm — đúng luật), quy lỗi SSE theo provider, cờ CLI, tests ×2.
+     Lý do duy nhất để làm: tiền/tốc độ (model rẻ tóm tắt, model đắt dịch) —
+     chỉ đáng khi đo được hóa đơn thật. Seam giữ cửa: helper tóm tắt nhận client bất kỳ.
+   * Giá phải trả của cả hai: **~2x request/chunk** (tiền + thời gian + nguy cơ 429).
 2. **Công cụ Trích xuất Thực thể & Nhân vật tự động**:
-   * Quét các chương truyện nguồn và tự động trích xuất danh sách nhân vật, môn phái, địa danh vào file `workspace/projects/{slug}/assets/glossary.txt` (đường dẫn chuẩn duy nhất, chốt v2.3).
+   * Quét các chương truyện nguồn và tự động trích xuất danh sách nhân vật, môn phái,
+     địa danh vào file `workspace/projects/{slug}/assets/glossary.txt`
+     (đường dẫn chuẩn duy nhất, chốt v2.3). Backend lọc theo chunk đã có
+     (`_glossary_for_chunk` trong `main.py`); chỉ thiếu UI sửa — để sau cùng vì
+     chất lượng trích xuất tự động thấp, sửa tay tốn công hơn lợi.
 
 ---
 
@@ -144,6 +161,8 @@ File `workspace/app.db` **đã được tạo từ Phase 1** (v2.3) với 3 bả
 * `main.py` là điểm vào chính; `run.py` CLI giữ nguyên là entry point được hỗ trợ (quyết định cuối §10.2 `docs/17_*` — đã bác đề xuất loại bỏ).
 * `config/providers.json` là SSOT provider; `config/config.json` chỉ chứa prefs app (`max_chunk_chars`, `api_delay_seconds`, `timeout_seconds`, `default_prompt`).
 * `api_delay_seconds` mặc định 2.0s giữa các chunk chống 429; `timeout_seconds` mặc định 90s.
+* Phase chỉ là thứ tự thực hiện, KHÔNG phải phiên bản — chỉ đổi version khi user yêu cầu hoặc thay đổi lớn được duyệt.
+* Minimal CSS/JS lib (Pico/Alpine-class) cho phép theo đề xuất duyệt trước (manifesto §9-điểm 2b); framework vẫn cấm.
 
 ---
 

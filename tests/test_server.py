@@ -266,6 +266,8 @@ def test_static_mime(app, tmp_path):
         assert r.status == 200 and "text/css" in r.headers.get("Content-Type", "")
     with urllib.request.urlopen(app + "/js/app.js") as r:
         assert r.status == 200 and "javascript" in r.headers.get("Content-Type", "")
+    with urllib.request.urlopen(app + "/vendor/marked.min.js") as r:
+        assert r.status == 200 and "javascript" in r.headers.get("Content-Type", "")
     s, _ = call(app, "GET", "/css/../main.py")
     assert s == 404  # traversal vẫn chặn
 
@@ -591,14 +593,9 @@ def test_cancel_between_delay_no_output(app, monkeypatch):
     assert s == 200
 
 
-def test_profiles_endpoint(app):
+def test_profiles_endpoint_removed(app):
     s, b = call(app, "GET", "/api/profiles")
-    d = json.loads(b)
-    assert s == 200 and len(d["profiles"]) >= 3
-    names = {p["name"] for p in d["profiles"]}
-    assert {"Tiểu thuyết", "Kỹ thuật", "Giữ Markdown"} <= names
-    p0 = d["profiles"][0]
-    assert set(("file", "name", "description", "prompt", "extra_prompts")) <= set(p0)
+    assert s == 404  # profile dropdown đã gỡ theo yêu cầu user
 
 
 def test_done_carries_warnings(app):
@@ -609,3 +606,71 @@ def test_done_carries_warnings(app):
     assert s == 200
     body = b.decode()
     assert '"warnings"' in body  # done kèm cảnh báo heuristic (kể cả rỗng)
+
+
+def test_batch_sequential_stops_at_failed_file(app, monkeypatch):
+    """Task E lớp 1: API từng file — file1 ok+save, file2 lỗi, file3 nguyên trạng.
+    Khóa hành vi server; logic skip của JS do test_batch_skip.mjs + manual cover."""
+    import main as server
+
+    for f in ("a.md", "b.md", "c.md"):
+        req = urllib.request.Request(
+            app + f"/api/projects/Kiem_Hiep/upload?filename={f}",
+            data=f"Nội dung {f}.".encode(), method="POST")
+        urllib.request.urlopen(req).read()
+    body = {"project": "Kiem_Hiep", "provider_id": "gemini-default",
+            "prompt": "default_translation.txt"}
+    # file1: dịch + lưu (vai trò wsBulkTranslate gọi /save sau done)
+    s, b = call(app, "POST", "/api/translate", dict(body, file="a.md"))
+    assert s == 200 and "event: done" in b.decode()
+    s, _ = call(app, "POST", "/api/save",
+                {"project": "Kiem_Hiep", "file": "a.md", "content": "DỊCH a"})
+    assert s == 200
+    # file2: AI sập giữa chừng
+    class BoomClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def translate_chunk(self, prompt, on_attempt=None, abort=None):
+            raise RuntimeError("AI sập giữa chừng")
+
+    monkeypatch.setattr(server, "build_client", BoomClient)
+    s, b = call(app, "POST", "/api/translate", dict(body, file="b.md"))
+    assert s == 200 and "event: error" in b.decode()
+    # file2 không file dở, file1 còn nguyên, file3 chưa đụng
+    s, _ = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=b.md&side=results")
+    assert s == 404
+    s, b = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=a.md&side=results")
+    assert s == 200 and "DỊCH a" in json.loads(b)["content"]
+    s, b = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=c.md&side=sources")
+    assert s == 200
+    s, _ = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=c.md&side=results")
+    assert s == 404
+
+
+def test_save_side_sources_and_results(app):
+    _seed(app)
+    # mặc định (không side) → results, tương thích cũ
+    s, b = call(app, "POST", "/api/save",
+                {"project": "Kiem_Hiep", "file": "ch01.md", "content": "bản dịch"})
+    assert s == 200 and json.loads(b)["path"] == "results/ch01.md"
+    # lưu nguồn → sources/, status new (nguồn sửa thì cần dịch lại)
+    s, b = call(app, "POST", "/api/save",
+                {"project": "Kiem_Hiep", "file": "ch01.md", "side": "sources",
+                 "content": "nguồn đã sửa"})
+    assert s == 200 and json.loads(b)["path"] == "sources/ch01.md"
+    s, b = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=ch01.md&side=sources")
+    assert s == 200 and "nguồn đã sửa" in json.loads(b)["content"]
+    import main as server
+    con = server.get_db()
+    row = con.execute("SELECT status FROM files WHERE project_slug=? AND filename=?",
+                      ("Kiem_Hiep", "ch01.md")).fetchone()
+    con.close()
+    assert row[0] == "new"
+    # side lạ + traversal vẫn chặn
+    s, _ = call(app, "POST", "/api/save",
+                {"project": "Kiem_Hiep", "file": "ch01.md", "side": "other", "content": "x"})
+    assert s == 400
+    s, _ = call(app, "POST", "/api/save",
+                {"project": "Kiem_Hiep", "file": "../evil.md", "side": "sources", "content": "x"})
+    assert s == 400

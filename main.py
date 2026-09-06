@@ -321,6 +321,62 @@ class Handler(BaseHTTPRequestHandler):
                  "model": r[3], "status": r[4], "error": r[5] or "",
                  "started_at": r[6], "finished_at": r[7]} for r in rows]})
 
+        if u.path == "/api/docs":
+            from core.fileops import ALLOWED_DOC_EXTS
+            files, seen = [], set()
+            for fp in sorted(PROJECT_ROOT.iterdir()):
+                if fp.suffix.lower() not in ALLOWED_DOC_EXTS or not fp.is_file():
+                    continue
+                rp = fp.resolve()
+                if rp in seen:
+                    continue
+                seen.add(rp)
+                files.append({"path": fp.name, "name": fp.name,
+                              "ext": fp.suffix.lower(), "dir": ""})
+            docs_dir = (PROJECT_ROOT / "docs").resolve()
+            # docs/ bản thân là symlink ra ngoài → bỏ qua cả thư mục
+            if docs_dir.is_dir():
+                try:
+                    docs_dir.relative_to(PROJECT_ROOT.resolve())
+                except ValueError:
+                    docs_dir = None
+            if docs_dir is not None and docs_dir.is_dir():
+                for fp in sorted(docs_dir.rglob("*")):
+                    if fp.suffix.lower() not in ALLOWED_DOC_EXTS or not fp.is_file():
+                        continue
+                    try:
+                        rp = fp.resolve()
+                        rp.relative_to(PROJECT_ROOT.resolve())
+                    except ValueError:
+                        continue  # symlink chui ra ngoài
+                    if rp in seen:
+                        continue
+                    seen.add(rp)
+                    rel = rp.relative_to(PROJECT_ROOT.resolve()).as_posix()
+                    parent = rp.relative_to(PROJECT_ROOT.resolve()).parent.as_posix()
+                    files.append({"path": rel, "name": fp.name,
+                                  "ext": fp.suffix.lower(),
+                                  "dir": "" if parent == "." else parent})
+            return self._json(files)
+
+        if u.path == "/api/docs/content":
+            from core.fileops import DocForbiddenError, read_doc_limited, resolve_doc
+            rel = q.get("path", [""])[0]
+            try:
+                target = resolve_doc(PROJECT_ROOT, rel)
+            except DocForbiddenError as e:
+                return self._err(str(e), 403)
+            except FileNotFoundError as e:
+                return self._err(str(e), 404)
+            except ValueError as e:
+                return self._err(str(e))
+            try:
+                content = read_doc_limited(target)
+            except ValueError as e:
+                return self._err(str(e), 413)
+            return self._json({"path": rel, "ext": target.suffix.lower(),
+                               "content": content})
+
         if u.path == "/api/projects":
             base = fh.base_dir / "projects"
             con = get_db()
@@ -405,22 +461,6 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/prompts":
             return self._json({"prompts": sorted(
                 f.name for f in PromptEngine().prompts_dir.glob("*.txt") if f.is_file())})
-
-        if u.path == "/api/profiles":
-            out = []
-            prof_dir = PromptEngine().prompts_dir / "profiles"
-            if prof_dir.is_dir():
-                for f in sorted(prof_dir.glob("*.json")):
-                    try:
-                        d = json.loads(f.read_text(encoding="utf-8"))
-                        if isinstance(d, dict) and d.get("name"):
-                            out.append({"file": f.name, "name": d.get("name", f.stem),
-                                        "description": d.get("description", ""),
-                                        "prompt": d.get("prompt", ""),
-                                        "extra_prompts": d.get("extra_prompts", []) or []})
-                    except (ValueError, OSError):
-                        continue
-            return self._json({"profiles": out})
 
         if u.path.startswith("/api/prompts/"):
             name = urllib.parse.unquote(u.path[len("/api/prompts/"):])
@@ -755,9 +795,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("JSON không hợp lệ")
             try:
                 fh = SafeFileHandler()
-                fh.save_output(data["project"], data["file"], data.get("content", ""))
-                _upsert_file(data["project"], data["file"], len(data.get("content", "")), 0, "done")
-                return self._json({"path": f"results/{data['file']}"})
+                side = data.get("side", "results")
+                if side not in ("sources", "results"):
+                    return self._err("side phải là sources|results")
+                p = fh.get_source_path(data["project"], data["file"]) \
+                    if side == "sources" \
+                    else fh.get_output_path(data["project"], data["file"])
+                atomic_write_text(p, data.get("content", ""))
+                _upsert_file(data["project"], data["file"],
+                             len(data.get("content", "")),
+                             0, "done" if side == "results" else "new")
+                return self._json({"path": f"{side}/{data['file']}"})
             except (ValueError, KeyError) as e:
                 return self._err(str(e))
 

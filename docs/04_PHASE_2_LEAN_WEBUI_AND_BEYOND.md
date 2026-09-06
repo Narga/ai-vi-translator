@@ -83,7 +83,7 @@ Thanh Sidebar (Thu gọn được 260px -> 64px):
 | 5 | `POST /api/projects/{slug}/upload` | multipart `file` hoặc raw bytes + `?filename=&side=` | `{"filename": "<tên thực tế>", "chars": 32100}` | Không gate ext; va chạm → `_conflict`; raw bytes giữ nguyên bit |
 | 6 | `GET /api/chunks?project=S&file=F` | — (`&full=1` kèm full text mỗi chunk cho dual-pane) | `{"chunks": [{"i": 1, "chars": 16200, "tokens_est": 4050, "preview": "..."}]}` | Dùng chung `split_text`; tokens_est = `chars/4` |
 | 7 | `POST /api/translate` (SSE) | `{"project": "S", "file": "F", "provider": "gemini", "model": "gemini-2.5-flash", "prompt": "default_translation.txt", "extra_prompts": []}` | SSE: `event: chunk\ndata: {"i":1,"n":2,"text":"..."}` … cuối `event: done\ndata: {"chars": 30000}` hoặc `event: error\ndata: {"error": "..."}` | Tuần tự từng chunk, lỗi dừng ngay, không lưu dở dang |
-| 8 | `POST /api/save` | `{"project": "S", "file": "F", "content": "..."}` | `{"path": "results/ch01.md"}` | Ghi đè `results/`, cập nhật app.db |
+| 8 | `POST /api/save` | `{"project", "file", "content", "side"?}` | `{"path": "results/ch01.md"}` | `side` = `sources`\|`results` (mặc định `results`); sources→status `new`, results→`done`; ghi đè atomic |
 | 9 | `GET /api/prompts` | — | `{"prompts": ["default_translation.txt"]}` | Liệt kê `prompts/*.txt` |
 | 10 | `GET /api/prompts/{name}` | — | `{"name": "...", "content": "..."}` | Sanitize như filename |
 | 11 | `PUT /api/prompts/{name}` | `{"content": "..."}` | `{"ok": true}` | Lưu prompt |
@@ -114,6 +114,8 @@ Thanh Sidebar (Thu gọn được 260px -> 64px):
 | 31 | `GET /api/history?limit=` | — | `{"runs":[{project,file,provider,model,status,...}]}` | 3a: JOIN runs+files |
 | 32 | `POST /api/prompts/rename` | `{"old","new"}` | `{"filename"}` | 3a: chỉ `*.txt`, chặn trùng/traversal |
 | 33 | `DELETE /api/prompts/{name}` | — | `{"ok": true}` | 3a: default xóa được (tự tạo lại khi restart) |
+| 39 | `GET /api/docs` | — | `[{path,name,ext,dir}]` | Phase 4: root không đệ quy + `docs/` đệ quy; whitelist `.md/.txt/.html`; symlink thoát root bị bỏ qua |
+| 40 | `GET /api/docs/content?path=` | `path` tương đối | `{path,ext,content}` | Phase 4: 400 path xấu/sai ext; 403 ngoài whitelist/symlink thoát root; 404 không tồn tại; 413 vượt 2MB |
 
 Ví dụ SSE khi bấm **Gửi AI** (chế độ đơn file):
 ```text
@@ -154,7 +156,7 @@ Sau khi hoàn thành Phase 2 (+ các pha 2.5–3a+), người dùng:
 
 Nhằm giữ cho Phase 1 và Phase 2 tập trung tuyệt đối vào việc chạy ổn định, các tính năng mở rộng được phân kỳ thực hiện lần lượt (trạng thái cập nhật trong `docs/ROADMAP.md`):
 
-* **PHASE 3: TIỆN ÍCH FILE & GLOSSARY** — phần lớn đã xong ở 2.6/3a/3a+ (upload, rename, find/replace, merge, history, archive); còn lại: glossary UI, prompt profile, diff heuristic, preview, batch nâng cao → `docs/16_*`.
+* **PHASE 3: TIỆN ÍCH FILE & GLOSSARY** — phần lớn đã xong ở 2.6/3a/3a+ (upload, rename, find/replace, merge, history, archive); còn lại: glossary UI, diff heuristic, preview, batch nâng cao → `docs/16_*`. (Prompt profile đã gỡ.)
 * **PHASE 4: CÔNG CỤ EPUB & NÂNG CAO (KẾ THỪA SILABOOK)** — như cũ (EPUB 2 chiều, handoff tóm tắt).
 
 * **PHASE 5: ĐÓNG GÓI & PHÁT HÀNH**:

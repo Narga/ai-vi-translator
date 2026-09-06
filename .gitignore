@@ -13,6 +13,9 @@ node_modules/
 web/vendor/
 *.bundle.js
 *.min.js
+# vendor JS cho preview/docs — commit kèm (manifesto §9); đặt SAU *.min.js để override
+!web/vendor/
+!web/vendor/*.min.js
 dist/
 build/
 .cache/
