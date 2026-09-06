@@ -71,16 +71,23 @@ class GeminiClient:
 
                     resp.raise_for_status()
 
-                    data = resp.json()
-                    candidates = data.get("candidates", [])
+                    try:
+                        data = resp.json()
+                        if not isinstance(data, dict):
+                            raise ValueError("JSON response không phải object")
+                        candidates = data.get("candidates", [])
+                        first = candidates[0] if candidates else {}
+                        parts = first.get("content", {}).get("parts", []) if isinstance(first, dict) else []
+                        text = parts[0].get("text", "") if parts and isinstance(parts[0], dict) else ""
+                    except (AttributeError, KeyError, TypeError, ValueError) as e:
+                        raise ValueError(f"Cấu trúc response từ AI không hợp lệ ({type(e).__name__})")
                     if not candidates:
                         raise ValueError(
                             "AI không trả về kết quả nội dung (Có thể bị bộ lọc an toàn chặn)!"
                         )
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if not parts or "text" not in parts[0]:
-                        raise ValueError("Cấu trúc response từ AI không chứa trường text!")
-                    return parts[0]["text"]
+                    if not text or not text.strip():
+                        raise ValueError("AI trả về nội dung rỗng!")
+                    return text
 
             except (httpx.ConnectError, httpx.TimeoutException) as e:
                 same_key_tries += 1
@@ -100,4 +107,8 @@ class GeminiClient:
                         continue
                 raise RuntimeError(
                     f"❌ LỖI TỪ GEMINI (Mã HTTP {e.response.status_code}): {e.response.text}"
+                )
+            except httpx.RequestError as e:
+                raise ConnectionError(
+                    f"❌ LỖI MẠNG ({type(e).__name__})! Không thể hoàn tất request tới AI."
                 )

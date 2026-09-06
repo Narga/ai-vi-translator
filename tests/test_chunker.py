@@ -1,4 +1,45 @@
+import re
+
+import pytest
+
 from core.chunker import split_text
+
+
+def _norm(t: str) -> str:
+    # Contract chuẩn hóa (review §9.8): so sánh sau khi xóa MỌI whitespace,
+    # vì split rstrip/lstrip ở điểm cắt + join "\n\n" đều thêm/bớt whitespace.
+    return re.sub(r"\s+", "", t)
+
+
+@pytest.mark.parametrize("size", [10, 16000, 100000])
+@pytest.mark.parametrize("text", [
+    "ascii simple text " * 5000,
+    "Tiếng Việt có dấu ễ ộ ư đ. " * 2000,
+    "x" * 50000,
+    ("đoạn rất dài không ngắt " * 5000).replace(" ", ""),
+    "",
+    "   \n\t  ",
+])
+def test_chunks_within_limit_and_rejoin(text, size):
+    if not text.strip():
+        assert split_text(text, size) == []
+        return
+    chunks = split_text(text, size)
+    assert all(len(c) <= size for c in chunks)
+    assert _norm("\n\n".join(chunks)) == _norm(text)
+
+
+def test_max_chars_tiny_no_hang():
+    chunks = split_text("abcdef", 1)
+    assert all(len(c) <= 1 for c in chunks)
+    assert "".join(chunks) == "abcdef"
+
+
+def test_max_chars_invalid():
+    with pytest.raises(ValueError):
+        split_text("abc", 0)
+    with pytest.raises(ValueError):
+        split_text("abc", -5)
 
 
 def test_empty_and_whitespace():

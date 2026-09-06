@@ -3,6 +3,7 @@
 import asyncio
 
 import httpx
+import pytest
 from unittest.mock import AsyncMock, patch
 
 from core.key_rotator import KeyRotator
@@ -36,3 +37,17 @@ def test_openai_429_failover():
             return await c.translate_chunk("Hi")
 
     assert asyncio.run(go()) == "ok2"
+
+
+def test_openai_malformed_and_empty():
+    async def go(payload, exc_match):
+        c = OpenAICompatClient(KeyRotator(["K1"]), model="m", base_url="http://x")
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as p:
+            p.return_value = httpx.Response(
+                status_code=200, json=payload, request=httpx.Request("POST", "http://test"))
+            with pytest.raises(ValueError, match=exc_match):
+                await c.translate_chunk("Hi")
+
+    asyncio.run(go([1], "không hợp lệ"))
+    asyncio.run(go({"choices": [{"message": {"content": "   "}}]}, "rỗng"))
+    asyncio.run(go({"choices": []}, "rỗng"))

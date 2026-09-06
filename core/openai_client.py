@@ -50,8 +50,15 @@ class OpenAICompatClient:
                         )
 
                     resp.raise_for_status()
-                    data = resp.json()
-                    text = (data.get("choices") or [{}])[0].get("message", {}).get("content", "")
+                    try:
+                        data = resp.json()
+                        if not isinstance(data, dict):
+                            raise ValueError("JSON response không phải object")
+                        choices = data.get("choices")
+                        msg = (choices or [{}])[0].get("message", {}) or {}
+                        text = msg.get("content", "") if isinstance(msg, dict) else ""
+                    except (AttributeError, KeyError, TypeError, ValueError) as e:
+                        raise ValueError(f"Cấu trúc response từ AI không hợp lệ ({type(e).__name__})")
                     if not text or not text.strip():
                         raise ValueError("AI không trả về nội dung (response rỗng)!")
                     return text
@@ -72,4 +79,8 @@ class OpenAICompatClient:
                         continue
                 raise RuntimeError(
                     f"❌ LỖI TỪ OPENAI-COMPAT (Mã HTTP {e.response.status_code}): {e.response.text}"
+                )
+            except httpx.RequestError as e:
+                raise ConnectionError(
+                    f"❌ LỖI MẠNG ({type(e).__name__})! Không thể hoàn tất request tới AI."
                 )

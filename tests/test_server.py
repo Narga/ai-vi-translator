@@ -529,3 +529,61 @@ def test_project_create_info_and_cards(app):
         <= set(ps[slug])
     s, _ = call(app, "PUT", "/api/projects/../evil/info", {"title": "x"})
     assert s in (400, 404)
+
+
+def test_translate_single_saves_results(app):
+    import main as server
+    _seed(app)
+    s, b = call(app, "POST", "/api/translate",
+                {"project": "Kiem_Hiep", "file": "ch01.md",
+                 "provider_id": "gemini-default", "prompt": "default_translation.txt"})
+    assert s == 200 and "event: done" in b.decode()
+    s, b = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=ch01.md&side=results")
+    assert s == 200 and "DỊCH:" in json.loads(b)["content"]  # file thật tồn tại, đủ nội dung
+    con = server.get_db()
+    row = con.execute("SELECT status FROM files WHERE project_slug=? AND filename=?",
+                      ("Kiem_Hiep", "ch01.md")).fetchone()
+    con.close()
+    assert row[0] == "done"  # không còn "translating"
+
+
+def test_cancel_between_delay_no_output(app, monkeypatch):
+    import asyncio
+    import threading
+    import time
+    import main as server
+
+    _seed(app)
+
+    class SlowClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def translate_chunk(self, prompt, on_attempt=None, abort=None):
+            for _ in range(100):  # giả lập request dài, kiểm tra abort như _post_or_abort
+                if abort is not None and abort.is_set():
+                    from core.errors import TranslateCancelled
+                    raise TranslateCancelled("Đã hủy")
+                await asyncio.sleep(0.1)
+            return "XONG"
+
+    monkeypatch.setattr(server, "build_client", SlowClient)
+    done = {}
+
+    def run_tl():
+        s, b = call(app, "POST", "/api/translate",
+                    {"project": "Kiem_Hiep", "file": "ch01.md",
+                     "provider_id": "gemini-default", "prompt": "default_translation.txt"})
+        done["body"] = b.decode()
+
+    t = threading.Thread(target=run_tl, daemon=True)
+    t.start()
+    time.sleep(1.0)  # request đang bay -> cancel cắt giữa chừng
+    s, _ = call(app, "POST", "/api/translate/cancel")
+    assert s == 200
+    t.join(timeout=15)
+    assert "cancelled" in done.get("body", "")
+    s, b = call(app, "GET", "/api/projects/Kiem_Hiep/file?filename=ch01.md&side=results")
+    assert s == 404  # hủy trước khi ghi -> không file dở dang
+    s, _ = call(app, "GET", "/api/health")  # lock đã thả
+    assert s == 200

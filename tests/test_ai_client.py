@@ -71,3 +71,79 @@ def test_empty_candidates_safety_block():
                 await client.translate_chunk("Hello")
 
     asyncio.run(go())
+
+
+def test_malformed_shapes_map_to_value_error():
+    bad_payloads = [
+        [1, 2, 3],  # JSON non-object
+        {"candidates": "not-a-list"},
+        {"candidates": [{"content": {"parts": []}}]},
+        {"candidates": [{"content": {"parts": [{"text": "   "}]}}]},  # whitespace-only
+        {"candidates": [{"content": {"parts": ["raw-string"]}}]},
+    ]
+
+    async def go(payload):
+        client = GeminiClient(KeyRotator(["K1"]))
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = _resp(payload=payload)
+            with pytest.raises(ValueError):
+                await client.translate_chunk("Hello")
+
+    for p in bad_payloads:
+        asyncio.run(go(p))
+
+
+def test_500_retries_exact_budget_then_raises():
+    async def go():
+        client = GeminiClient(KeyRotator(["K1"]))
+        r500 = httpx.Response(status_code=500, text="err",
+                              request=httpx.Request("POST", "http://test"))
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.side_effect = [r500, _resp()]
+            out = await client.translate_chunk("Hello")
+            return out, mock_post.call_count
+
+    out, calls = asyncio.run(go())
+    assert out == "Bản dịch tiếng Việt" and calls == 2  # 1 lần đầu + 1 retry (budget=2)
+
+
+def test_400_series_stop_immediately():
+    async def go():
+        client = GeminiClient(KeyRotator(["K1", "K2"]))
+        r400 = httpx.Response(status_code=400, text="bad",
+                              request=httpx.Request("POST", "http://test"))
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.return_value = r400
+            with pytest.raises(RuntimeError):
+                await client.translate_chunk("Hello")
+            return mock_post.call_count
+
+    assert asyncio.run(go()) == 1
+
+
+def test_generic_request_error_maps_to_connection_error():
+    async def go():
+        client = GeminiClient(KeyRotator(["K1"]))
+        with patch("httpx.AsyncClient.post", side_effect=httpx.RemoteProtocolError("boom")):
+            with pytest.raises(ConnectionError, match="LỖI MẠNG"):
+                await client.translate_chunk("Hello")
+
+    asyncio.run(go())
+
+
+def test_error_messages_never_leak_key():
+    async def go():
+        key = "sk-SECRET-KEY-12345"
+        client = GeminiClient(KeyRotator([key]))
+        r500 = httpx.Response(status_code=500, text="err",
+                              request=httpx.Request("POST", "http://test"))
+        with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+            mock_post.side_effect = [r500, r500, r500]
+            try:
+                await client.translate_chunk("Hello")
+            except Exception as e:
+                assert key not in str(e)
+                return True
+        return False
+
+    assert asyncio.run(go())
