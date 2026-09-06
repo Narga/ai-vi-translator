@@ -37,6 +37,12 @@ class SafeFileHandler:
         self._migrate_translated(p)  # legacy translated/ -> results/
         return p
 
+    def get_side_dir(self, slug: str, side: str) -> Path:
+        """Thư mục sources|results của project (validate cả slug lẫn side)."""
+        if side not in ("sources", "results"):
+            raise ValueError(f"side phải là sources|results, nhận được: {side!r}")
+        return self._validate_path(self.get_project_dir(slug) / side)
+
     @staticmethod
     def _migrate_translated(proj_dir: Path) -> None:
         """Chuyển file từ translated/ cũ sang results/ (không đè file đã có)."""

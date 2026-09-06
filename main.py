@@ -18,7 +18,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from core.app_db import get_db, log_run
+from core.app_db import get_db, log_run, file_id as _file_id
 from core.chunker import split_text
 from core.config import AppConfig
 from core.errors import TranslateCancelled
@@ -103,18 +103,6 @@ def _persist_output(fh: SafeFileHandler, project: str, fname: str, content: str,
     fh.save_output(project, fname, content)
     _upsert_file(project, fname, len(content.encode("utf-8")), n_chunks, "done")
     log_run(provider_id, model, "ok", file_id=file_id)
-
-
-def _file_id(project: str, filename: str) -> int | None:
-    """id hàng files (cho runs.file_id) — None nếu chưa index."""
-    try:
-        con = get_db()
-        row = con.execute("SELECT id FROM files WHERE project_slug=? AND filename=?",
-                          (project, filename)).fetchone()
-        con.close()
-        return row[0] if row else None
-    except Exception:
-        return None
 
 
 def _delete_file_row(project: str, filename: str):
@@ -526,7 +514,7 @@ class Handler(BaseHTTPRequestHandler):
             # --- validation/sanitize (helper chung, không gate ext) ---
             try:
                 fh = SafeFileHandler()
-                target = fh.get_project_dir(slug) / side
+                target = fh.get_side_dir(slug, side)
                 # --- file operation (xb: không ghi đè, chống race) ---
                 from core.fileops import write_bytes_no_overwrite
                 actual = write_bytes_no_overwrite(target, fname, content)
@@ -623,7 +611,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("Pattern tạo ra tên không hợp lệ")
             try:
                 fh = SafeFileHandler()
-                target = fh.get_project_dir(slug) / side
+                target = fh.get_side_dir(slug, side)
             except ValueError as e:
                 return self._err(str(e))
             if _active_job and any(_job_blocks(slug, o) for o in olds):

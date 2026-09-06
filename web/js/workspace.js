@@ -52,6 +52,10 @@ if(_sel.size>1)t+=` | đã chọn ${_sel.size} tập tin.`;
 $('wFileInfo').textContent=t;}
 function wrapTog(){const off=$('tSrc').classList.toggle('nowrap');$('tOut').classList.toggle('nowrap',off);
 try{localStorage.setItem('ct_wrap',off?'0':'1');}catch(e){}}
+$('tOut').addEventListener('paste',e=>{  // chỉ chèn plain-text, chặn rác rich-text
+e.preventDefault();
+const text=(e.clipboardData||window.clipboardData).getData('text/plain');
+document.execCommand('insertText',false,text);});
 async function wsOpen(ef){const f=decodeURIComponent(ef),p=wsProj();if(!p)return;
 _wsStats='';
 try{const s=await fetch(`/api/projects/${encodeURIComponent(p)}/file?filename=${encodeURIComponent(f)}&side=sources`).then(J);

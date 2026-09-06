@@ -1,8 +1,12 @@
 """SQLite index tối thiểu: projects/files/runs. Không checkpoint chunk."""
 
+import contextlib
 import datetime
+import logging
 import sqlite3
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "workspace" / "app.db"
@@ -17,8 +21,33 @@ def get_db(db_path: Path = DB_PATH) -> sqlite3.Connection:
     for col in ("author", "description"):
         if col not in cols:
             con.execute(f"ALTER TABLE projects ADD COLUMN {col} TEXT DEFAULT ''")
+    con.execute("CREATE INDEX IF NOT EXISTS idx_runs_started ON runs(started_at)")
     con.commit()
     return con
+
+
+@contextlib.contextmanager
+def db(db_path: Path = DB_PATH):
+    """Context manager cho code mới: tự commit/close. Không rewrite hàng loạt code cũ."""
+    con = get_db(db_path)
+    try:
+        yield con
+        con.commit()
+    finally:
+        con.close()
+
+
+def file_id(project: str, filename: str, db_path: Path = DB_PATH) -> int | None:
+    # Policy: chỉ bắt sqlite3.Error (schema/lock/path sai) + warning có trace;
+    # KHÔNG nuốt mọi Exception — lỗi lập trình phải nổ to để thấy.
+    try:
+        with db() as con:
+            row = con.execute("SELECT id FROM files WHERE project_slug=? AND filename=?",
+                              (project, filename)).fetchone()
+        return row[0] if row else None
+    except sqlite3.Error:
+        logger.warning("Cannot resolve file_id for %s/%s", project, filename, exc_info=True)
+        return None
 
 
 def log_run(provider: str, model: str, status: str, error: str = "",

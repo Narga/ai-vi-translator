@@ -23,6 +23,8 @@ Tùy chọn host/port: `python3 main.py 127.0.0.1 8000`. Chỉ bind `127.0.0.1` 
 
 Tuyệt đối không chỉ refresh trình duyệt sau khi pull code — `index.html` thì tươi nhưng tiến trình Python vẫn chạy code cũ (bài học v2.6.0: bản dịch chui vào `translated/` đã xóa).
 
+> **Restart khi đang dịch:** process mới sạch hoàn toàn (lock trong RAM, không kế thừa); SSE cũ đứt ngay; output dở dang không bao giờ được ghi (atomic write); phiên đang chạy coi như hủy. Không test `execv` thật trong pytest — chỉ test `_restart_args()` trả đường dẫn tuyệt đối.
+
 ## 3. Sao lưu (backup thủ công, khi cần)
 
 ```bash

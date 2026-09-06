@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from core.ai_client import GeminiClient
-from core.app_db import log_run
+from core.app_db import file_id, log_run
 from core.chunker import split_text
 from core.config import AppConfig
 from core.file_handler import SafeFileHandler
@@ -25,7 +25,7 @@ def parse_args(argv=None) -> argparse.Namespace:
     ap.add_argument("--file")
     ap.add_argument("--provider", help="Provider id trong providers.json (mặc định: active_id)")
     ap.add_argument("--model", help="Model override (mặc định: default_model của provider)")
-    ap.add_argument("--prompt", default="default_translation.txt")
+    ap.add_argument("--prompt", default=None)  # None -> fallback cfg.default_prompt
     return ap.parse_args(argv)
 
 
@@ -105,9 +105,10 @@ async def main(argv=None) -> int:
         print("⚠️ CẢNH BÁO: File nguồn rỗng! Không có nội dung cần dịch.")
         return 0
 
+    prompt_file = args.prompt or cfg.get("default_prompt", "default_translation.txt")
     try:
         prompt_engine = PromptEngine()
-        prompt_engine.load_prompt(args.prompt)
+        prompt_engine.load_prompt(prompt_file)
     except FileNotFoundError as e:
         print(f"❌ LỖI: {e}")
         return 1
@@ -124,7 +125,7 @@ async def main(argv=None) -> int:
         if idx > 1 and delay > 0:
             await asyncio.sleep(delay)  # giãn request, tránh 429
         print(f"⏳ Đang gửi chunk {idx}/{total} ({len(chunk_text):,} ký tự)...", end="", flush=True)
-        prompt = prompt_engine.assemble_prompt(chunk_text, prompt_filename=args.prompt)
+        prompt = prompt_engine.assemble_prompt(chunk_text, prompt_filename=prompt_file)
         try:
             res = await ai_client.translate_chunk(prompt)
             out_chunks.append(res)
@@ -133,7 +134,8 @@ async def main(argv=None) -> int:
             print(f"\n🛑 LỖI: {e}")
             print("⚠️ CHƯƠNG TRÌNH ĐÃ DỪNG VÀ KHÔNG LƯU TRẠNG THÁI DỞ DANG.")
             print("👉 Bạn hãy kiểm tra lại kết nối / API key và chạy lại lệnh từ đầu.")
-            log_run(provider["id"], model, "error", str(e))
+            fid = file_id(args.project, args.file) if (args.project and args.file) else None
+            log_run(provider["id"], model, "error", str(e), file_id=fid)
             return 1
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
