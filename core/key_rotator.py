@@ -5,7 +5,7 @@ from typing import List, Optional
 
 class KeyRotator:
     def __init__(self, keys: List[str]):
-        self.keys = [k.strip() for k in keys if k.strip()]
+        self.keys = list(dict.fromkeys(k.strip() for k in keys if k.strip()))
         self.current_idx = 0
         self._tried_in_chunk = set()
 
@@ -18,7 +18,7 @@ class KeyRotator:
 
     def get_current_key(self) -> str:
         if not self.keys:
-            raise ValueError("Danh sách API Key đang trống! Vui lòng nạp key vào config/keys.json.")
+            raise ValueError("Danh sách API Key đang trống! Vui lòng nạp key vào config/providers.json.")
         return self.keys[self.current_idx]
 
     def try_next_key(self) -> Optional[str]:

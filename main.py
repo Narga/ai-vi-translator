@@ -9,6 +9,7 @@ CLI (run.py) chỉ là tính năng phụ.
 import asyncio
 import datetime
 import json
+import logging
 import os
 import re
 import sys
@@ -25,6 +26,8 @@ from core.file_handler import SafeFileHandler, atomic_write_text
 from core.prompt_engine import PromptEngine
 from core.provider_manager import AIProviderManager
 from run import build_client
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 WEB_DIR = PROJECT_ROOT / "web"
@@ -967,8 +970,12 @@ class Handler(BaseHTTPRequestHandler):
 
         def emit(event, payload):
             line = f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-            self.wfile.write(line.encode("utf-8"))
-            self.wfile.flush()
+            try:
+                self.wfile.write(line.encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError) as e:
+                logger.debug("emit(): kết nối đứt (%s), dừng lặng lẽ", type(e).__name__)
+                raise TranslateCancelled("Client đã ngắt kết nối giữa phiên")
 
         try:
             client = build_client(provider, model, keys, cfg["timeout_seconds"])
@@ -1048,8 +1055,12 @@ class Handler(BaseHTTPRequestHandler):
 
         def emit(event, payload):
             line = f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-            self.wfile.write(line.encode("utf-8"))
-            self.wfile.flush()
+            try:
+                self.wfile.write(line.encode("utf-8"))
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError) as e:
+                logger.debug("emit(): kết nối đứt (%s), dừng lặng lẽ", type(e).__name__)
+                raise TranslateCancelled("Client đã ngắt kết nối giữa phiên")
 
         try:
             client = build_client(provider, model, keys, cfg["timeout_seconds"])

@@ -54,7 +54,8 @@ class PromptEngine:
         return clean_new
 
     def load_prompt(self, prompt_filename: str = "default_translation.txt") -> str:
-        file_path = self.prompts_dir / prompt_filename
+        name = self._check_name(prompt_filename)
+        file_path = self.prompts_dir / name
         if not file_path.exists():
             raise FileNotFoundError(f"Không tìm thấy file prompt: {file_path}")
         return file_path.read_text(encoding="utf-8")

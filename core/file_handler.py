@@ -1,9 +1,12 @@
 """Đọc/ghi file an toàn: sanitize tên + relative_to() chống path traversal."""
 
 import shutil
+import zipfile
 from pathlib import Path
 
 from core.fileops import atomic_write_text, guard_name  # helper dùng chung (R2#archi)
+
+_TESTZIP_LIMIT = 100 * 1024 * 1024  # 100MB: dưới thì testzip, trên chỉ check size
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_WORKSPACE = PROJECT_ROOT / "workspace"
@@ -117,5 +120,11 @@ class SafeFileHandler:
         out_dir.mkdir(parents=True, exist_ok=True)
         zip_path = Path(shutil.make_archive(str(out_dir / clean), "zip",
                                             root_dir=str(d.parent), base_dir=clean))
+        if not zip_path.is_file() or zip_path.stat().st_size == 0:
+            raise OSError(f"Archive lỗi/không tạo được: {zip_path}")
+        if zip_path.stat().st_size <= _TESTZIP_LIMIT:
+            bad = zipfile.ZipFile(zip_path).testzip()
+            if bad is not None:
+                raise OSError(f"Archive hỏng tại entry: {bad}")
         shutil.rmtree(d)
         return zip_path

@@ -36,6 +36,8 @@ def _find_best_cut(text: str, min_pos: int, max_pos: int, target_pos: int) -> in
 
 
 def split_text(text: str, max_chars: int = 16000) -> List[str]:
+    if max_chars is None or max_chars <= 0:
+        raise ValueError(f"max_chunk_chars phải lớn hơn 0, nhận được: {max_chars!r}")
     if not text or not text.strip():
         return []
 
