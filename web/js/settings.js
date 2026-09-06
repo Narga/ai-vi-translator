@@ -5,8 +5,13 @@ catch(e){$('srvInfo').textContent='mất kết nối?';}
 $('sMax').value=s.max_chunk_chars;$('sDelay').value=s.api_delay_seconds;$('sTimeout').value=s.timeout_seconds;
 $('sThink').innerHTML=s.thinking_levels.map(l=>`<option>${l}</option>`).join('');
 const pv=await fetch('/api/settings/providers').then(J);
-$('wProv').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}</option>`).join('');
-$('sProvSel').innerHTML=pv.providers.map(p=>`<option value="${p.id}" ${p.id===pv.active_id?'selected':''}>${p.name}${p.id===pv.active_id?' ★':''}</option>`).join('');
+function safeHref(u){
+  if(typeof u!=="string")return "#";
+  const t=u.trim();
+  return /^https?:\/\//i.test(t)?t:"#";
+}
+$('wProv').innerHTML=pv.providers.map(p=>`<option value="${esc(p.id)}" ${p.id===pv.active_id?'selected':''}>${esc(p.name)}</option>`).join('');
+$('sProvSel').innerHTML=pv.providers.map(p=>`<option value="${esc(p.id)}" ${p.id===pv.active_id?'selected':''}>${esc(p.name)}${p.id===pv.active_id?' ★':''}</option>`).join('');
 $('sActive').textContent='active: '+pv.active_id;window._PV=pv;
 await fillModels();
 const pr=await fetch('/api/prompts').then(J);
@@ -15,7 +20,7 @@ const prSorted=pr.prompts.slice().sort((a,b)=>(a===dp?-1:0)-(b===dp?-1:0)||a.loc
 const prOpt=prSorted.map(p=>`<option value="${esc(p)}">${p===dp?'✓ ':''}${esc(p)}</option>`).join('');
 $('wPrompt').innerHTML=prOpt;
 if(s.default_prompt_missing)toast('Prompt mặc định '+dp+' không còn file!',true);
-$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${p}"> +${p}</label>`).join(' ');
+$('wExtra').innerHTML=pr.prompts.map(p=>`<label><input type="checkbox" value="${esc(p)}"> +${esc(p)}</label>`).join(' ');
 $('prList').innerHTML=prOpt;updExtraEst();}
 const _plenCache={};
 async function plen(name){if(_plenCache[name]==null){
@@ -81,9 +86,12 @@ $('mIn').textContent=f(d.input_limit);$('mOut').textContent=f(d.output_limit);
 $('mCtx').textContent=f(d.context_length);
 const r=d.rate_limits||{};const parts=[];
 if(r.usage!=null||r.limit!=null)parts.push(`usage ${r.usage??'—'}/${r.limit??'—'}`);
-if(d.quota_url)parts.push(`<a href="${d.quota_url}" target="_blank" rel="noopener">quota↗</a>`);
+if(d.quota_url){const h=safeHref(d.quota_url);
+parts.push(h==="#"?`quota (link bị chặn)`:`<a href="${esc(h)}" target="_blank" rel="noopener">quota↗</a>`);}
 $('mRate').innerHTML=parts.join(' · ')||'—';
-if(d.docs_url){$('mDocs').style.display='';$('mDocs').href=d.docs_url;}else $('mDocs').style.display='none';}
+if(d.docs_url){const h=safeHref(d.docs_url);
+if(h==="#"){$('mDocs').style.display='none';}
+else{$('mDocs').style.display='';$('mDocs').href=h;}}else $('mDocs').style.display='none';}
 async function saveProvider(){const p=curProv();const isG=p.type==='gemini';
 const lines=$('sKeys').value.split('\n').map(s=>s.trim()).filter(Boolean);
 const body={provider_id:p.id,selected_model:selOrCustom()||undefined,thinking:$('sThink').value,docs_url:$('sDocs').value.trim()};
